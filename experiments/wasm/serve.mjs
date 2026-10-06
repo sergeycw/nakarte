@@ -9,6 +9,8 @@ const delayMs = Number(process.env.DELAY_MS ?? 0);
 const crossOriginIsolated = process.env.COI === '1';
 const runtimeProxyPrefix = '/cjrt/';
 const runtimeOrigin = 'https://cjrtnc.leaningtech.com/4.3/';
+const redirectPrefix = '/redirect/';
+const redirectOrigin = process.env.REDIRECT_ORIGIN ?? 'http://127.0.0.1:8768';
 const mounts = [
     ['/segments4/', join(here, '../../brouter/segments4')],
     ['/', here],
@@ -64,6 +66,14 @@ createServer(async (req, res) => {
         if (url.searchParams.has('reset')) {
             Object.assign(stats, {requests: 0, bytes: 0, byPath: {}});
         }
+        return;
+    }
+
+    if (url.pathname.startsWith(redirectPrefix)) {
+        res.statusCode = 302;
+        res.setHeader('Location', redirectOrigin + url.pathname.slice(redirectPrefix.length - 1));
+        res.end();
+        console.log(`302 ${req.method} ${url.pathname} ${req.headers.range ?? ''}`);
         return;
     }
 
