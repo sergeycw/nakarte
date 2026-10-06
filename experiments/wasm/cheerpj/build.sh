@@ -6,7 +6,7 @@ container=${BROUTER_CONTAINER:-nakarte-brouter}
 
 mkdir -p lib profiles classes
 docker cp "$container:/app/brouter.jar" lib/brouter.jar
-for name in lookups.dat hiking-mountain.brf trekking.brf; do
+for name in lookups.dat hiking-mountain.brf trekking.brf fastbike.brf gravel.brf mtb.brf; do
     docker cp "$container:/profiles2/$name" "profiles/$name"
 done
 

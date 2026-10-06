@@ -20,6 +20,8 @@ const config = {
     urlsBypassCORSProxy: [new RegExp('^https://pkk\\.rosreestr\\.ru/', 'u')],
     elevationTileUrl: 'https://tiles.nakarte.me/elevation/{z}/{x}/{y}',
     routingServer: 'http://localhost:17777',
+    routingEngine: 'server',
+    routingTilesPath: '/brouter-wasm/segments4/',
     routingProfile: 'hiking-mountain',
     ...secrets,
 };

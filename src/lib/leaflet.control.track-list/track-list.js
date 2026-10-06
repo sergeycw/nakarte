@@ -32,7 +32,7 @@ import {parseNktkSequence, arcUnit} from './lib/parsers/nktk';
 import * as coordFormats from '~/lib/leaflet.control.coordinates/formats';
 import {polygonArea} from '~/lib/polygon-area';
 import {polylineHasSelfIntersections} from '~/lib/polyline-selfintersects';
-import {activities, getActivity, fetchRoute, isServerReachable} from '~/lib/brouter';
+import {activities, getActivity, fetchRoute, isServerReachable, warmUpRouting} from '~/lib/brouter';
 import safeLocalStorage from '~/lib/safe-localstorage';
 
 const TRACKLIST_TRACK_COLORS = ['#77f', '#f95', '#0ff', '#f77', '#f7f', '#ee5'];
@@ -311,6 +311,9 @@ L.Control.TrackList = L.Control.extend({
             ]);
             if (this.routingAvailable) {
                 this.checkRoutingServer();
+                if (this.routingActivityId()) {
+                    warmUpRouting();
+                }
             }
             this._markerLayer = new L.Layer.CanvasMarkers(null, {
                 print: true,
@@ -423,6 +426,7 @@ L.Control.TrackList = L.Control.extend({
         onRoutingActivityChanged: function(activityId) {
             if (activityId) {
                 safeLocalStorage.setItem(ROUTING_ACTIVITY_STORAGE_KEY, activityId);
+                warmUpRouting();
             } else {
                 safeLocalStorage.removeItem(ROUTING_ACTIVITY_STORAGE_KEY);
             }
