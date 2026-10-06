@@ -1,6 +1,6 @@
 # nakarte: локальный форк с автопрокладкой
 
-Форк [wladich/nakarte](https://github.com/wladich/nakarte) (MIT). Добавлена прокладка маршрута по дорогам и тропам через self-hosted BRouter. Работает только локально, наружу не хостится.
+Форк [wladich/nakarte](https://github.com/wladich/nakarte) (MIT). Добавлена прокладка маршрута по дорогам и тропам через BRouter. Сейчас работает локально. Направление — публичный клон на Cloudflare, где маршрут считается в браузере (см. «План развития»).
 
 ## Запуск
 
@@ -72,7 +72,7 @@ Undo/redo (`leaflet.polyline-edit`):
 
 ### Главный трек: маршрут считается в браузере
 
-Цель: `fetchRoute` возвращает тот же результат, но считает маршрут в браузере, а сервер только раздаёт статику (jar или wasm, профили, тайлы `.rd5`). Только так у PR по issue #10 появляется шанс: автору не придётся держать сервер-роутер.
+Цель: `fetchRoute` возвращает тот же результат, но считает маршрут в браузере, а сервер только раздаёт статику (jar или wasm, профили, тайлы `.rd5`). Так клон можно хостить без сервера-роутера. Тот же довод снимает возражение автора по issue #10, но PR в апстрим теперь опционален.
 
 Документы трека лежат в ветке `exp/brouter-wasm`, папка `experiments/wasm/`:
 - `HANDOFF.md` — состояние, подвохи, следующий шаг. Читать первым, если продолжаешь трек.
@@ -85,7 +85,7 @@ Undo/redo (`leaflet.polyline-edit`):
 - Скорость: 10 км — 0.3–0.55 с на прогретом движке, сервер 3–4 раза быстрее.
 - Тайлы CheerpJ сам читает через HTTP Range.
 - Слабые места: холодный старт ≈5–6 с, 0.6–0.8 ГБ RSS на вкладку, бесплатная лицензия работает только с их CDN.
-- Шаг 4 (интеграция в nakarte за флагом `config.routingEngine`) ждёт решения по отчёту.
+- Шаг 4 сделан: `config.routingEngine: 'browser'` считает маршрут в nakarte через `lib/brouter/browser-engine.js`, по умолчанию `'server'`. Движок стартует, когда выбрана активность. Запросы идут в очередь FIFO.
 
 Варианты движка. Цена — грубая оценка, риск — то, что может убить вариант.
 
@@ -104,11 +104,38 @@ Undo/redo (`leaflet.polyline-edit`):
 Не существует: OSRM в Wasm, pgRouting в PGlite, современный GraphHopper в браузере.
 
 Следующие шаги трека:
-- [ ] Ответ пользователя по `REPORT.md`: шаг 4 на CheerpJ или сначала спайк альтернативы.
-- [ ] Шаг 4: CheerpJ за флагом `config.routingEngine`, контракт `fetchRoute` прежний. План в `HANDOFF.md`.
-- [ ] Спайк BeeRouter → `wasmJs`: собрать, прогнать 6 эталонов из `experiments/wasm/routes.json`, сравнить с CheerpJ по скорости, размеру и памяти.
-- [ ] Проверка в Firefox, Safari и на телефоне.
-- [ ] Раздача тайлов для апстрима: Range, CORS с `Content-Range`, кто хостит `.rd5`.
+- [x] Ответ пользователя по `REPORT.md`: шаг 4 на CheerpJ.
+- [x] Шаг 4: CheerpJ за флагом `config.routingEngine`, контракт `fetchRoute` прежний.
+- [x] Когда запускать движок: при выборе активности, не при загрузке страницы.
+
+### Публичный клон на Cloudflare
+
+Решение 2026-10-06: свой клон nakarte на своём домене, а не только PR в апстрим. Домен наш, поэтому раздачу тайлов настраиваем сами.
+
+- [x] Проверить авторские бэкенды `*.nakarte.me` с чужого домена (2026-10-06, `Origin`/`Referer` фейкового клона):
+  - пускают: `elevation` и `tracks` (отражают любой `Origin` с `credentials`), `tiles.nakarte.me` и `geocachingSu` (`*`);
+  - не пускает: `proxy.nakarte.me` рвёт соединение без `Referer: https://nakarte.me/`, даже с localhost. Через него идут импорт треков (Strava, Garmin, Wikiloc, OSM и др.), Bing, mapy.cz, поиск по ссылкам, растеризация для печати;
+  - `mapillary.nakarte.me` без CORS: картинкой работает, в canvas нет.
+- [x] Свой CORS-прокси вместо `proxy.nakarte.me`: `workers/cors-proxy` (Cloudflare Worker), повторяет авторский 1:1 — `/https/host/path`, проверка `Origin`/`Referer` по `ALLOWED_ORIGINS`, `Location` переписывается в форму прокси (на этом держатся короткие ссылки и Strava через `responseURL`), `Content-Disposition` наружу, `/wikimapia/` → `http://wikimapia.org/`. `/mapy/*` не перенесён: у автора уже 410. Локально: `wrangler dev` на 8787, `CORSProxyUrl` в `src/secrets.js`.
+- [ ] Деплой прокси: `wrangler deploy` из своего аккаунта, домен клона в `ALLOWED_ORIGINS`, `CORSProxyUrl` в конфиге клона.
+- [x] `elevation` и `tracks` остаются авторскими (решение 2026-10-06): работают с чужого домена, ссылки на треки живут в его хранилище.
+- [x] Телеметрия: `config.eventsLogUrl`, пустое значение выключает `logEvent`. В клоне также пустой `sentryDSN`, иначе Sentry шлёт на DSN из `secrets.js`. `wikimapiaTilesBaseUrl` в клоне переопределить на свой прокси.
+- [ ] Хостинг сайта: Cloudflare Pages, свой домен.
+- [ ] Тайлы `segments4` в R2, отдаются на том же домене по `/tiles/*` через Worker. Тогда не нужны ни CORS, ни редирект. Код готов и проверен локально: `workers/tiles` (Range из R2, пустой `storageconfig.txt`), `config.routingTilesPath`, dev-сервер проксирует `/tiles` на `wrangler dev` (8788), тайлы в локальный R2 — `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file … --local`. Осталось: бакет и деплой.
+  - Почему на том же домене: `/app/` в CheerpJ читает только с домена страницы ([docs](https://cheerpj.com/docs/guides/filesystem.html)). Спайк 2026-10-06: редирект 302 с `/app/...` на другой домен с CORS тоже работает (эталон 2083 м, 178 точек), но это лишний запрос на каждое чтение.
+  - Почему не brouter.de напрямую: Range он отдаёт, а CORS нет (нет `Access-Control-Allow-Origin`, `OPTIONS` → 405, проверено 2026-10-06). Просить их не вариант.
+  - Объём: весь мир — 1142 тайла, 10.0 ГБ.
+  - Цена R2: egress бесплатный, 10 ГБ хранения и 10 млн GetObject в месяц входят в free tier, дальше $0.015/ГБ-мес и $0.36/млн ([прайс](https://developers.cloudflare.com/r2/pricing/)). Маршрут ≈ 40 Range-чтений, то есть ≈ 250 тыс. маршрутов в месяц бесплатно.
+  - Запасной вариант: Hetzner CX23 за €4.49/мес (40 ГБ диска, 20 ТБ трафика) с nginx, но один регион и сопровождение своё.
+- [x] Статика движка в сборке: production-сборка копирует jar и профили из `experiments/wasm/cheerpj/` в `build/brouter-wasm/` (2.4 МБ). Подвох: файлы появляются только после `build.sh`, которому нужен контейнер BRouter; без них сборка пройдёт молча (`noErrorOnMissing`).
+- [x] Синхронизация тайлов: `scripts/brouter-tiles-sync.mjs` + `.github/workflows/brouter-tiles-sync.yml` (понедельник 04:00 UTC и вручную с `only`). Сверяет индекс brouter.de (дата + размер) с `manifest.json` в бакете, качает изменившиеся тайлы по одному (4 параллельно), заливает через `wrangler r2 object put`. Падает, если на brouter.de сменился `lookups.dat`: новые тайлы со старым `lookups.dat` движка ломают роутинг. Секреты: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). Подвохи: по расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.
+- [ ] В клоне `routingEngine: 'browser'` по умолчанию. Серверный режим остаётся для локальной разработки.
+
+Опционально, отложено:
+- PR в апстрим по issue #10.
+- Шаг 4, хвосты: undo/redo и сохранение в режиме `'browser'` не проверены; уведомление «BRouter is not running, start it with yarn local» в этом режиме неверно.
+- Спайк BeeRouter → `wasmJs`: собрать, прогнать 6 эталонов из `experiments/wasm/routes.json`, сравнить с CheerpJ по скорости, размеру и памяти.
+- Проверка в Firefox, Safari и на телефоне.
 
 ### На потом
 
@@ -129,4 +156,3 @@ Undo/redo (`leaflet.polyline-edit`):
 Сопровождение:
 - Тесты karma для `lib/brouter` и для `routeBetween` с устаревшими ответами в обоих направлениях рисования.
 - Регулярный ребейз на `wladich/nakarte`.
-- PR в апстрим по issue #10, когда главный трек даст движок без сервера.
