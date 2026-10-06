@@ -32,8 +32,11 @@ import {parseNktkSequence} from './lib/parsers/nktk';
 import * as coordFormats from '~/lib/leaflet.control.coordinates/formats';
 import {polygonArea} from '~/lib/polygon-area';
 import {polylineHasSelfIntersections} from '~/lib/polyline-selfintersects';
+import {activities, getActivity, fetchRoute, isServerReachable} from '~/lib/brouter';
+import safeLocalStorage from '~/lib/safe-localstorage';
 
 const TRACKLIST_TRACK_COLORS = ['#77f', '#f95', '#0ff', '#f77', '#f7f', '#ee5'];
+const ROUTING_ACTIVITY_STORAGE_KEY = 'trackListRoutingActivity';
 
 const TrackSegment = L.MeasuredLine.extend({
     includes: L.Polyline.EditMixin,
@@ -157,6 +160,17 @@ L.Control.TrackList = L.Control.extend({
             this.isPlacingPoint = false;
             this.trackAddingPoint = ko.observable(null);
             this.trackAddingSegment = ko.observable(null);
+            this.routingAvailable = Boolean(config.routingServer);
+            this.routingActivityId = ko.observable(
+                getActivity(safeLocalStorage.getItem(ROUTING_ACTIVITY_STORAGE_KEY))?.id ?? null
+            );
+            this.routingActivityId.subscribe(this.onRoutingActivityChanged, this);
+            this.routingServerReachable = ko.observable(true);
+            this.routingButtonTitle = ko.pureComputed(() => this.formatRoutingButtonTitle());
+            this.router = {
+                activityId: () => this.routingActivityId(),
+                route: this.routeSegment.bind(this),
+            };
         },
 
         onAdd: function(map) {
@@ -181,6 +195,11 @@ L.Control.TrackList = L.Control.extend({
                 </div>
                 <div class="inputs-row" data-bind="visible: !readingFiles()">
                     <a class="button add-track" title="New track" data-bind="click: onButtonNewTrackClicked"></a
+                    ><a class="button routing-toggle" data-bind="
+                        visible: routingAvailable,
+                        click: showRoutingMenu,
+                        css: {active: routingActivityId, unavailable: routingActivityId() && !routingServerReachable()},
+                        attr: {title: routingButtonTitle}"></a
                     ><a class="button open-file" title="Open file" data-bind="click: loadFilesFromDisk"></a
                     ><input type="text" class="input-url" placeholder="Track URL"
                         data-bind="textInput: url, event: {keypress: onEnterPressedInInput, contextmenu: defaultEventHandle, mousemove: defaultEventHandle}"
@@ -250,6 +269,21 @@ L.Control.TrackList = L.Control.extend({
                     {text: 'Delete hidden tracks', callback: this.deleteHiddenTracks.bind(this)}
                 ]
             );
+            this.routingMenu = new Contextmenu([
+                {text: 'Routing', header: true},
+                () => this.makeRoutingMenuItem(null, 'Off: straight lines'),
+                ...activities.map((activity) => () => this.makeRoutingMenuItem(activity.id, activity.title)),
+                '-',
+                () => ({
+                    text: this.routingServerReachable()
+                        ? 'Alt+click draws a straight segment'
+                        : 'BRouter is not running, start it with <b>yarn local</b>',
+                    disabled: true,
+                }),
+            ]);
+            if (this.routingAvailable) {
+                this.checkRoutingServer();
+            }
             this._markerLayer = new L.Layer.CanvasMarkers(null, {
                 print: true,
                 scaleDependent: true,
@@ -332,6 +366,58 @@ L.Control.TrackList = L.Control.extend({
                 name = 'New track';
             }
             this.addTrackAndEdit(name);
+        },
+
+        formatRoutingButtonTitle: function() {
+            const activity = getActivity(this.routingActivityId());
+            if (!activity) {
+                return 'Routing is off: lines are straight';
+            }
+            if (!this.routingServerReachable()) {
+                return `Routing: ${activity.title}. BRouter is not running`;
+            }
+            return `Routing: ${activity.title}`;
+        },
+
+        makeRoutingMenuItem: function(activityId, title) {
+            const mark = this.routingActivityId() === activityId ? '&#10003;' : '';
+            return {
+                text: `<span class="routing-menu-check">${mark}</span>${title}`,
+                callback: () => this.routingActivityId(activityId),
+            };
+        },
+
+        showRoutingMenu: async function(_, e) {
+            await this.checkRoutingServer();
+            this.routingMenu.show(e);
+        },
+
+        onRoutingActivityChanged: function(activityId) {
+            if (activityId) {
+                safeLocalStorage.setItem(ROUTING_ACTIVITY_STORAGE_KEY, activityId);
+            } else {
+                safeLocalStorage.removeItem(ROUTING_ACTIVITY_STORAGE_KEY);
+            }
+        },
+
+        checkRoutingServer: async function() {
+            this.routingServerReachable(await isServerReachable());
+        },
+
+        routeSegment: async function(from, to, activityId) {
+            try {
+                const nodes = await fetchRoute(from, to, activityId);
+                this.routingServerReachable(true);
+                return nodes;
+            } catch (e) {
+                if (!e.serverUnreachable) {
+                    notify(`Routing failed: ${e.message}`);
+                } else if (this.routingServerReachable()) {
+                    this.routingServerReachable(false);
+                    notify('BRouter is not running, start it with <b>yarn local</b>. Lines stay straight until then.');
+                }
+                throw e;
+            }
         },
 
         addSegmentAndEdit: function(track) {
@@ -1004,6 +1090,7 @@ L.Control.TrackList = L.Control.extend({
                 }
             );
             polyline._parentTrack = track;
+            polyline.router = this.router;
             polyline.setMeasureTicksVisible(track.measureTicksShown());
             polyline.on('click', this.onTrackSegmentClick, this);
             polyline.on('nodeschanged', this.onTrackSegmentNodesChanged.bind(this, track, polyline));
