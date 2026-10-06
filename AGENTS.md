@@ -74,11 +74,18 @@ Undo/redo (`leaflet.polyline-edit`):
 
 Цель: `fetchRoute` возвращает тот же результат, но считает маршрут в браузере, а сервер только раздаёт статику (jar или wasm, профили, тайлы `.rd5`). Так клон можно хостить без сервера-роутера. Тот же довод снимает возражение автора по issue #10, но PR в апстрим теперь опционален.
 
-Документы трека лежат в ветке `exp/brouter-wasm`, папка `experiments/wasm/`:
-- `HANDOFF.md` — состояние, подвохи, следующий шаг. Читать первым, если продолжаешь трек.
-- `REPORT.md` — замеры CheerpJ против сервера.
-- `TEAVM-AUDIT.md` — разбор BRouter под TeaVM по коду.
-- `ALTERNATIVES.md` — остальные варианты со ссылками на первоисточники.
+Код эксперимента в `experiments/wasm/`: `routes.json` и `baseline/` — 3 эталонных маршрута × 2 профиля с серверного BRouter; `serve.mjs` — стенд со статикой, Range, `/__stats`, прокси рантайма `/cjrt/` и редиректом `/redirect/`; `cheerpj/build.sh` достаёт jar и профили из контейнера и собирает `WasmRouter` (повторяет `RouteServer` без сокетов) и патч `NodesCache`; `cheerpj/index.html` — стенд замеров (`fs=str|app`, `repeat`, `only`, `rt=proxy`). Исходники BRouter для патчей — ревизия `29898106` из `github.com/abrensch/brouter`.
+
+Подвохи CheerpJ, проверенные на практике (в документации их нет):
+- В `/app/` нет каталогов: `stat` делается запросом `Range: bytes=0-0`, размер берётся из `Content-Range`, `isDirectory()` всегда `false`. `NodesCache` падает с `segment directory ... does not exist`, отсюда патч. Отрицательный `stat` не кешируется, поэтому в патче проверка префикса `/app/` стоит до `isDirectory()`, иначе ~6 лишних запросов на маршрут.
+- `/app/` читает только с origin страницы. Редирект 302 на другой origin с CORS работает, но нужен `Access-Control-Expose-Headers: Content-Range`.
+- Сервер обязан отвечать на Range с `206` и `Content-Range`. Статика Cloudflare Pages Range игнорирует, поэтому есть `functions/brouter-wasm`.
+- `StorageConfigHelper` на каждый маршрут читает `<segmentDir>/storageconfig.txt`: отдавать пустой файл, чтобы не было 404.
+- На страницу разрешён один library-поток: второй `cheerpjRunLibrary` бросает `Only one library thread supported`. Одна инициализация на страницу, запросы в очередь.
+- `/str/` плоская: `cheerpOSAddStringFile('/str/a/b')` Java не находит, `/str/b` находит.
+- JDK (`11/lib/modules`, 43 МБ кусками через Range) грузится из cross-origin iframe `c.html`: эти запросы не видны ни CDP страницы, ни Claude in Chrome. Для учёта байтов — `rt=proxy` стенда. `performance.measureUserAgentSpecificMemory()` работает только с `COI=1` и `rt=proxy` и видит лишь JS-кучу, память мерить по RSS процесса.
+- В фоновой вкладке rAF не тикает: блокировку главного потока мерить через `MessageChannel`-пинг.
+- Лицензия Community: рантайм только с `cjrtnc.leaningtech.com`, нужно указать авторство.
 
 Состояние на 2026-10-06:
 - Прототип на CheerpJ 4.3 считает 6 эталонных маршрутов, длина и число точек совпадают с сервером в точности.
@@ -104,7 +111,7 @@ Undo/redo (`leaflet.polyline-edit`):
 Не существует: OSRM в Wasm, pgRouting в PGlite, современный GraphHopper в браузере.
 
 Следующие шаги трека:
-- [x] Ответ пользователя по `REPORT.md`: шаг 4 на CheerpJ.
+- [x] Решение после замеров: шаг 4 на CheerpJ.
 - [x] Шаг 4: CheerpJ за флагом `config.routingEngine`, контракт `fetchRoute` прежний.
 - [x] Когда запускать движок: при выборе активности, не при загрузке страницы.
 
