@@ -280,6 +280,7 @@ L.Control.TrackList = L.Control.extend({
                         : 'BRouter is not running, start it with <b>yarn local</b>',
                     disabled: true,
                 }),
+                {text: 'Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z: undo, redo', disabled: true},
             ]);
             if (this.routingAvailable) {
                 this.checkRoutingServer();
