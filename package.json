@@ -4,6 +4,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "start": "cross-env NODE_ENV=development webpack serve --open --config webpack/webpack.config.js",
+    "local": "docker compose up -d && cross-env NODE_ENV=development webpack serve --config webpack/webpack.config.js --port 8765",
     "lint:code": "cross-env NODE_ENV=production eslint --ext js .",
     "lint:style": "stylelint '**/*.css'",
     "lint": "npm run lint:code && npm run lint:style",
