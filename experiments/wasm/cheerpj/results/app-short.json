@@ -1,0 +1,81 @@
+{
+  "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "query": "fs=app&repeat=3&only=short",
+  "runs": [
+    {
+      "kind": "cold",
+      "url": "http://127.0.0.1:8767/cheerpj/?fs=app&repeat=3&only=short",
+      "wallMs": 7527,
+      "peakRendererRssMb": 460,
+      "network": {
+        "other": {
+          "requests": 34,
+          "transferBytes": 9175,
+          "fromCache": 0
+        },
+        "runtime": {
+          "requests": 7,
+          "transferBytes": 1490146,
+          "fromCache": 0
+        },
+        "jar": {
+          "requests": 9,
+          "transferBytes": 784707,
+          "fromCache": 0
+        },
+        "profiles": {
+          "requests": 6,
+          "transferBytes": 80384,
+          "fromCache": 0
+        },
+        "tiles": {
+          "requests": 17,
+          "transferBytes": 1913217,
+          "fromCache": 0
+        }
+      },
+      "bench": {
+        "fsMode": "app",
+        "repeat": 3,
+        "timings": {
+          "cheerpjInit": 973,
+          "cheerpjRunLibrary": 2971,
+          "loadClass": 63
+        },
+        "routes": [
+          {
+            "route": "short",
+            "profile": "hiking-mountain",
+            "lengthM": 2083,
+            "baselineM": 2083,
+            "deltaPct": 0,
+            "points": 178,
+            "baselinePoints": 178,
+            "timesMs": [
+              1675,
+              229,
+              156
+            ]
+          },
+          {
+            "route": "short",
+            "profile": "trekking",
+            "lengthM": 6050,
+            "baselineM": 6050,
+            "deltaPct": 0,
+            "points": 344,
+            "baselinePoints": 344,
+            "timesMs": [
+              313,
+              239,
+              190
+            ]
+          }
+        ],
+        "errors": [],
+        "jsHeapUsed": 112939645,
+        "done": true
+      }
+    }
+  ]
+}

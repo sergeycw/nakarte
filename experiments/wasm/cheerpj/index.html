@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>BRouter in CheerpJ</title>
+    <style>
+        body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; }
+        table { border-collapse: collapse; }
+        td, th { border: 1px solid #ccc; padding: 2px 8px; text-align: right; }
+        td:first-child, td:nth-child(2) { text-align: left; }
+        .bad { color: #b00; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<p>
+    Query: <code>fs=str|app</code> — how tiles reach Java,
+    <code>repeat=N</code> — runs per route, <code>only=short</code> — route filter.
+</p>
+<pre id="log"></pre>
+<table id="results"></table>
+<script type="module">
+    const params = new URLSearchParams(location.search);
+    const fsMode = params.get('fs') ?? 'str';
+    const repeat = Number(params.get('repeat') ?? 3);
+    const only = params.get('only');
+    const runtimeBase = params.get('rt') === 'proxy' ? '/cjrt' : 'https://cjrtnc.leaningtech.com/4.3';
+    const tiles = ['E40_N40.rd5', 'E45_N40.rd5'];
+    const profileFiles = ['lookups.dat', 'hiking-mountain.brf', 'trekking.brf'];
+
+    const logEl = document.getElementById('log');
+    const bench = {fsMode, repeat, timings: {}, routes: [], errors: []};
+    window.__bench = bench;
+
+    function log(message) {
+        logEl.textContent += `${(performance.now() / 1000).toFixed(2)}s ${message}\n`;
+        console.log('[bench]', message);
+    }
+
+    async function timed(name, fn) {
+        const start = performance.now();
+        const result = await fn();
+        bench.timings[name] = Math.round(performance.now() - start);
+        log(`${name}: ${bench.timings[name]} ms`);
+        return result;
+    }
+
+    async function putIntoStr(url, path) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`${url}: ${response.status}`);
+        }
+        const data = new Uint8Array(await response.arrayBuffer());
+        cheerpOSAddStringFile(path, data);
+        return data.length;
+    }
+
+    async function javaError(e) {
+        try {
+            return String(await e.toString());
+        } catch {
+            return String(e);
+        }
+    }
+
+    function routeLength(geojson) {
+        return Number(JSON.parse(geojson).features[0].properties['track-length']);
+    }
+
+    function render() {
+        const rows = bench.routes.map((r) => {
+            const deltaClass = Math.abs(r.deltaPct) > 1 ? 'bad' : '';
+            return `<tr><td>${r.route}</td><td>${r.profile}</td><td>${r.lengthM}</td><td>${r.baselineM}</td>` +
+                `<td class="${deltaClass}">${r.deltaPct.toFixed(2)}%</td><td>${r.points}/${r.baselinePoints}</td>` +
+                `<td>${r.timesMs.join(' / ')}</td></tr>`;
+        });
+        document.getElementById('results').innerHTML =
+            '<tr><th>route</th><th>profile</th><th>length</th><th>server</th><th>Δ</th><th>points</th>' +
+            '<th>times, ms</th></tr>' + rows.join('');
+    }
+
+    try {
+        const {routes, profiles} = await (await fetch('../routes.json')).json();
+        const baseline = await (await fetch('../baseline/summary.json')).json();
+
+        await timed('loadLoader', () => new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `${runtimeBase}/loader.js`;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.append(script);
+        }));
+        await timed('cheerpjInit', () => cheerpjInit({version: 11, status: 'none'}));
+
+        let segmentDir;
+        let profileDir;
+        if (fsMode === 'str') {
+            await timed('loadFilesIntoStr', async () => {
+                let bytes = 0;
+                for (const tile of tiles) {
+                    bytes += await putIntoStr(`/segments4/${tile}`, `/str/${tile}`);
+                }
+                for (const name of profileFiles) {
+                    bytes += await putIntoStr(`profiles/${name}`, `/str/${name}`);
+                }
+                bench.strBytes = bytes;
+            });
+            segmentDir = '/str/';
+            profileDir = '/str/';
+        } else {
+            segmentDir = '/app/segments4/';
+            profileDir = '/app/cheerpj/profiles/';
+        }
+
+        const classpath = ['/app/cheerpj/lib/brouter.jar', '/app/cheerpj/lib/wasm-router.jar'];
+        if (fsMode === 'app') {
+            classpath.unshift('/app/cheerpj/lib/brouter-patch.jar');
+        }
+        const lib = await timed('cheerpjRunLibrary', () => cheerpjRunLibrary(classpath.join(':')));
+        const WasmRouter = await timed('loadClass', () => lib.WasmRouter);
+        window.__WasmRouter = WasmRouter;
+
+        for (const route of routes.filter((r) => !only || r.id === only)) {
+            for (const profile of profiles) {
+                const lonlats = [route.from, route.to].map(([lat, lng]) => `${lng},${lat}`).join('|');
+                const query = `lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
+                const reference = baseline.rows.find((r) => r.route === route.id && r.profile === profile);
+                const timesMs = [];
+                let geojson;
+                try {
+                    for (let i = 0; i < repeat; i++) {
+                        const start = performance.now();
+                        geojson = await WasmRouter.route(segmentDir, profileDir, query);
+                        timesMs.push(Math.round(performance.now() - start));
+                        log(`${route.id}/${profile} run ${i + 1}: ${timesMs[i]} ms`);
+                    }
+                } catch (e) {
+                    const message = await javaError(e);
+                    bench.errors.push({route: route.id, profile, message});
+                    log(`${route.id}/${profile} FAILED: ${message}`);
+                    continue;
+                }
+                const lengthM = routeLength(geojson);
+                bench.routes.push({
+                    route: route.id,
+                    profile,
+                    lengthM,
+                    baselineM: reference.lengthM,
+                    deltaPct: ((lengthM - reference.lengthM) / reference.lengthM) * 100,
+                    points: JSON.parse(geojson).features[0].geometry.coordinates.length,
+                    baselinePoints: reference.points,
+                    timesMs,
+                });
+                render();
+            }
+        }
+        if (performance.memory) {
+            bench.jsHeapUsed = performance.memory.usedJSHeapSize;
+        }
+        if (window.crossOriginIsolated && performance.measureUserAgentSpecificMemory) {
+            await timed('measureMemory', async () => {
+                bench.memory = await performance.measureUserAgentSpecificMemory();
+            });
+        }
+        bench.done = true;
+        log('done');
+    } catch (e) {
+        bench.fatal = await javaError(e);
+        bench.done = true;
+        log(`FATAL: ${bench.fatal}`);
+    }
+</script>
+</body>
+</html>

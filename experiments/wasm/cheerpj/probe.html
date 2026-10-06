@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>CheerpJ FS probe</title>
+    <script src="https://cjrtnc.leaningtech.com/4.3/loader.js"></script>
+</head>
+<body>
+<pre id="log"></pre>
+<script type="module">
+    const paths = new URLSearchParams(location.search).getAll('p');
+    const out = [];
+    window.__bench = {out};
+    await cheerpjInit({version: 11, status: 'none'});
+    const lib = await cheerpjRunLibrary('/app/cheerpj/lib/brouter.jar:/app/cheerpj/lib/wasm-router.jar');
+    const WasmRouter = await lib.WasmRouter;
+    for (const path of paths) {
+        out.push(`${path}: ${await WasmRouter.probe(path)}`);
+    }
+    document.getElementById('log').textContent = out.join('\n');
+    window.__bench.done = true;
+</script>
+</body>
+</html>
