@@ -28,7 +28,7 @@ import {wrapLatLngToTarget, wrapLatLngBoundsToTarget} from '~/lib/leaflet.fixes/
 import {createZipFile} from '~/lib/zip-writer';
 import {splitLinesAt180Meridian} from "./lib/meridian180";
 import {ElevationProvider} from '~/lib/elevations';
-import {parseNktkSequence} from './lib/parsers/nktk';
+import {parseNktkSequence, arcUnit} from './lib/parsers/nktk';
 import * as coordFormats from '~/lib/leaflet.control.coordinates/formats';
 import {polygonArea} from '~/lib/polygon-area';
 import {polylineHasSelfIntersections} from '~/lib/polyline-selfintersects';
@@ -49,6 +49,33 @@ const TrackSegment = L.MeasuredLine.extend({
     }
 });
 TrackSegment.mergeOptions(L.Polyline.EditMixinOptions);
+
+function routeMarkupKey(latlng) {
+    return `${Math.round(latlng.lat * arcUnit)},${Math.round(latlng.lng * arcUnit)}`;
+}
+
+function findRouteLegEnd(keys, start, legsByEnds) {
+    for (let k = start + 2; k < keys.length; k++) {
+        if (legsByEnds.has(`${keys[start]}|${keys[k]}`)) {
+            return k;
+        }
+    }
+    return -1;
+}
+
+function simplifyKeepingWaypoints(points, tolerance) {
+    const result = [];
+    let runStart = 0;
+    for (let i = 1; i < points.length; i++) {
+        if (points[i]._routeLeg && i < points.length - 1) {
+            continue;
+        }
+        const run = L.LineUtil.simplifyLatlngs(points.slice(runStart, i + 1), tolerance);
+        result.push(...(result.length ? run.slice(1) : run));
+        runStart = i;
+    }
+    return result.length ? result : points.slice();
+}
 
 // name: str
 // seen: Set[str]
@@ -1595,14 +1622,69 @@ L.Control.TrackList = L.Control.extend({
 
         trackToString: function(track, forceVisible) {
             var lines = this.getTrackPolylines(track).map(function(line) {
-                    var points = line.getFixedLatLngs();
-                    points = L.LineUtil.simplifyLatlngs(points, 360 / (1 << 24));
-                    return points;
+                    return simplifyKeepingWaypoints(line.getFixedLatLngs(), 360 / (1 << 24));
                 }
             );
             return geoExporters.saveToString(lines, track.name(), track.color(), track.measureTicksShown(),
                 this.getTrackPoints(track), forceVisible ? false : !track.visible()
             );
+        },
+
+        serializeRouteMarkup: function(tracks) {
+            const legs = [];
+            for (const track of tracks) {
+                for (const line of this.getTrackPolylines(track)) {
+                    let lastWaypoint = null;
+                    let legActivityId = null;
+                    for (const node of line.getFixedLatLngs()) {
+                        if (node._routeLeg) {
+                            legActivityId = node._routeLeg.activityId;
+                            continue;
+                        }
+                        const key = routeMarkupKey(node);
+                        if (lastWaypoint && legActivityId) {
+                            legs.push([lastWaypoint, key, legActivityId]);
+                        }
+                        lastWaypoint = key;
+                        legActivityId = null;
+                    }
+                }
+            }
+            return legs.length ? {legs} : null;
+        },
+
+        applyRouteMarkup: function(markup) {
+            if (!markup?.legs?.length) {
+                return;
+            }
+            const legsByEnds = new Map();
+            for (const [start, end, activityId] of markup.legs) {
+                legsByEnds.set(`${start}|${end}`, activityId);
+                legsByEnds.set(`${end}|${start}`, activityId);
+            }
+            for (const track of this.tracks()) {
+                for (const line of this.getTrackPolylines(track)) {
+                    this.applyRouteMarkupToLine(line, legsByEnds);
+                }
+            }
+        },
+
+        applyRouteMarkupToLine: function(line, legsByEnds) {
+            const nodes = line.getLatLngs();
+            const keys = nodes.map(routeMarkupKey);
+            let i = 0;
+            while (i < nodes.length - 1) {
+                const j = findRouteLegEnd(keys, i, legsByEnds);
+                if (j < 0) {
+                    i += 1;
+                    continue;
+                }
+                const leg = {activityId: legsByEnds.get(`${keys[i]}|${keys[j]}`), cancelled: false};
+                for (let k = i + 1; k < j; k++) {
+                    nodes[k]._routeLeg = leg;
+                }
+                i = j;
+            }
         },
 
         loadTracksFromString(s, allowEmpty = false) {

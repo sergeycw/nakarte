@@ -290,15 +290,18 @@ const SessionsControl = L.Control.extend({
         const {hash} = window.location;
         const trackNames = tracks.map((track) => track.name());
         const tracksSerialized = this.trackListControl.serializeTracks(tracks);
-        session.saveState({hash, tracks: tracksSerialized, trackNames});
+        const routeMarkup = this.trackListControl.serializeRouteMarkup(tracks);
+        session.saveState({hash, tracks: tracksSerialized, trackNames, routeMarkup});
     },
 
     loadSession: async function () {
-        const sessionSavedTracks = (await session.loadState())?.tracks;
+        const sessionState = await session.loadState();
+        const sessionSavedTracks = sessionState?.tracks;
         if (sessionSavedTracks) {
             this.loadingState = true;
             try {
                 this.trackListControl.loadTracksFromString(sessionSavedTracks, true);
+                this.trackListControl.applyRouteMarkup(sessionState.routeMarkup);
             } finally {
                 this.loadingState = false;
             }
@@ -328,6 +331,7 @@ const SessionsControl = L.Control.extend({
                 this.loadingState = true;
                 try {
                     this.trackListControl.loadTracksFromString(sessionState.tracks, true);
+                    this.trackListControl.applyRouteMarkup(sessionState.routeMarkup);
                 } finally {
                     this.loadingState = false;
                 }
