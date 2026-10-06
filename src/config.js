@@ -1,3 +1,5 @@
+import configTarget from '~/config-target';
+
 import secrets from './secrets';
 
 const config = {
@@ -25,6 +27,7 @@ const config = {
     eventsLogUrl: 'https://nakarte.me/event',
     routingProfile: 'hiking-mountain',
     ...secrets,
+    ...configTarget,
 };
 
 export default config;

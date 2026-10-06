@@ -1,6 +1,6 @@
 'use strict';
 
-const topLevelFiles = ['src/index.js'];
+const topLevelFiles = ['src/index.js', 'src/config-target/*.js'];
 const filesWithSideEffects = [
     'src/lib/knockout.component.progress/progress.js',
     'src/lib/knockout.binding.element/index.js',

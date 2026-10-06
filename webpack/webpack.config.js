@@ -36,6 +36,7 @@ if (!envs[mode]) {
 }
 
 const isProduction = mode === 'production';
+const configTarget = process.env.NAKARTE_TARGET || 'default';
 const isDevelopment = mode === 'development';
 const isTesting = mode === 'testing';
 
@@ -238,6 +239,7 @@ module.exports = {
 
     resolve: {
         alias: {
+            '~/config-target$': path.join(paths.appSrc, 'config-target', `${configTarget}.js`),
             '~': paths.appSrc,
         },
     },
