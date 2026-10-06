@@ -68,8 +68,10 @@ L.Polyline.EditMixin = {
 
     onNodeMarkerDragEnd: function(e) {
         var marker = e.target,
-            nodeIndex = this.getMarkerIndex(marker);
+            nodeIndex = this.getMarkerIndex(marker),
+            oldNode = this._latlngs[nodeIndex];
         this.replaceNode(nodeIndex, marker.getLatLng());
+        this.rerouteAroundNode(oldNode, this._latlngs[nodeIndex]);
         this._setupEndMarkers();
     },
 
@@ -92,7 +94,7 @@ L.Polyline.EditMixin = {
         }
         var marker = e.target,
             nodeIndex = this.getMarkerIndex(marker);
-        this.removeNode(nodeIndex);
+        this.removeWaypoint(nodeIndex);
         this._setupEndMarkers();
     },
 
@@ -108,6 +110,9 @@ L.Polyline.EditMixin = {
                 refNodeIndex = this._latlngs.length - 1;
             }
             this.addNode(newNodeIndex, wrapLatLngToTarget(e.latlng, this._latlngs[refNodeIndex]));
+            if (!e.originalEvent?.altKey) {
+                this.routeToDrawnNode(newNodeIndex);
+            }
         } else {
             if (!this.preventStopEdit) {
                 this.stopEdit(true);
@@ -186,8 +191,7 @@ L.Polyline.EditMixin = {
             case 8: // Backspace
             case 46: // Delete
                 if (this._drawingDirection && this.getLatLngs().length > 2) {
-                    const nodeIndex = this._drawingDirection === 1 ? this.getLatLngs().length - 2 : 1;
-                    this.removeNode(nodeIndex);
+                    this.removeLastDrawnWaypoint();
                     L.DomEvent.preventDefault(e);
                 }
                 break;
@@ -209,7 +213,8 @@ L.Polyline.EditMixin = {
         var node = this.getLatLngs()[nodeIndex],
             marker = L.marker(node.clone(), {
                     icon: L.divIcon({
-                        className: 'line-editor-node-marker-halo',
+                        className: 'line-editor-node-marker-halo' +
+                            (node._routeLeg ? ' line-editor-node-marker-hidden' : ''),
                         html: '<div class="line-editor-node-marker"></div>'
                     }),
                     draggable: true,
@@ -299,11 +304,14 @@ L.Polyline.EditMixin = {
         latlngs[nodeIndex]._nodeMarker.dragging._draggable._onDown(e.originalEvent);
     },
 
-    addNode: function(index, latlng) {
+    addNode: function(index, latlng, routeLeg) {
         var nodes = this.getLatLngs(),
             isAddingLeft = (index === 1 && this._drawingDirection === -1),
             isAddingRight = (index === nodes.length - 1 && this._drawingDirection === 1);
         latlng = latlng.clone();
+        if (routeLeg) {
+            latlng._routeLeg = routeLeg;
+        }
         this.spliceLatLngs(index, 0, latlng);
         this.makeNodeMarker(index);
         if (!isAddingLeft && (index >= 1)) {
@@ -320,6 +328,162 @@ L.Polyline.EditMixin = {
         }
         if (nodes.length < 3) {
             this._setupEndMarkers();
+        }
+    },
+
+    _fixedNodesRange: function() {
+        const first = this._drawingDirection === -1 ? 1 : 0;
+        const last = this._drawingDirection === 1 ? this._latlngs.length - 2 : this._latlngs.length - 1;
+        return [first, last];
+    },
+
+    _findAdjacentWaypoint: function(index, step) {
+        const [first, last] = this._fixedNodesRange();
+        let i = index + step;
+        while (i >= first && i <= last && this._latlngs[i]._routeLeg) {
+            i += step;
+        }
+        if (i < first || i > last) {
+            return null;
+        }
+        return {node: this._latlngs[i], leg: this._latlngs[index + step]._routeLeg ?? null};
+    },
+
+    _updateRoutingCursor: function() {
+        if (!this._map) {
+            return;
+        }
+        const pending = this._pendingLegs?.length > 0;
+        L.DomUtil[pending ? 'addClass' : 'removeClass'](this._map._container, 'leaflet-line-routing');
+    },
+
+    _removeNodesBetween: function(start, end) {
+        const i = this._latlngs.indexOf(start);
+        for (let k = this._latlngs.indexOf(end) - 1; k > i; k--) {
+            if (this._latlngs[k]._nodeMarker) {
+                this.removeNode(k);
+            } else {
+                this.spliceLatLngs(k, 1);
+            }
+        }
+    },
+
+    _insertLegNode: function(index, latlng, leg) {
+        if (this._editing) {
+            this.addNode(index, latlng, leg);
+            return;
+        }
+        const node = latlng.clone();
+        node._routeLeg = leg;
+        this.spliceLatLngs(index, 0, node);
+    },
+
+    routeBetween: function(start, end, activityId) {
+        if (!this.router) {
+            return;
+        }
+        const leg = {start, end, activityId, cancelled: false};
+        const i = this._latlngs.indexOf(start);
+        const j = this._latlngs.indexOf(end);
+        for (let k = i + 1; k < j; k++) {
+            this._latlngs[k]._routeLeg = leg;
+        }
+        this._pendingLegs = [...(this._pendingLegs ?? []), leg];
+        this._updateRoutingCursor();
+        this.router
+            .route(start, end, activityId)
+            .catch(() => [])
+            .then((nodes) => this._applyLegRoute(leg, nodes));
+    },
+
+    _applyLegRoute: function(leg, nodes) {
+        this._pendingLegs = this._pendingLegs.filter((pending) => pending !== leg);
+        this._updateRoutingCursor();
+        if (leg.cancelled || !this._map) {
+            return;
+        }
+        const i = this._latlngs.indexOf(leg.start);
+        const j = this._latlngs.indexOf(leg.end);
+        if (i < 0 || j <= i) {
+            return;
+        }
+        for (let k = i + 1; k < j; k++) {
+            if (this._latlngs[k]._routeLeg !== leg) {
+                return;
+            }
+        }
+        this._removeNodesBetween(leg.start, leg.end);
+        nodes.forEach((node, n) => this._insertLegNode(i + 1 + n, node, leg));
+    },
+
+    _cancelPendingLegsAt: function(node) {
+        const cancelled = (this._pendingLegs ?? []).filter((leg) => leg.start === node || leg.end === node);
+        for (const leg of cancelled) {
+            leg.cancelled = true;
+        }
+        return cancelled;
+    },
+
+    routeToDrawnNode: function(index) {
+        const activityId = this.router?.activityId();
+        if (!activityId) {
+            return;
+        }
+        const anchorIndex = index - this._drawingDirection;
+        const [first, last] = this._fixedNodesRange();
+        if (anchorIndex < first || anchorIndex > last) {
+            return;
+        }
+        const node = this._latlngs[index];
+        const anchor = this._latlngs[anchorIndex];
+        if (this._drawingDirection === 1) {
+            this.routeBetween(anchor, node, activityId);
+        } else {
+            this.routeBetween(node, anchor, activityId);
+        }
+    },
+
+    rerouteAroundNode: function(oldNode, node) {
+        const index = this._latlngs.indexOf(node);
+        const pendingLegs = this._cancelPendingLegsAt(oldNode);
+        const prev = this._findAdjacentWaypoint(index, -1);
+        const next = this._findAdjacentWaypoint(index, 1);
+        const pendingBefore = pendingLegs.find((leg) => leg.end === oldNode);
+        const pendingAfter = pendingLegs.find((leg) => leg.start === oldNode);
+        const activityBefore = prev?.leg?.activityId ?? pendingBefore?.activityId;
+        const activityAfter = next?.leg?.activityId ?? pendingAfter?.activityId;
+        if (prev && activityBefore) {
+            this.routeBetween(prev.node, node, activityBefore);
+        }
+        if (next && activityAfter) {
+            this.routeBetween(node, next.node, activityAfter);
+        }
+    },
+
+    removeWaypoint: function(index) {
+        const node = this._latlngs[index];
+        const pendingLegs = this._cancelPendingLegsAt(node);
+        const prev = this._findAdjacentWaypoint(index, -1);
+        const next = this._findAdjacentWaypoint(index, 1);
+        const activityId = prev?.leg?.activityId ?? next?.leg?.activityId ?? pendingLegs[0]?.activityId;
+        if (prev?.leg) {
+            this._removeNodesBetween(prev.node, node);
+        }
+        if (next?.leg) {
+            this._removeNodesBetween(node, next.node);
+        }
+        this.removeNode(this._latlngs.indexOf(node));
+        if (prev && next && activityId) {
+            this.routeBetween(prev.node, next.node, activityId);
+        }
+    },
+
+    removeLastDrawnWaypoint: function() {
+        const lastFixedIndex = () => (this._drawingDirection === 1 ? this._latlngs.length - 2 : 1);
+        this._cancelPendingLegsAt(this._latlngs[lastFixedIndex()]);
+        this.removeNode(lastFixedIndex());
+        while (this._latlngs.length > 2 && this._latlngs[lastFixedIndex()]._routeLeg) {
+            this.removeNode(lastFixedIndex());
         }
     },
 
@@ -379,6 +543,13 @@ L.Polyline.EditMixin = {
         }
         const startIndex = this._drawingDirection === -1 ? 1 : 0;
         const endIndex = this._drawingDirection === 1 ? nodesCount - 2 : nodesCount - 1;
+        for (const index of [startIndex, endIndex]) {
+            const node = this._latlngs[index];
+            if (node?._routeLeg) {
+                delete node._routeLeg;
+                L.DomUtil.removeClass(node._nodeMarker._icon, 'line-editor-node-marker-hidden');
+            }
+        }
         const startIcon = this._latlngs[startIndex]._nodeMarker._icon;
         L.DomUtil[this._drawingDirection === -1 ? 'removeClass' : 'addClass'](
             startIcon, 'line-editor-node-marker-start'
