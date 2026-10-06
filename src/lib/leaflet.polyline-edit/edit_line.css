@@ -45,3 +45,11 @@
 .highlight-delete .line-editor-node-marker {
     border-color: red;
 }
+
+.leaflet-line-routing {
+    cursor: progress !important;
+}
+
+.line-editor-node-marker-hidden {
+    display: none;
+}

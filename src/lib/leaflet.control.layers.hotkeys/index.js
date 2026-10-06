@@ -66,7 +66,7 @@ function enableHotkeys(control) {
             },
 
             onKeyDown: function(e) {
-                if (e.altKey || e.ctrlKey || e.shiftKey) {
+                if (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) {
                     return;
                 }
                 this._keyDown = e.keyCode;

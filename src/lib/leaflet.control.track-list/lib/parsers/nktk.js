@@ -319,4 +319,4 @@ function parseNktkSequence(s) {
         });
 }
 
-export {saveNktk, parseTrackUrlData, parseNktkSequence, parseNktkFragment};
+export {saveNktk, parseTrackUrlData, parseNktkSequence, parseNktkFragment, arcUnit};

@@ -28,12 +28,15 @@ import {wrapLatLngToTarget, wrapLatLngBoundsToTarget} from '~/lib/leaflet.fixes/
 import {createZipFile} from '~/lib/zip-writer';
 import {splitLinesAt180Meridian} from "./lib/meridian180";
 import {ElevationProvider} from '~/lib/elevations';
-import {parseNktkSequence} from './lib/parsers/nktk';
+import {parseNktkSequence, arcUnit} from './lib/parsers/nktk';
 import * as coordFormats from '~/lib/leaflet.control.coordinates/formats';
 import {polygonArea} from '~/lib/polygon-area';
 import {polylineHasSelfIntersections} from '~/lib/polyline-selfintersects';
+import {activities, getActivity, fetchRoute, isServerReachable} from '~/lib/brouter';
+import safeLocalStorage from '~/lib/safe-localstorage';
 
 const TRACKLIST_TRACK_COLORS = ['#77f', '#f95', '#0ff', '#f77', '#f7f', '#ee5'];
+const ROUTING_ACTIVITY_STORAGE_KEY = 'trackListRoutingActivity';
 
 const TrackSegment = L.MeasuredLine.extend({
     includes: L.Polyline.EditMixin,
@@ -46,6 +49,33 @@ const TrackSegment = L.MeasuredLine.extend({
     }
 });
 TrackSegment.mergeOptions(L.Polyline.EditMixinOptions);
+
+function routeMarkupKey(latlng) {
+    return `${Math.round(latlng.lat * arcUnit)},${Math.round(latlng.lng * arcUnit)}`;
+}
+
+function findRouteLegEnd(keys, start, legsByEnds) {
+    for (let k = start + 2; k < keys.length; k++) {
+        if (legsByEnds.has(`${keys[start]}|${keys[k]}`)) {
+            return k;
+        }
+    }
+    return -1;
+}
+
+function simplifyKeepingWaypoints(points, tolerance) {
+    const result = [];
+    let runStart = 0;
+    for (let i = 1; i < points.length; i++) {
+        if (points[i]._routeLeg && i < points.length - 1) {
+            continue;
+        }
+        const run = L.LineUtil.simplifyLatlngs(points.slice(runStart, i + 1), tolerance);
+        result.push(...(result.length ? run.slice(1) : run));
+        runStart = i;
+    }
+    return result.length ? result : points.slice();
+}
 
 // name: str
 // seen: Set[str]
@@ -157,6 +187,17 @@ L.Control.TrackList = L.Control.extend({
             this.isPlacingPoint = false;
             this.trackAddingPoint = ko.observable(null);
             this.trackAddingSegment = ko.observable(null);
+            this.routingAvailable = Boolean(config.routingServer);
+            this.routingActivityId = ko.observable(
+                getActivity(safeLocalStorage.getItem(ROUTING_ACTIVITY_STORAGE_KEY))?.id ?? null
+            );
+            this.routingActivityId.subscribe(this.onRoutingActivityChanged, this);
+            this.routingServerReachable = ko.observable(true);
+            this.routingButtonTitle = ko.pureComputed(() => this.formatRoutingButtonTitle());
+            this.router = {
+                activityId: () => this.routingActivityId(),
+                route: this.routeSegment.bind(this),
+            };
         },
 
         onAdd: function(map) {
@@ -181,6 +222,11 @@ L.Control.TrackList = L.Control.extend({
                 </div>
                 <div class="inputs-row" data-bind="visible: !readingFiles()">
                     <a class="button add-track" title="New track" data-bind="click: onButtonNewTrackClicked"></a
+                    ><a class="button routing-toggle" data-bind="
+                        visible: routingAvailable,
+                        click: showRoutingMenu,
+                        css: {active: routingActivityId, unavailable: routingActivityId() && !routingServerReachable()},
+                        attr: {title: routingButtonTitle}"></a
                     ><a class="button open-file" title="Open file" data-bind="click: loadFilesFromDisk"></a
                     ><input type="text" class="input-url" placeholder="Track URL"
                         data-bind="textInput: url, event: {keypress: onEnterPressedInInput, contextmenu: defaultEventHandle, mousemove: defaultEventHandle}"
@@ -250,6 +296,22 @@ L.Control.TrackList = L.Control.extend({
                     {text: 'Delete hidden tracks', callback: this.deleteHiddenTracks.bind(this)}
                 ]
             );
+            this.routingMenu = new Contextmenu([
+                {text: 'Routing', header: true},
+                () => this.makeRoutingMenuItem(null, 'Off: straight lines'),
+                ...activities.map((activity) => () => this.makeRoutingMenuItem(activity.id, activity.title)),
+                '-',
+                () => ({
+                    text: this.routingServerReachable()
+                        ? 'Alt+click draws a straight segment'
+                        : 'BRouter is not running, start it with <b>yarn local</b>',
+                    disabled: true,
+                }),
+                {text: 'Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z: undo, redo', disabled: true},
+            ]);
+            if (this.routingAvailable) {
+                this.checkRoutingServer();
+            }
             this._markerLayer = new L.Layer.CanvasMarkers(null, {
                 print: true,
                 scaleDependent: true,
@@ -332,6 +394,58 @@ L.Control.TrackList = L.Control.extend({
                 name = 'New track';
             }
             this.addTrackAndEdit(name);
+        },
+
+        formatRoutingButtonTitle: function() {
+            const activity = getActivity(this.routingActivityId());
+            if (!activity) {
+                return 'Routing is off: lines are straight';
+            }
+            if (!this.routingServerReachable()) {
+                return `Routing: ${activity.title}. BRouter is not running`;
+            }
+            return `Routing: ${activity.title}`;
+        },
+
+        makeRoutingMenuItem: function(activityId, title) {
+            const mark = this.routingActivityId() === activityId ? '&#10003;' : '';
+            return {
+                text: `<span class="routing-menu-check">${mark}</span>${title}`,
+                callback: () => this.routingActivityId(activityId),
+            };
+        },
+
+        showRoutingMenu: async function(_, e) {
+            await this.checkRoutingServer();
+            this.routingMenu.show(e);
+        },
+
+        onRoutingActivityChanged: function(activityId) {
+            if (activityId) {
+                safeLocalStorage.setItem(ROUTING_ACTIVITY_STORAGE_KEY, activityId);
+            } else {
+                safeLocalStorage.removeItem(ROUTING_ACTIVITY_STORAGE_KEY);
+            }
+        },
+
+        checkRoutingServer: async function() {
+            this.routingServerReachable(await isServerReachable());
+        },
+
+        routeSegment: async function(from, to, activityId) {
+            try {
+                const nodes = await fetchRoute(from, to, activityId);
+                this.routingServerReachable(true);
+                return nodes;
+            } catch (e) {
+                if (!e.serverUnreachable) {
+                    notify(`Routing failed: ${e.message}`);
+                } else if (this.routingServerReachable()) {
+                    this.routingServerReachable(false);
+                    notify('BRouter is not running, start it with <b>yarn local</b>. Lines stay straight until then.');
+                }
+                throw e;
+            }
         },
 
         addSegmentAndEdit: function(track) {
@@ -1004,6 +1118,7 @@ L.Control.TrackList = L.Control.extend({
                 }
             );
             polyline._parentTrack = track;
+            polyline.router = this.router;
             polyline.setMeasureTicksVisible(track.measureTicksShown());
             polyline.on('click', this.onTrackSegmentClick, this);
             polyline.on('nodeschanged', this.onTrackSegmentNodesChanged.bind(this, track, polyline));
@@ -1507,14 +1622,69 @@ L.Control.TrackList = L.Control.extend({
 
         trackToString: function(track, forceVisible) {
             var lines = this.getTrackPolylines(track).map(function(line) {
-                    var points = line.getFixedLatLngs();
-                    points = L.LineUtil.simplifyLatlngs(points, 360 / (1 << 24));
-                    return points;
+                    return simplifyKeepingWaypoints(line.getFixedLatLngs(), 360 / (1 << 24));
                 }
             );
             return geoExporters.saveToString(lines, track.name(), track.color(), track.measureTicksShown(),
                 this.getTrackPoints(track), forceVisible ? false : !track.visible()
             );
+        },
+
+        serializeRouteMarkup: function(tracks) {
+            const legs = [];
+            for (const track of tracks) {
+                for (const line of this.getTrackPolylines(track)) {
+                    let lastWaypoint = null;
+                    let legActivityId = null;
+                    for (const node of line.getFixedLatLngs()) {
+                        if (node._routeLeg) {
+                            legActivityId = node._routeLeg.activityId;
+                            continue;
+                        }
+                        const key = routeMarkupKey(node);
+                        if (lastWaypoint && legActivityId) {
+                            legs.push([lastWaypoint, key, legActivityId]);
+                        }
+                        lastWaypoint = key;
+                        legActivityId = null;
+                    }
+                }
+            }
+            return legs.length ? {legs} : null;
+        },
+
+        applyRouteMarkup: function(markup) {
+            if (!markup?.legs?.length) {
+                return;
+            }
+            const legsByEnds = new Map();
+            for (const [start, end, activityId] of markup.legs) {
+                legsByEnds.set(`${start}|${end}`, activityId);
+                legsByEnds.set(`${end}|${start}`, activityId);
+            }
+            for (const track of this.tracks()) {
+                for (const line of this.getTrackPolylines(track)) {
+                    this.applyRouteMarkupToLine(line, legsByEnds);
+                }
+            }
+        },
+
+        applyRouteMarkupToLine: function(line, legsByEnds) {
+            const nodes = line.getLatLngs();
+            const keys = nodes.map(routeMarkupKey);
+            let i = 0;
+            while (i < nodes.length - 1) {
+                const j = findRouteLegEnd(keys, i, legsByEnds);
+                if (j < 0) {
+                    i += 1;
+                    continue;
+                }
+                const leg = {activityId: legsByEnds.get(`${keys[i]}|${keys[j]}`), cancelled: false};
+                for (let k = i + 1; k < j; k++) {
+                    nodes[k]._routeLeg = leg;
+                }
+                i = j;
+            }
         },
 
         loadTracksFromString(s, allowEmpty = false) {

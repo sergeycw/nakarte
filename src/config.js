@@ -19,6 +19,8 @@ const config = {
     mapillaryRasterTilesUrl: 'https://mapillary.nakarte.me/{z}/{x}/{y}',
     urlsBypassCORSProxy: [new RegExp('^https://pkk\\.rosreestr\\.ru/', 'u')],
     elevationTileUrl: 'https://tiles.nakarte.me/elevation/{z}/{x}/{y}',
+    routingServer: 'http://localhost:17777',
+    routingProfile: 'hiking-mountain',
     ...secrets,
 };
 

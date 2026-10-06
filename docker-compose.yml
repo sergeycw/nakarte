@@ -1,0 +1,14 @@
+services:
+  brouter:
+    image: ghcr.io/abrensch/brouter:nightly
+    container_name: nakarte-brouter
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:17777:17777"
+    environment:
+      MAXTHREADS: "4"
+      CUSTOMPROFILESPATH: "../customprofiles"
+      JAVA_OPTS: "-Xmx512M -DmaxRunningTime=60 -DuseRFCMimeType=false"
+    volumes:
+      - ./brouter/segments4:/segments4:ro
+      - ./brouter/profiles:/customprofiles:ro
