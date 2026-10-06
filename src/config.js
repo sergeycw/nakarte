@@ -22,6 +22,7 @@ const config = {
     routingServer: 'http://localhost:17777',
     routingEngine: 'server',
     routingTilesPath: '/brouter-wasm/segments4/',
+    eventsLogUrl: 'https://nakarte.me/event',
     routingProfile: 'hiking-mountain',
     ...secrets,
 };
