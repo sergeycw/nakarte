@@ -208,6 +208,7 @@ module.exports = {
                 watch: false,
             })),
         ],
+        proxy: [{context: ['/tiles'], target: 'http://localhost:8788'}],
         setupMiddlewares: (middlewares) => {
             middlewares.unshift({
                 name: 'brouter-wasm-storageconfig',

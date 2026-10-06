@@ -1,0 +1,7 @@
+name = "nakarte-routing"
+pages_build_output_dir = "build"
+compatibility_date = "2025-09-01"
+
+[[r2_buckets]]
+binding = "TILES"
+bucket_name = "nakarte-tiles"
