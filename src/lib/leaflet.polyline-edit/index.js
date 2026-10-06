@@ -392,7 +392,7 @@ L.Polyline.EditMixin = {
     _restoreSnapshot: function(snapshot) {
         const {nodes: storedNodes, pending} = JSON.parse(snapshot);
         for (const leg of this._pendingLegs ?? []) {
-            leg.cancelled = true;
+            this._cancelLeg(leg);
         }
         this._pendingLegs = [];
         this._updateRoutingCursor();
@@ -474,6 +474,52 @@ L.Polyline.EditMixin = {
         return {node: this._latlngs[i], leg: this._latlngs[index + step]._routeLeg ?? null};
     },
 
+    _cancelLeg: function(leg) {
+        leg.cancelled = true;
+        leg.spinner?.remove();
+    },
+
+    _showLegSpinner: function(leg) {
+        if (!this._map) {
+            return;
+        }
+        const midpoint = L.latLng((leg.start.lat + leg.end.lat) / 2, (leg.start.lng + leg.end.lng) / 2);
+        leg.spinner = L.marker(midpoint, {
+            icon: L.divIcon({
+                className: 'line-routing-spinner-icon',
+                html: '<div class="line-routing-spinner"></div>',
+                iconSize: [20, 20],
+            }),
+            interactive: false,
+            keyboard: false,
+            zIndexOffset: this._nodeMarkersZOffset,
+        }).addTo(this._map);
+    },
+
+    _projectLatlngs: function(latlngs, result, projectedBounds) {
+        L.Polyline.prototype._projectLatlngs.call(this, latlngs, result, projectedBounds);
+        if (latlngs !== this._latlngs || !result.length) {
+            return;
+        }
+        result.push(...this._splitAtPendingLegs(result.pop()));
+    },
+
+    _splitAtPendingLegs: function(ring) {
+        const gaps = (this._pendingLegs ?? [])
+            .filter((leg) => !leg.cancelled)
+            .map((leg) => [this._latlngs.indexOf(leg.start), this._latlngs.indexOf(leg.end)])
+            .filter(([i, j]) => i >= 0 && j > i)
+            .sort(([a], [b]) => a - b);
+        const pieces = [];
+        let from = 0;
+        for (const [i, j] of gaps) {
+            pieces.push(ring.slice(from, i + 1));
+            from = Math.max(from, j);
+        }
+        pieces.push(ring.slice(from));
+        return pieces.filter((piece) => piece.length > 1);
+    },
+
     _updateRoutingCursor: function() {
         if (!this._map) {
             return;
@@ -515,6 +561,8 @@ L.Polyline.EditMixin = {
         }
         this._pendingLegs = [...(this._pendingLegs ?? []), leg];
         this._updateRoutingCursor();
+        this._showLegSpinner(leg);
+        this.redraw();
         this.router
             .route(start, end, activityId)
             .catch(() => [])
@@ -524,6 +572,8 @@ L.Polyline.EditMixin = {
     _applyLegRoute: function(leg, nodes) {
         this._pendingLegs = this._pendingLegs.filter((pending) => pending !== leg);
         this._updateRoutingCursor();
+        leg.spinner?.remove();
+        this.redraw();
         if (leg.cancelled || !this._map) {
             return;
         }
@@ -547,7 +597,7 @@ L.Polyline.EditMixin = {
     _cancelPendingLegsAt: function(node) {
         const cancelled = (this._pendingLegs ?? []).filter((leg) => leg.start === node || leg.end === node);
         for (const leg of cancelled) {
-            leg.cancelled = true;
+            this._cancelLeg(leg);
         }
         return cancelled;
     },
