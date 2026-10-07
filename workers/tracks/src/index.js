@@ -3,6 +3,8 @@ import {trackKey} from './key';
 const MAX_TRACK_BYTES = 10 * 1024 * 1024;
 const KEY_PATTERN = /^[A-Za-z0-9_-]{22}$/u;
 const ALLOWED_METHODS = 'GET, POST, OPTIONS';
+// Длина окна `[[ratelimits]]` в wrangler.toml.
+const RETRY_AFTER_SECONDS = '60';
 
 function allowedOrigins(env) {
     return (env.ALLOWED_ORIGINS ?? '')
@@ -21,6 +23,16 @@ function corsHeaders(origin) {
 
 function respond(origin, status, body = null, headers = {}) {
     return new Response(body, {status, headers: {...corsHeaders(origin), ...headers}});
+}
+
+// Без CF-Connecting-IP (локальный wrangler dev, тесты) частоту не ограничиваем.
+async function overLimit(request, env) {
+    const ip = request.headers.get('CF-Connecting-IP');
+    if (!ip) {
+        return false;
+    }
+    const {success} = await env.RATE_LIMITER.limit({key: ip});
+    return !success;
 }
 
 function preflight(request, origin) {
@@ -89,6 +101,9 @@ const worker = {
         const origin = request.headers.get('Origin');
         if (!origin || !allowedOrigins(env).includes(origin)) {
             return new Response('Origin not allowed', {status: 403});
+        }
+        if (await overLimit(request, env)) {
+            return respond(origin, 429, 'Too many requests\n', {'Retry-After': RETRY_AFTER_SECONDS});
         }
         if (request.method === 'OPTIONS') {
             return preflight(request, origin);

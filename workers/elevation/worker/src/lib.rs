@@ -91,6 +91,27 @@ impl Source for R2Source {
     }
 }
 
+// Частота с одного IP: привязки `[[ratelimits]]` из wrangler.toml, у тайлов и API — свои.
+// Без CF-Connecting-IP (локальный wrangler dev, тесты) не ограничиваем.
+async fn over_limit(
+    request: &Request,
+    env: &Env,
+    core_request: &http::Request<'_>,
+    allowed_origins: &[&str],
+) -> Result<bool> {
+    let Some(ip) = request.headers().get("CF-Connecting-IP")? else {
+        return Ok(false);
+    };
+    let Some(group) = http::rate_group(core_request, allowed_origins) else {
+        return Ok(false);
+    };
+    let binding = match group {
+        http::RateGroup::Tiles => "TILES_RATE_LIMITER",
+        http::RateGroup::Api => "API_RATE_LIMITER",
+    };
+    Ok(!env.rate_limiter(binding)?.limit(ip).await?.success)
+}
+
 #[event(fetch)]
 async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response> {
     let header = |request: &Request, name: &str| request.headers().get(name).ok().flatten();
@@ -118,15 +139,15 @@ async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response
         request_headers: request_headers.as_deref(),
         body: &body,
     };
-    let source = R2Source {
-        bucket: env.bucket("DEM")?,
+    let allowed_origins = http::parse_origins(&allowed_origins);
+    let response = if over_limit(&request, &env, &core_request, &allowed_origins).await? {
+        http::too_many_requests(&core_request)
+    } else {
+        let source = R2Source {
+            bucket: env.bucket("DEM")?,
+        };
+        http::handle(&core_request, &allowed_origins, &source).await
     };
-    let response = http::handle(
-        &core_request,
-        &http::parse_origins(&allowed_origins),
-        &source,
-    )
-    .await;
     if let Some(error) = &response.error {
         console_error!("elevation error: {error}");
     }

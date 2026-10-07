@@ -75,3 +75,35 @@ describe('proxying', () => {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
     });
 });
+
+describe('rate limit', () => {
+    // в vitest.config.js лимит понижен до 3 запросов за 60 с
+    function fromIp(ip, options = {}) {
+        return request('/https/example.com/', {...options, headers: {'CF-Connecting-IP': ip, ...options.headers}});
+    }
+
+    it('answers 429 with Retry-After and CORS after the limit, per IP', async () => {
+        for (let i = 0; i < 3; i++) {
+            expect((await fromIp('192.0.2.1')).status).toBe(200);
+        }
+        const limited = await fromIp('192.0.2.1');
+        expect(limited.status).toBe(429);
+        expect(limited.headers.get('Retry-After')).toBe('60');
+        expect(limited.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+        expect(await limited.text()).toBe('Too many requests\n');
+        expect((await fromIp('192.0.2.2')).status).toBe(200);
+    });
+
+    it('answers 403 to a foreign Origin without spending the limit', async () => {
+        for (let i = 0; i < 5; i++) {
+            expect((await fromIp('192.0.2.3', {origin: 'https://example.com'})).status).toBe(403);
+        }
+        expect((await fromIp('192.0.2.3')).status).toBe(200);
+    });
+
+    it('does not limit requests without CF-Connecting-IP', async () => {
+        for (let i = 0; i < 5; i++) {
+            expect((await request('/https/example.com/')).status).toBe(200);
+        }
+    });
+});

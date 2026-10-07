@@ -4,3 +4,11 @@ compatibility_date = "2025-09-01"
 
 [vars]
 ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
+
+# Частота с одного IP (CF-Connecting-IP) за 60 с. Через прокси идут тайловые слои (Strava,
+# Tsvetkov, swisstopo, wikimapia) и печать, поэтому лимит выше, чем у остальных Worker'ов.
+# namespace_id — номер счётчика, уникальный в аккаунте: 1001–1004 заняты Worker'ами клона.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1004"
+simple = { limit = 1200, period = 60 }
