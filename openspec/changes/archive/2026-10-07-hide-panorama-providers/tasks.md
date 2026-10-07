@@ -13,7 +13,7 @@
 
 ## 3. Прод
 
-- [ ] 3.1 На `https://nakarte-routing.pages.dev`: в списке панорам только Google street view; проверка: запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
+- [x] 3.1 На `https://nakarte-routing.pages.dev`: в списке панорам только Google street view; проверка: запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
 
 ## Workflow follow-up
 
