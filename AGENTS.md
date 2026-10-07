@@ -9,6 +9,7 @@
 - `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`.
 - `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
 - `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
+- `openspec/research/` — ресёрчи, из которых нарезаются changes (например, `own-backends.md` — свои бэкенды вместо `*.nakarte.me`).
 - Новая работа: `/opsx:explore` → `/opsx:propose` → `/opsx:apply` → `/opsx:archive` (скиллы в `.claude/`). Проверка: `openspec validate --all --strict`.
 - Язык артефактов — русский, заголовки OpenSpec и SHALL/MUST — английские (`openspec/config.yaml`).
 
@@ -108,6 +109,7 @@
 
 ## Свои бэкенды вместо `*.nakarte.me`
 
+- Карта бэкендов, контракты, решения и план — `openspec/research/own-backends.md`.
 - Каждый сервис — отдельный change и отдельный ключ в `src/config-target/clone.js`, чтобы переключать и откатывать по одному.
 - Тесты обязательны и подключаются к CI (`check`). В сеть и живые сервисы они не ходят: ответы внешних сервисов — через фикстуры или заглушки (пример, как не надо, — тесты wikiloc, упавшие из-за Cloudflare).
 
