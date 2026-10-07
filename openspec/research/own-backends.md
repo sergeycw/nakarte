@@ -49,7 +49,7 @@
 - Ответ — по строке на точку в том же порядке: высота в метрах с 2 знаками (`%.2f`) или `NULL`.
 - Лимиты сервера автора: 10 000 точек и 250 000 байт на запрос ([elevation_server.py](https://raw.githubusercontent.com/wladich/ElevationServer/master/elevation_server.py)).
 - CORS с `credentials`, как у треков.
-- Сейчас у автора сетка 3″ (~90 м) с билинейной интерполяцией: проверено 2026-10-07 профилями с шагом 0.25″ (Казбек, Эльбрус, Альпы), изломы ровно через 3″. Работает Go-сервер [wladich/elevation_server](https://github.com/wladich/elevation_server) (тексты ошибок совпадают с его кодом, а не с архивным Python-сервером `ElevationServer`): HGT 1201×1201 с [viewfinderpanoramas](https://viewfinderpanoramas.org/dem3.html), градус режется на 4×4 куска 301×301, lz4. Высоты автора в узлах сетки совпадают с HGT viewfinderpanoramas до метра. Точный контракт — в `changes/add-elevation-api/design.md`.
+- Сейчас у автора сетка 3″ (~90 м) с билинейной интерполяцией: проверено 2026-10-07 профилями с шагом 0.25″ (Казбек, Эльбрус, Альпы), изломы ровно через 3″. Работает Go-сервер [wladich/elevation_server](https://github.com/wladich/elevation_server) (тексты ошибок совпадают с его кодом, а не с архивным Python-сервером `ElevationServer`): HGT 1201×1201 с [viewfinderpanoramas](https://viewfinderpanoramas.org/dem3.html), градус режется на 4×4 куска 301×301, lz4. Высоты автора в узлах сетки совпадают с HGT viewfinderpanoramas до метра. Точный контракт — в `openspec/specs/elevation-api` и `openspec/changes/archive/2026-10-07-add-elevation-api/design.md`.
 
 ### Тайлы высот
 

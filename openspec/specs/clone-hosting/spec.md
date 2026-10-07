@@ -62,15 +62,6 @@
 - **WHEN** список тайлов индекса brouter.de сравнивается с ключами `*.rd5` в бакете
 - **THEN** каждый тайл индекса есть в бакете с тем же размером
 
-### Requirement: Авторский бэкенд высот
-
-Клон SHALL использовать авторский `elevation.nakarte.me` для высот, пока нет своего сервиса высот: он отвечает чужому origin.
-
-#### Scenario: Высоты в клоне
-
-- **WHEN** пользователь клона открывает профиль высот трека
-- **THEN** высоты приходят с `elevation.nakarte.me`
-
 ### Requirement: Своё хранилище треков
 
 Клон SHALL сохранять и открывать ссылки `nktl=` через своё хранилище треков (capability `track-storage`), а не через `tracks.nakarte.me`.
@@ -79,3 +70,21 @@
 
 - **WHEN** пользователь клона нажимает «Copy link» и открывает ссылку
 - **THEN** запросы `POST` и `GET /track/{key}` уходят на Worker клона, а не на `tracks.nakarte.me`
+
+### Requirement: Свой сервис высот
+
+Клон SHALL получать высоты для профиля, экспорта и внешних карт от своего сервиса высот (capability `elevation-api`), а не от `elevation.nakarte.me`.
+
+#### Scenario: Профиль высот в клоне
+
+- **WHEN** пользователь клона открывает профиль высот трека
+- **THEN** запрос высот уходит на сервис клона, запросов к `elevation.nakarte.me` нет
+
+### Requirement: Атрибуция данных высот
+
+Клон SHALL показывать атрибуцию данных высот, которой требуют условия viewfinderpanoramas.org: упоминание «Elevation data: viewfinderpanoramas.org (Jonathan de Ferranti)» со ссылкой на страницу источника `https://viewfinderpanoramas.org/dem3.html`.
+
+#### Scenario: Атрибуция в интерфейсе
+
+- **WHEN** пользователь клона открывает профиль высот
+- **THEN** атрибуция viewfinderpanoramas со ссылкой видна
