@@ -84,7 +84,7 @@
 - R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
 - Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
 - Worker `nakarte-tracks` (`workers/tracks`) — хранилище треков для ссылок `nktl=`: https://nakarte-tracks.nakarte-routing.workers.dev. Объекты `tracks/{key}` в R2-бакете `nakarte-tracks` (EEUR).
-- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), 26 157 градусов ≈ 13 ГБ, заливает ручной workflow `elevation data` (весь мир ≈ 40 минут). Нужен Workers Paid: на Free 10 мс CPU.
+- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля (`POST /`) и тайлы высот под курсором (`GET /tiles/{z}/{x}/{y}`): https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), 26 157 градусов ≈ 13 ГБ, заливает ручной workflow `elevation data` (весь мир ≈ 40 минут); там же архив тайлов z0–9 `tiles/elevation-z0-9`, его собирает ручной workflow `elevation tiles`. Нужен Workers Paid: на Free 10 мс CPU.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
@@ -129,13 +129,14 @@
 
 ### Сервис высот (`workers/elevation`)
 
-Контракт — `openspec/specs/elevation-api`, формат данных и решения — `openspec/changes/archive/2026-10-07-add-elevation-api/design.md`. Коротко: те же данные и арифметика, что у Go-сервера автора `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301), поэтому ответы совпадают побайтно.
+Контракт — `openspec/specs/elevation-api` и `openspec/specs/elevation-tiles`, формат данных и решения — `design.md` changes `add-elevation-api` и `add-elevation-tiles` (в `openspec/changes/archive/`, пока второй не архивирован — в `openspec/changes/`). Коротко: те же данные и арифметика, что у автора — Go-сервера `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301) и GDAL-генератора тайлов `wladich/elevation_tiles_for_nakarte`, поэтому ответы и тайлы совпадают побайтно.
 
-- Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса). Версия Rust закреплена в `rust-toolchain.toml`, rustup ставит её сам; нужен `cargo install worker-build --version 0.8.7 --locked`.
+- Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы, в том числе расчёт тайлов), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса), `tiles` (`elevation-tiles`: архив тайлов z0–9 и прореживание фикстур). Версия Rust закреплена в `rust-toolchain.toml`, rustup ставит её сам; нужен `cargo install worker-build --version 0.8.7 --locked`.
 - Проверки из `workers/elevation`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy -p elevation-worker --target wasm32-unknown-unknown -- -D warnings`, `cargo test --workspace`, `PATH=/usr/local/bin:$PATH npm test` (собирает wasm и гоняет его в `workerd`).
-- Фикстуры: `fixtures/reference.txt` — 306 ответов автора, `fixtures/dem3/*` — прореженные объекты (только нужные куски). Пересборка — `fixtures/make_reference.py` (ходит к автору) и `elevation-repack --only ...` по списку, который он печатает.
+- Фикстуры: `fixtures/reference.txt` — 306 ответов автора, `fixtures/tiles/{z}-{x}-{y}.gz` — тайлы автора как есть (gzip), `fixtures/dem3/*` — прореженные объекты (только нужные куски). Пересборка API — `fixtures/make_reference.py` (ходит к автору) и `elevation-repack --only ...` по списку, который он печатает; новый эталонный тайл — скачать с `tiles.nakarte.me/elevation` в `fixtures/tiles/` и `elevation-tiles thin --data <каталог с полными dem3> --fixtures fixtures Z/X/Y` (дописывает нужные куски, не трогая уже лежащие).
 - Данные: `scripts/elevation-data.sh dem3/K38 ...` или `all` (справка — без аргументов). По умолчанию пишет в локальный R2 для `wrangler dev`; `R2_MODE=--remote` — в Cloudflare через S3 API R2, уже залитые градусы пропускает. В CI — workflow `elevation data` с секретами `R2_ACCESS_KEY_ID` и `R2_SECRET_ACCESS_KEY` (Account API token R2 «nakarte-elevation data upload»: Object Read & Write только на `nakarte-elevation`, заводит владелец). `wrangler r2 bulk put --remote` для массовой заливки не годится: ~0.4 объекта в секунду.
-- Локально: `nakarte-elevation-worker` в `../.claude/launch.json` — `wrangler dev` на 8789 поверх локального R2 (сначала залить градусы скриптом выше). Клон на 8766 ходит в боевой Worker; для проверки с локальным временно поставить `elevationsServer: 'http://localhost:8789/'` в `src/config-target/clone.js` и вернуть.
+- Тайлы: z10–11 Worker считает на лету из `dem3`, z0–9 читает из архива. Архив — `DATA=<каталог с dem3> [BBOX=W,S,E,N] scripts/elevation-tiles.sh` (локальный R2) или workflow `elevation tiles` (весь мир, через S3 API тем же токеном; поле `bbox` — для пробы на регионе). Регион Кавказ `40,41,47,45` локально — 4 секунды.
+- Локально: `nakarte-elevation-worker` в `../.claude/launch.json` — `wrangler dev` на 8789 поверх локального R2 (сначала залить градусы скриптом выше, для тайлов z0–9 — ещё архив). Клон на 8766 ходит в боевой Worker; для проверки с локальным временно поставить `elevationsServer: 'http://localhost:8789/'` или `elevationTileUrl: 'http://localhost:8789/tiles/{z}/{x}/{y}'` в `src/config-target/clone.js` и вернуть. Высота под курсором включается кнопкой координат (`a[title="Show coordinates at cursor"]`), в фоновой вкладке курсор — `mousemove` через JS на `.leaflet-container`, подпись — `.elevation-display-label`.
 
 Подвохи:
 - `worker-build` пишет JS-обёртку и wasm в `worker/build/`: каталог в `.gitignore`, eslint его пропускает по `ignorePatterns: ['build']`. Обёртка минифицирована, линтить её нельзя.
@@ -143,6 +144,10 @@
 - В `workerd` нет файловой системы: тест Worker получает фикстуры привязками из `vitest.config.js`.
 - Будущее ядра не `Send` (трейт `Source` без `Send`-границ ради wasm), поэтому `server` крутит его через `spawn_blocking` + `block_on`.
 - `core` с фичей `encode` тянет C-шный `zstd`: под wasm32 не собирается, поэтому clippy под wasm — только `-p elevation-worker`.
+- Тайлы отдаются уже в gzip: в Worker ответ с `EncodeBody::Manual`, иначе рантайм сожмёт ещё раз. В тестах `workerd` тело такого ответа при чтении из JS приходит распакованным.
+- Узел на стыке градусов есть в двух HGT, и значения там расходятся: тайлы автора берут градус, последний по алфавиту имени, поэтому куски в `render` заполняют окно строго в порядке ключей (`buffered`, не `buffer_unordered`).
+- После перезаливки архива тайлов Worker передеплоить: кеш изолята держит страницы старого индекса.
+- Тест генератора считает растр блока z5 (16 447²): `core` и `tiles` в тестовом профиле собираются с `opt-level = 3`, иначе десятки секунд.
 
 ## Апстрим
 

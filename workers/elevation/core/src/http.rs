@@ -1,8 +1,13 @@
+use crate::archive::{self, Lookup};
 use crate::request::{self, MAX_BODY_BYTES, ParseError};
-use crate::{Source, elevations, response};
+use crate::tile::{self, LIVE_MIN_ZOOM};
+use crate::{Error, Source, elevations, render, response};
 
 const ALLOWED_METHODS: &str = "POST, OPTIONS";
 const TEXT: &str = "text/plain; charset=utf-8";
+const TILES_PREFIX: &str = "/tiles/";
+// Тайлы автора кешируются на сутки (`tiles.nakarte.me`, проверено 2026-10-07).
+const TILE_CACHE: &str = "max-age=86400";
 
 pub struct Request<'a> {
     pub method: &'a str,
@@ -17,12 +22,12 @@ pub struct Request<'a> {
 pub struct Response {
     pub status: u16,
     pub headers: Vec<(&'static str, String)>,
-    pub body: String,
+    pub body: Vec<u8>,
     pub error: Option<String>,
 }
 
 impl Response {
-    fn new(status: u16, body: impl Into<String>) -> Response {
+    fn new(status: u16, body: impl Into<Vec<u8>>) -> Response {
         Response {
             status,
             headers: Vec::new(),
@@ -61,13 +66,17 @@ pub fn parse_origins(list: &str) -> Vec<&str> {
 }
 
 // HTTP без привязки к рантайму: адаптер собирает `Request` и переводит `Response` обратно.
-// CORS как у `workers/tracks`: только origin из `ALLOWED_ORIGINS`, иначе (и без `Origin`) — 403.
-// Коды и тексты ошибок — как у Go-сервера автора (`http.Error` дописывает `\n`).
+// API высот: CORS как у `workers/tracks` — только origin из `ALLOWED_ORIGINS`, иначе (и без
+// `Origin`) — 403; коды и тексты ошибок — как у Go-сервера автора (`http.Error` дописывает `\n`).
+// Тайлы (`/tiles/`): CORS `*` без проверки `Origin`, как у `tiles.nakarte.me`.
 pub async fn handle<S: Source>(
     request: &Request<'_>,
     allowed_origins: &[&str],
     source: &S,
 ) -> Response {
+    if let Some(path) = request.path.strip_prefix(TILES_PREFIX) {
+        return respond_tile(request.method, path, source).await;
+    }
     let Some(origin) = request
         .origin
         .filter(|origin| allowed_origins.contains(origin))
@@ -118,4 +127,67 @@ async fn respond<S: Source>(request: &Request<'_>, source: &S) -> Response {
             ..Response::new(500, "Server error\n").text()
         },
     }
+}
+
+// `Access-Control-Allow-Origin: *` и на `404`: клиент считает `404` ответом «нет данных», а без
+// заголовка браузер отдал бы ему ошибку CORS.
+async fn respond_tile<S: Source>(method: &str, path: &str, source: &S) -> Response {
+    let mut response = tile_status(method, path, source).await;
+    response
+        .headers
+        .push(("Access-Control-Allow-Origin", "*".to_string()));
+    response
+}
+
+async fn tile_status<S: Source>(method: &str, path: &str, source: &S) -> Response {
+    if method != "GET" && method != "HEAD" {
+        let mut response = Response::new(405, "Method not allowed\n").text();
+        response.headers.push(("Allow", "GET, HEAD".to_string()));
+        return response;
+    }
+    let Some((z, x, y)) = tile::parse_path(path) else {
+        return Response::new(404, "404 page not found\n").text();
+    };
+    match tile_body(source, z, x, y).await {
+        Ok(Some(body)) => {
+            let mut response = Response::new(200, body);
+            response.headers.extend([
+                ("Content-Type", "application/octet-stream".to_string()),
+                ("Content-Encoding", "gzip".to_string()),
+                ("Cache-Control", TILE_CACHE.to_string()),
+            ]);
+            response
+        }
+        Ok(None) => {
+            let mut response = Response::new(404, "No data\n").text();
+            response
+                .headers
+                .push(("Cache-Control", TILE_CACHE.to_string()));
+            response
+        }
+        Err(error) => Response {
+            error: Some(error.to_string()),
+            ..Response::new(500, "Server error\n").text()
+        },
+    }
+}
+
+/// Тело тайла в gzip: z10–11 — на лету из `dem3`, меньшие зумы — из архива; `None` — данных нет.
+pub async fn tile_body<S: Source>(
+    source: &S,
+    z: u8,
+    x: u32,
+    y: u32,
+) -> Result<Option<Vec<u8>>, Error> {
+    if z < LIVE_MIN_ZOOM {
+        return match archive::read(source, z, x, y).await? {
+            Lookup::Tile(body) => Ok(Some(body)),
+            Lookup::Missing | Lookup::NotCovered => Ok(None),
+        };
+    }
+    let raster = render::tile(source, z, x, y).await?;
+    if !raster.has_data() {
+        return Ok(None);
+    }
+    Ok(Some(tile::encode_tile(&raster)))
 }

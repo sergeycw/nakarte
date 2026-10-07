@@ -2,18 +2,21 @@ use std::collections::BTreeMap;
 
 use futures::stream::{self, StreamExt, TryStreamExt};
 
+pub mod archive;
 pub mod format;
 pub mod grid;
 pub mod http;
+pub mod render;
 pub mod request;
 pub mod response;
+pub mod tile;
 
 use format::{HEADER_LEN, Header};
 use grid::Cell;
 
 // Чтения R2 идут пачками: на один вызов Worker не больше 10 000 подзапросов и ограничено
 // число одновременных соединений.
-const PARALLEL_READS: usize = 16;
+pub(crate) const PARALLEL_READS: usize = 16;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {

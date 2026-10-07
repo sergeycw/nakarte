@@ -86,3 +86,29 @@ async fn rejects_foreign_origin_and_wrong_method() {
     assert!(invalid.starts_with("HTTP/1.1 400"), "{invalid}");
     assert_eq!(body(&invalid), "Invalid request\n");
 }
+
+#[tokio::test]
+async fn serves_tiles_without_origin() {
+    let port = start().await;
+    let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .unwrap();
+    stream
+        .write_all(
+            b"GET /tiles/11/1277/754 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+        )
+        .await
+        .unwrap();
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).await.unwrap();
+    let split = response
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .unwrap();
+    let head = String::from_utf8_lossy(&response[..split]).to_ascii_lowercase();
+    assert!(head.starts_with("http/1.1 200"), "{head}");
+    assert!(head.contains("content-encoding: gzip"), "{head}");
+    assert!(head.contains("access-control-allow-origin: *"), "{head}");
+    // тело — gzip: magic 1f 8b
+    assert_eq!(&response[split + 4..split + 6], &[0x1f, 0x8b]);
+}
