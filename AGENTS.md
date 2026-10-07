@@ -123,6 +123,7 @@
 - `@cloudflare/vitest-pool-workers` 0.22 требует `vitest` 4 (peer `^4.1.0`), с `vitest` 5 не работает. Конфиг — плагин `cloudflareTest()`, а не старый `defineWorkersConfig`. Флаг `nodejs_compat` не нужен.
 - Глобальный `~/.npmrc` задаёт `install-strategy=shallow`: зависимости `vitest` оказываются вложенными, и пул падает с `The requested module 'expect-type' does not provide an export named 'expectTypeOf'`. Поэтому у сервиса свой `.npmrc` с `install-strategy=hoisted`, как в CI.
 - npm 10 на установке без lock-файла падает с `Cannot read properties of null (reading 'edgesOut')` на цикле peer-зависимостей `vitest`. Ставить `npx --yes npm@11 install`, в CI на Node 24 и так npm 11.
+- Апстримный `check` линтит весь репозиторий без `node_modules` сервисов: импорты `vitest` и пула там не резолвятся, поэтому в `.eslintrc.js` они в `ignore` у `import/no-unresolved`. Перед push линт проверять и без `workers/<сервис>/node_modules`.
 - В тестах воркер вызывается через `import {exports as workerExports} from 'cloudflare:workers'`: `SELF` из `cloudflare:test` устарел, а имя `exports` ловит линтер (`import/no-commonjs`).
 
 ## Апстрим

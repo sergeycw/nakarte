@@ -114,6 +114,11 @@ module.exports = {
             files: ['./workers/*/test/**/*.js', './workers/*/vitest.config.js'],
             rules: {
                 'import/no-extraneous-dependencies': ['error', {devDependencies: true}],
+                'import/no-unresolved': [
+                    'error',
+                    {ignore: ['^cloudflare:', '^vitest(/|$)', '^@cloudflare/vitest-pool-workers$']},
+                ],
+                'import/extensions': ['error', 'always', {js: 'never', ignorePackages: true}],
             },
         },
         /* command line scripts */
