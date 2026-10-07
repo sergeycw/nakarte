@@ -20,7 +20,7 @@
 ## 4. Клон
 
 - [x] 4.1 `elevationTileUrl` в `src/config-target/clone.js`, `AGENTS.md` (генерация, подвохи), статус в `openspec/research/own-backends.md`; проверка: линт, команды из `AGENTS.md` выполняются как написано
-- [ ] 4.2 На `https://nakarte-routing.pages.dev` провести курсором по горам; проверка: высота и уклон показываются, запросов к `tiles.nakarte.me/elevation` нет
+- [x] 4.2 На `https://nakarte-routing.pages.dev` провести курсором по горам; проверка: высота и уклон показываются, запросов к `tiles.nakarte.me/elevation` нет
 
 ## Workflow follow-up
 
