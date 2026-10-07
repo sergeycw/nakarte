@@ -18,7 +18,7 @@
 
 ### Хранение в R2, ключ объекта — ключ ссылки
 
-Объект `tracks/{key}` в отдельном бакете (например, `nakarte-tracks`). Записи неизменяемые: ключ — хеш содержимого, перезапись того же ключа бессмысленна. Альтернатива KV отклонена: лимит значения 25 МиБ и платная запись без выигрыша; R2 уже используется клоном.
+Объект `tracks/{key}` в отдельном бакете `nakarte-tracks` (EEUR, как `nakarte-tiles`). Записи неизменяемые: ключ — хеш содержимого, перезапись того же ключа бессмысленна. Альтернатива KV отклонена: лимит значения 25 МиБ и платная запись без выигрыша; R2 уже используется клоном.
 
 ### md5 той же библиотекой, что клиент
 
@@ -30,15 +30,17 @@
 
 ### CORS по списку origin
 
-Как в `workers/cors-proxy`: `ALLOWED_ORIGINS` в `[vars]`, отражение `Origin`, `Access-Control-Allow-Credentials: true`. Без `Origin` запрос не обслуживается: клиент всегда шлёт его при кросс-доменном `fetch`. Список origin — тот же, что у прокси.
+Как в `workers/cors-proxy`: `ALLOWED_ORIGINS` в `[vars]`, отражение `Origin`, `Access-Control-Allow-Credentials: true`. Без `Origin` запрос получает `403`: клиент всегда шлёт его при кросс-доменном `fetch`. В отличие от прокси, `Referer` вместо `Origin` не принимается. Список origin — тот же, что у прокси.
 
 ### Тесты в рантайме Workers
 
 `workers/tracks/package.json` с `vitest` и `@cloudflare/vitest-pool-workers`: тесты идут в `workerd` с локальным R2, без сети. Workflow `.github/workflows/check-tracks.yml` запускается на изменения `workers/tracks/**` и ставит зависимости только этого каталога. Если пул окажется несовместим с текущими версиями, допустим `wrangler dev` + запросы из теста; выбор фиксируется в этом файле.
 
+Выбран пул: `@cloudflare/vitest-pool-workers` 0.22.0 (точная версия, пакет 0.x меняет API) и `vitest` `^4.1.0` — пул пока не поддерживает `vitest` 5. Конфиг — плагин `cloudflareTest()` с `wrangler.configPath`, привязка `TRACKS` поднимается локальным R2 из `wrangler.toml`. Совместимость с клиентом проверяется фикстурой `test/fixtures/client-track.json`: тело `POST` и ключ `nktl=`, снятые с настоящего `copyTracksLinkToClipboard` на локальном клоне. В каталоге сервиса свой `.npmrc` с `install-strategy=hoisted`, чтобы локальная раскладка `node_modules` совпадала с CI. Подвохи стенда — в `AGENTS.md`.
+
 ### Деплой
 
-Шаг `npx --yes wrangler@4 deploy` с `working-directory: workers/tracks` в `.github/workflows/deploy-pages.yml`, как у прокси. Бакет R2 создаётся один раз командой `wrangler r2 bucket create`; привязка `TRACKS` в `wrangler.toml`.
+Шаг `npm ci --omit=dev` и `npx --yes wrangler@4 deploy` с `working-directory: workers/tracks` в `.github/workflows/deploy-pages.yml`, как у прокси. `npm ci` ставит `blueimp-md5` из lock-файла сервиса: без него esbuild нашёл бы пакет в корневом `node_modules` клиента и собрал бы Worker с чужой версией. Бакет R2 создаётся один раз командой `wrangler r2 bucket create`; привязка `TRACKS` в `wrangler.toml`.
 
 ## Risks / Trade-offs
 

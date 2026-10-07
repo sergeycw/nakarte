@@ -1,0 +1,28 @@
+name: check tracks
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'workers/tracks/**'
+      - '.github/workflows/check-tracks.yml'
+  pull_request:
+    paths:
+      - 'workers/tracks/**'
+      - '.github/workflows/check-tracks.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/tracks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: workers/tracks/package-lock.json
+      - run: npm ci
+      - run: npm test

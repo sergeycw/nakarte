@@ -55,6 +55,7 @@
 - Видимые и скрытые точки удобно считать по `.line-editor-node-marker-halo` и `.line-editor-node-marker-hidden`.
 - Тестовый район: Тбилиси, зум 15, от ~41.687, 44.776 к телебашне Мтацминда.
 - Проверка живости BRouter делает GET `/brouter` без параметров и получает 404. Эта строка 404 в консоли ожидаема.
+- В фоновой вкладке браузерной панели клики `computer` до карты не доходят: трек рисуется событиями `mousemove`/`mousedown`/`mouseup`/`click`, отправленными через JS на `.leaflet-container`. «Copy link» в фоне падает в `prompt()` (`prompt() is not supported`) раньше, чем уходит `POST`: перед проверкой подменить `window.prompt` в этой вкладке, ссылка придёт вторым аргументом.
 
 ## Движок в браузере (CheerpJ)
 
@@ -82,13 +83,14 @@
 - Pages-проект `nakarte-routing`, production-ветка `master`. Корневой `wrangler.toml` описывает его (`pages_build_output_dir = "build"`, R2-привязка `TILES`). Pages Functions: `functions/tiles` (тайлы из R2) и `functions/brouter-wasm` (Range для jar и профилей).
 - R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
 - Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
+- Worker `nakarte-tracks` (`workers/tracks`) — хранилище треков для ссылок `nktl=`: https://nakarte-tracks.nakarte-routing.workers.dev. Объекты `tracks/{key}` в R2-бакете `nakarte-tracks` (EEUR).
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
 Сборка и деплой клона вручную — запасной путь, если автодеплой сломан:
 - `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
 - `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`.
-- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`.
+- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`.
 - Ручная сборка берёт локальный `src/secrets.js` (там заглушки ключей и локальные переопределения; итог перебивает `config-target`). CI собирает с `secrets.js.template`.
 - Без шагов в Cloudflare: `npx wrangler@4 pages functions build --outdir <tmp>` и `npx wrangler@4 deploy --dry-run` в `workers/cors-proxy`.
 
@@ -113,6 +115,16 @@
 - Каждый сервис — отдельный change и отдельный ключ в `src/config-target/clone.js`, чтобы переключать и откатывать по одному.
 - Монорепо: сервис живёт в `workers/<сервис>/` со своим `wrangler.toml` (раскладка — в `own-backends.md`, раздел «Структура репозитория»).
 - Тесты обязательны. Сервис подключает свои отдельным workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`; апстримный `main.yml` (`check`) не трогаем. Тесты клиента — karma в `test/`, их запускает `main.yml`. В сеть и живые сервисы они не ходят: ответы внешних сервисов — через фикстуры или заглушки (пример, как не надо, — тесты wikiloc, упавшие из-за Cloudflare).
+- Шаблон сервиса на JS — `workers/tracks/`: свой `package.json` и `package-lock.json`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2 (`vitest.config.js` берёт привязки из `wrangler.toml`), workflow `check-tracks.yml`, шаг деплоя в `deploy-pages.yml` после `npm ci --omit=dev`, ключ в `src/config-target/clone.js`.
+- Запуск тестов сервиса: `PATH=/usr/local/bin:$PATH npm test` из `workers/<сервис>`.
+
+Подвохи тестового стенда Workers:
+- Пулу нужен Node ≥ 22, а по умолчанию здесь nvm-шный Node 20. Node 22 лежит в `/usr/local/bin`, отсюда `PATH=/usr/local/bin:$PATH`.
+- `@cloudflare/vitest-pool-workers` 0.22 требует `vitest` 4 (peer `^4.1.0`), с `vitest` 5 не работает. Конфиг — плагин `cloudflareTest()`, а не старый `defineWorkersConfig`. Флаг `nodejs_compat` не нужен.
+- Глобальный `~/.npmrc` задаёт `install-strategy=shallow`: зависимости `vitest` оказываются вложенными, и пул падает с `The requested module 'expect-type' does not provide an export named 'expectTypeOf'`. Поэтому у сервиса свой `.npmrc` с `install-strategy=hoisted`, как в CI.
+- npm 10 на установке без lock-файла падает с `Cannot read properties of null (reading 'edgesOut')` на цикле peer-зависимостей `vitest`. Ставить `npx --yes npm@11 install`, в CI на Node 24 и так npm 11.
+- Апстримный `check` линтит весь репозиторий без `node_modules` сервисов: импорты `vitest` и пула там не резолвятся, поэтому в `.eslintrc.js` они в `ignore` у `import/no-unresolved`. Перед push линт проверять и без `workers/<сервис>/node_modules`.
+- В тестах воркер вызывается через `import {exports as workerExports} from 'cloudflare:workers'`: `SELF` из `cloudflare:test` устарел, а имя `exports` ловит линтер (`import/no-commonjs`).
 
 ## Апстрим
 
