@@ -39,3 +39,7 @@ jobs:
       - run: npx --yes wrangler@4 pages deploy build --project-name nakarte-routing --branch master
       - run: npx --yes wrangler@4 deploy
         working-directory: workers/cors-proxy
+      - run: |
+          npm ci --omit=dev
+          npx --yes wrangler@4 deploy
+        working-directory: workers/tracks
