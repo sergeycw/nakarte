@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use elevation_core::request::MAX_BODY_BYTES;
 use elevation_core::{Error as CoreError, Source, http};
-use worker::{Bucket, Context, Env, Request, Response, Result, console_error, event};
+use worker::{Bucket, Context, EncodeBody, Env, Request, Response, Result, console_error, event};
 
 // Изолят ограничен 128 МБ вместе с wasm; 32 МБ — сотни сжатых кусков (≈ 40–100 КБ каждый).
 const CACHE_BYTES: usize = 32 * 1024 * 1024;
@@ -130,13 +130,18 @@ async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response
     if let Some(error) = &response.error {
         console_error!("elevation error: {error}");
     }
+    let precompressed = response.header("Content-Encoding").is_some();
     // Ответ с пустым телом создаётся без тела: `new Response("", {status: 204})` в JS бросает.
     let mut result = if response.body.is_empty() {
         Response::empty()?
     } else {
-        Response::ok(response.body)?
+        Response::from_bytes(response.body)?
     }
     .with_status(response.status);
+    // Тело тайла уже в gzip: с `encodeBody: "automatic"` рантайм сжал бы его ещё раз.
+    if precompressed {
+        result = result.with_encode_body(EncodeBody::Manual);
+    }
     for (name, value) in &response.headers {
         result.headers_mut().set(name, value)?;
     }

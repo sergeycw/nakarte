@@ -12,6 +12,14 @@ const demObjects = Object.fromEntries(
     ])
 );
 
+// Эталонные тайлы автора (`fixtures/tiles/{z}-{x}-{y}.gz`, gzip как есть) — тоже base64.
+const authorTiles = Object.fromEntries(
+    readdirSync(new URL('tiles/', fixturesDir)).map((name) => [
+        name.replace(/\.gz$/u, ''),
+        readFileSync(new URL(`tiles/${name}`, fixturesDir)).toString('base64'),
+    ])
+);
+
 export default defineConfig({
     plugins: [
         cloudflareTest({
@@ -20,6 +28,7 @@ export default defineConfig({
                 bindings: {
                     FIXTURE_OBJECTS: demObjects,
                     FIXTURE_REFERENCE: readFileSync(new URL('reference.txt', fixturesDir), 'utf8'),
+                    FIXTURE_TILES: authorTiles,
                 },
             },
         }),

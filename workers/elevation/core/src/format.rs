@@ -102,17 +102,24 @@ pub fn encode_degree(chunks: &[Option<Vec<i16>>], level: i32) -> Vec<u8> {
                 .unwrap_or_default()
         })
         .collect();
+    assemble_degree(&encoded)
+}
+
+/// Объект градуса из уже сжатых кусков (пустой — данных нет); так `elevation-tiles thin`
+/// прореживает объекты без пересжатия.
+pub fn assemble_degree(encoded: &[Vec<u8>]) -> Vec<u8> {
+    assert_eq!(encoded.len(), CHUNKS);
     let mut object = Vec::with_capacity(HEADER_LEN + encoded.iter().map(Vec::len).sum::<usize>());
     object.extend_from_slice(MAGIC);
     object.extend_from_slice(&(TILE_SIZE as u16).to_le_bytes());
     object.extend_from_slice(&(SPLIT as u16).to_le_bytes());
     let mut offset = HEADER_LEN as u32;
     object.extend_from_slice(&offset.to_le_bytes());
-    for chunk in &encoded {
+    for chunk in encoded {
         offset += chunk.len() as u32;
         object.extend_from_slice(&offset.to_le_bytes());
     }
-    for chunk in &encoded {
+    for chunk in encoded {
         object.extend_from_slice(chunk);
     }
     object

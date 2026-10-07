@@ -100,6 +100,7 @@ module.exports = {
                 Response: true,
                 URL: true,
                 ReadableStream: true,
+                DecompressionStream: true,
                 TextDecoder: true,
                 atob: true,
                 btoa: true,
