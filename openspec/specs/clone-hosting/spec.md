@@ -56,3 +56,17 @@
 
 - **WHEN** выполняется `curl -r 0-0 https://nakarte-routing.pages.dev/brouter-wasm/lib/brouter.jar`
 - **THEN** ответ `206` с заголовком `Content-Range`
+
+### Requirement: Покрытие тайлами всего мира
+
+Бакет тайлов клона SHALL содержать все тайлы из индекса `https://brouter.de/brouter/segments4/`, чтобы маршрут строился везде, где его строит brouter.de.
+
+#### Scenario: Маршрут вне Грузии
+
+- **WHEN** на `https://nakarte-routing.pages.dev` с активностью «Hiking» ставятся две точки в Альпах (тайл `E5_N45`)
+- **THEN** отрезок прокладывается по тропам, а не остаётся прямым
+
+#### Scenario: Сверка с индексом
+
+- **WHEN** список тайлов индекса brouter.de сравнивается с ключами `*.rd5` в бакете
+- **THEN** каждый тайл индекса есть в бакете с тем же размером

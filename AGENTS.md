@@ -6,7 +6,7 @@
 
 Проект ведётся по [OpenSpec](https://github.com/Fission-AI/OpenSpec) (CLI `openspec`, Node ≥ 20.19.0). Здесь, в `AGENTS.md`, — только запуск, окружение и подвохи.
 
-- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `cors-proxy`, `tile-sync`.
+- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`.
 - `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
 - `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
 - Новая работа: `/opsx:explore` → `/opsx:propose` → `/opsx:apply` → `/opsx:archive` (скиллы в `.claude/`). Проверка: `openspec validate --all --strict`.
@@ -74,7 +74,7 @@
 
 ## Публичный клон на Cloudflare
 
-Своего домена нет, клон живёт на `nakarte-routing.pages.dev`. В R2 залиты только тайлы Грузии (`E40_N40`, `E45_N40`), до полной синхронизации (`openspec/changes/sync-world-tiles`) маршрут строится только там.
+Своего домена нет, клон живёт на `nakarte-routing.pages.dev`. Каждый push в `master` деплоит его workflow `deploy pages`; в R2 лежат тайлы всего мира (1142), их обновляет `brouter tiles sync` по понедельникам.
 
 Ресурсы Cloudflare (аккаунт `S.m.lukashev@gmail.com's Account`, id `1f81a3ec34abfc6581cdd0484bbf56a9`):
 - Pages-проект `nakarte-routing`, production-ветка `master`. Корневой `wrangler.toml` описывает его (`pages_build_output_dir = "build"`, R2-привязка `TILES`). Pages Functions: `functions/tiles` (тайлы из R2) и `functions/brouter-wasm` (Range для jar и профилей).
@@ -83,7 +83,7 @@
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
-Сборка и деплой клона вручную (автодеплой — `openspec/changes/add-pages-autodeploy`):
+Сборка и деплой клона вручную — запасной путь, если автодеплой сломан:
 - `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
 - `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`.
 - `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`.
