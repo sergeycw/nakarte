@@ -2,7 +2,7 @@
 
 ## 1. Фильтр провайдеров
 
-- [x] 1.1 `excludePanoramaProviders` в `src/config-target/exclude-panoramas.js`, `excludedPanoramaProviders: ['wikimedia', 'mapillary', 'mapycz']` в `src/config-target/clone.js`, вызов в `src/App.js`; проверка: тест karma `test/test_exclude_panoramas.js` — базовый контрол отдаёт четыре провайдера, клон — только `google`, без списка класс не меняется
+- [x] 1.1 `excludePanoramaProviders` в `src/config-target/exclude-panoramas.js`, `excludedPanoramaProviders: ['wikimedia', 'mapillary', 'mapycz']` в `src/config-target/clone.js`, вызов в `src/App.js`; проверка: тест karma `test/test_exclude_panoramas.js` на заглушке контрола — список клона оставляет только `google`, порядок остальных сохраняется, без списка класс не меняется
 - [x] 1.2 Адрес со скрытым провайдером: карта открывается без ошибок; проверка: в браузере на локальном клоне (8766) `n2=wmc` и `n2=_c/c/<lat>/<lng>/...` не включают скрытых провайдеров, ошибок в консоли нет
 
 ## 2. Проверка
