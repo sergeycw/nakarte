@@ -3,7 +3,7 @@
 ## 1. cors-proxy: тесты
 
 - [x] 1.1 Тестовый стенд `workers/cors-proxy` по шаблону `workers/tracks` (`package.json`, `package-lock.json`, `.npmrc`, `vitest.config.js` с `outboundService` вместо сети) и тесты текущего поведения: `403` без разрешённого origin, preflight, `404` на чужой путь, проксирование и переписывание `Location`; проверка: `PATH=/usr/local/bin:$PATH npm test` в `workers/cors-proxy` зелёный
-- [ ] 1.2 Workflow `.github/workflows/check-cors-proxy.yml` с фильтром `paths:`; проверка: зелёный прогон на PR
+- [x] 1.2 Workflow `.github/workflows/check-cors-proxy.yml` с фильтром `paths:`; проверка: зелёный прогон на PR
 
 ## 2. Частота запросов
 
@@ -18,7 +18,7 @@
 ## 4. Документация и прод
 
 - [x] 4.1 `AGENTS.md`: лимиты, где они заданы, как поднять, тесты `cors-proxy`; проверка: линт `NODE_ENV=production npx eslint --ext js .` с `node_modules` сервисов и без, `openspec validate --all --strict`
-- [ ] 4.2 После деплоя: обычные запросы к трём Worker'ам на проде дают прежние ответы (`curl` тайла, точки высоты, OPTIONS треков и прокси); проверка: ответы `200`/`204`, а не `429`; «Billable usage» в дашборде — без строки за rate limiting или с нулём
+- [x] 4.2 После деплоя: обычные запросы к трём Worker'ам на проде дают прежние ответы (`curl` тайла, точки высоты, OPTIONS треков и прокси); проверка: ответы `200`/`204`, а не `429`; «Billable usage» в дашборде — без строки за rate limiting или с нулём
 
 ## Workflow follow-up
 
