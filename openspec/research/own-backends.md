@@ -142,7 +142,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | № | Change | Архивировать после | Статус |
 |---|---|---|---|
 | 1 | `add-track-storage` | — | в проде и в архиве с 2026-10-07, шаблон сервиса — `workers/tracks/` |
-| 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | |
+| 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в работе: данные viewfinderpanoramas 3″, сервис `workers/elevation`, деплой ждёт Workers Paid |
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | |
 | 4 | `add-map-data-scrapers` | — | |
 | 5 | `add-photo-coverage-tiles` | — | |

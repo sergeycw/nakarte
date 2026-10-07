@@ -84,13 +84,14 @@
 - R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
 - Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
 - Worker `nakarte-tracks` (`workers/tracks`) — хранилище треков для ссылок `nktl=`: https://nakarte-tracks.nakarte-routing.workers.dev. Объекты `tracks/{key}` в R2-бакете `nakarte-tracks` (EEUR).
+- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), заливает ручной workflow `elevation data`. Нужен Workers Paid: на Free 10 мс CPU.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
 Сборка и деплой клона вручную — запасной путь, если автодеплой сломан:
 - `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
 - `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`.
-- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`.
+- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`; высоты — `PATH=/usr/local/bin:$PATH npx wrangler@4 deploy` из `workers/elevation` (собирает wasm сам, нужен `worker-build` в `PATH`).
 - Ручная сборка берёт локальный `src/secrets.js` (там заглушки ключей и локальные переопределения; итог перебивает `config-target`). CI собирает с `secrets.js.template`.
 - Без шагов в Cloudflare: `npx wrangler@4 pages functions build --outdir <tmp>` и `npx wrangler@4 deploy --dry-run` в `workers/cors-proxy`.
 
@@ -105,7 +106,7 @@
 Локальный стек для клона (записи в `../.claude/launch.json`, всё из этого checkout): `nakarte` — серверный режим на 8765 (`yarn local`); `nakarte-wasm` — dev-сервер клона на 8766 с `NAKARTE_TARGET=clone`, поэтому `src/secrets.js` общий и правок под клон не требует; `nakarte-tiles-worker` — `wrangler dev` тайлов на 8788 (dev-сервер проксирует `/tiles` туда); `nakarte-cors-proxy` — `wrangler dev` прокси на 8787, нужен, только если направить `CORSProxyUrl` на него. Тайлы в локальный R2: `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file ../../brouter/segments4/<имя>.rd5 --local` из `workers/tiles`. Файлы движка для 8766 — после `build.sh`.
 
 Авторские бэкенды `*.nakarte.me` с чужого домена (проверено 2026-10-06, `Origin`/`Referer` фейкового клона):
-- пускают: `elevation` и `tracks` (отражают любой `Origin` с `credentials`), `tiles.nakarte.me` и `geocachingSu` (`*`);
+- пускают: `elevation` и `tracks` (отражают любой `Origin` с `credentials`; оба в клоне уже заменены своими), `tiles.nakarte.me` и `geocachingSu` (`*`);
 - не пускает: `proxy.nakarte.me` рвёт соединение без `Referer: https://nakarte.me/`, даже с localhost — отсюда свой прокси;
 - `mapillary.nakarte.me` без CORS: картинкой работает, в canvas нет.
 
@@ -125,6 +126,23 @@
 - npm 10 на установке без lock-файла падает с `Cannot read properties of null (reading 'edgesOut')` на цикле peer-зависимостей `vitest`. Ставить `npx --yes npm@11 install`, в CI на Node 24 и так npm 11.
 - Апстримный `check` линтит весь репозиторий без `node_modules` сервисов: импорты `vitest` и пула там не резолвятся, поэтому в `.eslintrc.js` они в `ignore` у `import/no-unresolved`. Перед push линт проверять и без `workers/<сервис>/node_modules`.
 - В тестах воркер вызывается через `import {exports as workerExports} from 'cloudflare:workers'`: `SELF` из `cloudflare:test` устарел, а имя `exports` ловит линтер (`import/no-commonjs`).
+
+### Сервис высот (`workers/elevation`)
+
+Контракт, формат данных и решения — в `openspec/changes/add-elevation-api/design.md` (после архивации — в `openspec/specs/elevation-api` и в архиве change). Коротко: те же данные и арифметика, что у Go-сервера автора `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301), поэтому ответы совпадают побайтно.
+
+- Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса). Версия Rust закреплена в `rust-toolchain.toml`, rustup ставит её сам; нужен `cargo install worker-build --version 0.8.7 --locked`.
+- Проверки из `workers/elevation`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy -p elevation-worker --target wasm32-unknown-unknown -- -D warnings`, `cargo test --workspace`, `PATH=/usr/local/bin:$PATH npm test` (собирает wasm и гоняет его в `workerd`).
+- Фикстуры: `fixtures/reference.txt` — 306 ответов автора, `fixtures/dem3/*` — прореженные объекты (только нужные куски). Пересборка — `fixtures/make_reference.py` (ходит к автору) и `elevation-repack --only ...` по списку, который он печатает.
+- Данные: `scripts/elevation-data.sh dem3/K38 ...` или `all` (справка — без аргументов). По умолчанию пишет в локальный R2 для `wrangler dev`, `R2_MODE=--remote` — в Cloudflare. В CI — workflow `elevation data`.
+- Локально: `nakarte-elevation-worker` в `../.claude/launch.json` — `wrangler dev` на 8789 поверх локального R2 (сначала залить градусы скриптом выше). Клон на 8766 ходит в боевой Worker; для проверки с локальным временно поставить `elevationsServer: 'http://localhost:8789/'` в `src/config-target/clone.js` и вернуть.
+
+Подвохи:
+- `worker-build` пишет JS-обёртку и wasm в `worker/build/`: каталог в `.gitignore`, eslint его пропускает по `ignorePatterns: ['build']`. Обёртка минифицирована, линтить её нельзя.
+- Cache API на `*.workers.dev` не работает, поэтому кеш кусков — в памяти изолята.
+- В `workerd` нет файловой системы: тест Worker получает фикстуры привязками из `vitest.config.js`.
+- Будущее ядра не `Send` (трейт `Source` без `Send`-границ ради wasm), поэтому `server` крутит его через `spawn_blocking` + `block_on`.
+- `core` с фичей `encode` тянет C-шный `zstd`: под wasm32 не собирается, поэтому clippy под wasm — только `-p elevation-worker`.
 
 ## Апстрим
 
