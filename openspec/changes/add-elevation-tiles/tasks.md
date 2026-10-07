@@ -15,11 +15,11 @@
 
 ## 3. Мир
 
-- [ ] 3.1 Workflow `elevation tiles` и скрипт генерации; проверка: прогон из `master` залил архив, `curl` тайла над Кавказом на z5, z9 и z11 даёт `200` и 131 072 байта после распаковки, тайл над океаном — `404`; размер и время — в `design.md`
+- [x] 3.1 Workflow `elevation tiles` и скрипт генерации; проверка: прогон из `master` залил архив, `curl` тайла над Кавказом на z5, z9 и z11 даёт `200` и 131 072 байта после распаковки, тайл над океаном — `404`; размер и время — в `design.md`
 
 ## 4. Клон
 
-- [ ] 4.1 `elevationTileUrl` в `src/config-target/clone.js`, `AGENTS.md` (генерация, подвохи), статус в `openspec/research/own-backends.md`; проверка: линт, команды из `AGENTS.md` выполняются как написано
+- [x] 4.1 `elevationTileUrl` в `src/config-target/clone.js`, `AGENTS.md` (генерация, подвохи), статус в `openspec/research/own-backends.md`; проверка: линт, команды из `AGENTS.md` выполняются как написано
 - [ ] 4.2 На `https://nakarte-routing.pages.dev` провести курсором по горам; проверка: высота и уклон показываются, запросов к `tiles.nakarte.me/elevation` нет
 
 ## Workflow follow-up
