@@ -8,9 +8,9 @@
 
 ## 2. Запуск в GitHub
 
-- [ ] 2.1 Владелец заводит секреты `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID`; проверка: `gh secret list --repo sergeycw/nakarte` показывает оба
-- [ ] 2.2 Workflow попадает в `master` форка; проверка: `gh run list --repo sergeycw/nakarte --workflow deploy-pages.yml` показывает успешный прогон
-- [ ] 2.3 Проверить прод после деплоя; проверка: на `https://nakarte-routing.pages.dev` маршрут в Тбилиси строится, `curl -r 0-0` на `/brouter-wasm/lib/brouter.jar` даёт `206`
+- [x] 2.1 Владелец заводит секреты `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID`; проверка: `gh secret list --repo sergeycw/nakarte` показывает оба
+- [x] 2.2 Workflow попадает в `master` форка; проверка: `gh run list --repo sergeycw/nakarte --workflow deploy-pages.yml` показывает успешный прогон
+- [x] 2.3 Проверить прод после деплоя; проверка: на `https://nakarte-routing.pages.dev` маршрут в Тбилиси строится, `curl -r 0-0` на `/brouter-wasm/lib/brouter.jar` даёт `206`
 
 ## Workflow follow-up
 
