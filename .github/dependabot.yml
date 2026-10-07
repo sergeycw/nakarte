@@ -1,9 +1,36 @@
 version: 2
+# Файл пришёл из апстрима, где Dependabot обновлял корневой npm. В форке обновляется только своё:
+# workflows форка и сервисы в workers/. Корневые зависимости — апстрима, их бампы раздували бы дифф
+# с автором, поэтому блока для "/" нет. В форке version updates включаются вручную
+# (Settings → Advanced Security → Dependabot version updates), одного этого файла мало.
 updates:
-- package-ecosystem: npm
-  directory: "/"
-  schedule:
-    interval: monthly
-    time: "02:00"
-  open-pull-requests-limit: 99
-  versioning-strategy: increase
+  - package-ecosystem: github-actions
+    directory: "/"
+    # main.yml — workflow апстрима (`check`), его не трогаем
+    exclude-paths:
+      - ".github/workflows/main.yml"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directories:
+      - "/workers/tracks"
+      - "/workers/elevation"
+    schedule:
+      interval: weekly
+    groups:
+      workers-npm:
+        patterns: ["*"]
+
+  # worker-build закреплён в workflows (0.8.7) под крейт worker 0.8: бамп worker до 0.9 без
+  # обновления worker-build уронит npm test в check-elevation, это и есть проверка
+  - package-ecosystem: cargo
+    directory: "/workers/elevation"
+    schedule:
+      interval: weekly
+    groups:
+      elevation-cargo:
+        patterns: ["*"]
