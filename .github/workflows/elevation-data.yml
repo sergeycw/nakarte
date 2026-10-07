@@ -26,13 +26,13 @@ jobs:
       run:
         working-directory: workers/elevation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: workers/elevation
       - run: cargo build --release -p elevation-repack
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
       # список — через env, а не подстановкой в run: так ввод не попадает в текст скрипта
