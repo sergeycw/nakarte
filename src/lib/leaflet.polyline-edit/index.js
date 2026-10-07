@@ -177,8 +177,8 @@ L.Polyline.EditMixin = {
         }
         this._map.off('mousemove', this.onMouseMoveFollowEndNode, this);
         var nodeIndex = this._drawingDirection === -1 ? 0 : this.getLatLngs().length - 1;
-        this.spliceLatLngs(nodeIndex, 1);
         this._drawingDirection = 0;
+        this.spliceLatLngs(nodeIndex, 1);
         L.DomUtil.removeClass(this._map._container, 'leaflet-line-drawing');
         this._map.clickLocked = false;
         this._setupEndMarkers();
