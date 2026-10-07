@@ -6,7 +6,7 @@
 
 Проект ведётся по [OpenSpec](https://github.com/Fission-AI/OpenSpec) (CLI `openspec`, Node ≥ 20.19.0). Здесь, в `AGENTS.md`, — только запуск, окружение и подвохи.
 
-- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`, `track-storage`, `elevation-api`.
+- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`, `track-storage`, `elevation-api`, `elevation-tiles`.
 - `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
 - `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
 - `openspec/research/` — ресёрчи, из которых нарезаются changes (например, `own-backends.md` — свои бэкенды вместо `*.nakarte.me`).
@@ -129,7 +129,7 @@
 
 ### Сервис высот (`workers/elevation`)
 
-Контракт — `openspec/specs/elevation-api` и `openspec/specs/elevation-tiles`, формат данных и решения — `design.md` changes `add-elevation-api` и `add-elevation-tiles` (в `openspec/changes/archive/`, пока второй не архивирован — в `openspec/changes/`). Коротко: те же данные и арифметика, что у автора — Go-сервера `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301) и GDAL-генератора тайлов `wladich/elevation_tiles_for_nakarte`, поэтому ответы и тайлы совпадают побайтно.
+Контракт — `openspec/specs/elevation-api` и `openspec/specs/elevation-tiles`, формат данных и решения — `openspec/changes/archive/2026-10-07-add-elevation-api/design.md` и `openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md`. Коротко: те же данные и арифметика, что у автора — Go-сервера `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301) и GDAL-генератора тайлов `wladich/elevation_tiles_for_nakarte`, поэтому ответы и тайлы совпадают побайтно.
 
 - Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы, в том числе расчёт тайлов), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса), `tiles` (`elevation-tiles`: архив тайлов z0–9 и прореживание фикстур). Версия Rust закреплена в `rust-toolchain.toml`, rustup ставит её сам; нужен `cargo install worker-build --version 0.8.7 --locked`.
 - Проверки из `workers/elevation`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy -p elevation-worker --target wasm32-unknown-unknown -- -D warnings`, `cargo test --workspace`, `PATH=/usr/local/bin:$PATH npm test` (собирает wasm и гоняет его в `workerd`).
