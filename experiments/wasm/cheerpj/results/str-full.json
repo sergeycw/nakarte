@@ -1,0 +1,272 @@
+{
+  "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "query": "fs=str&repeat=3",
+  "runs": [
+    {
+      "kind": "cold",
+      "url": "http://127.0.0.1:8767/cheerpj/?fs=str&repeat=3",
+      "wallMs": 16663,
+      "peakRendererRssMb": 562,
+      "network": {
+        "other": {
+          "requests": 4,
+          "transferBytes": 9033,
+          "fromCache": 0
+        },
+        "runtime": {
+          "requests": 7,
+          "transferBytes": 1490128,
+          "fromCache": 0
+        },
+        "tiles": {
+          "requests": 2,
+          "transferBytes": 48416440,
+          "fromCache": 0
+        },
+        "profiles": {
+          "requests": 3,
+          "transferBytes": 77780,
+          "fromCache": 0
+        },
+        "jar": {
+          "requests": 7,
+          "transferBytes": 777531,
+          "fromCache": 0
+        }
+      },
+      "bench": {
+        "fsMode": "str",
+        "repeat": 3,
+        "timings": {
+          "cheerpjInit": 585,
+          "loadFilesIntoStr": 170,
+          "cheerpjRunLibrary": 2515,
+          "loadClass": 44
+        },
+        "routes": [
+          {
+            "route": "short",
+            "profile": "hiking-mountain",
+            "lengthM": 2083,
+            "baselineM": 2083,
+            "deltaPct": 0,
+            "points": 178,
+            "baselinePoints": 178,
+            "timesMs": [
+              2193,
+              283,
+              141
+            ]
+          },
+          {
+            "route": "short",
+            "profile": "trekking",
+            "lengthM": 6050,
+            "baselineM": 6050,
+            "deltaPct": 0,
+            "points": 344,
+            "baselinePoints": 344,
+            "timesMs": [
+              314,
+              207,
+              191
+            ]
+          },
+          {
+            "route": "medium",
+            "profile": "hiking-mountain",
+            "lengthM": 9879,
+            "baselineM": 9879,
+            "deltaPct": 0,
+            "points": 580,
+            "baselinePoints": 580,
+            "timesMs": [
+              365,
+              317,
+              314
+            ]
+          },
+          {
+            "route": "medium",
+            "profile": "trekking",
+            "lengthM": 14435,
+            "baselineM": 14435,
+            "deltaPct": 0,
+            "points": 592,
+            "baselinePoints": 592,
+            "timesMs": [
+              562,
+              517,
+              540
+            ]
+          },
+          {
+            "route": "long",
+            "profile": "hiking-mountain",
+            "lengthM": 42115,
+            "baselineM": 42115,
+            "deltaPct": 0,
+            "points": 1275,
+            "baselinePoints": 1275,
+            "timesMs": [
+              1025,
+              957,
+              923
+            ]
+          },
+          {
+            "route": "long",
+            "profile": "trekking",
+            "lengthM": 41323,
+            "baselineM": 41323,
+            "deltaPct": 0,
+            "points": 987,
+            "baselinePoints": 987,
+            "timesMs": [
+              1326,
+              1279,
+              1377
+            ]
+          }
+        ],
+        "errors": [],
+        "strBytes": 48492374,
+        "jsHeapUsed": 177237763,
+        "done": true
+      }
+    },
+    {
+      "kind": "warm1",
+      "url": "http://127.0.0.1:8767/cheerpj/?fs=str&repeat=3",
+      "wallMs": 14470,
+      "peakRendererRssMb": 801,
+      "network": {
+        "other": {
+          "requests": 3,
+          "transferBytes": 8770,
+          "fromCache": 0
+        },
+        "runtime": {
+          "requests": 7,
+          "transferBytes": 0,
+          "fromCache": 7
+        },
+        "tiles": {
+          "requests": 2,
+          "transferBytes": 48416440,
+          "fromCache": 0
+        },
+        "profiles": {
+          "requests": 3,
+          "transferBytes": 77780,
+          "fromCache": 0
+        },
+        "jar": {
+          "requests": 7,
+          "transferBytes": 777531,
+          "fromCache": 0
+        }
+      },
+      "bench": {
+        "fsMode": "str",
+        "repeat": 3,
+        "timings": {
+          "cheerpjInit": 33,
+          "loadFilesIntoStr": 434,
+          "cheerpjRunLibrary": 1467,
+          "loadClass": 38
+        },
+        "routes": [
+          {
+            "route": "short",
+            "profile": "hiking-mountain",
+            "lengthM": 2083,
+            "baselineM": 2083,
+            "deltaPct": 0,
+            "points": 178,
+            "baselinePoints": 178,
+            "timesMs": [
+              1387,
+              196,
+              160
+            ]
+          },
+          {
+            "route": "short",
+            "profile": "trekking",
+            "lengthM": 6050,
+            "baselineM": 6050,
+            "deltaPct": 0,
+            "points": 344,
+            "baselinePoints": 344,
+            "timesMs": [
+              331,
+              210,
+              181
+            ]
+          },
+          {
+            "route": "medium",
+            "profile": "hiking-mountain",
+            "lengthM": 9879,
+            "baselineM": 9879,
+            "deltaPct": 0,
+            "points": 580,
+            "baselinePoints": 580,
+            "timesMs": [
+              411,
+              325,
+              311
+            ]
+          },
+          {
+            "route": "medium",
+            "profile": "trekking",
+            "lengthM": 14435,
+            "baselineM": 14435,
+            "deltaPct": 0,
+            "points": 592,
+            "baselinePoints": 592,
+            "timesMs": [
+              577,
+              543,
+              548
+            ]
+          },
+          {
+            "route": "long",
+            "profile": "hiking-mountain",
+            "lengthM": 42115,
+            "baselineM": 42115,
+            "deltaPct": 0,
+            "points": 1275,
+            "baselinePoints": 1275,
+            "timesMs": [
+              1008,
+              931,
+              937
+            ]
+          },
+          {
+            "route": "long",
+            "profile": "trekking",
+            "lengthM": 41323,
+            "baselineM": 41323,
+            "deltaPct": 0,
+            "points": 987,
+            "baselinePoints": 987,
+            "timesMs": [
+              1527,
+              1386,
+              1205
+            ]
+          }
+        ],
+        "errors": [],
+        "strBytes": 48492374,
+        "jsHeapUsed": 232240847,
+        "done": true
+      }
+    }
+  ]
+}

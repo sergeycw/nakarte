@@ -50,6 +50,26 @@
     cursor: progress !important;
 }
 
+.line-routing-spinner-icon {
+    pointer-events: none;
+}
+
+.line-routing-spinner {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.7);
+    border-top-color: #33f;
+    border-radius: 50%;
+    animation: line-routing-spin 0.8s linear infinite;
+}
+
+@keyframes line-routing-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .line-editor-node-marker-hidden {
     display: none;
 }

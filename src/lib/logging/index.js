@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/browser';
 
+import config from '~/config';
+
 function randId() {
     return Math.random().toString(36).substring(2, 13);
 }
@@ -33,7 +35,10 @@ function captureBreadcrumb(message, data = {}) {
 }
 
 function logEvent(eventName, extra) {
-    const url = 'https://nakarte.me/event';
+    const url = config.eventsLogUrl;
+    if (!url) {
+        return;
+    }
 
     const data = {event: eventName.toString()};
     data.data = {
@@ -49,7 +54,7 @@ function logEvent(eventName, extra) {
         data.data.beacon = false;
         s = JSON.stringify(data);
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://nakarte.me/event');
+        xhr.open('POST', url);
         xhr.send(s);
     }
 }

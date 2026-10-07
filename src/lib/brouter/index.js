@@ -4,6 +4,8 @@ import config from '~/config';
 import '~/lib/leaflet.lineutil.simplifyLatLngs';
 import {fetch} from '~/lib/xhr-promise';
 
+import {isEngineFailed, routeInEngine, startEngine} from './browser-engine';
+
 const SIMPLIFY_TOLERANCE_DEGREES = 360 / (1 << 24);
 const SNAP_DISTANCE_METERS = 20;
 
@@ -50,27 +52,54 @@ function buildSegmentNodes(routePoints, from, to) {
     return nodes;
 }
 
-async function fetchRoute(from, to, activityId) {
+function buildRouteParams(from, to, activityId) {
     const activity = getActivity(activityId) ?? activities[0];
-    const url = new URL('/brouter', config.routingServer);
-    url.searchParams.set('lonlats', [from, to].map(formatLonLat).join('|'));
-    url.searchParams.set('profile', activity.profile);
+    const params = new URLSearchParams();
+    params.set('lonlats', [from, to].map(formatLonLat).join('|'));
+    params.set('profile', activity.profile);
     for (const [paramName, value] of activity.params ?? []) {
-        url.searchParams.set(`profile:${paramName}`, String(value));
+        params.set(`profile:${paramName}`, String(value));
     }
-    url.searchParams.set('alternativeidx', '0');
-    url.searchParams.set('format', 'geojson');
+    params.set('alternativeidx', '0');
+    params.set('format', 'geojson');
+    return params;
+}
 
-    let xhr;
+async function fetchGeojsonFromServer(params) {
+    const url = new URL('/brouter', config.routingServer);
+    url.search = params.toString();
     try {
-        xhr = await fetch(url.href, {timeout: 30000, maxTries: 1});
+        const xhr = await fetch(url.href, {timeout: 30000, maxTries: 1});
+        return xhr.responseText;
     } catch (e) {
         if ((e.xhr?.status ?? 0) === 0) {
             throw new RoutingError('BRouter is not reachable', true);
         }
         throw new RoutingError(e.xhr.responseText?.trim() || e.message, false);
     }
-    const coordinates = JSON.parse(xhr.responseText).features?.[0]?.geometry?.coordinates;
+}
+
+async function fetchGeojsonFromBrowser(params) {
+    let router;
+    try {
+        router = await startEngine();
+    } catch (e) {
+        throw new RoutingError(`BRouter engine failed to start: ${e.message}`, true);
+    }
+    try {
+        return await routeInEngine(router, params.toString());
+    } catch (e) {
+        throw new RoutingError(e.message, false);
+    }
+}
+
+async function fetchRoute(from, to, activityId) {
+    const params = buildRouteParams(from, to, activityId);
+    const geojson =
+        config.routingEngine === 'browser'
+            ? await fetchGeojsonFromBrowser(params)
+            : await fetchGeojsonFromServer(params);
+    const coordinates = JSON.parse(geojson).features?.[0]?.geometry?.coordinates;
     if (!coordinates || coordinates.length < 2) {
         throw new RoutingError('empty route', false);
     }
@@ -79,6 +108,9 @@ async function fetchRoute(from, to, activityId) {
 }
 
 async function isServerReachable() {
+    if (config.routingEngine === 'browser') {
+        return !isEngineFailed();
+    }
     try {
         await fetch(new URL('/brouter', config.routingServer).href, {timeout: 3000, maxTries: 1});
     } catch (e) {
@@ -87,4 +119,11 @@ async function isServerReachable() {
     return true;
 }
 
-export {activities, getActivity, fetchRoute, isServerReachable};
+function warmUpRouting() {
+    if (config.routingEngine !== 'browser') {
+        return;
+    }
+    startEngine().catch(() => null);
+}
+
+export {activities, getActivity, fetchRoute, isServerReachable, warmUpRouting};

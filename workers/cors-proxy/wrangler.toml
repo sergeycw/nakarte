@@ -1,0 +1,6 @@
+name = "nakarte-cors-proxy"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"

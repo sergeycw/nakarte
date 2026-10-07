@@ -1,0 +1,7 @@
+name = "nakarte-tiles"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[[r2_buckets]]
+binding = "TILES"
+bucket_name = "nakarte-tiles"

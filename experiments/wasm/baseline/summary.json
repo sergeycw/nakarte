@@ -1,0 +1,60 @@
+{
+  "server": "http://localhost:17777",
+  "runs": 5,
+  "rows": [
+    {
+      "route": "short",
+      "profile": "hiking-mountain",
+      "lengthM": 2083,
+      "points": 178,
+      "ascendM": 47,
+      "firstMs": 133,
+      "medianMs": 58
+    },
+    {
+      "route": "short",
+      "profile": "trekking",
+      "lengthM": 6050,
+      "points": 344,
+      "ascendM": 128,
+      "firstMs": 76,
+      "medianMs": 54
+    },
+    {
+      "route": "medium",
+      "profile": "hiking-mountain",
+      "lengthM": 9879,
+      "points": 580,
+      "ascendM": 356,
+      "firstMs": 82,
+      "medianMs": 84
+    },
+    {
+      "route": "medium",
+      "profile": "trekking",
+      "lengthM": 14435,
+      "points": 592,
+      "ascendM": 252,
+      "firstMs": 145,
+      "medianMs": 151
+    },
+    {
+      "route": "long",
+      "profile": "hiking-mountain",
+      "lengthM": 42115,
+      "points": 1275,
+      "ascendM": 175,
+      "firstMs": 259,
+      "medianMs": 249
+    },
+    {
+      "route": "long",
+      "profile": "trekking",
+      "lengthM": 41323,
+      "points": 987,
+      "ascendM": 116,
+      "firstMs": 372,
+      "medianMs": 389
+    }
+  ]
+}

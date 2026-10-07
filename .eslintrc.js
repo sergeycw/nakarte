@@ -83,6 +83,27 @@ module.exports = {
             },
             extends: ['./eslint_rules/imports_configs.js'],
         },
+        /* cloudflare workers and pages functions */
+        {
+            files: ['./workers/**/*.js', './functions/**/*.js'],
+            parser: 'babel-eslint',
+            env: {
+                es2020: true,
+            },
+            parserOptions: {
+                sourceType: 'module',
+            },
+            globals: {
+                fetch: true,
+                Headers: true,
+                Request: true,
+                Response: true,
+                URL: true,
+            },
+            rules: {
+                'import/no-unused-modules': 'off',
+            },
+        },
         /* command line scripts */
         {
             files: ['./scripts/build.js', './webpack/webpack.config.js'],

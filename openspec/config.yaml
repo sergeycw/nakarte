@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  Language: Russian
+  All artifacts must be written in Russian.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Code, file paths, config keys and UI strings stay as in the code.
+
+  Project: fork of wladich/nakarte (Leaflet map app, webpack, ES modules, knockout)
+  with routing via BRouter, either a local server or BRouter running in the browser
+  (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2 for tiles,
+  a Worker as CORS proxy. Run, environment and pitfalls are in AGENTS.md.
+  Keep the diff with upstream small: fork-only files live in openspec/, workers/,
+  functions/, experiments/, scripts/brouter-* and src/config-target/.
+  Ideas not yet proposed live in openspec/backlog.md.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

@@ -4,6 +4,7 @@ const {CleanWebpackPlugin} = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const path = require('path');
 const StyleLintPlugin = require('stylelint-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const Webpack = require('webpack');
@@ -11,6 +12,15 @@ const Webpack = require('webpack');
 const paths = require('./paths');
 
 const errorExitStatus = 1;
+
+const browserRouterEngineFiles = [
+    ['brouter-wasm/lib', path.resolve(__dirname, '..', 'experiments/wasm/cheerpj/lib')],
+    ['brouter-wasm/profiles', path.resolve(__dirname, '..', 'experiments/wasm/cheerpj/profiles')],
+];
+const browserRouterStatic = [
+    ...browserRouterEngineFiles,
+    ['brouter-wasm/segments4', path.resolve(__dirname, '..', 'brouter/segments4')],
+];
 
 const envs = {
     production: true,
@@ -26,6 +36,7 @@ if (!envs[mode]) {
 }
 
 const isProduction = mode === 'production';
+const configTarget = process.env.NAKARTE_TARGET || 'default';
 const isDevelopment = mode === 'development';
 const isTesting = mode === 'testing';
 
@@ -72,7 +83,16 @@ const DevToolPlugin = isProduction ? Webpack.SourceMapDevToolPlugin : Webpack.Ev
 
 const plugins = [
     ...(isProduction ? [new CleanWebpackPlugin()] : []),
-    ...(isProduction ? [new CopyWebpackPlugin({patterns: [{from: paths.appPublic, to: ''}]})] : []),
+    ...(isProduction
+        ? [
+              new CopyWebpackPlugin({
+                  patterns: [
+                      {from: paths.appPublic, to: ''},
+                      ...browserRouterEngineFiles.map(([to, from]) => ({from, to, noErrorOnMissing: true})),
+                  ],
+              }),
+          ]
+        : []),
     new HtmlWebpackPlugin({
         template: paths.appIndexHtml,
         minify: false,
@@ -181,6 +201,23 @@ module.exports = {
             overlay: false,
         },
         allowedHosts: 'all',
+        static: [
+            paths.appPublic,
+            ...browserRouterStatic.map(([publicPath, directory]) => ({
+                directory,
+                publicPath: `/${publicPath}`,
+                watch: false,
+            })),
+        ],
+        proxy: [{context: ['/tiles'], target: 'http://localhost:8788'}],
+        setupMiddlewares: (middlewares) => {
+            middlewares.unshift({
+                name: 'brouter-wasm-storageconfig',
+                path: '/brouter-wasm/segments4/storageconfig.txt',
+                middleware: (req, res) => res.end(),
+            });
+            return middlewares;
+        },
     },
 
     entry: {
@@ -202,6 +239,7 @@ module.exports = {
 
     resolve: {
         alias: {
+            '~/config-target$': path.join(paths.appSrc, 'config-target', `${configTarget}.js`),
             '~': paths.appSrc,
         },
     },

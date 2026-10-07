@@ -1,0 +1,32 @@
+name: brouter tiles sync
+
+on:
+  schedule:
+      - cron: '0 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Comma-separated tile names to sync, e.g. E40_N40 (empty = all)'
+        required: false
+        default: ''
+
+concurrency:
+  group: brouter-tiles-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'sergeycw/nakarte'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/brouter-tiles-sync.mjs
+        env:
+          R2_MODE: remote
+          ONLY: ${{ github.event.inputs.only }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

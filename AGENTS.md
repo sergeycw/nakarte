@@ -1,6 +1,16 @@
 # nakarte: локальный форк с автопрокладкой
 
-Форк [wladich/nakarte](https://github.com/wladich/nakarte) (MIT). Добавлена прокладка маршрута по дорогам и тропам через self-hosted BRouter. Работает только локально, наружу не хостится.
+Форк [wladich/nakarte](https://github.com/wladich/nakarte) (MIT). Добавлена прокладка маршрута по дорогам и тропам через BRouter: локально через сервер, в публичном клоне https://nakarte-routing.pages.dev — движком прямо в браузере.
+
+## Спеки и планы: `openspec/`
+
+Проект ведётся по [OpenSpec](https://github.com/Fission-AI/OpenSpec) (CLI `openspec`, Node ≥ 20.19.0). Здесь, в `AGENTS.md`, — только запуск, окружение и подвохи.
+
+- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `cors-proxy`, `tile-sync`.
+- `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
+- `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
+- Новая работа: `/opsx:explore` → `/opsx:propose` → `/opsx:apply` → `/opsx:archive` (скиллы в `.claude/`). Проверка: `openspec validate --all --strict`.
+- Язык артефактов — русский, заголовки OpenSpec и SHALL/MUST — английские (`openspec/config.yaml`).
 
 ## Запуск
 
@@ -16,37 +26,25 @@
 - `CUSTOMPROFILESPATH` в compose задан относительным путём. С абсолютным, как в образе по умолчанию, BRouter склеивает его с `/profiles2` и не находит свои профили.
 - `src/secrets.js` копируется из `src/secrets.js.template`. С ключами-заглушками не работают слои Google и mapy.cz.
 - Изменения в `track-list.js` и том, что он импортирует, HMR не подхватывает: после правки нужна полная перезагрузка страницы.
-- Линт запускается так: `NODE_ENV=production npx eslint <files>`.
+- Линт: `NODE_ENV=production npx eslint --ext js .` (или `npm run lint:code`). Он линтит и `workers/`, и `functions/`: для них в `.eslintrc.js` отдельный override (ES-модули, глобалы рантайма Workers).
 - Хоткеи слоёв (`leaflet.control.layers.hotkeys`) в апстриме не игнорировали Cmd: на маке Cmd+Z переключал слой «Z». Здесь добавлен `e.metaKey` — кандидат на отдельный PR в апстрим.
 - Corepack при запуске `yarn` дописывает в `package.json` поле `packageManager`. Его нужно откатывать, чтобы дифф с апстримом оставался чистым.
+- Тесты karma `test_track_load.js` ходят в живые сервисы через `config.CORSProxyUrl` (в CI это авторский `proxy.nakarte.me` из шаблона секретов). Локальный `src/secrets.js` перебивает прокси на `localhost:8787`, поэтому для прогона как в CI временно подложи шаблон. Один файл: `NODE_ENV=testing npx karma start --single-run --browsers ChromeHeadless test/karma.conf.js --glob ./test/test_track_load.js`.
+- Wikiloc за Cloudflare-челленджем: через авторский прокси `ru.wikiloc.com` и `wikiloc.com` дают `403`, `www.wikiloc.com` с браузерным `User-Agent` — `200`. Поэтому импорт всегда запрашивает `www.wikiloc.com` с тем же путём.
 
-## Как устроен роутинг
+## Где код роутинга
 
-Модули:
-- `lib/brouter/index.js`: список активностей (активность = профиль BRouter + переопределения `profile:<переменная>`), `fetchRoute`, проверка живости сервера, `buildSegmentNodes`. Последняя упрощает маршрут с допуском 2.4 м, как при импорте GPX, и отбрасывает крайние точки ближе 20 м к опорным. Если опорная точка дальше 20 м от дороги, остаётся прямой отрезок до неё.
-- `leaflet.control.track-list/track-list.js`: кнопка `.routing-toggle` открывает меню активностей. Выбор хранится в localStorage (`trackListRoutingActivity`). На каждую линию вешается `polyline.router` с методами `activityId()` и `route(from, to, activityId)`. При недоступном BRouter кнопка краснеет, предупреждение показывается один раз на каждый переход «работал → упал».
-- `leaflet.polyline-edit/index.js`: модель опорных точек и отрезков маршрута.
+- `lib/brouter/index.js`: активности, `fetchRoute`, проверка живости, упрощение отрезка (`buildSegmentNodes`).
+- `lib/brouter/browser-engine.js`: движок в браузере на CheerpJ.
+- `leaflet.control.track-list/track-list.js`: кнопка и меню прокладки, `polyline.router`, сохранение разметки (`serializeRouteMarkup`, `applyRouteMarkup`, `simplifyKeepingWaypoints`).
+- `leaflet.polyline-edit/index.js`: модель опорных точек и отрезков, undo/redo.
 
-Модель опорных точек:
-- **Опорная точка** — это узел без `_routeLeg`, её ставит пользователь, у неё виден маркер. **Промежуточная точка маршрута** — это узел с `_routeLeg`, её маркер скрыт классом `line-editor-node-marker-hidden`. Отрезок маршрута — это промежуточные точки между двумя соседними опорными. Все узлы остаются обычными `L.LatLng` в `_latlngs`, поэтому длина, высоты, экспорт и сохранение работают без правок.
-- `routeBetween(start, end, activityId)` помечает узлы между `start` и `end` новым объектом leg и запрашивает маршрут. Ответ применяется, только если leg не отменён и между опорными точками лежат узлы именно этого leg. Иначе ответ устарел и молча отбрасывается. Ошибка роутера даёт прямой отрезок.
-- Клик при рисовании сразу ставит опорную точку, отрезок до неё достраивается асинхронно. Блокировки кликов нет, пока идут запросы, курсор `progress`. Alt-клик даёт прямой отрезок. Backspace удаляет последнюю опорную точку вместе с её отрезком. Перетаскивание опорной точки перестраивает два соседних отрезка, двойной клик удаляет её и прокладывает отрезок между соседями. Mousedown на линии внутри отрезка вставляет новую опорную точку.
-- Активность записывается в leg при прокладке: в одном треке можно смешать велосипед и пешую часть. Перестроение использует активность самого отрезка, а не текущую.
-
-Undo/redo (`leaflet.polyline-edit`):
-- Перед каждым действием пользователя `recordHistory()` кладёт снимок в `_undoStack`. Действия: клик, Backspace, двойной клик, вставка точки на линию, начало перетаскивания. Снимок — JSON с фиксированными узлами (`[lat, lng, activityId?]`) и отрезками, которые ещё прокладываются. При восстановлении такие отрезки запрашиваются заново, все текущие запросы отменяются.
-- Горячие клавиши ловятся на `keydown`: на macOS, пока зажат Cmd, браузер не присылает `keyup` для других клавиш.
-- История переживает выход из редактирования и повторный вход. Она сбрасывается, если линия изменилась снаружи: `_historyFingerprint` сравнивает снимок на `stopEdit` и на `startEdit`. Маршрут, пришедший после `stopEdit`, обновляет отпечаток.
-- Вставка точки и следующее за ней перетаскивание — одно действие истории (`_justInsertedNode`).
-
-Сохранение разметки между перезагрузками:
-- Треки живут в сессии IndexedDB (`leaflet.control.sessions`) в формате nktk. Координаты в нём округлены по сетке `arcUnit` (~2.4 м), а линия упрощается и при сохранении, и при загрузке. Поэтому номера узлов не стабильны.
-- Рядом с треками в сессии лежит `routeMarkup: {legs: [[keyA, keyB, activityId]]}`, где ключ — координаты опорной точки, округлённые по `arcUnit`. `serializeRouteMarkup` и `applyRouteMarkup` находятся в `track-list.js`. При загрузке узлы между парой опорных точек, совпавших по ключу, снова помечаются как отрезок с этой активностью. Пары ищутся в обе стороны, так что разворот трека не ломает разметку.
-- `trackToString` упрощает линию только внутри отрезков (`simplifyKeepingWaypoints`), опорные точки при сохранении не выпадают. При загрузке nakarte упрощает линию ещё раз своим кодом. Опорная точка, лежащая точно на прямой (вставлена кликом без перетаскивания), может пропасть, и тогда два её отрезка превращаются в обычную ломаную.
-- Ссылки «Copy link» и экспорт разметку не несут, только геометрию.
+Подвохи редактора:
+- Опорная точка — узел без `_routeLeg`, точка маршрута — с `_routeLeg` (маркер скрыт классом `line-editor-node-marker-hidden`). Все узлы — обычные `L.LatLng` в `_latlngs`.
 - При `_drawingDirection === -1` индекс 0 занимает временный узел под курсором. `_fixedNodesRange()` исключает его из поиска соседей.
-
-Что ещё есть в ответе BRouter (`features[0].properties`): `track-length`, `filtered ascend`, `total-time`, а также `messages` — таблица по участкам, где колонка `WayTags` содержит `highway=…`, `surface=…`. Параметры запроса, которые разбирает `RoutingParamCollector`: `nogos`, `polylines`, `polygons`, `alternativeidx`, `straight`, `roundTrip*`, `profile:<переменная>`. Через `profile:` переопределяется любая `assign`-переменная профиля, даже без пометки `%…%`: `path_preference=20` уводит пеший маршрут с асфальта на тропы.
+- Хоткеи истории ловятся на `keydown`: на macOS, пока зажат Cmd, браузер не присылает `keyup` для других клавиш.
+- Отпечаток `_historyFingerprint` сравнивает снимки на `stopEdit` и `startEdit`; маршрут, пришедший после `stopEdit`, обновляет отпечаток. Вставка и следующее перетаскивание склеиваются через `_justInsertedNode`.
+- Координаты в nktk округлены по сетке `arcUnit` (~2.4 м), а линия упрощается и при сохранении, и при загрузке, поэтому номера узлов между перезагрузками не стабильны — разметка матчится по ключам координат.
 
 ## Проверка в браузере
 
@@ -56,50 +54,60 @@ Undo/redo (`leaflet.polyline-edit`):
 - Тестовый район: Тбилиси, зум 15, от ~41.687, 44.776 к телебашне Мтацминда.
 - Проверка живости BRouter делает GET `/brouter` без параметров и получает 404. Эта строка 404 в консоли ожидаема.
 
+## Движок в браузере (CheerpJ)
+
+Код эксперимента в `experiments/wasm/`: `routes.json` и `baseline/` — 3 эталонных маршрута × 2 профиля с серверного BRouter; `serve.mjs` — стенд со статикой, Range, `/__stats`, прокси рантайма `/cjrt/` и редиректом `/redirect/`; `cheerpj/build.sh` достаёт jar и профили из контейнера и собирает `WasmRouter` (повторяет `RouteServer` без сокетов) и патч `NodesCache`; `cheerpj/index.html` — стенд замеров (`fs=str|app`, `repeat`, `only`, `rt=proxy`). Исходники BRouter для патчей — ревизия `29898106` из `github.com/abrensch/brouter`.
+
+Замеры CheerpJ 4.3 (2026-10-06): 10 км — 0.3–0.55 с на прогретом движке, сервер в 3–4 раза быстрее; холодный старт ≈ 5–6 с; 0.6–0.8 ГБ RSS на вкладку. Первый маршрут после загрузки страницы может ждать 10+ с: прогрев не успевает, разрыв со спиннером это маскирует.
+
+Подвохи CheerpJ, проверенные на практике (в документации их нет):
+- В `/app/` нет каталогов: `stat` делается запросом `Range: bytes=0-0`, размер берётся из `Content-Range`, `isDirectory()` всегда `false`. `NodesCache` падает с `segment directory ... does not exist`, отсюда патч. Отрицательный `stat` не кешируется, поэтому в патче проверка префикса `/app/` стоит до `isDirectory()`, иначе ~6 лишних запросов на маршрут.
+- `/app/` читает только с origin страницы. Редирект 302 на другой origin с CORS работает, но нужен `Access-Control-Expose-Headers: Content-Range`.
+- Сервер обязан отвечать на Range с `206` и `Content-Range`. Статика Cloudflare Pages Range игнорирует, поэтому есть `functions/brouter-wasm`.
+- `StorageConfigHelper` на каждый маршрут читает `<segmentDir>/storageconfig.txt`: отдавать пустой файл, чтобы не было 404.
+- На страницу разрешён один library-поток: второй `cheerpjRunLibrary` бросает `Only one library thread supported`. Одна инициализация на страницу, запросы в очередь.
+- `/str/` плоская: `cheerpOSAddStringFile('/str/a/b')` Java не находит, `/str/b` находит.
+- JDK (`11/lib/modules`, 43 МБ кусками через Range) грузится из cross-origin iframe `c.html`: эти запросы не видны ни CDP страницы, ни Claude in Chrome. Для учёта байтов — `rt=proxy` стенда. `performance.measureUserAgentSpecificMemory()` работает только с `COI=1` и `rt=proxy` и видит лишь JS-кучу, память мерить по RSS процесса.
+- В фоновой вкладке rAF не тикает: блокировку главного потока мерить через `MessageChannel`-пинг.
+
+## Публичный клон на Cloudflare
+
+Своего домена нет, клон живёт на `nakarte-routing.pages.dev`. В R2 залиты только тайлы Грузии (`E40_N40`, `E45_N40`), до полной синхронизации (`openspec/changes/sync-world-tiles`) маршрут строится только там.
+
+Ресурсы Cloudflare (аккаунт `S.m.lukashev@gmail.com's Account`, id `1f81a3ec34abfc6581cdd0484bbf56a9`):
+- Pages-проект `nakarte-routing`, production-ветка `master`. Корневой `wrangler.toml` описывает его (`pages_build_output_dir = "build"`, R2-привязка `TILES`). Pages Functions: `functions/tiles` (тайлы из R2) и `functions/brouter-wasm` (Range для jar и профилей).
+- R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
+- Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
+- Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
+- Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
+
+Сборка и деплой клона вручную (автодеплой — `openspec/changes/add-pages-autodeploy`):
+- `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
+- `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`.
+- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`.
+- Ручная сборка берёт локальный `src/secrets.js` (там заглушки ключей и локальные переопределения; итог перебивает `config-target`). CI собирает с `secrets.js.template`.
+- Без шагов в Cloudflare: `npx wrangler@4 pages functions build --outdir <tmp>` и `npx wrangler@4 deploy --dry-run` в `workers/cors-proxy`.
+
+Подвохи клона:
+- Изменения в `webpack/webpack.config.js` (алиасы, `devServer`) dev-сервер подхватывает только после перезапуска. Симптом: `Cannot find module '~/config-target'` и пустая страница.
+- Статика Pages игнорирует Range и отвечает 200, отсюда `functions/brouter-wasm`. Проверка: `curl -r 0-0` должен дать `206` и `Content-Range`.
+- Файлы движка попадают в сборку, только если перед ней отработал `build.sh`; без них сборка проходит молча (`noErrorOnMissing`).
+- Профили и `lookups.dat` движка берутся из образа `brouter:nightly`, а тайлы — с brouter.de. Сейчас `lookups.dat` совпадают побайтно; синхронизация падает, если сменится `lookups.dat` на brouter.de, но не сравнивает его с образом.
+- Синхронизация тайлов локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). По расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.
+- Слои Google и mapy.cz в клоне не работают: в сборке ключи-заглушки.
+
+Локальный стек для клона (записи в `../.claude/launch.json`): `nakarte-wasm` — dev-сервер на 8766; `nakarte-cors-proxy` — `wrangler dev` прокси на 8787; `nakarte-tiles-worker` — `wrangler dev` тайлов на 8788 (dev-сервер проксирует `/tiles` туда). Локальные переопределения (`routingEngine`, `routingTilesPath: '/tiles/'`, `CORSProxyUrl: 'http://localhost:8787/'`) лежат в `src/secrets.js`. Тайлы в локальный R2: `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file … --local`.
+
+Авторские бэкенды `*.nakarte.me` с чужого домена (проверено 2026-10-06, `Origin`/`Referer` фейкового клона):
+- пускают: `elevation` и `tracks` (отражают любой `Origin` с `credentials`), `tiles.nakarte.me` и `geocachingSu` (`*`);
+- не пускает: `proxy.nakarte.me` рвёт соединение без `Referer: https://nakarte.me/`, даже с localhost — отсюда свой прокси;
+- `mapillary.nakarte.me` без CORS: картинкой работает, в canvas нет.
+
 ## Апстрим
 
 - Remotes: `origin` — публичный форк `sergeycw/nakarte`, `upstream` — `wladich/nakarte`. `gh` по умолчанию смотрит в форк (`gh repo set-default`), поэтому PR без явного `--repo` открываются в форке, а не у автора.
-- Ветки: `master` — чистая копия `upstream/master`, рабочая версия живёт в `local/routing`.
-- Автор принимает PR, но избирательно и часто переделывает идеи сам.
-- Запрос на роутинг — [issue #10](https://github.com/wladich/nakarte/issues/10), открыт с 2017 года. Автор готов принять PR, его останавливает стоимость сервера-роутера. PR имеет шанс, только если роутер настраивается пользователем и выключен по умолчанию.
-- Бэкенды `*.nakarte.me` (высоты, треки, прокси, тайлы) принадлежат автору. Локальный клон пользуется ими как есть.
-- Правки держим компактными в нескольких файлах, чтобы ребейз на апстрим оставался дешёвым.
-
-## План развития
-
-Всё локально. Порядок — по приоритету.
-
-### 1. Запуск одной командой
-- [x] `docker-compose.yml` и `yarn local`.
-- [x] `scripts/brouter-segments.sh`: тайлы по имени, bbox, весь мир, обновление через `If-Modified-Since`.
-- [x] Индикатор недоступности BRouter на кнопке и в меню.
-- [x] Выбранная активность хранится в localStorage.
-
-### 2. Профили активности
-- [x] Меню активностей: Hiking, Hiking prefer trails, Road bike, Gravel, MTB, Touring bike. Подвох: `trekking` в BRouter — велопрофиль, а не пеший.
-- [x] Активность хранится на отрезке: в одном треке можно смешать разные виды.
-- [x] Пешком по тропам: `hiking-mountain` + `profile:path_preference=20`, свой `.brf` не понадобился.
-- [x] Каталог своих профилей `brouter/profiles` → `custom_<имя>`.
-- [ ] Настройки активности в UI: уровень SAC (`SAC_scale_limit`), `consider_elevation`, `allow_steps`.
-
-### 3. Редактор
-- [x] `buildSegmentNodes`: упрощение и прямой отрезок до опорной точки вне дороги.
-- [x] Backspace удаляет отрезок целиком.
-- [x] Alt-клик даёт прямой отрезок.
-- [x] Опорные точки: перетаскивание, удаление и вставка перестраивают соседние отрезки.
-- [x] Опорные точки и активности отрезков сохраняются в сессии.
-- [x] Undo/redo в пределах линии (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Ctrl+Y).
-- [ ] Кнопки undo/redo в UI, если понадобится не только клавиатура.
-- [ ] Перестраивать маршрут во время перетаскивания, с ограничением частоты запросов.
-
-### 4. Данные из BRouter
-- [ ] Время в пути и набор высоты по профилю (`total-time`, `filtered ascend`) в подсказке трека.
-- [ ] Раскраска трека по покрытию и типу дороги из `messages.WayTags`.
-- [ ] Зоны, которые маршрут обходит (`nogos`): кликом на карте задать круг.
-- [ ] Кольцевой маршрут заданной длины от точки (`roundTripDistance`).
-- [ ] Альтернативы маршрута (`alternativeidx` 0–3).
-
-### 5. Сопровождение
-- [ ] Тесты karma для `lib/brouter` (разбор ответа, ошибки) и для `routeBetween` и устаревших ответов в обоих направлениях рисования.
-- [ ] Регулярный ребейз на `wladich/nakarte`.
-- [ ] PR в апстрим по issue #10 — когда пункты 2–3 устоятся.
+- Ветки: `master` форка — рабочая версия, локальный `master` следит за `origin/master`. Новая работа идёт в отдельных ветках через PR в `master` форка. Изменения автора подтягиваются из `upstream/master`.
+- У автора есть невлитая ветка `upstream/tracks-routing` (2020): роутинг через BRouter, сервер `route.nakarte.me`, рефакторинг редактора линий с миксина на наследование. Движок он выбрал тот же.
+- Автор принимает PR, но избирательно и часто переделывает идеи сам. Запрос на роутинг — [issue #10](https://github.com/wladich/nakarte/issues/10), открыт с 2017 года; автора останавливает стоимость сервера-роутера.
+- Бэкенды `*.nakarte.me` (высоты, треки, прокси, тайлы) принадлежат автору.
+- Правки держим компактными в нескольких файлах, чтобы ребейз на апстрим оставался дешёвым. Файлы только форка: `openspec/`, `.claude/`, `workers/`, `functions/`, `experiments/`, `scripts/brouter-*`, `src/config-target/`, `wrangler.toml`, workflows деплоя и синхронизации.

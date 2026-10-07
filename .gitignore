@@ -6,3 +6,4 @@ secrets.js
 _trash
 build_cache
 brouter/segments4/
+.wrangler
