@@ -19,6 +19,7 @@ updates:
     directories:
       - "/workers/tracks"
       - "/workers/elevation"
+      - "/workers/cors-proxy"
     schedule:
       interval: weekly
     ignore:

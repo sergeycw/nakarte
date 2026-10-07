@@ -27,8 +27,8 @@ jobs:
       run:
         working-directory: workers/elevation
     steps:
-      # весь `dem3/` — 13.1 ГБ, архив — ещё ≈ 3.5 ГБ, а свободно на раннере ≈ 14 ГБ:
-      # предустановленные SDK, которые здесь не нужны, освобождают ещё ≈ 25 ГБ
+      # весь `dem3/` — 13.1 ГБ, архив — ещё ≈ 3.8 ГБ; диск раннера 145 ГБ, после удаления
+      # предустановленных SDK свободно ≈ 105 ГБ (archive/2026-10-07-add-elevation-tiles/design.md, «Мир»)
       - run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /

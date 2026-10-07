@@ -22,9 +22,9 @@
 | `elevationTileUrl` = `https://tiles.nakarte.me/elevation/{z}/{x}/{y}` | высота и уклон под курсором | свои тайлы из тех же данных |
 | `westraDataBaseUrl` = `https://nakarte.me/westraPasses/` | слой перевалов | отложено, слой скрыт в клоне (`openspec/backlog.md`) |
 | `geocachingSuUrl` = `https://nakarte.me/geocachingSu/geocaching_su2.json` | слой geocaching.su | отложено, слой скрыт в клоне (`openspec/backlog.md`) |
-| `wikimediaCommonsCoverageUrl` = `https://tiles.nakarte.me/wikimedia_commons_images/{z}/{x}/{y}` | покрытие фото Wikimedia Commons | генерируем сами |
-| `mapillaryRasterTilesUrl` = `https://mapillary.nakarte.me/{z}/{x}/{y}` | покрытие Mapillary | генерируем сами |
-| `https://proxy.nakarte.me/mapy/...` (захардкожено в `src/layers.js` и `leaflet.control.panoramas/lib/mapycz`) | слои mapy.cz, панорамы | перевести на свой прокси `nakarte-cors-proxy` |
+| `wikimediaCommonsCoverageUrl` = `https://tiles.nakarte.me/wikimedia_commons_images/{z}/{x}/{y}` | покрытие фото Wikimedia Commons | отменено: панорама скрыта в клоне (`hide-panorama-providers`), ресёрч — в `openspec/backlog.md` |
+| `mapillaryRasterTilesUrl` = `https://mapillary.nakarte.me/{z}/{x}/{y}` | покрытие Mapillary | отменено: панорама скрыта в клоне (`hide-panorama-providers`) |
+| `https://proxy.nakarte.me/mapy/...` (захардкожено в `src/layers.js` и `leaflet.control.panoramas/lib/mapycz`) | слои mapy.cz, панорамы | слои — перевести на свой прокси `nakarte-cors-proxy`; панорама mapy.cz скрыта в клоне (`hide-panorama-providers`) |
 | `caption` (docs, news, donate, почта) | подпись карты | свои ссылки |
 | `eventsLogUrl`, `sentryDSN` | логирование | в клоне уже выключено |
 | `{s}.tiles.nakarte.me/...`, `tiles.nakarte.me/topomapper/...` — 17 слоёв | сканы карт | убрать из клона |
@@ -110,7 +110,7 @@ Copernicus GLO-30, релиз 2024_1 (на AWS лежит релиз 2021 без
 | API высот | Worker (Rust) + R2 |
 | Тайлы высот | тот же Worker: z0–9 — архив с плотным индексом в R2, z10–11 — на лету |
 | Скраперы | Cron Trigger → R2; если нужен долгий прогон или браузер — пересмотреть |
-| Покрытия | генерация офлайн или по Cron → R2 |
+| Покрытия | не нужны: в клоне панорамы только Google Street View |
 
 Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): дешевле не выходит, добавляет администрирование и защиту от DDoS; 2026-10-07 все CX/CAX на странице Hetzner помечены «currently unavailable».
 
@@ -121,7 +121,6 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 - `workers/tracks/` — хранилище треков.
 - `workers/elevation/` — Rust-воркспейс: `core` (без ввода-вывода), `worker` (адаптер `workers-rs`), `server` (адаптер `axum`), `repack` (перепаковка DEM).
 - `workers/scrapers/` — скраперы перевалов и геокешинга на Cron Trigger (отложено, см. `openspec/backlog.md`).
-- Покрытия — каталог по решению change 5 внутри `workers/`.
 - У каждого сервиса свой `wrangler.toml` и свой workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:` на свой каталог. `main.yml` (workflow `check`) — файл апстрима, его не трогаем.
 - Сервис высот можно вынести в отдельный репозиторий, если он станет самостоятельным продуктом: воркспейс переносится целиком.
 
@@ -133,7 +132,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 2. **API высот на Rust.** Утилита перепаковки, ядро, адаптер `workers-rs`, контрактный тест: формат ответа совпадает с автором, высоты на эталонных точках в пределах допуска (эталоны снять заранее и положить фикстурами). Атрибуция viewfinderpanoramas в UI.
 3. **Тайлы высот.** Генерация в формате клиента, тест декодирования и сверки с эталонным тайлом. Возможно, внутри change 2.
 4. **Скраперы перевалов и геокешинга.** Отложено 2026-10-07 (итоги ресёрча — `openspec/backlog.md`), слои скрыты в клоне. Сначала проверить условия использования westra.ru и geocaching.su. Cron Trigger → R2, тесты на сохранённых страницах источников, проверка схемы JSON против фикстур от файлов автора.
-5. **Покрытия Wikimedia Commons и Mapillary.** Свой пайплайн генерации растров; для Mapillary нужен API-токен (заводит владелец).
+5. **Покрытия Wikimedia Commons и Mapillary.** Отменено 2026-10-07 решением владельца: в клоне панорамы только Google Street View, Wikimedia Commons, Mapillary и mapy.cz скрыты (`hide-panorama-providers`). Ресёрч источников и подхода автора — в `openspec/backlog.md`.
 6. **Прокси mapy и подпись карты.** `proxy.nakarte.me/mapy/...` → `nakarte-cors-proxy`, свои ссылки в `caption`.
 7. **Убрать слои сканов в клоне.** Список кодов исключённых слоёв в `config-target/clone.js` и фильтр при сборке списка слоёв, без удаления из `src/layers.js`, чтобы дифф с апстримом остался маленьким.
 
@@ -145,7 +144,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в проде и в архиве с 2026-10-07: данные viewfinderpanoramas 3″ всего мира, сервис `workers/elevation` |
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде и в архиве с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
 | 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, в проде и в архиве с 2026-10-07) |
-| 5 | `add-photo-coverage-tiles` | — | |
+| 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрывает Wikimedia Commons, Mapillary и mapy.cz, ресёрч — в `openspec/backlog.md` |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
 | 7 | `drop-author-scan-layers` | — | |
 
@@ -153,4 +152,4 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 
 - Объём DEM 3″ после перепаковки и время пайплайна — измерить в change 2.
 - Условия использования westra.ru и geocaching.su — проверены 2026-10-07, итоги в `openspec/backlog.md`: JSON API Вестры только с ключом, geocaching.su — только с согласия администрации.
-- Как именно генерировать покрытие Wikimedia Commons (дамп геометок или API) — решить в change 5.
+- Как генерировать покрытие Wikimedia Commons — закрыто 2026-10-07: источник — дампы `geo_tags` и `page` (`openspec/backlog.md`), но покрытие не делаем, панорама скрыта в клоне.

@@ -2,7 +2,7 @@
 
 ## Context
 
-Мотивация — в `proposal.md`. Адреса `https://proxy.nakarte.me/mapy/…` захардкожены в `src/layers.js` (слои «mapy.cz tourist (Out of order)», «mapy.cz winter (Out of order)») и в `src/lib/leaflet.control.panoramas/lib/mapycz/index.js` (покрытие панорам); в апстриме слои помечены «Out of order». Свой прокси (`workers/cors-proxy`, спека `cors-proxy`) уже знает алиас `/wikimapia/`. Подпись карты — `caption` в `src/config.js`. В коде остаются строки `nakarte.me`, которые не являются запросами: `creator="http://nakarte.me"` в GPX и `<title>` страницы — их не трогаем.
+Мотивация — в `proposal.md`. Адреса `https://proxy.nakarte.me/mapy/…` захардкожены в `src/layers.js` (слои «mapy.cz tourist (Out of order)», «mapy.cz winter (Out of order)») и в `src/lib/leaflet.control.panoramas/lib/mapycz/index.js` (покрытие панорам, в клоне скрыто `hide-panorama-providers`, запросов нет); в апстриме слои помечены «Out of order». Свой прокси (`workers/cors-proxy`, спека `cors-proxy`) уже знает алиас `/wikimapia/`. Подпись карты — `caption` в `src/config.js`. В коде остаются строки `nakarte.me`, которые не являются запросами: `creator="http://nakarte.me"` в GPX и `<title>` страницы — их не трогаем.
 
 ## Goals / Non-Goals
 
@@ -16,7 +16,7 @@
 
 ### Адреса mapy.cz из config
 
-Захардкоженный префикс `https://proxy.nakarte.me/mapy/` выносится в ключ конфига (например, `mapyTilesBaseUrl`) со значением автора по умолчанию и своим прокси в `clone.js` — тем же приёмом, что `wikimapiaTilesBaseUrl`. Прокси получает алиас `/mapy/<слой>/` → эндпоинт mapy.cz с ключом из `wrangler secret`. Какие именно эндпоинты и условия у mapy.cz — первая задача; если раздача через прокси не разрешена, слои и покрытие панорам mapy.cz скрываются фильтром из `drop-author-scan-layers`, а дельта `cors-proxy` убирается из этого change.
+Захардкоженный префикс `https://proxy.nakarte.me/mapy/` выносится в ключ конфига (например, `mapyTilesBaseUrl`) со значением автора по умолчанию и своим прокси в `clone.js` — тем же приёмом, что `wikimapiaTilesBaseUrl`. Прокси получает алиас `/mapy/<слой>/` → эндпоинт mapy.cz с ключом из `wrangler secret`. Какие именно эндпоинты и условия у mapy.cz — первая задача; если раздача через прокси не разрешена, слои mapy.cz скрываются фильтром из `drop-author-scan-layers`, а дельта `cors-proxy` убирается из этого change.
 
 ### Сквозная проверка как тест
 
