@@ -6,9 +6,8 @@
 
 ## What Changes
 
-- Список кодов исключённых слоёв в `src/config-target/clone.js`: T, D, N, A, J, C, F, B, K, U, R, E25m, NT1, NT5, T25, MN25, Pur.
-- Фильтр при сборке списка слоёв: исключённые слои не попадают в выбор слоёв, хоткеи, печать и восстановление из адреса. `src/layers.js` не правится, чтобы дифф с апстримом остался маленьким.
-- Тест karma на фильтр без сети.
+- Коды 17 слоёв дописываются в `excludedLayerCodes` в `src/config-target/clone.js`: T, D, N, A, J, C, F, B, K, U, R, E25m, NT1, NT5, T25, MN25, Pur. Сам фильтр (`src/config-target/exclude-layers.js`, вызов в `src/App.js`) и требование «Скрытые слои клона» уже сделаны change `hide-map-data-layers`.
+- Тест karma: в клоне 17 слоёв скрыты.
 
 ## Capabilities
 
@@ -20,5 +19,5 @@
 
 ## Impact
 
-- Изменения: `src/config-target/clone.js`, `src/config-target/default.js` (пустой список), место сборки слоёв (`getLayers` или его вызов в `src/App.js`), новый тест в `test/`.
+- Изменения: `src/config-target/clone.js`, тест в `test/test_exclude_layers.js`.
 - Сборка без цели (апстрим) ведёт себя как раньше.

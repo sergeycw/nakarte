@@ -15,13 +15,9 @@
 
 ## Decisions
 
-### Фильтр по кодам из config-target
+### Фильтр из `hide-map-data-layers`
 
-`excludedLayerCodes` в `src/config-target/clone.js` (в `default.js` — пустой список). Фильтр применяется к результату `getLayers()` перед `enableLayersConfig`: исключённые слои убираются из групп. Альтернатива — удалить определения из `src/layers.js`: растит дифф с апстримом и ломает сборку без цели.
-
-### Восстановление из адреса
-
-Адрес с кодом исключённого слоя не должен ломать загрузку: неизвестный код игнорируется, если слоёв в адресе не осталось — включается слой по умолчанию. Задача проверяет текущее поведение `leaflet.control.layers` с неизвестным кодом и при необходимости добавляет обработку.
+Механизм уже есть: `excludedLayerCodes` в `src/config-target/clone.js` и `excludeLayers()` из `src/config-target/exclude-layers.js` на входе `enableLayersConfig` в `src/App.js`. Восстановление из адреса с кодом скрытого слоя проверено там же (`l=O/Wp`). Этот change только дописывает 17 кодов и проверяет, что у сканов нет путей мимо `getLayers()`.
 
 ## Risks / Trade-offs
 
