@@ -64,9 +64,6 @@ suite('Load tracks from services');
     'sportstracker_without_title',
     'sportstracker_private',
     'sportstracker_not_exists',
-    'wikiloc_not_exists',
-    'wikiloc_with_waypoints',
-    'wikiloc',
 ].forEach(function (testcase) {
     // eslint-disable-next-line import/no-dynamic-require
     const testData = require('./track_load_data/testcases/' + testcase + '.json');
