@@ -84,7 +84,7 @@
 - R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
 - Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
 - Worker `nakarte-tracks` (`workers/tracks`) — хранилище треков для ссылок `nktl=`: https://nakarte-tracks.nakarte-routing.workers.dev. Объекты `tracks/{key}` в R2-бакете `nakarte-tracks` (EEUR).
-- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), заливает ручной workflow `elevation data`. Нужен Workers Paid: на Free 10 мс CPU.
+- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), 26 157 градусов ≈ 13 ГБ, заливает ручной workflow `elevation data` (весь мир ≈ 40 минут). Нужен Workers Paid: на Free 10 мс CPU.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
