@@ -17,8 +17,9 @@ class Wikiloc extends BaseService {
     }
 
     requestOptions() {
+        const url = this.origUrl.replace(/^https?:\/\/[^/]+\//u, 'https://www.wikiloc.com/');
         return [{
-            url: urlViaCorsProxy(this.origUrl),
+            url: urlViaCorsProxy(url),
             options: {
                 isResponseSuccess: (xhr) => xhr.status === 200 || xhr.status === 404
             }
