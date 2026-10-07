@@ -21,6 +21,11 @@ updates:
       - "/workers/elevation"
     schedule:
       interval: weekly
+    ignore:
+      # @cloudflare/vitest-pool-workers 0.22 (последняя на 2026-10-07) требует vitest ^4.1, с vitest 5
+      # тесты в workerd падают; снять, когда выйдет пул под новый мажор (бампать их вместе)
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
     groups:
       workers-npm:
         patterns: ["*"]
