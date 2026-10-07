@@ -108,7 +108,7 @@ Copernicus GLO-30, релиз 2024_1 (на AWS лежит релиз 2021 без
 |---|---|
 | Хранилище треков | Worker + R2 |
 | API высот | Worker (Rust) + R2 |
-| Тайлы высот | тот же Worker + Cache API или PMTiles в R2 |
+| Тайлы высот | тот же Worker: z0–9 — архив с плотным индексом в R2, z10–11 — на лету |
 | Скраперы | Cron Trigger → R2; если нужен долгий прогон или браузер — пересмотреть |
 | Покрытия | генерация офлайн или по Cron → R2 |
 
@@ -143,7 +143,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 |---|---|---|---|
 | 1 | `add-track-storage` | — | в проде и в архиве с 2026-10-07, шаблон сервиса — `workers/tracks/` |
 | 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в проде и в архиве с 2026-10-07: данные viewfinderpanoramas 3″ всего мира, сервис `workers/elevation` |
-| 3 | `add-elevation-tiles` | 2 (данные и ядро) | |
+| 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
 | 4 | `add-map-data-scrapers` | — | |
 | 5 | `add-photo-coverage-tiles` | — | |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |

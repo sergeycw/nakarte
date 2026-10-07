@@ -4,6 +4,7 @@ const configTarget = {
     CORSProxyUrl: CORS_PROXY_URL,
     tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
     elevationsServer: 'https://nakarte-elevation.nakarte-routing.workers.dev/',
+    elevationTileUrl: 'https://nakarte-elevation.nakarte-routing.workers.dev/tiles/{z}/{x}/{y}',
     elevationsAttribution:
         'Elevation data: <a href="https://viewfinderpanoramas.org/dem3.html" target="_blank">' +
         'viewfinderpanoramas.org</a> (Jonathan de Ferranti)',
