@@ -135,6 +135,18 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 6. **Прокси mapy и подпись карты.** `proxy.nakarte.me/mapy/...` → `nakarte-cors-proxy`, свои ссылки в `caption`.
 7. **Убрать слои сканов в клоне.** Список кодов исключённых слоёв в `config-target/clone.js` и фильтр при сборке списка слоёв, без удаления из `src/layers.js`, чтобы дифф с апстримом остался маленьким.
 
+### Changes в `openspec/changes/`
+
+| № | Change | Архивировать после |
+|---|---|---|
+| 1 | `add-track-storage` | — |
+| 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) |
+| 3 | `add-elevation-tiles` | 2 (данные и ядро) |
+| 4 | `add-map-data-scrapers` | — |
+| 5 | `add-photo-coverage-tiles` | — |
+| 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» |
+| 7 | `drop-author-scan-layers` | — |
+
 ## Открытые вопросы
 
 - Объём GLO-30 после перепаковки в Int16 и время пайплайна — измерить в change 2.
