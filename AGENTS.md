@@ -30,7 +30,7 @@
 - Хоткеи слоёв (`leaflet.control.layers.hotkeys`) в апстриме не игнорировали Cmd: на маке Cmd+Z переключал слой «Z». Здесь добавлен `e.metaKey` — кандидат на отдельный PR в апстрим.
 - Corepack при запуске `yarn` дописывает в `package.json` поле `packageManager`. Его нужно откатывать, чтобы дифф с апстримом оставался чистым.
 - Тесты karma `test_track_load.js` ходят в живые сервисы через `config.CORSProxyUrl` (в CI это авторский `proxy.nakarte.me` из шаблона секретов). Локальный `src/secrets.js` перебивает прокси на `localhost:8787`, поэтому для прогона как в CI временно подложи шаблон. Один файл: `NODE_ENV=testing npx karma start --single-run --browsers ChromeHeadless test/karma.conf.js --glob ./test/test_track_load.js`.
-- Wikiloc за Cloudflare-челленджем: через авторский прокси `ru.wikiloc.com` и `wikiloc.com` дают `403`, `www.wikiloc.com` с браузерным `User-Agent` — `200`. Поэтому импорт всегда запрашивает `www.wikiloc.com` с тем же путём.
+- Wikiloc за Cloudflare JS-челленджем: с 2026-10-07 любой запрос не из браузера получает `403` на всех хостах (`www`, `ru`, без поддомена, embed, даже `robots.txt`), напрямую и через авторский прокси, с любым `User-Agent`. Импорт wikiloc поэтому не работает, его сетевые тесты убраны из `test_track_load.js`, код импорта не трогали.
 
 ## Где код роутинга
 
