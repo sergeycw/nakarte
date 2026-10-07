@@ -15,6 +15,6 @@ javac --release 11 -cp lib/brouter.jar -d classes java/WasmRouter.java
 jar --create --file lib/wasm-router.jar -C classes .
 
 rm -rf patch-classes && mkdir patch-classes
-javac --release 11 -cp lib/brouter.jar -d patch-classes patch/btools/mapaccess/NodesCache.java
+javac --release 11 -cp lib/brouter.jar -d patch-classes patch/btools/mapaccess/*.java
 jar --create --file lib/brouter-patch.jar -C patch-classes .
 ls -l lib profiles

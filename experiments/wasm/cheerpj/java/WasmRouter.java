@@ -29,6 +29,9 @@ public class WasmRouter {
       throw new Exception(engine.getErrorMessage());
     }
     OsmTrack track = engine.getFoundTrack();
+    if (track.nodes.isEmpty()) {
+      throw new Exception("no route found");
+    }
     return new FormatJson(rc).format(track);
   }
 

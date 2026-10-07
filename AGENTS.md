@@ -69,6 +69,8 @@
 - `/str/` плоская: `cheerpOSAddStringFile('/str/a/b')` Java не находит, `/str/b` находит.
 - JDK (`11/lib/modules`, 43 МБ кусками через Range) грузится из cross-origin iframe `c.html`: эти запросы не видны ни CDP страницы, ни Claude in Chrome. Для учёта байтов — `rt=proxy` стенда. `performance.measureUserAgentSpecificMemory()` работает только с `COI=1` и `rt=proxy` и видит лишь JS-кучу, память мерить по RSS процесса.
 - В фоновой вкладке rAF не тикает: блокировку главного потока мерить через `MessageChannel`-пинг.
+- Переполнение стека в CheerpJ приходит как `java.lang.ArithmeticException` без текста, а не как `StackOverflowError`. BRouter ловит `StackOverflowError` в `OsmNodesMap.cleanupPeninsulas`, отсюда патч `patch/btools/mapaccess/OsmNodesMap.java`. `RoutingEngine` пишет в ошибку `getMessage()`, так что исключение без текста превращается в пустой трек без ошибки. Чтобы увидеть стек, создать `RoutingEngine` с непустым `outfileBase` (например `/files/dbg`): тогда он печатает лог и стек в консоль.
+- Патчи из `patch/` подменяют классы `brouter.jar` целиком: исходник брать из той же ревизии, что jar, и сверять `javap -p`.
 
 ## Публичный клон на Cloudflare
 
