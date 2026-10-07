@@ -41,7 +41,11 @@ existing="$work/existing"
 mkdir -p "$seen" "$existing"
 
 if [ "$R2_MODE" = --remote ]; then
-    export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+    # ключи из секретов GitHub часто приходят с переводом строки после копирования из дашборда,
+    # а aws CLI тогда собирает битый заголовок Authorization
+    AWS_ACCESS_KEY_ID=$(printf '%s' "$R2_ACCESS_KEY_ID" | tr -d '[:space:]')
+    AWS_SECRET_ACCESS_KEY=$(printf '%s' "$R2_SECRET_ACCESS_KEY" | tr -d '[:space:]')
+    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
     export AWS_DEFAULT_REGION=auto AWS_CONFIG_FILE="$work/aws-config"
     printf '[default]\ns3 =\n  max_concurrent_requests = 32\n' >"$AWS_CONFIG_FILE"
     if [ "$FORCE" != 1 ]; then
