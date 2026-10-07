@@ -2,6 +2,11 @@ name = "nakarte-elevation"
 main = "worker/build/index.js"
 compatibility_date = "2025-09-01"
 
+# Потолок на один вызов. CPU — с запасом от наблюдённого максимума 3.8 с (API на тысячах точек
+# вразброс); subrequests не задан: 10 000 точек вразброс законно дают тысячи чтений R2.
+[limits]
+cpu_ms = 10000
+
 [build]
 command = "worker-build --release worker"
 
