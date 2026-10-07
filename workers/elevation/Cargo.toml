@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["core", "worker", "server", "repack"]
+members = ["core", "worker", "server", "repack", "tiles"]
 
 [workspace.package]
 edition = "2024"
@@ -17,6 +17,9 @@ codegen-units = 1
 [profile.release.package.elevation-worker]
 opt-level = "s"
 
-# Тесты тайлов считают растры z11 в сотни тысяч пикселей: без оптимизаций — заметно дольше.
+# Тест генератора считает растр блока z5 (16 447² пикселей): без оптимизаций — десятки секунд.
 [profile.test.package.elevation-core]
+opt-level = 3
+
+[profile.test.package.elevation-tiles]
 opt-level = 3
