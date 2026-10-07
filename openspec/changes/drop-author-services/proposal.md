@@ -23,4 +23,4 @@
 
 - Изменения: `src/config-target/clone.js`, `src/config.js` или место подстановки адресов mapy.cz, `workers/cors-proxy/src/index.js` и его секреты, `openspec/specs/cors-proxy`.
 - Внешнее: ключ API mapy.cz заводит владелец.
-- Зависимость: архивировать после `add-track-storage`, `add-elevation-api`, `add-elevation-tiles`, `add-map-data-scrapers`, `add-photo-coverage-tiles`, `drop-author-scan-layers` — иначе требование «без запросов к `*.nakarte.me`» не выполняется.
+- Зависимость: архивировать после `add-track-storage`, `add-elevation-api`, `add-elevation-tiles`, `hide-map-data-layers`, `add-photo-coverage-tiles`, `drop-author-scan-layers` — иначе требование «без запросов к `*.nakarte.me`» не выполняется.
