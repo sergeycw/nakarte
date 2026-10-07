@@ -96,7 +96,7 @@
 - Синхронизация тайлов локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). По расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.
 - Слои Google и mapy.cz в клоне не работают: в сборке ключи-заглушки.
 
-Локальный стек для клона (записи в `../.claude/launch.json`): `nakarte-wasm` — dev-сервер на 8766; `nakarte-cors-proxy` — `wrangler dev` прокси на 8787; `nakarte-tiles-worker` — `wrangler dev` тайлов на 8788 (dev-сервер проксирует `/tiles` туда). Локальные переопределения (`routingEngine`, `routingTilesPath: '/tiles/'`, `CORSProxyUrl: 'http://localhost:8787/'`) лежат в `src/secrets.js`. Тайлы в локальный R2: `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file … --local`.
+Локальный стек для клона (записи в `../.claude/launch.json`, всё из этого checkout): `nakarte` — серверный режим на 8765 (`yarn local`); `nakarte-wasm` — dev-сервер клона на 8766 с `NAKARTE_TARGET=clone`, поэтому `src/secrets.js` общий и правок под клон не требует; `nakarte-tiles-worker` — `wrangler dev` тайлов на 8788 (dev-сервер проксирует `/tiles` туда); `nakarte-cors-proxy` — `wrangler dev` прокси на 8787, нужен, только если направить `CORSProxyUrl` на него. Тайлы в локальный R2: `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file ../../brouter/segments4/<имя>.rd5 --local` из `workers/tiles`. Файлы движка для 8766 — после `build.sh`.
 
 Авторские бэкенды `*.nakarte.me` с чужого домена (проверено 2026-10-06, `Origin`/`Referer` фейкового клона):
 - пускают: `elevation` и `tracks` (отражают любой `Origin` с `credentials`), `tiles.nakarte.me` и `geocachingSu` (`*`);
