@@ -14,6 +14,16 @@ context: |
   functions/, experiments/, scripts/brouter-* and src/config-target/.
   Ideas not yet proposed live in openspec/backlog.md.
 
+rules:
+  tasks:
+    - В change с кодом есть задачи на тесты и на подключение их к CI (workflow `check`); у каждой задачи с кодом проверка — зелёный тест.
+    - Тесты в CI не ходят в сеть и живые сервисы: внешние ответы — через фикстуры или заглушки.
+
+operations:
+  apply:
+    guidance:
+      - Задача с кодом закрывается только с зелёным тестом, подключённым к CI.
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
