@@ -102,6 +102,7 @@
 - Профили и `lookups.dat` движка берутся из образа `brouter:nightly`, а тайлы — с brouter.de. Сейчас `lookups.dat` совпадают побайтно; синхронизация падает, если сменится `lookups.dat` на brouter.de, но не сравнивает его с образом.
 - Синхронизация тайлов локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). По расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.
 - Слои Google и mapy.cz в клоне не работают: в сборке ключи-заглушки.
+- Слои скрываются в клоне по коду: `excludedLayerCodes` в `src/config-target/clone.js`, фильтр `src/config-target/exclude-layers.js` на входе `enableLayersConfig` (`src/layers.js` не трогаем). Сейчас скрыты перевалы Вестры (`Wp`) и geocaching.su (`Gc`): своих данных нет, ресёрч источников — в `openspec/backlog.md`.
 
 Локальный стек для клона (записи в `../.claude/launch.json`, всё из этого checkout): `nakarte` — серверный режим на 8765 (`yarn local`); `nakarte-wasm` — dev-сервер клона на 8766 с `NAKARTE_TARGET=clone`, поэтому `src/secrets.js` общий и правок под клон не требует; `nakarte-tiles-worker` — `wrangler dev` тайлов на 8788 (dev-сервер проксирует `/tiles` туда); `nakarte-cors-proxy` — `wrangler dev` прокси на 8787, нужен, только если направить `CORSProxyUrl` на него. Тайлы в локальный R2: `wrangler r2 object put nakarte-tiles/<имя>.rd5 --file ../../brouter/segments4/<имя>.rd5 --local` из `workers/tiles`. Файлы движка для 8766 — после `build.sh`.
 
