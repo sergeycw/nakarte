@@ -5,7 +5,11 @@ import {getLayers} from '~/layers';
 suite('exclude layers');
 
 function codesOf(layersConfig) {
-    return layersConfig.layers.flatMap((group) => group.layers.map((layer) => layer.layer.options.code));
+    const codes = [];
+    for (const group of layersConfig.layers) {
+        codes.push(...group.layers.map((layer) => layer.layer.options.code));
+    }
+    return codes;
 }
 
 test('without codes returns input unchanged', function () {
