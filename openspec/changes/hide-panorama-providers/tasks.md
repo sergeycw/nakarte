@@ -7,7 +7,7 @@
 
 ## 2. Проверка
 
-- [ ] 2.1 Линт и тесты: `NODE_ENV=production npx eslint --ext js .`, тест из 1.1 зелёный в `main.yml`
+- [x] 2.1 Линт и тесты: `NODE_ENV=production npx eslint --ext js .`, тест из 1.1 зелёный в `main.yml`
 - [x] 2.2 В браузере на локальном клоне: в списке панорам только «Google street view», запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
 - [x] 2.3 Удалить change `add-photo-coverage-tiles`, итоги ресёрча — в `openspec/backlog.md`, статус пункта 5 в `openspec/research/own-backends.md`, панорамы mapy.cz в `drop-author-services` — на этот фильтр; проверка: `openspec validate --all --strict`
 
