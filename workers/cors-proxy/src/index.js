@@ -3,6 +3,8 @@ const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 
 const DROPPED_RESPONSE_HEADERS = ['set-cookie'];
 const EXPOSED_HEADERS = 'Content-Disposition';
 const ALLOWED_METHODS = 'POST, GET, HEAD, OPTIONS';
+// Длина окна `[[ratelimits]]` в wrangler.toml.
+const RETRY_AFTER_SECONDS = '60';
 
 function allowedOrigins(env) {
     return (env.ALLOWED_ORIGINS ?? '')
@@ -55,6 +57,23 @@ function corsHeaders(origin) {
     };
 }
 
+// Без CF-Connecting-IP (локальный wrangler dev, тесты) частоту не ограничиваем.
+async function overLimit(request, env) {
+    const ip = request.headers.get('CF-Connecting-IP');
+    if (!ip) {
+        return false;
+    }
+    const {success} = await env.RATE_LIMITER.limit({key: ip});
+    return !success;
+}
+
+function tooManyRequests(origin) {
+    return new Response('Too many requests\n', {
+        status: 429,
+        headers: {...corsHeaders(origin), 'Retry-After': RETRY_AFTER_SECONDS},
+    });
+}
+
 function preflight(request, origin) {
     const headers = new Headers(corsHeaders(origin));
     headers.set('Access-Control-Allow-Methods', ALLOWED_METHODS);
@@ -100,6 +119,9 @@ const worker = {
         const origin = callerOrigin(request, allowedOrigins(env));
         if (!origin) {
             return new Response('Forbidden', {status: 403});
+        }
+        if (await overLimit(request, env)) {
+            return tooManyRequests(origin);
         }
         if (request.method === 'OPTIONS') {
             return preflight(request, origin);

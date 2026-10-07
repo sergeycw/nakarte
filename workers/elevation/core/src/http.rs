@@ -8,6 +8,8 @@ const TEXT: &str = "text/plain; charset=utf-8";
 const TILES_PREFIX: &str = "/tiles/";
 // Тайлы автора кешируются на сутки (`tiles.nakarte.me`, проверено 2026-10-07).
 const TILE_CACHE: &str = "max-age=86400";
+// Длина окна `[[ratelimits]]` в wrangler.toml.
+const RETRY_AFTER_SECONDS: &str = "60";
 
 pub struct Request<'a> {
     pub method: &'a str,
@@ -63,6 +65,43 @@ pub fn parse_origins(list: &str) -> Vec<&str> {
         .map(str::trim)
         .filter(|origin| !origin.is_empty())
         .collect()
+}
+
+/// Счётчик частоты запросов с одного IP: у тайлов и API свои лимиты (`[[ratelimits]]` в wrangler.toml).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RateGroup {
+    Tiles,
+    Api,
+}
+
+/// Какой счётчик тратит запрос. `None` — запрос API с неразрешённым `Origin`: он и так получит
+/// `403`, счётчик на него не тратится.
+pub fn rate_group(request: &Request<'_>, allowed_origins: &[&str]) -> Option<RateGroup> {
+    if request.path.starts_with(TILES_PREFIX) {
+        return Some(RateGroup::Tiles);
+    }
+    request
+        .origin
+        .filter(|origin| allowed_origins.contains(origin))
+        .map(|_| RateGroup::Api)
+}
+
+/// Ответ сверх лимита — с теми же CORS-заголовками, что обычный ответ на этот путь, чтобы клиент
+/// увидел `429`, а не сбой CORS. Вызывать только для запросов, у которых `rate_group` не `None`.
+pub fn too_many_requests(request: &Request<'_>) -> Response {
+    let mut response = Response::new(429, "Too many requests\n").text();
+    response
+        .headers
+        .push(("Retry-After", RETRY_AFTER_SECONDS.to_string()));
+    match request.origin {
+        Some(origin) if !request.path.starts_with(TILES_PREFIX) => response.with_cors(origin),
+        _ => {
+            response
+                .headers
+                .push(("Access-Control-Allow-Origin", "*".to_string()));
+            response
+        }
+    }
 }
 
 // HTTP без привязки к рантайму: адаптер собирает `Request` и переводит `Response` обратно.

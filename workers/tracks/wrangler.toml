@@ -2,9 +2,20 @@ name = "nakarte-tracks"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
+# Потолок на один вызов: наблюдённый максимум CPU — 2 мс, на запрос одно обращение к R2.
+[limits]
+cpu_ms = 500
+subrequests = 10
+
 [vars]
 ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
 
 [[r2_buckets]]
 binding = "TRACKS"
 bucket_name = "nakarte-tracks"
+
+# Частота с одного IP (CF-Connecting-IP) за 60 с; namespace_id уникален в аккаунте (1001–1004 — клон).
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1003"
+simple = { limit = 60, period = 60 }
