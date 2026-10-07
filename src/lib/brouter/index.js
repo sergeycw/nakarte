@@ -8,6 +8,7 @@ import {isEngineFailed, routeInEngine, startEngine} from './browser-engine';
 
 const SIMPLIFY_TOLERANCE_DEGREES = 360 / (1 << 24);
 const SNAP_DISTANCE_METERS = 20;
+const MISSING_TILE_ERROR = /^datafile \S+\.rd5 not found$/u;
 
 const activities = [
     {id: 'hiking', title: 'Hiking', profile: 'hiking-mountain'},
@@ -23,9 +24,16 @@ const activities = [
     {id: 'touring-bike', title: 'Touring bike', profile: 'trekking'},
 ];
 
+function userFacingMessage(message) {
+    if (MISSING_TILE_ERROR.test(message)) {
+        return 'no routing data for this area';
+    }
+    return message;
+}
+
 class RoutingError extends Error {
     constructor(message, serverUnreachable) {
-        super(message);
+        super(userFacingMessage(message));
         this.name = 'RoutingError';
         this.serverUnreachable = serverUnreachable;
     }
