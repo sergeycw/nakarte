@@ -1,0 +1,41 @@
+name: deploy pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'sergeycw/nakarte'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: cp src/secrets.js.template src/secrets.js
+      - run: yarnpkg
+      - name: build brouter engine files
+        run: |
+          docker create --name brouter ghcr.io/abrensch/brouter:nightly
+          BROUTER_CONTAINER=brouter sh experiments/wasm/cheerpj/build.sh
+      - run: npm run build
+        env:
+          NAKARTE_TARGET: clone
+      - name: check engine files are in the build
+        run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
+      - run: npx --yes wrangler@4 pages deploy build --project-name nakarte-routing --branch master
+      - run: npx --yes wrangler@4 deploy
+        working-directory: workers/cors-proxy
