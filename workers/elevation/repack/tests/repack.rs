@@ -1,5 +1,5 @@
 use elevation_core::format::{CHUNKS, HEADER_LEN, Header, NO_VALUE, TILE_SIZE, decode_chunk};
-use elevation_repack::{HGT_SIZE, RepackError, degree_name, repack_hgt};
+use elevation_repack::{HGT_SIZE, HGT1_SIZE, RepackError, degree_name, repack_hgt};
 
 // Значение узла по строке и столбцу HGT (строки с севера), уникальное в пределах градуса.
 fn hgt_value(row: usize, col: usize) -> i16 {
@@ -57,6 +57,32 @@ fn only_keeps_listed_chunks() {
         chunk(&object, &header, 15)[TILE_SIZE * TILE_SIZE - 1],
         hgt_value(0, HGT_SIZE - 1)
     );
+}
+
+#[test]
+fn one_arcsecond_hgt_is_decimated_to_three_arcseconds() {
+    let value = |row: usize, col: usize| ((row * 5 + col * 11) % 7000) as i16;
+    let mut hgt = Vec::with_capacity(HGT1_SIZE * HGT1_SIZE * 2);
+    for row in 0..HGT1_SIZE {
+        for col in 0..HGT1_SIZE {
+            hgt.extend_from_slice(&value(row, col).to_be_bytes());
+        }
+    }
+    let object = repack_hgt(&hgt, None, 3).unwrap();
+    let header = Header::parse(&object[..HEADER_LEN]).unwrap();
+    for index in [0, 5, 15] {
+        let (dy, dx) = (index / 4, index % 4);
+        let values = chunk(&object, &header, index);
+        for (iy, ix) in [(0, 0), (150, 77), (300, 300)] {
+            let row3 = HGT_SIZE - 1 - (dy * 300 + iy);
+            let col3 = dx * 300 + ix;
+            assert_eq!(
+                values[iy * TILE_SIZE + ix],
+                value(row3 * 3, col3 * 3),
+                "chunk {index} {ix},{iy}"
+            );
+        }
+    }
 }
 
 #[test]

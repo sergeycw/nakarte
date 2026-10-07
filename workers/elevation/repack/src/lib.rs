@@ -1,11 +1,17 @@
 //! HGT 3″ (viewfinderpanoramas, 1201×1201 `i16` big-endian, строки с севера, nodata `-32768`)
 //! → объект градуса из `elevation_core::format`. Нарезка на куски повторяет `splitDem` из
 //! `cmd/make_data` Go-сервера автора.
+//!
+//! В нескольких zip `dem3/` viewfinderpanoramas лежат тайлы 1″ (3601×3601, например `N63E008` в
+//! поясе P). Узлы 3″ — ровно каждый третий узел 1″ (3600 = 3 × 1200), поэтому такие тайлы
+//! прореживаются до 1201×1201 без интерполяции.
 
 use elevation_core::format::{CHUNKS, SPLIT, TILE_SIZE, encode_degree};
 
 pub const HGT_SIZE: usize = 1201;
 pub const HGT_BYTES: usize = HGT_SIZE * HGT_SIZE * 2;
+pub const HGT1_SIZE: usize = 3601;
+pub const HGT1_BYTES: usize = HGT1_SIZE * HGT1_SIZE * 2;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RepackError {
@@ -17,7 +23,12 @@ impl std::fmt::Display for RepackError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RepackError::BadName(name) => write!(f, "not an HGT name: {name}"),
-            RepackError::BadSize(size) => write!(f, "HGT must be {HGT_BYTES} bytes, got {size}"),
+            RepackError::BadSize(size) => {
+                write!(
+                    f,
+                    "HGT must be {HGT_BYTES} (3″) or {HGT1_BYTES} (1″) bytes, got {size}"
+                )
+            }
         }
     }
 }
@@ -49,11 +60,13 @@ pub fn degree_name(file_name: &str) -> Result<String, RepackError> {
 }
 
 pub fn split_hgt(hgt: &[u8]) -> Result<Vec<Vec<i16>>, RepackError> {
-    if hgt.len() != HGT_BYTES {
-        return Err(RepackError::BadSize(hgt.len()));
-    }
+    let (source_size, stride) = match hgt.len() {
+        HGT_BYTES => (HGT_SIZE, 1),
+        HGT1_BYTES => (HGT1_SIZE, 3),
+        size => return Err(RepackError::BadSize(size)),
+    };
     let node = |row: usize, col: usize| {
-        let at = (row * HGT_SIZE + col) * 2;
+        let at = (row * stride * source_size + col * stride) * 2;
         i16::from_be_bytes([hgt[at], hgt[at + 1]])
     };
     let step = TILE_SIZE - 1;
