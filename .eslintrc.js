@@ -99,9 +99,21 @@ module.exports = {
                 Request: true,
                 Response: true,
                 URL: true,
+                ReadableStream: true,
+                TextDecoder: true,
+                btoa: true,
+                setTimeout: true,
             },
             rules: {
                 'import/no-unused-modules': 'off',
+                'import/no-unresolved': ['error', {ignore: ['^cloudflare:']}],
+            },
+        },
+        /* tests of cloudflare workers */
+        {
+            files: ['./workers/*/test/**/*.js', './workers/*/vitest.config.js'],
+            rules: {
+                'import/no-extraneous-dependencies': ['error', {devDependencies: true}],
             },
         },
         /* command line scripts */
