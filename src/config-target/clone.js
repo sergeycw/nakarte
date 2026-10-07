@@ -3,6 +3,10 @@ const CORS_PROXY_URL = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev/'
 const configTarget = {
     CORSProxyUrl: CORS_PROXY_URL,
     tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
+    elevationsServer: 'https://nakarte-elevation.nakarte-routing.workers.dev/',
+    elevationsAttribution:
+        'Elevation data: <a href="https://viewfinderpanoramas.org/dem3.html" target="_blank">' +
+        'viewfinderpanoramas.org</a> (Jonathan de Ferranti)',
     wikimapiaTilesBaseUrl: `${CORS_PROXY_URL}wikimapia/`,
     routingEngine: 'browser',
     routingTilesPath: '/tiles/',

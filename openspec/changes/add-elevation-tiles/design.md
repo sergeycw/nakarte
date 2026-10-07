@@ -2,7 +2,7 @@
 
 ## Context
 
-Мотивация — в `proposal.md`. Клиент: `src/lib/leaflet.layer.elevation-display/index.js` (`maxNativeZoom: 11`, `noDataValue: -512`, `decodeElevations` — префиксная сумма Int16; `404` — нет данных). Тайлы автора проверены 2026-10-07: 131 072 байта после распаковки, `Content-Encoding: gzip`, `Access-Control-Allow-Origin: *`, `Cache-Control: max-age=86400`, `404` на z12. Данные — перепакованные куски GLO-30 из `add-elevation-api`.
+Мотивация — в `proposal.md`. Клиент: `src/lib/leaflet.layer.elevation-display/index.js` (`maxNativeZoom: 11`, `noDataValue: -512`, `decodeElevations` — префиксная сумма Int16; `404` — нет данных). Тайлы автора проверены 2026-10-07: 131 072 байта после распаковки, `Content-Encoding: gzip`, `Access-Control-Allow-Origin: *`, `Cache-Control: max-age=86400`, `404` на z12. Данные — перепакованные куски DEM 3″ viewfinderpanoramas из `add-elevation-api` (README генератора тайлов автора `wladich/elevation_tiles_for_nakarte` предлагает их же).
 
 ## Goals / Non-Goals
 

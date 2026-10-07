@@ -1,0 +1,39 @@
+name: check elevation
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'workers/elevation/**'
+      - '.github/workflows/check-elevation.yml'
+  pull_request:
+    paths:
+      - 'workers/elevation/**'
+      - '.github/workflows/check-elevation.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/elevation
+    steps:
+      - uses: actions/checkout@v4
+      # rustup на раннере сам ставит версию, таргет wasm32 и компоненты из rust-toolchain.toml
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: workers/elevation
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy -p elevation-worker --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo install worker-build --version 0.8.7 --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: workers/elevation/package-lock.json
+      - run: npm ci
+      # собирает wasm под wasm32 и гоняет его в workerd с локальным R2
+      - run: npm test

@@ -11,14 +11,14 @@
 - **WHEN** пользователь клона открывает профиль высот трека
 - **THEN** запрос высот уходит на сервис клона, запросов к `elevation.nakarte.me` нет
 
-### Requirement: Атрибуция Copernicus
+### Requirement: Атрибуция данных высот
 
-Клон SHALL показывать атрибуцию Copernicus DEM, которой требует лицензия GLO-30: «© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved» и отказ от ответственности.
+Клон SHALL показывать атрибуцию данных высот, которой требуют условия viewfinderpanoramas.org: упоминание «Elevation data: viewfinderpanoramas.org (Jonathan de Ferranti)» со ссылкой на страницу источника `https://viewfinderpanoramas.org/dem3.html`.
 
 #### Scenario: Атрибуция в интерфейсе
 
-- **WHEN** пользователь клона открывает профиль высот или раздел с атрибуциями
-- **THEN** текст атрибуции Copernicus виден
+- **WHEN** пользователь клона открывает профиль высот
+- **THEN** атрибуция viewfinderpanoramas со ссылкой видна
 
 ## REMOVED Requirements
 

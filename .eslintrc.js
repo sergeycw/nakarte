@@ -101,6 +101,7 @@ module.exports = {
                 URL: true,
                 ReadableStream: true,
                 TextDecoder: true,
+                atob: true,
                 btoa: true,
                 setTimeout: true,
             },

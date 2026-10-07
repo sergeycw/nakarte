@@ -1,0 +1,13 @@
+name = "nakarte-elevation"
+main = "worker/build/index.js"
+compatibility_date = "2025-09-01"
+
+[build]
+command = "worker-build --release worker"
+
+[vars]
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
+
+[[r2_buckets]]
+binding = "DEM"
+bucket_name = "nakarte-elevation"

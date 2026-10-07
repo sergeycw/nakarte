@@ -43,3 +43,13 @@ jobs:
           npm ci --omit=dev
           npx --yes wrangler@4 deploy
         working-directory: workers/tracks
+      - run: rustup toolchain install
+        working-directory: workers/elevation
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: workers/elevation
+      # wrangler deploy сам собирает wasm командой [build] из workers/elevation/wrangler.toml
+      - run: |
+          cargo install worker-build --version 0.8.7 --locked
+          npx --yes wrangler@4 deploy
+        working-directory: workers/elevation
