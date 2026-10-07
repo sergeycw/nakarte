@@ -2,11 +2,11 @@
 
 ## Why
 
-Высота и уклон под курсором (`L.Control.Coordinates`, слой `leaflet.layer.elevation-display`) читаются из тайлов `tiles.nakarte.me/elevation` автора. Для автономии клону нужны свои тайлы в том же формате, построенные из тех же данных Copernicus GLO-30, что и сервис высот (`add-elevation-api`).
+Высота и уклон под курсором (`L.Control.Coordinates`, слой `leaflet.layer.elevation-display`) читаются из тайлов `tiles.nakarte.me/elevation` автора. Для автономии клону нужны свои тайлы в том же формате, построенные из тех же данных DEM 3″ viewfinderpanoramas, что и сервис высот (`add-elevation-api`).
 
 ## What Changes
 
-- Генератор тайлов z0–11 в формате клиента (Int16 с дельта-кодированием, 256×256, nodata `-512`) из перепакованных кусков GLO-30, результат — один архив PMTiles.
+- Генератор тайлов z0–11 в формате клиента (Int16 с дельта-кодированием, 256×256, nodata `-512`) из перепакованных кусков DEM 3″, результат — один архив PMTiles.
 - Раздача тайлов по `/{z}/{x}/{y}` из архива в R2 тем же Worker сервиса высот или отдельным маршрутом, с gzip и кешированием.
 - Тесты генератора и раздачи без сети, в workflow `check-elevation.yml`.
 - `elevationTileUrl` в `src/config-target/clone.js` на свой адрес.
