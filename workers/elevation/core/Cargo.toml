@@ -1,0 +1,18 @@
+[package]
+name = "elevation-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+encode = ["dep:zstd"]
+
+[dependencies]
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+ruzstd = "0.9"
+zstd = { version = "0.14", optional = true }
+
+[dev-dependencies]
+elevation-core = { path = ".", features = ["encode"] }
+futures = { version = "0.3", features = ["executor"] }
