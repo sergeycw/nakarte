@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import './elevation-profile.css';
+import config from '~/config';
 import {ElevationProvider} from '~/lib/elevations';
 import '~/lib/leaflet.control.commons';
 import {notify} from '~/lib/notifications';
@@ -134,6 +135,11 @@ const ElevationProfile = L.Class.extend({
             L.Control.prototype._stopContainerEvents.call(this);
             this._map._controlContainer.appendChild(container);
             this.setupContainerLayout();
+            if (config.elevationsAttribution) {
+                // only the clone sets it (src/config-target/clone.js): its elevation data needs attribution
+                L.DomUtil.create('div', 'elevation-profile-attribution', container).innerHTML =
+                    config.elevationsAttribution;
+            }
             this.updateGraph();
             const icon = L.divIcon({
                     className: 'elevation-profile-marker',
