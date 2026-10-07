@@ -144,7 +144,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 1 | `add-track-storage` | — | в проде и в архиве с 2026-10-07, шаблон сервиса — `workers/tracks/` |
 | 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в проде и в архиве с 2026-10-07: данные viewfinderpanoramas 3″ всего мира, сервис `workers/elevation` |
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде и в архиве с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
-| 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне change `hide-map-data-layers` |
+| 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, в проде и в архиве с 2026-10-07) |
 | 5 | `add-photo-coverage-tiles` | — | |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
 | 7 | `drop-author-scan-layers` | — | |
