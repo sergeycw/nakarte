@@ -1,0 +1,28 @@
+name: check cors proxy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'workers/cors-proxy/**'
+      - '.github/workflows/check-cors-proxy.yml'
+  pull_request:
+    paths:
+      - 'workers/cors-proxy/**'
+      - '.github/workflows/check-cors-proxy.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/cors-proxy
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: workers/cors-proxy/package-lock.json
+      - run: npm ci
+      - run: npm test
