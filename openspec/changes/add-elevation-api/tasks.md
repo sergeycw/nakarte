@@ -25,14 +25,14 @@
 
 ## 5. Деплой и клон
 
-- [ ] 5.1 Деплой Worker (Workers Paid включён владельцем); проверка: `curl` с `Origin` клона на 10 точек возвращает 10 строк, `curl` с 10 001 точкой — `413`
-- [ ] 5.2 Шаг деплоя в `.github/workflows/deploy-pages.yml`; проверка: `deploy pages` зелёный после merge
+- [x] 5.1 Деплой Worker (Workers Paid включён владельцем); проверка: `curl` с `Origin` клона на 10 точек возвращает 10 строк, `curl` с 10 001 точкой — `413`
+- [x] 5.2 Шаг деплоя в `.github/workflows/deploy-pages.yml`; проверка: `deploy pages` зелёный после merge
 - [x] 5.3 `elevationsServer` в `src/config-target/clone.js` и атрибуция viewfinderpanoramas в UI клона; проверка: в браузере на локальном клоне профиль высот строится с сервиса клона, атрибуция видна
 - [x] 5.4 Обновить `AGENTS.md` (ресурсы, перепаковка, запуск тестов) и статус в `openspec/research/own-backends.md`; проверка: команды из `AGENTS.md` выполняются как написано
 
 ## 6. Прод
 
-- [ ] 6.1 На `https://nakarte-routing.pages.dev` открыть профиль высот трека в горах; проверка: высоты приходят с сервиса клона, запросов к `elevation.nakarte.me` нет
+- [x] 6.1 На `https://nakarte-routing.pages.dev` открыть профиль высот трека в горах; проверка: высоты приходят с сервиса клона, запросов к `elevation.nakarte.me` нет
 
 ## Workflow follow-up
 
