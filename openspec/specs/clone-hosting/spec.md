@@ -16,15 +16,6 @@
 - **THEN** `routingEngine` равен `'browser'`, `routingTilesPath` — `'/tiles/'`, `CORSProxyUrl` указывает на `nakarte-cors-proxy.nakarte-routing.workers.dev`
 - **AND** запросов на `https://nakarte.me/event` и в Sentry нет
 
-### Requirement: Авторские бэкенды высот и треков
-
-Клон SHALL использовать авторские `elevation.nakarte.me` и `tracks.nakarte.me`: они отвечают чужому origin, а ссылки на треки живут в хранилище автора.
-
-#### Scenario: Высоты в клоне
-
-- **WHEN** пользователь клона открывает профиль высот трека
-- **THEN** высоты приходят с `elevation.nakarte.me`
-
 ### Requirement: Тайлы BRouter на том же origin
 
 Клон SHALL отдавать тайлы `.rd5` по `/tiles/<имя>.rd5` из бакета R2 `nakarte-tiles`. Ответ SHALL поддерживать `HEAD` и Range-запросы: `206` с `Content-Range` на корректный диапазон, `416` на некорректный, `404` на отсутствующий тайл. Тайлы SHALL кешироваться на сутки.
@@ -70,3 +61,21 @@
 
 - **WHEN** список тайлов индекса brouter.de сравнивается с ключами `*.rd5` в бакете
 - **THEN** каждый тайл индекса есть в бакете с тем же размером
+
+### Requirement: Авторский бэкенд высот
+
+Клон SHALL использовать авторский `elevation.nakarte.me` для высот, пока нет своего сервиса высот: он отвечает чужому origin.
+
+#### Scenario: Высоты в клоне
+
+- **WHEN** пользователь клона открывает профиль высот трека
+- **THEN** высоты приходят с `elevation.nakarte.me`
+
+### Requirement: Своё хранилище треков
+
+Клон SHALL сохранять и открывать ссылки `nktl=` через своё хранилище треков (capability `track-storage`), а не через `tracks.nakarte.me`.
+
+#### Scenario: Copy link в клоне
+
+- **WHEN** пользователь клона нажимает «Copy link» и открывает ссылку
+- **THEN** запросы `POST` и `GET /track/{key}` уходят на Worker клона, а не на `tracks.nakarte.me`
