@@ -26,6 +26,9 @@ BUCKET="${BUCKET:-nakarte-elevation}"
 R2_MODE="${R2_MODE:---local}"
 REPACK="${REPACK:-$PWD/target/release/elevation-repack}"
 PARALLEL="${PARALLEL:-8}"
+# zstd-19 на 4 ядрах раннера — 2–3 часа на весь мир, уровень 9 в ~9 раз быстрее при объёме
+# больше на ~8% (замер на K38), поэтому по умолчанию 9
+LEVEL="${LEVEL:-9}"
 FORCE="${FORCE:-0}"
 
 if [ "$#" -eq 0 ]; then
@@ -74,12 +77,12 @@ prepare() {
     rm "$dir/archive.zip"
     find "$dir/hgt" -type f ! -iname '*.hgt' -delete
     if [ -n "$(ls -A "$dir/hgt")" ]; then
-        "$REPACK" --out "$dir" "$dir/hgt"/* >/dev/null
+        "$REPACK" --level "$LEVEL" --out "$dir" "$dir/hgt"/* >/dev/null
     fi
     rm -rf "$dir/hgt"
 }
 export -f prepare
-export REPACK
+export REPACK LEVEL
 
 started=$(date +%s)
 uploaded=0
