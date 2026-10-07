@@ -6,7 +6,7 @@
 
 Проект ведётся по [OpenSpec](https://github.com/Fission-AI/OpenSpec) (CLI `openspec`, Node ≥ 20.19.0). Здесь, в `AGENTS.md`, — только запуск, окружение и подвохи.
 
-- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`, `track-storage`.
+- `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`, `track-storage`, `elevation-api`.
 - `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
 - `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
 - `openspec/research/` — ресёрчи, из которых нарезаются changes (например, `own-backends.md` — свои бэкенды вместо `*.nakarte.me`).
@@ -84,7 +84,7 @@
 - R2-бакет `nakarte-tiles` (EEUR): тайлы `*.rd5` и `manifest.json` синхронизации.
 - Worker `nakarte-cors-proxy` на поддомене `nakarte-routing.workers.dev`: https://nakarte-cors-proxy.nakarte-routing.workers.dev.
 - Worker `nakarte-tracks` (`workers/tracks`) — хранилище треков для ссылок `nktl=`: https://nakarte-tracks.nakarte-routing.workers.dev. Объекты `tracks/{key}` в R2-бакете `nakarte-tracks` (EEUR).
-- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), заливает ручной workflow `elevation data`. Нужен Workers Paid: на Free 10 мс CPU.
+- Worker `nakarte-elevation` (`workers/elevation`, Rust) — высоты для профиля: https://nakarte-elevation.nakarte-routing.workers.dev. Объекты `dem3/N43E042` в R2-бакете `nakarte-elevation` (EEUR), 26 157 градусов ≈ 13 ГБ, заливает ручной workflow `elevation data` (весь мир ≈ 40 минут). Нужен Workers Paid: на Free 10 мс CPU.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою и синхронизации тайлов. Их заводит владелец, агент токены не вводит.
 
@@ -129,7 +129,7 @@
 
 ### Сервис высот (`workers/elevation`)
 
-Контракт, формат данных и решения — в `openspec/changes/add-elevation-api/design.md` (после архивации — в `openspec/specs/elevation-api` и в архиве change). Коротко: те же данные и арифметика, что у Go-сервера автора `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301), поэтому ответы совпадают побайтно.
+Контракт — `openspec/specs/elevation-api`, формат данных и решения — `openspec/changes/archive/2026-10-07-add-elevation-api/design.md`. Коротко: те же данные и арифметика, что у Go-сервера автора `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301), поэтому ответы совпадают побайтно.
 
 - Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса). Версия Rust закреплена в `rust-toolchain.toml`, rustup ставит её сам; нужен `cargo install worker-build --version 0.8.7 --locked`.
 - Проверки из `workers/elevation`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo clippy -p elevation-worker --target wasm32-unknown-unknown -- -D warnings`, `cargo test --workspace`, `PATH=/usr/local/bin:$PATH npm test` (собирает wasm и гоняет его в `workerd`).
