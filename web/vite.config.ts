@@ -18,6 +18,14 @@ export default defineConfig({
         emptyOutDir: true,
         // maplibre-gl ≈ 1.1 МБ (≈ 290 КБ gzip) отдельным чанком: react-maplibre грузит его динамическим import()
         chunkSizeWarningLimit: 1200,
+        // стенд движка выкатывается рядом с приложением (/next/engine-bench.html) для проверок на проде
+        // (design spike-engine-in-worker); ссылок на него нет, рантайм CheerpJ грузится только при открытии
+        rolldownOptions: {
+            input: {
+                index: fileURLToPath(new URL('./index.html', import.meta.url)),
+                bench: fileURLToPath(new URL('./engine-bench.html', import.meta.url)),
+            },
+        },
     },
     // 8765–8768 заняты старым клиентом и стендом движка, 8787–8789 — Worker'ы
     // /tiles/ (тайлы BRouter в режиме clone) — nakarte-tiles-worker, как у старого dev-сервера;
