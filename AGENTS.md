@@ -11,7 +11,7 @@
 - `scripts/` — сборка (`build.js`), тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
 - `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter.
 - `docs/architecture/` — схема системы: контекст, контейнеры, диаграммы по областям, реестр решений.
-- `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `deploy-pages.yml` (весь клон по push в `master`), ручные и плановые загрузки данных, `strava heatmap check`.
+- `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `deploy-pages.yml` (по push в `master` — сервисы, чьи файлы менялись), ручные и плановые загрузки данных, `strava heatmap check`.
 
 ## Где что записано
 
@@ -110,7 +110,7 @@
 - Адреса своих Worker'ов — значения по умолчанию в `src/config.js`, в `src/config-target/clone.js` только отличия клона (движок в браузере, путь тайлов BRouter). Новый сервис — отдельный change и свой ключ в `src/config.js`.
 - Монорепо: сервис живёт в `workers/<сервис>/` со своим `wrangler.toml` и деплоится отдельно, а контракт сервиса (спека) и правка клиента идут одним PR.
 - Тесты обязательны. Сервис подключает свои отдельным workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`; апстримный `main.yml` (`check`) не трогаем. Тесты клиента — karma в `test/`, их запускает `main.yml`. В сеть и живые сервисы тесты не ходят: ответы внешних сервисов — через фикстуры или заглушки (как не надо — сетевые тесты `test_track_load.js`, которые падали из-за Cloudflare у wikiloc).
-- Шаблон сервиса на JS — `workers/tracks/`: свои `package.json`, `package-lock.json` и `.npmrc`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2, workflow `check-tracks.yml`, шаг деплоя в `deploy-pages.yml`, ключ в `src/config.js`.
+- Шаблон сервиса на JS — `workers/tracks/`: свои `package.json`, `package-lock.json` и `.npmrc`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2, workflow `check-tracks.yml`, job в `deploy-pages.yml` (тесты сервиса перед деплоем, фильтр путей в job `changes`), ключ в `src/config.js`.
 - Тесты сервиса: `PATH=/usr/local/bin:$PATH npm test` из `workers/<сервис>`; внешние запросы прокси в тесте подменяет `outboundService` miniflare в `vitest.config.js`.
 - Лимиты Worker'ов — `[limits]` и `[[ratelimits]]` в `wrangler.toml` каждого (поведение — спека `worker-limits`, цифры и решения — архив `add-worker-limits`). `namespace_id` уникален в аккаунте: новому счётчику — следующий за занятыми (они перечислены в комментариях `wrangler.toml`). Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) лимит не применяется: тест `429` задаёт заголовок сам, а `vitest.config.js` понижает лимиты через `miniflare.ratelimits`.
 

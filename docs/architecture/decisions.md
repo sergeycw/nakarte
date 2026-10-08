@@ -78,6 +78,8 @@
 | Решение | Почему | Источник |
 |---|---|---|
 | Деплой на каждый push в `master`, последний побеждает | прод совпадает с `master`; публикация Pages атомарна | [clone-deploy](../../openspec/specs/clone-deploy/spec.md); [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
+| Выкатываются только изменённые сервисы, база — последний успешный деплой | правка документации не сбрасывает изоляты; отменённый или упавший прогон не теряет изменений | [deploy-per-service](../../openspec/changes/deploy-per-service/design.md) |
+| Тесты сервиса — шаг его деплоя, Worker'ы раньше Pages | Worker не выкатывается без тестов; клиент не опережает сервис при смене контракта | [deploy-per-service](../../openspec/changes/deploy-per-service/design.md) |
 | `docker create` и явная проверка файлов движка | контейнер не нужно запускать; локальная сборка без него работает как раньше | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
 | `npx --yes wrangler@4` без `devDependencies` | не трогать `package.json` | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
 | Статическая проверка бандла на `*.nakarte.me` | деплой не выкатит обращение к инфраструктуре автора | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла» |
