@@ -42,7 +42,7 @@ describe('origin check', () => {
             headers: {'Access-Control-Request-Headers': 'content-type'},
         });
         expect(response.status).toBe(204);
-        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('POST, GET, HEAD, OPTIONS');
+        expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET, HEAD, OPTIONS');
         expect(response.headers.get('Access-Control-Allow-Headers')).toBe('content-type');
         expect(response.headers.get('Access-Control-Allow-Credentials')).toBe('true');
     });
@@ -97,11 +97,68 @@ describe('proxying', () => {
     });
 });
 
-describe('rate limit', () => {
-    // в vitest.config.js лимит понижен до 3 запросов за 60 с
-    function fromIp(ip, options = {}) {
-        return request('/https/example.com/', {...options, headers: {'CF-Connecting-IP': ip, ...options.headers}});
+describe('read only', () => {
+    async function offsiteCalls() {
+        return (await (await fetch('https://stub.test/calls')).json()).offsite;
     }
+
+    for (const method of ['POST', 'PUT', 'DELETE', 'PATCH']) {
+        it(`answers ${method} with 405 and CORS without calling the target`, async () => {
+            const before = await offsiteCalls();
+            const response = await workerExports.default.fetch(`${PROXY}/https/evil.test/collect`, {
+                method,
+                body: method === 'DELETE' ? null : 'user=a&password=b',
+                headers: {Origin: CLONE_ORIGIN},
+            });
+            expect(response.status).toBe(405);
+            expect(response.headers.get('Allow')).toBe('GET, HEAD, OPTIONS');
+            expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+            expect(await offsiteCalls()).toBe(before);
+        });
+    }
+});
+
+describe('own hosts', () => {
+    for (const path of [
+        '/https/nakarte-routing.pages.dev/tiles/E40_N40.rd5',
+        '/https/762b3e5f.nakarte-routing.pages.dev/tiles/E40_N40.rd5',
+        '/https/nakarte-elevation.nakarte-routing.workers.dev/tiles/0/0/0',
+        '/http/nakarte-tracks.nakarte-routing.workers.dev/track/x',
+    ]) {
+        it(`answers 403 to ${path}`, async () => {
+            const response = await request(path);
+            expect(response.status).toBe(403);
+            expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+            expect(response.headers.get('X-Upstream')).toBeNull();
+        });
+    }
+
+    it('still proxies hosts that only look similar', async () => {
+        const response = await request('/https/nakarte-routing.pages.dev.example.com/');
+        expect(response.status).toBe(200);
+    });
+});
+
+describe('rate limit', () => {
+    // в vitest.config.js лимиты понижены: хосты слоёв — 3, остальные — 2 запроса за 60 с
+    const LAYER_TILE = '/https/slazav.xyz/tiles/hr/1-2-3.png';
+    function fromIp(ip, options = {}, path = LAYER_TILE) {
+        return request(path, {...options, headers: {'CF-Connecting-IP': ip, ...options.headers}});
+    }
+
+    it('counts other hosts separately from layer tiles', async () => {
+        const other = '/https/example.com/track.gpx';
+        expect((await fromIp('192.0.2.4', {}, other)).status).toBe(200);
+        expect((await fromIp('192.0.2.4', {}, other)).status).toBe(200);
+        const limited = await fromIp('192.0.2.4', {}, other);
+        expect(limited.status).toBe(429);
+        expect(limited.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+        expect((await fromIp('192.0.2.4')).status).toBe(200);
+        expect((await fromIp('192.0.2.4', {}, '/wikimapia/z1/itiles/0/1/2.xy')).status).toBe(200);
+        const heatmap = '/https/content-b.strava.com/identified/globalheat/all/hot/1/0/0.png';
+        expect((await fromIp('192.0.2.4', {}, heatmap)).status).toBe(200);
+        expect((await fromIp('192.0.2.4')).status).toBe(429);
+    });
 
     it('answers 429 with Retry-After and CORS after the limit, per IP', async () => {
         for (let i = 0; i < 3; i++) {
@@ -125,6 +182,7 @@ describe('rate limit', () => {
     it('does not limit requests without CF-Connecting-IP', async () => {
         for (let i = 0; i < 5; i++) {
             expect((await request('/https/example.com/')).status).toBe(200);
+            expect((await request(LAYER_TILE)).status).toBe(200);
         }
     });
 });
