@@ -2,26 +2,21 @@
 
 ## MODIFIED Requirements
 
-### Requirement: Формат адреса
+### Requirement: Только разрешённые origin
 
-Прокси SHALL принимать адреса вида `/<схема>/<хост>/<путь>?<запрос>` и запрашивать `<схема>://<хост>/<путь>?<запрос>`, где схема — `http` или `https`. Адрес `/wikimapia/<путь>` SHALL вести на `http://wikimapia.org/<путь>`. Адрес `/mapy/<слой>/<путь>` SHALL вести на эндпоинт тайлов mapy.cz для известного слоя с ключом API из секретов прокси, не раскрывая ключ клиенту. Прочие адреса SHALL получать `404`.
+Прокси SHALL обслуживать только origin из `ALLOWED_ORIGINS`: по заголовку `Origin`, а без него — по origin из `Referer`. Остальным SHALL отвечать `403`. Сейчас разрешены `https://nakarte-routing.pages.dev`, локальные dev-серверы на 8765 и 8766 и karma на 9876: апстримные тесты `test_track_load.js` ходят в живые сервисы через этот прокси.
 
-#### Scenario: Запрос через прокси
+#### Scenario: Чужой сайт
 
-- **WHEN** разрешённая страница запрашивает `/https/www.openstreetmap.org/api/0.6/map?bbox=1,2,3,4`
-- **THEN** прокси запрашивает `https://www.openstreetmap.org/api/0.6/map?bbox=1,2,3,4` и возвращает ответ
+- **WHEN** запрос пришёл с `Origin: https://example.com`
+- **THEN** ответ `403`
 
-#### Scenario: Неизвестный путь
+#### Scenario: Запрос без Origin, но с Referer
 
-- **WHEN** запрошен `/ftp/example.com/file`
-- **THEN** ответ `404`
+- **WHEN** запрос без `Origin` пришёл с `Referer: https://nakarte-routing.pages.dev/#m=10/41/44`
+- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `https://nakarte-routing.pages.dev`
 
-#### Scenario: Тайл mapy.cz
+#### Scenario: Тесты karma
 
-- **WHEN** разрешённая страница запрашивает `/mapy/turist-en/12-2286-1471`
-- **THEN** прокси возвращает тайл mapy.cz, ключ API не виден ни в ответе, ни в адресе клиента
-
-#### Scenario: Неизвестный слой mapy.cz
-
-- **WHEN** запрошен `/mapy/unknown/1-1-1`
-- **THEN** ответ `404`
+- **WHEN** запрос пришёл с `Origin: http://localhost:9876`
+- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `http://localhost:9876`
