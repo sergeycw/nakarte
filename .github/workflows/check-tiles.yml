@@ -6,11 +6,15 @@ on:
     paths:
       - 'workers/tiles/**'
       - 'functions/**'
+      # middleware функций берут код лимита отсюда
+      - 'workers/guard/src/**'
       - '.github/workflows/check-tiles.yml'
   pull_request:
     paths:
       - 'workers/tiles/**'
       - 'functions/**'
+      # middleware функций берут код лимита отсюда
+      - 'workers/guard/src/**'
       - '.github/workflows/check-tiles.yml'
 
 jobs:
