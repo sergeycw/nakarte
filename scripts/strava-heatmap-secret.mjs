@@ -6,7 +6,9 @@
 // Network → фильтр `globalheat` → любой тайл → Request Headers → Cookie → Copy value. Страница сама
 // эти куки не видит (их нет в document.cookie), поэтому только так.
 //
-// Запуск из корня репозитория: pbpaste | node scripts/strava-heatmap-secret.mjs
+// Запуск из корня репозитория: pbpaste | PATH=/usr/local/bin:$PATH node scripts/strava-heatmap-secret.mjs
+// wrangler 4 требует Node ≥ 22, а по умолчанию здесь nvm-шный Node 20; Node 22 лежит в /usr/local/bin.
+// Куки живут около суток (2026-10-08 срок был +24 ч), обновлять ежедневно.
 // Значение читается из stdin, а не из аргументов, чтобы не попасть в историю shell. Из заголовка
 // остаются только CloudFront-*: сессия Strava (_strava4_session и т. п.) в секрет не уходит.
 // --dry-run: только разобрать и показать имена и срок, без wrangler и проверки.
@@ -18,6 +20,7 @@ const ORIGIN = 'https://nakarte-routing.pages.dev';
 // тайл Тбилиси z12, на нём точно есть треки
 const TEST_TILE = 'https/content-a.strava.com/identified/globalheat/all/hot/12/2557/1514.png?px=256';
 const dryRun = process.argv.includes('--dry-run');
+const MIN_NODE_MAJOR = 22;
 
 function fail(message) {
     console.error(message);
@@ -26,7 +29,7 @@ function fail(message) {
 
 async function readStdin() {
     if (process.stdin.isTTY) {
-        fail('pipe the Cookie header into stdin: pbpaste | node scripts/strava-heatmap-secret.mjs');
+        fail('pipe the Cookie header into stdin: pbpaste | PATH=/usr/local/bin:$PATH node scripts/strava-heatmap-secret.mjs');
     }
     const chunks = [];
     for await (const chunk of process.stdin) {
@@ -58,6 +61,13 @@ function policyExpiry(policy) {
     } catch {
         return null;
     }
+}
+
+if (!dryRun && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
+    fail(
+        `wrangler needs Node >= ${MIN_NODE_MAJOR}, this is ${process.versions.node}: ` +
+            'pbpaste | PATH=/usr/local/bin:$PATH node scripts/strava-heatmap-secret.mjs'
+    );
 }
 
 const cookies = cloudFrontCookies(await readStdin());
