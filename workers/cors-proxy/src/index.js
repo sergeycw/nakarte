@@ -1,4 +1,4 @@
-import {heatmapCookie, isStravaHeatmap} from './strava';
+import {anonymousTileUrl, heatmapCookie, isStravaHeatmap} from './strava';
 
 const PATH_ALIASES = [['/wikimapia/', 'http://wikimapia.org/']];
 // user-agent нужен Wikimapia: её nginx отвечает 403 на запрос без User-Agent, а fetch из Worker'а
@@ -7,6 +7,8 @@ const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 
 const DROPPED_RESPONSE_HEADERS = ['set-cookie'];
 const EXPOSED_HEADERS = 'Content-Disposition';
 const ALLOWED_METHODS = 'POST, GET, HEAD, OPTIONS';
+// На эти ответы CloudFront на тайл с куками прокси пробует анонимный тайл: куки протухли или не приняты.
+const STRAVA_REJECTED = [401, 403];
 // Длина окна `[[ratelimits]]` в wrangler.toml.
 const RETRY_AFTER_SECONDS = '60';
 
@@ -104,12 +106,31 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
     // HEAD уходит к сервису как GET, как у авторского прокси на nginx (proxy_cache_convert_head):
     // короткие ссылки mapy.com на HEAD отвечают 404, а на GET — редиректом, который и нужен клиенту.
     const isHead = request.method === 'HEAD';
-    const upstream = await fetch(target, {
-        method: isHead ? 'GET' : request.method,
-        headers: upstreamHeaders,
-        body: ['GET', 'HEAD'].includes(request.method) ? null : request.body,
-        redirect: 'manual',
-    });
+    const isRead = ['GET', 'HEAD'].includes(request.method);
+    function send(url) {
+        return fetch(url, {
+            method: isHead ? 'GET' : request.method,
+            headers: upstreamHeaders,
+            body: isRead ? null : request.body,
+            redirect: 'manual',
+        });
+    }
+    // без кук или с отвергнутыми куками тайл z≤12 берётся с анонимного адреса Strava, без кук
+    const anonymous = strava && isRead ? anonymousTileUrl(target) : null;
+    let stravaSource = strava?.source;
+    let upstream = null;
+    if (anonymous && stravaSource === 'none') {
+        upstream = await send(anonymous);
+        stravaSource = 'anonymous';
+    } else {
+        upstream = await send(target);
+    }
+    if (anonymous && stravaSource !== 'anonymous' && STRAVA_REJECTED.includes(upstream.status)) {
+        await upstream.body?.cancel();
+        upstreamHeaders.delete('cookie');
+        upstream = await send(anonymous);
+        stravaSource = 'anonymous';
+    }
     if (isHead) {
         await upstream.body?.cancel();
     }
@@ -121,9 +142,9 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
     for (const [name, value] of Object.entries(corsHeaders(origin))) {
         headers.set(name, value);
     }
-    // откуда куки тайла (session, fallback, none) — для проверки STRAVA_SESSION скриптом владельца
+    // откуда куки тайла (session, fallback, anonymous, none) — для проверки STRAVA_SESSION
     if (strava) {
-        headers.set('X-Strava-Cookies', strava.source);
+        headers.set('X-Strava-Cookies', stravaSource);
     }
     const location = upstream.headers.get('Location');
     if (location) {
