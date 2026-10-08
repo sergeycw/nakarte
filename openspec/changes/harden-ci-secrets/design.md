@@ -22,5 +22,7 @@
 
 ## Risks / Trade-offs
 
+- [Сборка wasm в шаге `wrangler deploy` у `nakarte-elevation`] → `wrangler` всегда запускает `[build]` (`worker-build`), то есть `cargo` в шаге с токеном. Крейты к этому моменту уже собраны `npm test`, и `cargo` не перезапускает их `build.rs`; полная изоляция — тот же P3 с отдельным job'ом публикации.
+
 - [Устаревшие SHA и `wrangler`] → обновлять правкой; Dependabot для действий — P3, если начнёт мешать.
 - [Опечатка в SHA ломает workflow] → все workflow запускаются в этом PR (`check-*` по `paths:` — через правку самих файлов), деплой проверяется после merge.
