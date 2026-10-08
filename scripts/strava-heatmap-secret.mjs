@@ -1,4 +1,4 @@
-// Кладёт куки CloudFront аккаунта Strava в секрет STRAVA_COOKIES прокси nakarte-cors-proxy и проверяет
+// Кладёт куки CloudFront и _strava_idcf аккаунта Strava в секрет STRAVA_COOKIES прокси nakarte-cors-proxy и проверяет
 // тайл heatmap через прокси. Без этих кук CloudFront отдаёт тайлы Strava heatmap с 403 (`MissingKey`);
 // прокси подставляет секрет только в запросы content-*.strava.com/identified/globalheat/ (workers/cors-proxy).
 //
@@ -10,11 +10,13 @@
 // wrangler 4 требует Node ≥ 22, а по умолчанию здесь nvm-шный Node 20; Node 22 лежит в /usr/local/bin.
 // Куки живут около суток (2026-10-08 срок был +24 ч), обновлять ежедневно.
 // Значение читается из stdin, а не из аргументов, чтобы не попасть в историю shell. Из заголовка
-// остаются только CloudFront-*: сессия Strava (_strava4_session и т. п.) в секрет не уходит.
+// остаются только CloudFront-* и _strava_idcf: сессия Strava (_strava4_session и т. п.) в секрет не уходит.
+// _strava_idcf — JWT с athleteId и тем же сроком, что у политики: без него функция CloudFront перед
+// тайлами отвечает 401 (`x-cache: FunctionGeneratedResponse`), хотя подписанные куки верны (2026-10-08).
 // --dry-run: только разобрать и показать имена и срок, без wrangler и проверки.
 import {spawnSync} from 'node:child_process';
 
-const REQUIRED = ['CloudFront-Key-Pair-Id', 'CloudFront-Policy', 'CloudFront-Signature'];
+const REQUIRED = ['CloudFront-Key-Pair-Id', 'CloudFront-Policy', 'CloudFront-Signature', '_strava_idcf'];
 const PROXY = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev';
 const ORIGIN = 'https://nakarte-routing.pages.dev';
 // тайл Тбилиси z12, на нём точно есть треки
@@ -39,12 +41,12 @@ async function readStdin() {
 }
 
 // Заголовок Cookie, строка из DevTools или «имя=значение» по строкам — всё сводится к парам.
-function cloudFrontCookies(raw) {
+function heatmapCookies(raw) {
     const cookies = new Map();
     for (const part of raw.replace(/^\s*cookie:\s*/iu, '').split(/[;\n]/u)) {
         const eq = part.indexOf('=');
         const name = part.slice(0, eq).trim();
-        if (eq > 0 && name.startsWith('CloudFront-')) {
+        if (eq > 0 && REQUIRED.includes(name)) {
             cookies.set(name, part.slice(eq + 1).trim());
         }
     }
@@ -70,7 +72,7 @@ if (!dryRun && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
     );
 }
 
-const cookies = cloudFrontCookies(await readStdin());
+const cookies = heatmapCookies(await readStdin());
 const missing = REQUIRED.filter((name) => !cookies.get(name));
 if (missing.length) {
     fail(`missing cookies: ${missing.join(', ')}; copy the Cookie header of a globalheat tile request`);

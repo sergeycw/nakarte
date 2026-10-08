@@ -3,8 +3,8 @@ const PATH_ALIASES = [['/wikimapia/', 'http://wikimapia.org/']];
 // своего не ставит.
 const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'range', 'user-agent'];
 // Тайлы Strava Global Heatmap (слои Sa/Sr/Sb/Sw) CloudFront отдаёт только с подписанными куками
-// CloudFront-Key-Pair-Id, CloudFront-Policy, CloudFront-Signature от вошедшего аккаунта Strava; без них
-// 403 `MissingKey`. Авторский proxy.nakarte.me подставляет такие куки сам, у нас они — секрет
+// CloudFront-Key-Pair-Id, CloudFront-Policy, CloudFront-Signature от вошедшего аккаунта Strava (без них
+// 403 `MissingKey`) и с JWT-кукой _strava_idcf (без неё функция CloudFront отвечает 401). Авторский proxy.nakarte.me подставляет такие куки сам, у нас они — секрет
 // STRAVA_COOKIES (заводит владелец, срок жизни ограничен). Куки уходят только на эти тайлы.
 const STRAVA_HEATMAP = {host: /^content-[a-z]\.strava\.com$/u, path: /^\/identified\/globalheat\//u};
 const DROPPED_RESPONSE_HEADERS = ['set-cookie'];
