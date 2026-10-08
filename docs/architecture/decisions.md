@@ -8,9 +8,9 @@
 
 | Решение | Почему | Источник |
 |---|---|---|
-| Клиент на Leaflet + knockout, сборка webpack | причина не записана (стек апстрима) | — |
+| Клиент на Leaflet + knockout, сборка webpack | причина не записана (стек апстрима); заменяется новым UI: только последние браузеры, светлая тема, React + Vite + Vitest + Biome — по ресёрчу | [record-ui-decisions](../../openspec/changes/archive/2026-10-08-record-ui-decisions/design.md) |
 | Прокладка через BRouter | причина не записана; автор в невлитой ветке выбрал тот же движок | `AGENTS.md`, [«Апстрим»](../../AGENTS.md#апстрим) |
-| Движок в браузере на CheerpJ (jar BRouter как есть) | причина не записана; замеры и альтернативы есть | backlog, «Варианты движка в браузере» |
+| Движок в браузере на CheerpJ (jar BRouter как есть) | замеры и альтернативы — backlog; сервер роутинга на VPS — только если счёт не вырастет на ≈ $5 в месяц | backlog, «Варианты движка в браузере»; [record-ui-decisions](../../openspec/changes/archive/2026-10-08-record-ui-decisions/design.md) |
 | Хостинг клона и своих бэкендов на Cloudflare (Pages, Workers Paid, R2) | ≈ $5–6 в месяц, egress бесплатный; VPS не дешевле и добавляет администрирование и защиту от DDoS; Paid нужен из-за потолка CPU 10 мс на Free | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md) |
 | Сервис высот на Rust | решение владельца; записаны требования: ядро без ввода-вывода с адаптерами Worker и VPS, перепаковка без GDAL, память изолята 128 МБ | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md) |
 | Свой продукт на базе форка: в апстрим не мерджимся, неиспользуемый код удаляем | решение владельца 2026-10-08, цель — автономия от автора | `AGENTS.md`, [«Апстрим»](../../AGENTS.md#апстрим), backlog, «Глобальное направление» |
@@ -31,7 +31,7 @@
 | Тайлы BRouter в R2, а не на своём сервере | egress бесплатный, free tier покрывает ≈ 250 тыс. маршрутов в месяц | [sync-world-tiles](../../openspec/changes/archive/2026-10-07-sync-world-tiles/design.md) |
 | Загрузка тайлов через S3 API R2 (`aws s3 cp`), а не `wrangler r2 object put` | REST API объектов R2 не принимает токен с правом на один бакет, а право на весь аккаунт позволяет удалить треки; ключи — те же, что у высот | [sync-tiles-via-s3](../../openspec/changes/archive/2026-10-08-sync-tiles-via-s3/design.md); раньше — [sync-world-tiles](../../openspec/changes/archive/2026-10-07-sync-world-tiles/design.md) |
 | Образ BRouter с тегом `nightly` | у `latest` нет сборки под arm64, CI берёт тот же jar, что локально | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md); `AGENTS.md`, [«Запуск»](../../AGENTS.md#запуск) |
-| Ошибка прокладки даёт прямой отрезок | причина не записана | [routing](../../openspec/specs/routing/spec.md), «Ошибка прокладки даёт прямой отрезок» |
+| Ошибка прокладки даёт прямой отрезок | причина не записана; в новом UI — отрезок помечается непроложенным, ошибка в тосте | [routing](../../openspec/specs/routing/spec.md), «Ошибка прокладки даёт прямой отрезок»; [record-ui-decisions](../../openspec/changes/archive/2026-10-08-record-ui-decisions/design.md) |
 
 ## Редактор
 
@@ -39,7 +39,7 @@
 |---|---|---|
 | Разметка маршрута в сессии, ключи по координатам | номера узлов между перезагрузками не стабильны | [route-editing](../../openspec/specs/route-editing/spec.md), «Разметка маршрута переживает перезагрузку»; `AGENTS.md`, [«Где код роутинга»](../../AGENTS.md#где-код-роутинга) |
 | Обнулять `_drawingDirection` до `spliceLatLngs` | сохранение сессии внутри `nodeschanged` отрезало последнюю точку | [fix-route-markup-after-reload](../../openspec/changes/archive/2026-10-07-fix-route-markup-after-reload/design.md) |
-| Ссылки и экспорт несут только геометрию | причина не записана | [route-editing](../../openspec/specs/route-editing/spec.md), «Ссылки и экспорт несут только геометрию» |
+| Ссылки и экспорт несут только геометрию | причина не записана; совместимость с nakarte.me не нужна, новый UI может нести разметку в ссылке | [route-editing](../../openspec/specs/route-editing/spec.md), «Ссылки и экспорт несут только геометрию»; [record-ui-decisions](../../openspec/changes/archive/2026-10-08-record-ui-decisions/design.md) |
 
 ## Хранилище треков
 
