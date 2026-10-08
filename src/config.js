@@ -20,7 +20,6 @@ const config = {
         'viewfinderpanoramas.org</a> (Jonathan de Ferranti)',
     tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
     wikimapiaTilesBaseUrl: `${CORS_PROXY_URL}wikimapia/`,
-    urlsBypassCORSProxy: [new RegExp('^https://pkk\\.rosreestr\\.ru/', 'u')],
     elevationTileUrl: `${ELEVATION_SERVER_URL}tiles/{z}/{x}/{y}`,
     routingServer: 'http://localhost:17777',
     routingEngine: 'server',
@@ -28,7 +27,6 @@ const config = {
     // своего сбора событий и Sentry нет
     eventsLogUrl: '',
     sentryDSN: '',
-    routingProfile: 'hiking-mountain',
     ...secrets,
     ...configTarget,
 };

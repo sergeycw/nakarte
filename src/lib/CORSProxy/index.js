@@ -12,11 +12,6 @@ function corsProxyOriginalUrl(url) {
 }
 
 function urlViaCorsProxy(url) {
-    for (let pattern of config.urlsBypassCORSProxy) {
-        if (pattern.test(url)) {
-            return url;
-        }
-    }
     return config.CORSProxyUrl + url.replace(/^(https?):\/\//u, '$1/');
 }
 
