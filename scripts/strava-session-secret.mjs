@@ -19,7 +19,7 @@ import {spawnSync} from 'node:child_process';
 
 import {HEATMAP_COOKIES, fetchHeatmapCookies} from '../workers/cors-proxy/src/strava.js';
 
-// 2026-10-08: какие куки сессии нужны странице heatmap, ещё не проверено — начинаем с одной
+// 2026-10-08 проверено владельцем: странице heatmap хватает одной _strava4_session
 const SESSION_COOKIES = ['_strava4_session'];
 const PROXY = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev';
 const ORIGIN = 'https://nakarte-routing.pages.dev';
