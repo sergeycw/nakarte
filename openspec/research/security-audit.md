@@ -170,7 +170,7 @@ Workflow с записью в Cloudflare и R2 — `deploy pages`, `brouter tile
 Cloudflare (дашборд, агент токены не вводит):
 
 1. Сделано 2026-10-08 (агент в дашборде с разрешения владельца): существующий Account API token «nakarte deploy» (это и был `CLOUDFLARE_API_TOKEN`) сужен до Pages Write на аккаунт и Editor на `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard`, без R2, срок до 2027-10-09; значение токена прежнее, секрет не менялся. Ручной `deploy pages` — все job'ы зелёные, включая `prune`. Новый Worker этим токеном не создать: Editor только обновляет существующие.
-2. Сделано 2026-10-08 иначе, чем планировалось: REST API объектов R2, в который ходит `wrangler r2 object put`, токен с правом на один бакет не принял (`403`). Синхронизация переведена на S3 API ([sync-tiles-via-s3](../changes/sync-tiles-via-s3/design.md)), а токен «nakarte-elevation data upload» (ключи `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) получил запись в `nakarte-tiles`. `CLOUDFLARE_TILES_TOKEN` не нужен.
+2. Сделано 2026-10-08 иначе, чем планировалось: REST API объектов R2, в который ходит `wrangler r2 object put`, токен с правом на один бакет не принял (`403`). Синхронизация переведена на S3 API ([sync-tiles-via-s3](../changes/archive/2026-10-08-sync-tiles-via-s3/design.md)), а токен «nakarte-elevation data upload» (ключи `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) получил запись в `nakarte-tiles`. `CLOUDFLARE_TILES_TOKEN` не нужен.
 3. Отдельного широкого токена не осталось: сужен сам `nakarte deploy`.
 4. Бюджетные оповещения оставить; при желании выключатель расходов — сказать агенту, нужен токен Analytics Read + Workers Scripts Edit в секрете GitHub.
 
