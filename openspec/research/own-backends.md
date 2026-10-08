@@ -13,20 +13,21 @@
 
 ## Карта бэкендов
 
-Ключи — из `src/config.js`, у клона переопределяются в `src/config-target/clone.js`.
+Ключи — из `src/config.js`, слева — адрес автора, который там был. С `drop-author-services` (2026-10-08) свои Worker'ы — значения по умолчанию в `src/config.js` для всех сборок, `src/config-target/clone.js` держит только движок в браузере и путь тайлов BRouter, а деплой проверяет бандл на адреса `*.nakarte.me` (`scripts/check-no-author-hosts.mjs`).
 
 | Ключ / адрес | Кто использует | Что делаем |
 |---|---|---|
-| `tracksStorageServer` = `https://tracks.nakarte.me` | ссылка «Copy link» (`nktl=`) | свой Worker + R2 |
-| `elevationsServer` = `https://elevation.nakarte.me/` | профиль высот, экспорт с высотами, внешние карты | свой API высот на Rust |
-| `elevationTileUrl` = `https://tiles.nakarte.me/elevation/{z}/{x}/{y}` | высота и уклон под курсором | свои тайлы из тех же данных |
+| `tracksStorageServer` = `https://tracks.nakarte.me` | ссылка «Copy link» (`nktl=`) | свой Worker + R2 (`nakarte-tracks`) |
+| `elevationsServer` = `https://elevation.nakarte.me/` | профиль высот, экспорт с высотами, внешние карты | свой API высот на Rust (`nakarte-elevation`) |
+| `elevationTileUrl` = `https://tiles.nakarte.me/elevation/{z}/{x}/{y}` | высота и уклон под курсором | свои тайлы из тех же данных (`nakarte-elevation`) |
 | `westraDataBaseUrl` = `https://nakarte.me/westraPasses/` | слой перевалов | слой, его код и ключ удалены (`drop-author-scan-layers`); свои данные — `openspec/backlog.md` |
 | `geocachingSuUrl` = `https://nakarte.me/geocachingSu/geocaching_su2.json` | слой geocaching.su | слой, его код и ключ удалены (`drop-author-scan-layers`); свои данные — `openspec/backlog.md` |
 | `wikimediaCommonsCoverageUrl` = `https://tiles.nakarte.me/wikimedia_commons_images/{z}/{x}/{y}` | покрытие фото Wikimedia Commons | отменено: провайдер удалён из кода (`remove-panorama-providers`) |
 | `mapillaryRasterTilesUrl` = `https://mapillary.nakarte.me/{z}/{x}/{y}` | покрытие Mapillary | отменено: провайдер удалён из кода (`remove-panorama-providers`) |
-| `https://proxy.nakarte.me/mapy/...` (захардкожено в `src/layers.js` и `leaflet.control.panoramas/lib/mapycz`) | слои mapy.cz, панорамы | слои — перевести на свой прокси `nakarte-cors-proxy`; панорама mapy.cz удалена из кода (`remove-panorama-providers`) |
-| `caption` (docs, news, donate, почта) | подпись карты | свои ссылки |
-| `eventsLogUrl`, `sentryDSN` | логирование | в клоне уже выключено |
+| `CORSProxyUrl`, `wikimapiaTilesBaseUrl` = `https://proxy.nakarte.me/…` | импорт треков по ссылкам, слои через прокси, поиск, печать | свой Worker `nakarte-cors-proxy`; куки Strava heatmap — его секрет `STRAVA_COOKIES` (заводит владелец) |
+| `https://proxy.nakarte.me/mapy/...` (захардкожено в `src/layers.js` и `leaflet.control.panoramas/lib/mapycz`) | слои mapy.cz, панорамы | слои удалены (`drop-author-services`): ключа mapy.cz нет; панорама mapy.cz удалена (`remove-panorama-providers`) |
+| `caption` (docs, news, donate, почта) | подпись карты | название и ссылка на репозиторий форка (`drop-author-services`) |
+| `eventsLogUrl`, `sentryDSN` | логирование | пустые во всех сборках, Sentry без DSN не инициализируется (`drop-author-services`) |
 | `{s}.tiles.nakarte.me/...`, `tiles.nakarte.me/topomapper/...` — 17 слоёв | сканы карт | удалены из кода (`drop-author-scan-layers`) |
 
 Слои сканов: Soviet topo maps (AtloMaps), Topo 10km, GGC 2km, ArbaletMO, GGC 1km, Topo 1km, GGC 500m, Topo 500m, GGC 250m, Races, O-sport, Eurasia 25km, Caucasus 1km, Caucasus 500m, Topo 250m, Montenegro topo 250m, Mountains by Alexander Purikov.
@@ -133,7 +134,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 3. **Тайлы высот.** Генерация в формате клиента, тест декодирования и сверки с эталонным тайлом. Возможно, внутри change 2.
 4. **Скраперы перевалов и геокешинга.** Отложено 2026-10-07 (итоги ресёрча — `openspec/backlog.md`), слои сначала скрыты в клоне, потом удалены из кода (`drop-author-scan-layers`). Сначала проверить условия использования westra.ru и geocaching.su. Cron Trigger → R2, тесты на сохранённых страницах источников, проверка схемы JSON против фикстур от файлов автора.
 5. **Покрытия Wikimedia Commons и Mapillary.** Отменено решением владельца: в панорамах только Google Street View; Wikimedia Commons, Mapillary и mapy.cz сначала скрыты в клоне (`hide-panorama-providers`, 2026-10-07), потом удалены из кода (`remove-panorama-providers`, 2026-10-08).
-6. **Прокси mapy и подпись карты.** `proxy.nakarte.me/mapy/...` → `nakarte-cors-proxy`, свои ссылки в `caption`.
+6. **Без сервисов автора.** Решение владельца 2026-10-08: свои сервисы — значения по умолчанию в `src/config.js`, слои mapy.cz удалить (ключа нет), свои ссылки в `caption`, проверка бандла в деплое.
 7. **Убрать слои сканов.** Решение владельца 2026-10-08: удалить 17 слоёв из `src/layers.js` во всех сборках, а не прятать фильтром — в апстрим мы не мерджимся (`AGENTS.md`, «Апстрим»). Тем же change удалены слои перевалов Вестры и geocaching.su и фильтр `excludedLayerCodes`.
 
 ### Changes в `openspec/changes/`
@@ -145,7 +146,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде и в архиве с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
 | 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, архив 2026-10-07), потом удалены из кода вместе с фильтром (`drop-author-scan-layers`) |
 | 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрыл Wikimedia Commons, Mapillary и mapy.cz (в архиве с 2026-10-07), `remove-panorama-providers` удалил их код (в проде и в архиве с 2026-10-08) |
-| 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
+| 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | 2026-10-08: свои сервисы по умолчанию, слои mapy.cz удалены, проверка бандла в деплое; Strava heatmap ждёт секрет `STRAVA_COOKIES` |
 | 7 | `drop-author-scan-layers` | — | в проде и в архиве с 2026-10-08: 17 слоёв сканов, `Wp` и `Gc` удалены из кода во всех сборках, фильтр `excludedLayerCodes` удалён |
 
 ## Открытые вопросы

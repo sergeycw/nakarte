@@ -10,7 +10,8 @@
 - Значения по умолчанию в `src/config.js` — свои Worker'ы: `CORSProxyUrl`, `wikimapiaTilesBaseUrl`, `tracksStorageServer`, `elevationsServer`, `elevationTileUrl`, `elevationsAttribution`; `eventsLogUrl` и `sentryDSN` пустые, Sentry без DSN не инициализируется. В `src/config-target/clone.js` остаются только отличия сборки клона от локального серверного режима: `routingEngine` и `routingTilesPath`.
 - Из `src/secrets.js.template` удалены заглушки `sentryDSN` и неиспользуемый `mapyCz`.
 - Подпись карты (`caption`) — короткое название и ссылка на репозиторий форка `https://github.com/sergeycw/nakarte`, без донатов и почты.
-- Прокси `nakarte-cors-proxy` пускает origin karma `http://localhost:9876`: тесты `test_track_load.js` теперь идут через свой прокси.
+- Прокси `nakarte-cors-proxy` пускает origin karma `http://localhost:9876`: тесты `test_track_load.js` теперь идут через свой прокси. Сетевые тесты Strava и Garmin Connect, которые проходили только благодаря авторскому прокси, убраны.
+- Прокси пересылает `User-Agent` клиента (без него Wikimapia отвечает 403) и подставляет секрет `STRAVA_COOKIES` в запросы тайлов Strava heatmap, как это делает `proxy.nakarte.me`; секрет заводит владелец. `HEAD` уходит к сервису как `GET`, как у авторского прокси: иначе не раскрываются короткие ссылки mapy.com.
 - Скрипт `scripts/check-no-author-hosts.mjs` ищет адреса `*.nakarte.me` в собранном бандле, кроме известных строк-метаданных, и запускается в `deploy-pages.yml` после сборки: находка останавливает деплой.
 
 ## Capabilities
@@ -21,7 +22,7 @@
 
 - `clone-hosting`: «Сборка под клон» — клон отличается только движком в браузере и путём тайлов, свои сервисы и подпись — во всех сборках; новые требования «Без запросов к инфраструктуре автора» и «Без слоёв mapy.cz».
 - `clone-deploy`: новое требование — деплой падает, если в бандле есть адреса `*.nakarte.me`.
-- `cors-proxy`: «Только разрешённые origin» — в списке origin karma.
+- `cors-proxy`: «Только разрешённые origin» — в списке origin karma; «Фильтрация заголовков» — пересылается `User-Agent`; новые требования «Куки Strava для тайлов heatmap» и «HEAD как GET».
 
 ## Impact
 
