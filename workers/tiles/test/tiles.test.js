@@ -27,6 +27,15 @@ describe('GET /tiles/<name>.rd5', () => {
         expect(await bytes(response)).toEqual(TILE.slice(0, 1));
     });
 
+    it('forbids caching: a tile is overwritten in place by the weekly sync', async () => {
+        const ranged = await request('/tiles/E40_N40.rd5', {headers: {Range: 'bytes=0-0'}});
+        expect(ranged.headers.get('Cache-Control')).toBe('no-store');
+        const whole = await request('/tiles/E40_N40.rd5');
+        expect(whole.headers.get('Cache-Control')).toBe('no-store');
+        const head = await request('/tiles/E40_N40.rd5', {method: 'HEAD'});
+        expect(head.headers.get('Cache-Control')).toBe('no-store');
+    });
+
     it('answers a middle range with exactly those bytes', async () => {
         const response = await request('/tiles/E40_N40.rd5', {headers: {Range: 'bytes=300-309'}});
         expect(response.status).toBe(206);
@@ -76,6 +85,12 @@ describe('other requests', () => {
     it('answers 405 to POST', async () => {
         const response = await request('/tiles/E40_N40.rd5', {method: 'POST'});
         expect(response.status).toBe(405);
+    });
+
+    it('answers 404 to bucket keys that are not tiles', async () => {
+        await env.TILES.put('manifest.json', '{"tiles": {}}');
+        expect((await request('/tiles/manifest.json')).status).toBe(404);
+        expect((await request('/tiles/manifest.json', {method: 'HEAD'})).status).toBe(404);
     });
 
     it('answers 404 outside /tiles/', async () => {
