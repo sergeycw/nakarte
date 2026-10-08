@@ -2,19 +2,19 @@
 
 ## 1. Каркас `web/`
 
-- [ ] 1.1 `web/package.json`, `.npmrc` (`install-strategy=hoisted`), зависимости стека из design, `package-lock.json` через `npx --yes npm@11 install`; проверка: `npm ci` в чистом каталоге проходит
-- [ ] 1.2 `tsconfig.json` (strict, алиас `@/*`), `biome.json`, `vite.config.ts` (`base: '/next/'`, `outDir: '../build/next'`, `emptyOutDir`, порт 8769), `index.html` с `<title>nakarte routing</title>`; проверка: `npx biome ci`, `npx tsc --noEmit` и `npm run build` зелёные, в `build/next/index.html` пути начинаются с `/next/`
-- [ ] 1.3 Tailwind 4 и `shadcn init` (Base UI), компоненты `card` и `toast`; тема только светлая; проверка: `biome ci` и `tsc` зелёные на сгенерированном коде
+- [x] 1.1 `web/package.json`, `.npmrc` (`install-strategy=hoisted`), зависимости стека из design, `package-lock.json` через `npx --yes npm@11 install`; проверка: `npm ci` в чистом каталоге проходит
+- [x] 1.2 `tsconfig.json` (strict, алиас `@/*`), `biome.json`, `vite.config.ts` (`base: '/next/'`, `outDir: '../build/next'`, `emptyOutDir`, порт 8769), `index.html` с `<title>nakarte routing</title>`; проверка: `npx biome ci`, `npx tsc --noEmit` и `npm run build` зелёные, в `build/next/index.html` пути начинаются с `/next/`
+- [x] 1.3 Tailwind 4 и `shadcn init` (Base UI), компоненты `card` и `toast`; тема только светлая; проверка: `biome ci` и `tsc` зелёные на сгенерированном коде
 
 ## 2. Конфиг сервисов
 
-- [ ] 2.1 `web/src/config.ts` с `makeConfig(mode)` по образцу `src/config.js` и `config-target/clone.js`; unit-тесты «Сборка клона», «Локальная сборка», нет `nakarte.me`; проверка: `npm test` зелёный
+- [x] 2.1 `web/src/config.ts` с `makeConfig(mode)` по образцу `src/config.js` и `config-target/clone.js`; unit-тесты «Сборка клона», «Локальная сборка», нет `nakarte.me`; проверка: `npm test` зелёный
 
 ## 3. Карта, панель, тост
 
-- [ ] 3.1 `osmStyle(tileUrl)` и полноэкранная `<Map>` с начальным видом из конфига, CSS MapLibre вне слоя после Tailwind, `isolation: isolate`; unit-тест стиля и browser-тест: холст совпадает с контейнером, контролы видны; проверка: `npm test` зелёный
-- [ ] 3.2 Панель (`Card`) с названием и ссылкой, `<Toaster />`, тост на ошибку тайлов с постоянным id; browser-тесты «Клик по панели» (`elementFromPoint`, карта не сдвигается) и «Сервер тайлов недоступен» (один тост на серию ошибок); проверка: `npm test` зелёный
-- [ ] 3.3 Playwright e2e против `vite preview` по сценариям `web-client` («Первый заход», «Окно телефона», «Панель на карте», «Сервер тайлов недоступен», «Тёмная тема системы»), тайлы OSM — фикстура, запросы вне `localhost` валят тест; проверка: `npm run e2e` зелёный
+- [x] 3.1 `osmStyle(tileUrl)` и полноэкранная `<Map>` с начальным видом из конфига, CSS MapLibre вне слоя после Tailwind, `isolation: isolate`; unit-тест стиля и browser-тест: холст совпадает с контейнером, контролы видны; проверка: `npm test` зелёный
+- [x] 3.2 Панель (`Card`) с названием и ссылкой, `<Toaster />`, тост на ошибку тайлов с постоянным id; browser-тесты «Клик по панели» (`elementFromPoint`, карта не сдвигается) и «Сервер тайлов недоступен» (один тост на серию ошибок); проверка: `npm test` зелёный
+- [x] 3.3 Playwright e2e против `vite preview` по сценариям `web-client` («Первый заход», «Окно телефона», «Панель на карте», «Сервер тайлов недоступен», «Тёмная тема системы»), тайлы OSM — фикстура, запросы вне `localhost` валят тест; проверка: `npm run e2e` зелёный
 
 ## 4. CI, деплой, мониторинг
 
