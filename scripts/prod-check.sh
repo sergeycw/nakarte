@@ -1,5 +1,5 @@
 #!/bin/sh
-# Синтетическая проверка своих сервисов клона на проде: сайт, файлы движка, тайл BRouter,
+# Синтетическая проверка своих сервисов клона на проде: сайт, новое приложение /next/, файлы движка, тайл BRouter,
 # API и тайлы высот, хранилище треков, CORS-прокси. Только чтение, без сети к чужим сайтам:
 # прокси проверяется preflight'ом, хранилище треков — чтением несуществующего ключа (404 из R2).
 # Запускают workflow «prod check» (раз в день и после деплоя) и человек: sh scripts/prod-check.sh
@@ -44,6 +44,15 @@ check_range() {
 
 status=$(fetch "$SITE/")
 if [ "$status" = 200 ] && grep -q '<title>' "$body"; then report 'site' ok; else report 'site' "status $status"; fi
+
+# новое приложение web/ (openspec/specs/web-client): заголовок из web/index.html. Одного статуса мало —
+# без build/next/ Pages отвечают на /next/ корневым index.html старого клиента с кодом 200
+status=$(fetch "$SITE/next/")
+if [ "$status" = 200 ] && grep -q '<title>nakarte routing</title>' "$body"; then
+    report 'site next' ok
+else
+    report 'site next' "status $status, title $(grep -o '<title>[^<]*' "$body" | head -1 | cut -c8-)"
+fi
 
 check_range 'engine jar' "$SITE/brouter-wasm/lib/brouter.jar"
 check_range 'engine lookups.dat' "$SITE/brouter-wasm/profiles/lookups.dat"

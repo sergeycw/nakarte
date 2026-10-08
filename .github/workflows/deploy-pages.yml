@@ -60,7 +60,8 @@ jobs:
             echo "tracks=$(has '^workers/tracks/')"
             echo "elevation=$(has '^workers/elevation/')"
             echo "guard=$(has '^workers/guard/')"
-            # сборка клона: всё, кроме Worker'ов, документов, тестов karma и других workflow
+            # сборка клона: всё, кроме Worker'ов, документов, тестов karma и других workflow; новое
+            # приложение web/ сюда входит — оно публикуется тем же Pages-проектом в /next/
             echo "pages=$(echo "$changed" | grep -vE '^(workers/(cors-proxy|tracks|elevation|guard)/|docs/|openspec/|test/|\.github/)|\.md$' | grep -q . && echo true || echo false)"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -201,6 +202,23 @@ jobs:
           NAKARTE_TARGET: clone
       - name: check engine files are in the build
         run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
+      # Новое приложение web/ — в build/next/ (openspec/specs/web-client), строго после старого клиента:
+      # его CleanWebpackPlugin чистит весь build/. Тесты те же, что в check-web.yml, e2e — по собранному
+      # build/next/; упали — Pages не публикуются. Адреса автора в build/next/ ловит общая проверка ниже.
+      - name: web install
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: web test
+        working-directory: web
+        run: npm test
+      - name: web build
+        working-directory: web
+        run: npm run build
+      - name: web e2e
+        working-directory: web
+        run: npm run e2e
       # Адрес *.nakarte.me в бандле — обращение к инфраструктуре автора: деплой стоп
       # (требование «Бандл без адресов автора» в openspec/specs/clone-deploy). В PR то же проверяет
       # check-clone.yml.

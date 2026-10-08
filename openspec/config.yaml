@@ -8,7 +8,8 @@ context: |
 
   Project: own product grown from a fork of wladich/nakarte (Leaflet map app, webpack,
   ES modules, knockout) with routing via BRouter, either a local server or BRouter running
-  in the browser (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2,
+  in the browser (CheerpJ). A new client (React, Vite, TypeScript, MapLibre, shadcn/ui)
+  grows in web/ and is served at /next/ until it replaces the old one. Public clone on Cloudflare: Pages + Pages Functions, R2,
   own Workers in workers/ instead of the author's *.nakarte.me services.
   Upstream is a reference only: no merges or PRs to it, upstream files may be edited or
   deleted, unused code is deleted rather than hidden.
@@ -16,7 +17,7 @@ context: |
 
 rules:
   tasks:
-    - 'В change с кодом есть задачи на тесты и на подключение их к CI по правилам `AGENTS.md`, раздел «Свои бэкенды» (свой workflow сервиса, karma для клиента, без сети); у каждой задачи с кодом проверка — зелёный тест.'
+    - 'В change с кодом есть задачи на тесты и на подключение их к CI по правилам `AGENTS.md`, раздел «Свои бэкенды» (свой workflow сервиса, karma для старого клиента в `src/`, Vitest и Playwright в `web/` с `check-web.yml`, без сети); у каждой задачи с кодом проверка — зелёный тест.'
 
 operations:
   apply:
