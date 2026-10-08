@@ -255,8 +255,8 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 |---|---|---|---|
 | 1 | [`add-web-skeleton`](../changes/archive/2026-10-08-add-web-skeleton/design.md) — сделан | `web/` с Vite, React, TS, Biome, Vitest, Playwright, shadcn; `check-web.yml`; сборка в `build/next/` и деплой; конфиг сервисов; пустая карта MapLibre с OSM; проверка Preflight против стилей карты, памяти на телефоне и `/app/` CheerpJ с `/next/` | 1–2 |
 | 2 | [`spike-engine-in-worker`](../changes/archive/2026-10-08-spike-engine-in-worker/design.md) — сделан | CheerpJ в Web Worker в новом приложении: `cheerpjRunLibrary`, `/app/`, один поток, замер блокировки главного потока; модуль `engine.ts` с очередью | 0.5–1 |
-| 3 | `add-web-map-layers` | каталог растровых слоёв с кодами без `Y`, `S`, `W`, `Ng`; `l=` и старые коды; переключатель слоёв, свои слои по URL; отмывка AWS Terrain Tiles как слой | 2–3 |
-| 4 | `add-web-tracks` | парсеры и экспорт как чистые модули с тестами, чтение старых ссылок (`nktk` 1–4, `nktl`, `nktu`, `nktp`, `nktj`), список треков, ссылка на треки после ответа хранилища | 3–4 |
+| 3 | [`add-web-map-layers`](../changes/archive/2026-10-08-add-web-map-layers/design.md) — сделан | каталог растровых слоёв с кодами без `Y`, `S`, `W`, `Ng`; `l=` и старые коды; переключатель слоёв, свои слои по URL; отмывка AWS Terrain Tiles как слой | 2–3 |
+| 4 | [`add-web-tracks`](../changes/archive/2026-10-08-add-web-tracks/design.md) — сделан | парсеры и экспорт как чистые модули с тестами, чтение старых ссылок (`nktk` 1–4, `nktl`, `nktu`, `nktp`, `nktj`), список треков, ссылка на треки после ответа хранилища | 3–4 |
 | 5 | `add-web-route-editor` | модель редактора на TS, отрисовка на карте, активности, непроложенный отрезок + тост, undo/redo с кнопками; спеки `routing` и `route-editing` дельтами | 5–7 |
 | 6 | `add-web-autosave` | автосохранение треков и разметки в IndexedDB, разметка маршрута в ссылке (новая версия `nktk`) | 1–2 |
 | 7 | `add-web-elevation-profile` | профиль высот, GPX с высотами | 1–2 |

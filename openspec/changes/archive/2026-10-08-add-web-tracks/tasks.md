@@ -37,7 +37,7 @@
 
 - [x] 7.1 Замер `phys_footprint` на эмуляции Pixel 7: карта против карты с большим GPX (≈ 100 тыс. точек), после загрузки и после прокруток; итог — в design, «Проверки»
 - [x] 7.2 `AGENTS.md`, раздел «Новое приложение»: модули треков, подвохи (`DOMParser` в Node из `xmldom`, подписи без `glyphs`, `ALLOWED_ORIGINS` хранилища без портов `web/`, буфер обмена после ответа); строка в `docs/architecture/track-storage.md`, что `web/` отдаёт ссылку после ответа; проверка: ссылки на файлы и разделы существуют, `openspec validate --all --strict`
-- [ ] 7.3 После деплоя на `https://nakarte-routing.pages.dev/next/`: «Copy link» → ссылка открывается, старая ссылка `nktl=` клона, импорт OSM, Sports Tracker, Tracedetrail и файла по URL через прокси; итог — в design
+- [x] 7.3 После деплоя на `https://nakarte-routing.pages.dev/next/`: «Copy link» → ссылка открывается, старая ссылка `nktl=` клона, импорт OSM, Sports Tracker, Tracedetrail и файла по URL через прокси; итог — в design
 
 ## Workflow follow-up
 
