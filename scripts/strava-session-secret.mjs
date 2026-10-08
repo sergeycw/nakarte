@@ -19,9 +19,13 @@
 // heatmap не продлевает _strava4_session, значит, секрет с одной сессией умрёт вместе с ней. Если Strava
 // выдаёт новую сессию по другой, долгоживущей куке, перебор найдёт минимальный набор кук, с которым
 // heatmap работает без _strava4_session, и напечатает только имена; их и надо класть в SESSION_COOKIES.
+// --rotation: ничего не записывает, ищет страницу, которая продлевает сессию. С одной _strava4_session
+// открывает ROTATION_PAGES (только GET) и печатает статус, имена и сроки кук ответа и то, сменилось ли
+// значение _strava4_session (сравнение, без вывода). Если какая-то страница выдаёт новую сессию, прокси
+// может сам ходить туда и хранить её в KV; если нет — срок сессии задаёт сервер Strava.
 import {spawnSync} from 'node:child_process';
 
-import {HEATMAP_COOKIES, fetchHeatmapCookies} from '../workers/cors-proxy/src/strava.js';
+import {HEATMAP_COOKIES, describeSetCookie, fetchHeatmapCookies} from '../workers/cors-proxy/src/strava.js';
 
 // 2026-10-08 проверено владельцем: странице heatmap хватает одной _strava4_session
 const SESSION_COOKIES = ['_strava4_session'];
@@ -32,6 +36,16 @@ const TEST_TILE = 'https/content-a.strava.com/identified/globalheat/all/hot/12/2
 const MIN_NODE_MAJOR = 22;
 const dryRun = process.argv.includes('--dry-run');
 const probeMode = process.argv.includes('--probe');
+const rotationMode = process.argv.includes('--rotation');
+// Только чтение. /api/next/session/update не трогаем: фронтенд пишет через него данные сессии (PUT).
+const ROTATION_PAGES = [
+    'https://www.strava.com/dashboard',
+    'https://www.strava.com/api/next/session/get?keys=flash_notice',
+    'https://www.strava.com/frontend/athlete/notifications/num_new_notifications',
+    'https://www.strava.com/maps/global-heatmap',
+];
+const ROTATION_USER_AGENT =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 // пауза между запросами перебора: десяток загрузок страницы подряд не должен выглядеть как бот
 const PROBE_DELAY_MS = 1000;
 
@@ -117,7 +131,46 @@ async function probe(cookies) {
     await tryRefresh('minimal set', cookieHeader(cookies, needed));
 }
 
-if (!dryRun && !probeMode && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
+// Значение _strava4_session из Set-Cookie ответа, только для сравнения с отправленным.
+function sessionFromSetCookie(response) {
+    for (const line of response.headers.getSetCookie()) {
+        const match = /^\s*_strava4_session=([^;]*)/u.exec(line);
+        if (match) {
+            return match[1];
+        }
+    }
+    return null;
+}
+
+async function rotation(cookies) {
+    const sent = cookies.get('_strava4_session');
+    if (!sent) {
+        fail('missing cookies: _strava4_session; copy the Cookie header of a www.strava.com request while logged in');
+    }
+    for (const page of ROTATION_PAGES) {
+        await new Promise((resolve) => setTimeout(resolve, PROBE_DELAY_MS));
+        const path = new URL(page).pathname;
+        try {
+            const response = await fetch(page, {
+                headers: {'cookie': `_strava4_session=${sent}`, 'user-agent': ROTATION_USER_AGENT},
+                redirect: 'manual',
+                signal: AbortSignal.timeout(10_000),
+            });
+            await response.body?.cancel();
+            const location = response.headers.get('location');
+            const received = sessionFromSetCookie(response);
+            const session = received === null ? 'not set' : received === sent ? 'same value' : 'NEW VALUE';
+            const setCookies = response.headers.getSetCookie().map(describeSetCookie);
+            console.log(`${path}: ${response.status}${location ? ` to ${new URL(location, page).pathname}` : ''}`);
+            console.log(`  _strava4_session: ${session}`);
+            console.log(`  set-cookie: ${setCookies.join('; ') || 'none'}`);
+        } catch (error) {
+            console.log(`${path}: ${error.cause?.code ?? error.message}`);
+        }
+    }
+}
+
+if (!dryRun && !probeMode && !rotationMode && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
     fail(
         `wrangler needs Node >= ${MIN_NODE_MAJOR}, this is ${process.versions.node}: ` +
             'pbpaste | PATH=/usr/local/bin:$PATH node scripts/strava-session-secret.mjs'
@@ -127,6 +180,10 @@ if (!dryRun && !probeMode && Number(process.versions.node.split('.')[0]) < MIN_N
 const cookies = parseCookies(await readStdin());
 if (probeMode) {
     await probe(cookies);
+    process.exit(0);
+}
+if (rotationMode) {
+    await rotation(cookies);
     process.exit(0);
 }
 const missing = SESSION_COOKIES.filter((name) => !cookies.get(name));

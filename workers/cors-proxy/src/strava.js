@@ -238,6 +238,7 @@ export {
     HEATMAP_COOKIES,
     RETRY_PAUSE_MS,
     anonymousTileUrl,
+    describeSetCookie,
     fetchHeatmapCookies,
     heatmapCookie,
     isStravaHeatmap,
