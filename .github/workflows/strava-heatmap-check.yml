@@ -1,0 +1,36 @@
+name: strava heatmap check
+
+# Раз в день проверяет, что прокси отдаёт тайл heatmap на куках, полученных по сессии STRAVA_SESSION.
+# Падение = GitHub шлёт письмо: сессия Strava умерла или Strava сменила выдачу кук.
+# Что смотреть: `npx wrangler@4 tail` в workers/cors-proxy, строки «strava heatmap cookies not refreshed»;
+# новая сессия — scripts/strava-session-secret.mjs (AGENTS.md, пункт про Strava heatmap).
+# По расписанию Actions запускаются только из ветки по умолчанию; после 60 дней без коммитов GitHub
+# отключает расписание.
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: heatmap tile through the proxy uses the session
+        run: |
+          # тайл Тбилиси z12, на нём точно есть треки; Origin — клон, иначе прокси ответит 403
+          url="https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/content-a.strava.com/identified/globalheat/all/hot/12/2557/1514.png?px=256&check=$(date +%s)"
+          for attempt in 1 2 3; do
+            if curl -sS -o /dev/null -D headers.txt -H 'Origin: https://nakarte-routing.pages.dev' "$url"; then
+              break
+            fi
+            sleep 10
+          done
+          status=$(head -1 headers.txt | tr -d '\r')
+          type=$(grep -i '^content-type:' headers.txt | tr -d '\r' | cut -d' ' -f2)
+          source=$(grep -i '^x-strava-cookies:' headers.txt | tr -d '\r' | cut -d' ' -f2)
+          echo "$status, $type, cookies from $source"
+          if [ "$source" != "session" ] || [[ "$type" != image/* ]]; then
+            echo "::error::proxy does not serve heatmap tiles with session cookies (cookies from '$source', $status)"
+            exit 1
+          fi
