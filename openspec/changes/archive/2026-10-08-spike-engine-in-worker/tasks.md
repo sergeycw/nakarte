@@ -20,7 +20,7 @@
 - [x] 4.1 CheerpJ в классическом воркере, `/app/` из воркера и со страницы `/next/`, library-поток на воркер, сборка воркера в dev и production; итог — в design, «Проверки»
 - [x] 4.2 Холодный старт и блокировка главного потока, воркер против главного потока; итог — в design
 - [x] 4.3 Память вкладки с картой и движком на эмуляции Pixel 7; итог — в design
-- [ ] 4.4 После деплоя: стенд на `https://nakarte-routing.pages.dev/next/engine-bench.html` в воркере и на главном потоке — маршрут по `/tiles/` и `/brouter-wasm/` через Pages Functions, блокировка; итог — в design
+- [x] 4.4 После деплоя: стенд на `https://nakarte-routing.pages.dev/next/engine-bench.html` в воркере и на главном потоке — маршрут по `/tiles/` и `/brouter-wasm/` через Pages Functions, блокировка; итог — в design
 
 ## 5. Документы
 
