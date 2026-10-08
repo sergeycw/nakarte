@@ -69,7 +69,7 @@
 - Вид «из коробки» сдержанный и современный, тема — CSS-переменные в одном файле: светлая тема по умолчанию, тёмную просто не подключаем.
 - Компоненты лежат в репозитории: панель на карте, тост, меню правятся как свой код, без борьбы с чужими стилями. Минус тот же: обновления компонентов — руками через CLI.
 - Base UI без стилей и без своих `z-index`, слои над картой задаём сами (`isolation: isolate` у контейнера карты). У Mantine модалка 200 и поповер 300 — их надо поднимать над контролами карты.
-- Tailwind 4 требует Chrome 111, Safari 16.4, Firefox 128 — это и есть «последние браузеры». Preflight лежит в `@layer base`, а стили MapLibre не в слое и его перебивают ([MDN `@layer`](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)); на живой карте это не проверено — первая задача skeleton-change.
+- Tailwind 4 требует Chrome 111, Safari 16.4, Firefox 128 — это и есть «последние браузеры». Preflight лежит в `@layer base`, а стили MapLibre не в слое и его перебивают ([MDN `@layer`](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)); на живой карте проверено в change 1: геометрию контролов Preflight не меняет, нужен `isolation: isolate` у карты ([add-web-skeleton](../changes/archive/2026-10-08-add-web-skeleton/design.md#проверки)).
 
 **Mantine 9** — запасной вариант без Tailwind: самый полный набор для панелей настроек (Slider, SegmentedControl, NumberInput, уведомления), светлая тема — `forceColorScheme="light"`, требует React 19.2+. Владелец его не выбрал.
 
@@ -93,7 +93,7 @@
 | Вектор, отмывка, 3D | нет | да: `raster-dem` с `terrarium`/`mapbox`, [`hillshade-method`](https://maplibre.org/maplibre-style-spec/layers/), `color-relief`, рельеф, глобус | вектор да, отмывка и 3D слабее |
 | React | `react-leaflet` 5 только под Leaflet 1.9, лицензия Hippocratic-2.1, последний коммит 2025-06 | `@vis.gl/react-maplibre` 8.1.3 | своих обёрток мало |
 
-**Рекомендация: MapLibre GL JS 6 + `@vis.gl/react-maplibre`.** Leaflet 1.9 выпущен три года назад, 2.0 застрял, а обёртка под React — с нестандартной лицензией. OpenLayers силён в ГИС-проекциях, но для красивой подложки и экосистемы стилей хуже. Цена MapLibre — ≈ 430 КБ gzip против 42 КБ (весь нынешний клиент ≈ 353 КБ gzip JS, замер `nakarte-routing.pages.dev` 2026-10-08) и обязательный WebGL2. Для «только последних браузеров» это приемлемо. Риск — память на телефоне: вкладка уже держит 0.6–0.8 ГБ CheerpJ, плюс видеопамять карты; проверить в skeleton-change.
+**Рекомендация: MapLibre GL JS 6 + `@vis.gl/react-maplibre`.** Leaflet 1.9 выпущен три года назад, 2.0 застрял, а обёртка под React — с нестандартной лицензией. OpenLayers силён в ГИС-проекциях, но для красивой подложки и экосистемы стилей хуже. Цена MapLibre — ≈ 430 КБ gzip против 42 КБ (весь нынешний клиент ≈ 353 КБ gzip JS, замер `nakarte-routing.pages.dev` 2026-10-08) и обязательный WebGL2. Для «только последних браузеров» это приемлемо. Риск — память на телефоне: вкладка уже держит 0.6–0.8 ГБ CheerpJ, плюс видеопамять карты; замер в эмуляции — +110–210 МБ RSS против +15–65 МБ у Leaflet ([add-web-skeleton](../changes/archive/2026-10-08-add-web-skeleton/design.md#память-на-мобильной-эмуляции)), на живом телефоне — с движком в change 2.
 
 ### Что будет со слоями из `src/layers.js`
 
@@ -145,7 +145,7 @@
 Ограничения из спеки [browser-routing-engine](../specs/browser-routing-engine/spec.md) и `AGENTS.md` ([«Движок в браузере»](../../AGENTS.md#движок-в-браузере-cheerpj)) от UI не зависят и переносятся как есть:
 
 - **Один library-поток на страницу** → движок — синглтон вне React (модуль `engine.ts`), очередь запросов внутри; компоненты получают только промисы. Не создавать движок в эффекте компонента: Strict Mode в dev вызывает эффекты дважды.
-- **`/app/` только с origin страницы, Range с `206`** → `/tiles/` и `/brouter-wasm/` остаются Pages Functions того же проекта ([clone-hosting](../specs/clone-hosting/spec.md), «Тайлы BRouter на том же origin», «Range для файлов движка»). `/app/` CheerpJ — корень origin, поэтому приложение на `/next/` тоже работает (на практике не проверено — проверить в skeleton-change).
+- **`/app/` только с origin страницы, Range с `206`** → `/tiles/` и `/brouter-wasm/` остаются Pages Functions того же проекта ([clone-hosting](../specs/clone-hosting/spec.md), «Тайлы BRouter на том же origin», «Range для файлов движка»). `/app/` CheerpJ — корень origin, поэтому приложение на `/next/` тоже работает (на практике не проверено — проверить в change 2, решение владельца в change 1).
 - **Холодный старт 5–6 с, первый маршрут до 10+ с** → прогрев при выборе активности (уже требование), в UI — явное состояние «движок загружается» на кнопке активности вместо молчаливого ожидания.
 - **0.6–0.8 ГБ на вкладку** → не грузить движок, пока прокладка выключена (уже требование).
 - **Блокировка главного потока.** Новое: CheerpJ с [3.0rc2](https://cheerpj.com/docs/changelog.html) (2023-11-29) поддерживает Web Worker через `importScripts`; сейчас последняя версия — 4.3 (2026-04-21). Движок в Worker'е не подвешивает карту на время маршрута. Работает ли там наш `cheerpjRunLibrary` с `/app/` и один ли library-поток на Worker — не проверено, отсюда спайк ([changes](#changes-по-порядку), № 2).
@@ -253,7 +253,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 
 | № | Change | Что | Цена |
 |---|---|---|---|
-| 1 | `add-web-skeleton` | `web/` с Vite, React, TS, Biome, Vitest, Playwright, shadcn; `check-web.yml`; сборка в `build/next/` и деплой; конфиг сервисов; пустая карта MapLibre с OSM; проверка Preflight против стилей карты, памяти на телефоне и `/app/` CheerpJ с `/next/` | 1–2 |
+| 1 | [`add-web-skeleton`](../changes/archive/2026-10-08-add-web-skeleton/design.md) — сделан | `web/` с Vite, React, TS, Biome, Vitest, Playwright, shadcn; `check-web.yml`; сборка в `build/next/` и деплой; конфиг сервисов; пустая карта MapLibre с OSM; проверка Preflight против стилей карты, памяти на телефоне и `/app/` CheerpJ с `/next/` | 1–2 |
 | 2 | `spike-engine-in-worker` | CheerpJ в Web Worker в новом приложении: `cheerpjRunLibrary`, `/app/`, один поток, замер блокировки главного потока; модуль `engine.ts` с очередью | 0.5–1 |
 | 3 | `add-web-map-layers` | каталог растровых слоёв с кодами без `Y`, `S`, `W`, `Ng`; `l=` и старые коды; переключатель слоёв, свои слои по URL; отмывка AWS Terrain Tiles как слой | 2–3 |
 | 4 | `add-web-tracks` | парсеры и экспорт как чистые модули с тестами, чтение старых ссылок (`nktk` 1–4, `nktl`, `nktu`, `nktp`, `nktj`), список треков, ссылка на треки после ответа хранилища | 3–4 |

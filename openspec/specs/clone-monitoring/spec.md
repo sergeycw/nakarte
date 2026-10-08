@@ -12,7 +12,7 @@ Workflow `prod check` SHALL раз в день, после каждого деп
 #### Scenario: Что проверяется
 
 - **WHEN** запускается `scripts/prod-check.sh`
-- **THEN** проверены главная страница, Range у `brouter.jar`, `lookups.dat` и тайла BRouter, высота точки через API высот, тайлы высот z11 (на лету) и z5 (из архива), `404 Track not found` на отсутствующий трек и preflight CORS-прокси
+- **THEN** проверены главная страница, страница нового приложения `/next/`, Range у `brouter.jar`, `lookups.dat` и тайла BRouter, высота точки через API высот, тайлы высот z11 (на лету) и z5 (из архива), `404 Track not found` на отсутствующий трек и preflight CORS-прокси
 
 #### Scenario: Сервис сломан
 
