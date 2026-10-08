@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { buildCatalog, type LayerDef } from './catalog';
-import { buildStyle, HILLSHADE_PAINT } from './style';
+import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT } from './style';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 
@@ -10,14 +10,14 @@ function pick(...codes: string[]) {
 
 test('подложка снизу, оверлеи по порядку наложения, а не по порядку включения', () => {
     const style = buildStyle(pick('Sa', 'Nm', 'Hs', 'O'));
-    expect(style.layers.map((layer) => layer.id)).toEqual(['O', 'Nm', 'Hs', 'Sa']);
+    expect(style.layers.map((layer) => layer.id)).toEqual(['background', 'O', 'Nm', 'Hs', 'Sa']);
     expect(Object.keys(style.sources).sort()).toEqual(['Hs', 'Nm', 'O', 'Sa']);
 });
 
 test('отмывка — слой hillshade поверх raster-dem', () => {
     const style = buildStyle(pick('O', 'Hs'));
     expect(style.sources.Hs).toMatchObject({ type: 'raster-dem', encoding: 'terrarium' });
-    expect(style.layers[1]).toEqual({
+    expect(style.layers[2]).toEqual({
         id: 'Hs',
         type: 'hillshade',
         source: 'Hs',
@@ -40,9 +40,9 @@ test('атрибуция — в источниках, MapLibre собирает 
     expect(style.sources.Wh).toHaveProperty('attribution', expect.stringContaining('Waymarked Hiking Trails'));
 });
 
-test('прежняя подложка — под новой, пока новая грузится', () => {
-    const [osm, esri, wh] = pick('O', 'E', 'Wh');
-    expect(buildStyle([esri, wh], osm).layers.map((layer) => layer.id)).toEqual(['O', 'E', 'Wh']);
-    // та же подложка второй раз не добавляется
-    expect(buildStyle([esri, wh], esri).layers.map((layer) => layer.id)).toEqual(['E', 'Wh']);
+test('серый фон старого клиента — первым слоем, под подложкой', () => {
+    const style = buildStyle(pick('E'));
+    expect(style.layers[0]).toEqual(BACKGROUND_LAYER);
+    expect(BACKGROUND_LAYER.paint['background-color']).toBe('#ddd');
+    expect(style.layers.map((layer) => layer.id)).toEqual(['background', 'E']);
 });
