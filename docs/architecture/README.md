@@ -62,7 +62,7 @@ flowchart LR
 
 | Блок | Ключевое решение | Вглубь | Почему так |
 |---|---|---|---|
-| ① Клиент | SPA апстрима, адреса сервисов общие для всех сборок, сборка клона отличается только движком | [client.md](client.md), [route-editor.md](route-editor.md) | [реестр: платформа и стек](decisions.md#платформа-и-стек), [редактор](decisions.md#редактор) |
+| ① Клиент | SPA апстрима, адреса сервисов общие для всех сборок, сборка клона отличается только движком; рядом растёт новое приложение `web/` на `/next/` ([add-web-skeleton](../../openspec/changes/add-web-skeleton/design.md)) | [client.md](client.md), [route-editor.md](route-editor.md) | [реестр: платформа и стек](decisions.md#платформа-и-стек), [редактор](decisions.md#редактор) |
 | ② Прокладка в браузере | маршрут считает BRouter на CheerpJ в странице; сервер только раздаёт файлы | [routing.md](routing.md) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ③ Pages + Functions | jar, профили и тайлы BRouter с origin клона по Range: CheerpJ читает только его | [routing.md](routing.md), [уровень 2](#публичный-клон) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ④ CORS-прокси | повторяет протокол авторского прокси; куки Strava heatmap прокси получает сам по сессии | [cors-proxy.md](cors-proxy.md) | [реестр: CORS-прокси и Strava](decisions.md#cors-прокси-и-strava) |
@@ -188,7 +188,7 @@ flowchart LR
 | Клиент | SPA на Leaflet + knockout, сборка webpack | [webpack.config.js](../../webpack/webpack.config.js), [App.js](../../src/App.js) |
 | Сборка по умолчанию (серверный режим) | `NAKARTE_TARGET` не задан → `config-target/default.js`, маршрут на серверном BRouter | [webpack.config.js](../../webpack/webpack.config.js) (`configTarget`), [default.js](../../src/config-target/default.js) |
 | Сборка клона | `NAKARTE_TARGET=clone` → `config-target/clone.js`, движок в браузере | [clone.js](../../src/config-target/clone.js), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) |
-| Pages-проект `nakarte-routing` | статика `build/` и Pages Functions, адрес `nakarte-routing.pages.dev` | [wrangler.toml](../../wrangler.toml) |
+| Pages-проект `nakarte-routing` | статика `build/` (старый клиент в корне, новое приложение в `/next/`) и Pages Functions, адрес `nakarte-routing.pages.dev` | [wrangler.toml](../../wrangler.toml) |
 | Pages Function `tiles` | тайлы BRouter `/tiles/*` из R2 с Range; код — `workers/tiles` | [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/src/index.js](../../workers/tiles/src/index.js) |
 | Pages Function `brouter-wasm` | Range для файлов движка (jar, профили) поверх статики Pages | [functions/brouter-wasm](../../functions/brouter-wasm/[[path]].js) |
 | Worker `nakarte-guard` | счётчик частоты для Pages Functions, снаружи закрыт (`workers_dev = false`) | [workers/guard/wrangler.toml](../../workers/guard/wrangler.toml), [index.js](../../workers/guard/src/index.js), [client.js](../../workers/guard/src/client.js) |
@@ -207,7 +207,7 @@ flowchart LR
 
 | Откуда → куда | Протокол и путь | Доказательство |
 |---|---|---|
-| браузер → Pages | `GET /`, статика сборки | [wrangler.toml](../../wrangler.toml) (`pages_build_output_dir`) |
+| браузер → Pages | `GET /` и `GET /next/`, статика сборки | [wrangler.toml](../../wrangler.toml) (`pages_build_output_dir`) |
 | движок в браузере → `functions/brouter-wasm` | `Range /brouter-wasm/lib/*.jar`, `/brouter-wasm/profiles/*` | [browser-engine.js](../../src/lib/brouter/browser-engine.js) (`BASE_DIR`, `CLASSPATH`) |
 | движок в браузере → `functions/tiles` | `Range /tiles/*.rd5`, пустой `/tiles/storageconfig.txt` | [clone.js](../../src/config-target/clone.js) (`routingTilesPath`), [workers/tiles/src/index.js](../../workers/tiles/src/index.js) (`EMPTY_FILES`) |
 | `functions/tiles` → R2 `nakarte-tiles` | `TILES.get(key, {range})`, `TILES.head` | [workers/tiles/src/index.js](../../workers/tiles/src/index.js) |

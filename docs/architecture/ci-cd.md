@@ -16,12 +16,13 @@ flowchart LR
     cclone["check clone<br/>сборка клона, адреса автора"]
     cproxy["check cors proxy"]
     ctracks["check tracks"]
+    cweb["check web<br/>biome, tsc, vitest, build, e2e"]
     cguard["check guard"]
     ctiles["check tiles"]
     celev["check elevation"]
     changes["deploy pages: changes<br/>diff с последним успешным деплоем"]
     djobs["deploy pages: job на Worker<br/>npm test / cargo test, wrangler deploy"]
-    dpages["deploy pages: pages<br/>тесты functions, сборка, wrangler pages deploy"]
+    dpages["deploy pages: pages<br/>тесты functions и web/, сборка<br/>старого клиента и web/ в /next/,<br/>wrangler pages deploy"]
 
     ghcr["ghcr.io<br/>brouter:nightly"]
     pages["Pages nakarte-routing<br/>статика + functions/"]
@@ -34,10 +35,11 @@ flowchart LR
     pr -->|"кроме docs/, openspec/, *.md"| cclone
     pr -->|"paths: workers/cors-proxy/**"| cproxy
     pr -->|"paths: workers/tracks/**"| ctracks
+    pr -->|"paths: web/**"| cweb
     pr -->|"paths: workers/guard/**"| cguard
     pr -->|"paths: workers/tiles/**, functions/**,<br/>workers/guard/src/**"| ctiles
     pr -->|"paths: workers/elevation/**"| celev
-    push -->|"те же paths"| cproxy & ctracks & cguard & ctiles & celev
+    push -->|"те же paths"| cproxy & ctracks & cguard & ctiles & celev & cweb
     push --> changes
     changes -->|"workers/<сервис>/ менялся"| djobs
     changes -->|"менялось не только docs/, openspec/, test/, workers/<сервис>/"| dpages
@@ -49,7 +51,7 @@ flowchart LR
     prune -->|"Pages API, canonical_deployment"| pages
 ```
 
-Job `changes` в [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) сравнивает `HEAD` с коммитом последнего успешного прогона `deploy pages`, а не с предыдущим push: изменения прогона, отменённого новым push (`cancel-in-progress`) или упавшего, выкатит следующий. Ручной запуск, правка самого workflow или неизвестная база — выкатывается всё. Job каждого Worker'а гоняет тесты сервиса и деплоит его; `pages` идёт после них и не идёт, если деплой Worker'а упал. Job `prune` после успешной публикации удаляет все деплои Pages, кроме текущего, и только если текущий собран из коммита прогона: старый деплой отвечал бы по `<хеш>.nakarte-routing.pages.dev` со своими функциями, без новых лимитов. Откат Pages — revert и push. Шаги `pages`: тесты Pages Functions → шаблон секретов → ключ Google из секрета → `yarnpkg` → файлы движка из образа → `npm run build` с `NAKARTE_TARGET=clone` → проверка, что файлы движка в сборке → проверка бандла на адреса автора ([protection.md](protection.md)) → публикация Pages. Проверки `check` и `check-<сервис>` деплой не ждёт: karma ходит в живые сервисы импорта и к клону не относится ([add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md), «Non-Goals»). Ту же проверку бандла до merge делает `check clone`.
+Job `changes` в [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) сравнивает `HEAD` с коммитом последнего успешного прогона `deploy pages`, а не с предыдущим push: изменения прогона, отменённого новым push (`cancel-in-progress`) или упавшего, выкатит следующий. Ручной запуск, правка самого workflow или неизвестная база — выкатывается всё. Job каждого Worker'а гоняет тесты сервиса и деплоит его; `pages` идёт после них и не идёт, если деплой Worker'а упал. Job `prune` после успешной публикации удаляет все деплои Pages, кроме текущего, и только если текущий собран из коммита прогона: старый деплой отвечал бы по `<хеш>.nakarte-routing.pages.dev` со своими функциями, без новых лимитов. Откат Pages — revert и push. Шаги `pages`: тесты Pages Functions → шаблон секретов → ключ Google из секрета → `yarnpkg` → файлы движка из образа → `npm run build` с `NAKARTE_TARGET=clone` → проверка, что файлы движка в сборке → новое приложение из `web/`: `npm ci` и Chromium Playwright, `npm test`, сборка в `build/next/`, e2e (строго после старого клиента: webpack чистит весь `build/`) → проверка бандла на адреса автора ([protection.md](protection.md)) → публикация Pages. Проверки `check` и `check-<сервис>` деплой не ждёт: karma ходит в живые сервисы импорта и к клону не относится ([add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md), «Non-Goals»). Ту же проверку бандла до merge делает `check clone`.
 
 Тайлы BRouter (`workers/tiles`) отдельным Worker'ом не деплоятся: их код подключён как Pages Function [functions/tiles](../../functions/tiles/[[path]].js) и уходит с Pages; [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml) нужен только локальному `wrangler dev`.
 
@@ -92,7 +94,7 @@ flowchart LR
     scheck -.-> mail
     cron4 --> pcheck
     manual --> pcheck
-    pcheck -->|"только чтение: Range, точка высоты,<br/>тайлы высот, 404 трека, preflight прокси"| own
+    pcheck -->|"только чтение: /, /next/, Range, точка высоты,<br/>тайлы высот, 404 трека, preflight прокси"| own
     pcheck -.-> mail
 ```
 
@@ -100,6 +102,7 @@ flowchart LR
 |---|---|---|---|
 | `check` ([main.yml](../../.github/workflows/main.yml)) | PR, push в `master`, ежедневно 03:15 UTC | lint, сборка default, karma в Firefox 52 ESR, Firefox latest, Chrome | — |
 | `check cors proxy`, `check tracks`, `check guard`, `check tiles` | PR и push с изменениями в каталоге сервиса (`check tiles` — ещё и в `functions/` и `workers/guard/src/`) | `vitest` в `workerd` | — |
+| `check web` | PR и push с изменениями в `web/` | `biome ci`, `tsc -b`, Vitest (unit в Node и browser mode в Chromium), сборка, проверка `build/next/` на адреса автора, Playwright e2e против `vite preview` | — |
 | `check elevation` | PR и push с изменениями в `workers/elevation/` | `cargo fmt`, `clippy` (и под wasm32), `cargo test`, `npm test` в `workerd` | — |
 | `check clone` | PR, кроме правок только в `docs/`, `openspec/`, `*.md` | сборка клона и проверка бандла на адреса автора | — |
 | `deploy pages` | push в `master` (изменённые сервисы), вручную (всё) | тесты сервиса, сборка клона и деплой; после Pages — удаление старых деплоев Pages | Pages, Worker'ы |
@@ -125,4 +128,4 @@ flowchart LR
 
 ## Сверено по
 
-[.github/workflows/](../../.github/workflows/) (все тринадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+[.github/workflows/](../../.github/workflows/) (все четырнадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
