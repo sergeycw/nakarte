@@ -11,9 +11,11 @@ function upstream(request) {
     }
     return Response.json(
         {url: request.url, method: request.method, headers: Object.fromEntries(request.headers)},
-        {headers: {'Set-Cookie': 'session=1', 'X-Upstream': 'yes'}}
+        {headers: {'Set-Cookie': 'session=1', 'X-Upstream': 'yes', 'X-Upstream-Method': request.method}}
     );
 }
+
+const STRAVA_COOKIES = 'CloudFront-Key-Pair-Id=k; CloudFront-Policy=p; CloudFront-Signature=s';
 
 export default defineConfig({
     plugins: [
@@ -23,6 +25,8 @@ export default defineConfig({
             // `namespace_id` — имя поля miniflare, camelCase тут не выбрать
             miniflare: {
                 outboundService: upstream,
+                // секрет wrangler secret put STRAVA_COOKIES; тут — заглушка
+                bindings: {STRAVA_COOKIES: STRAVA_COOKIES},
                 ratelimits: {RATE_LIMITER: {namespace_id: '1004', simple: {limit: 3, period: 60}}},
             },
         }),
