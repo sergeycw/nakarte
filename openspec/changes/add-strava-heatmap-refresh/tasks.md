@@ -13,7 +13,7 @@
 
 ## 3. Документация
 
-- [ ] 3.1 `AGENTS.md` (пункт про Strava heatmap) и `openspec/backlog.md`: секрет `STRAVA_SESSION`, команда владельца, `STRAVA_COOKIES` как запас, что смотреть в журнале; проверка — `openspec validate --all --strict` зелёный
+- [x] 3.1 `AGENTS.md` (пункт про Strava heatmap) и `openspec/backlog.md`: секрет `STRAVA_SESSION`, команда владельца, `STRAVA_COOKIES` как запас, что смотреть в журнале; проверка — `openspec validate --all --strict` зелёный
 
 ## 4. Выкатка
 
