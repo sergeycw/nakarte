@@ -107,12 +107,18 @@ async function proxy(request, env, origin, target, proxyOrigin) {
     if (env.STRAVA_COOKIES && isStravaHeatmap(target)) {
         upstreamHeaders.set('cookie', env.STRAVA_COOKIES);
     }
+    // HEAD уходит к сервису как GET, как у авторского прокси на nginx (proxy_cache_convert_head):
+    // короткие ссылки mapy.com на HEAD отвечают 404, а на GET — редиректом, который и нужен клиенту.
+    const isHead = request.method === 'HEAD';
     const upstream = await fetch(target, {
-        method: request.method,
+        method: isHead ? 'GET' : request.method,
         headers: upstreamHeaders,
         body: ['GET', 'HEAD'].includes(request.method) ? null : request.body,
         redirect: 'manual',
     });
+    if (isHead) {
+        await upstream.body?.cancel();
+    }
 
     const headers = new Headers(upstream.headers);
     for (const name of DROPPED_RESPONSE_HEADERS) {
@@ -125,7 +131,11 @@ async function proxy(request, env, origin, target, proxyOrigin) {
     if (location) {
         headers.set('Location', proxiedUrl(proxyOrigin, new URL(location, target).href));
     }
-    return new Response(upstream.body, {status: upstream.status, statusText: upstream.statusText, headers});
+    return new Response(isHead ? null : upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers,
+    });
 }
 
 const worker = {

@@ -11,7 +11,7 @@ function upstream(request) {
     }
     return Response.json(
         {url: request.url, method: request.method, headers: Object.fromEntries(request.headers)},
-        {headers: {'Set-Cookie': 'session=1', 'X-Upstream': 'yes'}}
+        {headers: {'Set-Cookie': 'session=1', 'X-Upstream': 'yes', 'X-Upstream-Method': request.method}}
     );
 }
 

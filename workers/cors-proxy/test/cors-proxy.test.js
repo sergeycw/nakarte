@@ -70,6 +70,13 @@ describe('proxying', () => {
         expect(echo.url).toBe('http://wikimapia.org/z1/itiles/0/1/2.xy?123');
     });
 
+    it('sends HEAD upstream as GET and returns no body', async () => {
+        const response = await request('/https/mapy.com/s/favepemeko', {method: 'HEAD'});
+        expect(response.status).toBe(200);
+        expect(response.headers.get('X-Upstream-Method')).toBe('GET');
+        expect(await response.text()).toBe('');
+    });
+
     it('forwards User-Agent', async () => {
         const echo = await (
             await request('/wikimapia/z1/itiles/0/1/2.xy', {headers: {'User-Agent': 'Browser/1.0'}})
