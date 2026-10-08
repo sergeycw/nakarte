@@ -41,4 +41,5 @@ export function makeConfig(mode: string): Config {
     };
 }
 
-export const config = makeConfig(import.meta.env.MODE);
+// import.meta.env есть только в сборке Vite; e2e импортирует модуль в Node ради makeConfig, и без ?. импорт падал бы
+export const config = makeConfig(import.meta.env?.MODE ?? '');
