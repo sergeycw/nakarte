@@ -14,9 +14,9 @@
 
 ## 3. Ссылки и импорт
 
-- [ ] 3.1 `web/src/tracks/links.ts`: параметры `nktk`, `nktl`, `nktu`, `nktp`, `nktj` → `GeoData[]` с подставным `fetch`; unit-тест (сценарии «Ссылка на хранилище», «Трек в адресе», «Неизвестный ключ», «Точка в адресе», испорченный `nktj`); проверка: `npm test` зелёный
-- [ ] 3.2 `web/src/tracks/import-url.ts`: Яндекс, `track://`, nakarte, OSM, Sports Tracker, Tracedetrail, любой файл, всё через `urlViaCorsProxy`; фикстуры — записанные ответы сервисов на ссылки из `test/track_load_data/testcases/`; unit-тест против `geodata` этих testcases (сценарии «Трек OSM», «Приватная тренировка Sports Tracker», «Файл по ссылке»), Strava → `unsupported`; проверка: `npm test` зелёный
-- [ ] 3.3 `web/src/tracks/share.ts`: тело `nktk`, ключ md5 (совпадает с `workers/tracks/src/key.js` на тех же телах), `POST`, адрес ссылки без `q`, `r` и параметров треков; unit-тест на ключ, адрес и ошибки (`413`, сеть); проверка: `npm test` зелёный
+- [x] 3.1 `web/src/tracks/links.ts`: параметры `nktk`, `nktl`, `nktu`, `nktp`, `nktj` → `GeoData[]` с подставным `fetch`; unit-тест (сценарии «Ссылка на хранилище», «Трек в адресе», «Неизвестный ключ», «Точка в адресе», испорченный `nktj`); проверка: `npm test` зелёный
+- [x] 3.2 `web/src/tracks/import-url.ts`: Яндекс, `track://`, nakarte, OSM, Sports Tracker, Tracedetrail, любой файл, всё через `urlViaCorsProxy`; фикстуры — записанные ответы сервисов на ссылки из `test/track_load_data/testcases/`; unit-тест против `geodata` этих testcases (сценарии «Трек OSM», «Приватная тренировка Sports Tracker», «Файл по ссылке»), Strava → `unsupported`; проверка: `npm test` зелёный
+- [x] 3.3 `web/src/tracks/share.ts`: тело `nktk`, ключ md5 (совпадает с `workers/tracks/src/key.js` на тех же телах), `POST`, адрес ссылки без `q`, `r` и параметров треков; unit-тест на ключ, адрес и ошибки (`413`, сеть); проверка: `npm test` зелёный
 
 ## 4. Стор и карта
 
