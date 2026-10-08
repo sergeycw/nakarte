@@ -4,6 +4,10 @@
 // Расхождение с Go: шестнадцатеричные числа и `_` в числах Rust не разбирает, клиент их не шлёт.
 pub const MAX_BODY_BYTES: usize = 250_000;
 pub const MAX_POINTS: usize = 10_000;
+// Свой лимит, у автора его нет: точки, задевающие больше чтений хранилища (градусы + куски, `read_count`),
+// получают тот же `413`. Точки вдоль трека в 5 000 км задевают ≈ 450 кусков, 10 000 точек вразброс —
+// до 20 000 чтений класса B R2 (security-аудит, п. 2; change limit-elevation-reads).
+pub const MAX_READS: usize = 512;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParseError {

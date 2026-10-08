@@ -44,13 +44,7 @@ pub trait Source {
 
 type ChunkPoints = BTreeMap<usize, Vec<(usize, Cell)>>;
 
-// Точки группируются по градусам и кускам: заголовок и каждый кусок читаются один раз на запрос,
-// куски распаковываются по одному, чтобы не держать в памяти wasm все сразу.
-pub async fn elevations<S: Source>(
-    source: &S,
-    points: &[(f64, f64)],
-) -> Result<Vec<Option<f64>>, Error> {
-    let mut result = vec![None; points.len()];
+fn group(points: &[(f64, f64)]) -> BTreeMap<String, ChunkPoints> {
     let mut degrees: BTreeMap<String, ChunkPoints> = BTreeMap::new();
     for (index, &(lat, lon)) in points.iter().enumerate() {
         let Some(cell) = grid::locate(lat, lon) else {
@@ -63,6 +57,25 @@ pub async fn elevations<S: Source>(
             .or_default()
             .push((index, cell));
     }
+    degrees
+}
+
+/// Сколько чтений хранилища сделает `elevations`: заголовок каждого задетого градуса и каждый задетый
+/// кусок. Считается до чтения и без учёта кеша адаптера — по нему ограничивается цена запроса
+/// (класс B R2 на чтение, `http::MAX_READS` и бюджет чтений).
+pub fn read_count(points: &[(f64, f64)]) -> usize {
+    let degrees = group(points);
+    degrees.len() + degrees.values().map(BTreeMap::len).sum::<usize>()
+}
+
+// Точки группируются по градусам и кускам: заголовок и каждый кусок читаются один раз на запрос,
+// куски распаковываются по одному, чтобы не держать в памяти wasm все сразу.
+pub async fn elevations<S: Source>(
+    source: &S,
+    points: &[(f64, f64)],
+) -> Result<Vec<Option<f64>>, Error> {
+    let mut result = vec![None; points.len()];
+    let degrees = group(points);
 
     let headers: Vec<(String, Option<Header>)> = stream::iter(degrees.keys().cloned())
         .map(|key| async move {

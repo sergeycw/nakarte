@@ -52,6 +52,7 @@ fn get(path: &str, source: &MemorySource) -> http::Response {
         &request,
         &["https://nakarte-routing.pages.dev"],
         source,
+        &http::Unlimited,
     ))
 }
 
@@ -297,6 +298,7 @@ fn answers_404_for_ocean_missing_and_bad_tiles() {
         },
         &[],
         &source,
+        &http::Unlimited,
     ));
     assert_eq!(post.status, 405);
 }
