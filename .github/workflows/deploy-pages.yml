@@ -26,6 +26,17 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: cp src/secrets.js.template src/secrets.js
+      # Ключ Maps JavaScript API для окна Street View (секрет заводит владелец). Ключ всё равно
+      # окажется в бандле: защищает его ограничение по referrer и API в Google Cloud, а не секретность.
+      # Без секрета остаётся заглушка шаблона, покрытие Street View рисуется и так.
+      - name: google maps key
+        run: |
+          if [ -n "$GOOGLE_MAPS_API_KEY" ]; then
+            sed -i "s/^    google: '[^']*',$/    google: '$GOOGLE_MAPS_API_KEY',/" src/secrets.js
+            grep -qF "google: '$GOOGLE_MAPS_API_KEY'," src/secrets.js
+          fi
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
       - run: yarnpkg
       - name: build brouter engine files
         run: |

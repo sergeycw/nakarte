@@ -7,12 +7,9 @@ import './style.css';
 import {Events} from './lib/common';
 import '~/lib/controls-styles/controls-styles.css';
 import {makeButtonWithBar} from '~/lib/leaflet.control.commons';
-import mapillaryProvider from './lib/mapillary';
-import wikimediaProvider from './lib/wikimedia';
 import {DragEvents} from '~/lib/leaflet.events.drag';
 import {onElementResize} from '~/lib/anyElementResizeEvent';
 import safeLocalStorage from '~/lib/safe-localstorage';
-import mapyczProvider from './lib/mapycz';
 
 const PanoMarker = L.Marker.extend({
     options: {
@@ -65,7 +62,6 @@ const PanoMarker = L.Marker.extend({
             return;
         }
         const className = {
-            slim: 'leaflet-panorama-marker-circle',
             normal: 'leaflet-panorama-marker-binocular'
         }[markerType];
         this.getIcon().className = className;
@@ -91,33 +87,6 @@ L.Control.Panoramas = L.Control.extend({
                     layerOptions: {zIndex: 10},
                     code: 'g',
                     selected: ko.observable(true),
-                    mapMarkerType: 'normal'
-                },
-                {
-                    name: 'wikimedia',
-                    title: 'Wikimedia commons',
-                    provider: wikimediaProvider,
-                    layerOptions: {opacity: 0.7, zIndex: 9},
-                    code: 'w',
-                    selected: ko.observable(false),
-                    mapMarkerType: 'slim'
-                },
-                {
-                    name: 'mapillary',
-                    title: 'Mapillary',
-                    provider: mapillaryProvider,
-                    layerOptions: {opacity: 0.7, zIndex: 8},
-                    code: 'm',
-                    selected: ko.observable(false),
-                    mapMarkerType: 'normal'
-                },
-                {
-                    name: 'mapycz',
-                    title: 'mapy.cz',
-                    provider: mapyczProvider,
-                    layerOptions: {opacity: 0.7, zIndex: 8},
-                    code: 'c',
-                    selected: ko.observable(false),
                     mapMarkerType: 'normal'
                 }
             ];

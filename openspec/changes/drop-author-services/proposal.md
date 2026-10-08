@@ -2,7 +2,7 @@
 
 ## Why
 
-После своих сервисов треков и высот и скрытых слоёв и панорам у клона остаются последние обращения к инфраструктуре автора: слои mapy.cz через `proxy.nakarte.me/mapy/…` (захардкожено в `src/layers.js`; панорама mapy.cz в клоне скрыта `hide-panorama-providers`) и ссылки в подписи карты на docs, news, donate и почту автора. Этот change закрывает автономию и фиксирует её проверяемым требованием. Делается последним, после остальных changes из `openspec/research/own-backends.md`.
+После своих сервисов треков и высот и скрытых слоёв и панорам у клона остаются последние обращения к инфраструктуре автора: слои mapy.cz через `proxy.nakarte.me/mapy/…` (захардкожено в `src/layers.js`; панорама mapy.cz удалена из кода `remove-panorama-providers`) и ссылки в подписи карты на docs, news, donate и почту автора. Этот change закрывает автономию и фиксирует её проверяемым требованием. Делается последним, после остальных changes из `openspec/research/own-backends.md`.
 
 ## What Changes
 
@@ -23,4 +23,4 @@
 
 - Изменения: `src/config-target/clone.js`, `src/config.js` или место подстановки адресов mapy.cz, `workers/cors-proxy/src/index.js` и его секреты, `openspec/specs/cors-proxy`.
 - Внешнее: ключ API mapy.cz заводит владелец.
-- Зависимость: архивировать после `add-track-storage`, `add-elevation-api`, `add-elevation-tiles`, `hide-map-data-layers`, `hide-panorama-providers`, `drop-author-scan-layers` — иначе требование «без запросов к `*.nakarte.me`» не выполняется.
+- Зависимость: архивировать после `add-track-storage`, `add-elevation-api`, `add-elevation-tiles`, `hide-map-data-layers`, `remove-panorama-providers`, `drop-author-scan-layers` — иначе требование «без запросов к `*.nakarte.me`» не выполняется.
