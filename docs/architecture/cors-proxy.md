@@ -1,5 +1,7 @@
 # CORS-прокси и Strava heatmap
 
+Уровень выше: [общая схема](README.md#общая-схема), блок ④.
+
 Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`urlViaCorsProxy` в [CORSProxy](../../src/lib/CORSProxy/index.js)), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам, поиск mapy.cz и раскрытие коротких ссылок, слои Wikimapia, Tsvetkov, Strava heatmap и растеризация слоёв с `noCors` для печати.
 
 Поведение — спека [cors-proxy](../../openspec/specs/cors-proxy/spec.md); лимиты — [protection.md](protection.md).
