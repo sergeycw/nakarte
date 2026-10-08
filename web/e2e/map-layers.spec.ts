@@ -1,7 +1,7 @@
 import { CORS_PROXY_URL, CUSTOM_TILE_HOST, expect, test } from './fixtures.ts';
 
-// Названия тестов — сценарии спеки map-layers (openspec/changes/add-web-map-layers/specs/map-layers/spec.md,
-// после архива — openspec/specs/map-layers/spec.md). Тайлы всех слоёв — фикстура (e2e/fixtures.ts).
+// Названия тестов — сценарии спеки map-layers (openspec/specs/map-layers/spec.md). Тайлы всех слоёв — фикстура
+// (e2e/fixtures.ts).
 
 const canvas = '.maplibregl-canvas';
 

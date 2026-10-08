@@ -2,9 +2,9 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Что переносится и что нет — [ресёрч, п. 3](../../research/new-ui.md#что-будет-со-слоями-из-srclayersjs) и [п. 6](../../research/new-ui.md#6-контракты-которые-новый-ui-держит); решения владельца — архивы [record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md); каркас — [add-web-skeleton](../archive/2026-10-08-add-web-skeleton/design.md) (Zustand ставится здесь, зум MapLibre = зум Leaflet − 1).
+Зачем — [proposal](proposal.md). Что переносится и что нет — [ресёрч, п. 3](../../../research/new-ui.md#что-будет-со-слоями-из-srclayersjs) и [п. 6](../../../research/new-ui.md#6-контракты-которые-новый-ui-держит); решения владельца — архивы [record-ui-decisions](../2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md); каркас — [add-web-skeleton](../2026-10-08-add-web-skeleton/design.md) (Zustand ставится здесь, зум MapLibre = зум Leaflet − 1).
 
-Справочник старого клиента: каталог [src/layers.js](../../../src/layers.js) (34 кода, группы `groupsDefs`, порядок наложения `titlesByOrder`), Google ([leaflet.layer.google](../../../src/lib/leaflet.layer.google/index.js), `zoom = 17 − z`), Bing ([leaflet.layer.bing](../../../src/lib/leaflet.layer.bing/index.js), адрес из `bing.com/maps/style`), retina ([RetinaTileLayer](../../../src/lib/leaflet.layer.RetinaTileLayer/index.js)), настройка списка, свои слои и `leafletLayersSettings` ([layers.configure](../../../src/lib/leaflet.control.layers.configure/index.js), [customLayer.js](../../../src/lib/leaflet.control.layers.configure/customLayer.js)), адрес ([hashState.js](../../../src/lib/leaflet.hashState/hashState.js), [Leaflet.Map.js](../../../src/lib/leaflet.hashState/Leaflet.Map.js), [Leaflet.Control.Layers.js](../../../src/lib/leaflet.hashState/Leaflet.Control.Layers.js)).
+Справочник старого клиента: каталог [src/layers.js](../../../../src/layers.js) (34 кода, группы `groupsDefs`, порядок наложения `titlesByOrder`), Google ([leaflet.layer.google](../../../../src/lib/leaflet.layer.google/index.js), `zoom = 17 − z`), Bing ([leaflet.layer.bing](../../../../src/lib/leaflet.layer.bing/index.js), адрес из `bing.com/maps/style`), retina ([RetinaTileLayer](../../../../src/lib/leaflet.layer.RetinaTileLayer/index.js)), настройка списка, свои слои и `leafletLayersSettings` ([layers.configure](../../../../src/lib/leaflet.control.layers.configure/index.js), [customLayer.js](../../../../src/lib/leaflet.control.layers.configure/customLayer.js)), адрес ([hashState.js](../../../../src/lib/leaflet.hashState/hashState.js), [Leaflet.Map.js](../../../../src/lib/leaflet.hashState/Leaflet.Map.js), [Leaflet.Control.Layers.js](../../../../src/lib/leaflet.hashState/Leaflet.Control.Layers.js)).
 
 Как старый клиент читает адрес: `#k=v1/v2&k2` — пары через `&`, значения через `/`, ключ без `=` — пустой список. `m=zoom/lat/lng`: целый зум 0–32, широта −90…90, иначе вид по умолчанию. `l=` — коды снизу вверх; если среди них нет ни одной подложки, `l=` игнорируется целиком; неизвестные коды пропускаются; код `-cs<base64>` — свой слой (URL-safe base64 от JSON полей формы), он добавляется в список.
 
@@ -38,7 +38,7 @@
 `web/src/layers/catalog.ts`: `buildCatalog({pixelRatio, language, corsProxyUrl})` возвращает список `LayerDef` (код, название, группа, порядок наложения, подложка или оверлей, «в списке по умолчанию», источник MapLibre: `tiles[]`, `tileSize`, `minzoom`/`maxzoom` тайлов, `bounds`, `scheme`, атрибуция, `minZoom` слоя, прозрачность). Функция, а не константа: retina-варианты (Strava `px=512`, swisstopo), `hl=` Google и адрес прокси зависят от среды, а e2e импортирует тот же каталог в Node, чтобы знать, какие тайлы подменять. Группы и порядок — `groupsDefs` и `titlesByOrder` старого клиента без удалённых слоёв.
 
 Перевод опций Leaflet в MapLibre (зум MapLibre на 1 меньше):
-- `maxNativeZoom` → `maxzoom` источника (нумерация тайлов та же), без него — 18: старая карта не поднималась выше `maxZoom: 18` ([App.js](../../../src/App.js)), и тайлов глубже слои не запрашивали. Глубже MapLibre растягивает последний зум.
+- `maxNativeZoom` → `maxzoom` источника (нумерация тайлов та же), без него — 18: старая карта не поднималась выше `maxZoom: 18` ([App.js](../../../../src/App.js)), и тайлов глубже слои не запрашивали. Глубже MapLibre растягивает последний зум.
 - `minZoom` слоя → `minzoom` слоя MapLibre = `minZoom − 1` (`Mt` 1, `Gbt` 11, `St` 9).
 - `bounds` → `bounds` источника `[west, south, east, north]`; у `Fmk` в старом коде опечатка `bound`, теперь прямоугольник применяется. `cutline` отбрасывается.
 - `{s}` → массив адресов по поддоменам (Leaflet по умолчанию `abc`, Google — `0123`); retina-пары → `{ratio}` (Thunderforest `@2x`) или выбор адреса по `pixelRatio` (Strava `px=256`/`px=512` с `maxzoom` 16/15, как `retinaOptionsOverrides`); swisstopo — `tileSize: 128`, `maxzoom` 17.
@@ -81,7 +81,7 @@
 - Поля формы и JSON кода — как у старого клиента (`name`, `url`, `tms`, `scaleDependent`, `maxZoom`, `isOverlay`, `isTop`), код `-cs` + URL-safe base64, тот же `\uXXXX` для не-ASCII: ссылка со своим слоем открывается в обоих клиентах, дубликаты ловятся сравнением кодов. `scaleDependent` нужен был только печати — в форме его нет, поле сохраняется из старых кодов как было.
 - Новое поле `corsProxy: true`, если слой идёт через прокси. Старый клиент неизвестное поле игнорирует (грузит слой `<img>` без CORS), новый оборачивает адрес в `config.corsProxyUrl`. Полем, а не готовым адресом прокси в `url`: ссылки не зависят от адреса прокси.
 - Шаблон адреса переводится в токены MapLibre: `{s}` → адреса `a`, `b`, `c`; `{r}` → `{ratio}`; `{-y}` → `{y}` + `scheme: 'tms'`; `tms` → `scheme: 'tms'`. Токены SAS Planet `{z_1}`, `{x_1024}`, `{y_1024}` MapLibre не умеет, а `transformRequest` получает уже готовый адрес без `z/x/y`; поддержка стоила бы своего протокола `addProtocol` с загрузкой тайлов своим кодом. Форма их отклоняет с сообщением, слой из старой ссылки с ними не добавляется. В реальных ссылках из issues апстрима их нет.
-- Проверка CORS при добавлении и сохранении: один тайл в центре текущего вида (зум ограничен `maxZoom` слоя) — `fetch` с `mode: 'cors'`. Не прошло — `fetch` с `mode: 'no-cors'`: если он вернул ответ, сервер жив, но без CORS — форма предлагает «Use proxy» (галочка `corsProxy`) и проверяет снова уже через прокси; если упал и он — «Tile server is not reachable», слой можно сохранить всё равно (тайла в центре может не быть). Прокси принимает любой хост ([cors-proxy](../../specs/cors-proxy/spec.md)), такие запросы считает меньший лимит `OTHER_RATE_LIMITER` — роли прокси не расширяются.
+- Проверка CORS при добавлении и сохранении: один тайл в центре текущего вида (зум ограничен `maxZoom` слоя) — `fetch` с `mode: 'cors'`. Не прошло — `fetch` с `mode: 'no-cors'`: если он вернул ответ, сервер жив, но без CORS — форма предлагает «Use proxy» (галочка `corsProxy`) и проверяет снова уже через прокси; если упал и он — «Tile server is not reachable», слой можно сохранить всё равно (тайла в центре может не быть). Прокси принимает любой хост ([cors-proxy](../../../specs/cors-proxy/spec.md)), такие запросы считает меньший лимит `OTHER_RATE_LIMITER` — роли прокси не расширяются.
 
 ### Тост ошибки тайлов — по слою, без `404` **[владелец]**
 
@@ -100,13 +100,13 @@
 
 ### Память при нескольких слоях
 
-Слоёв на карте теперь больше одного (подложка + оверлеи + отмывка), поэтому — замер `phys_footprint` (сумма по дереву процессов Chromium, `footprint --pid`, не RSS) на эмуляции Pixel 7, как в архиве [spike-engine-in-worker](../archive/2026-10-08-spike-engine-in-worker/design.md#память-вкладки): только OSM против OSM + `Wh` + `Hs`, после загрузки и после 6 прокруток с зумом, реальные тайлы (скрипт вне репозитория, `vite preview`). Итог — в этот design, раздел «Проверки».
+Слоёв на карте теперь больше одного (подложка + оверлеи + отмывка), поэтому — замер `phys_footprint` (сумма по дереву процессов Chromium, `footprint --pid`, не RSS) на эмуляции Pixel 7, как в архиве [spike-engine-in-worker](../2026-10-08-spike-engine-in-worker/design.md#память-вкладки): только OSM против OSM + `Wh` + `Hs`, после загрузки и после 6 прокруток с зумом, реальные тайлы (скрипт вне репозитория, `vite preview`). Итог — в этот design, раздел «Проверки».
 
 ## Проверки
 
 ### Память при нескольких слоях
 
-2026-10-08, Playwright 1.64, Chromium 156 headless, профиль `Pixel 7` (412×839, DPR 2.625), `vite preview` сборки клона, реальные тайлы, Тбилиси `m=12/41.70000/44.79000`. `phys_footprint` — сумма `footprint` по дереву процессов браузера (`launchServer`, `pgrep -P`), как в архиве [spike-engine-in-worker](../archive/2026-10-08-spike-engine-in-worker/design.md#память-вкладки); «после прокруток» — 6 циклов «колесо зума + перетаскивание», каждый до `networkidle`. Скрипт вне репозитория, два прогона.
+2026-10-08, Playwright 1.64, Chromium 156 headless, профиль `Pixel 7` (412×839, DPR 2.625), `vite preview` сборки клона, реальные тайлы, Тбилиси `m=12/41.70000/44.79000`. `phys_footprint` — сумма `footprint` по дереву процессов браузера (`launchServer`, `pgrep -P`), как в архиве [spike-engine-in-worker](../2026-10-08-spike-engine-in-worker/design.md#память-вкладки); «после прокруток» — 6 циклов «колесо зума + перетаскивание», каждый до `networkidle`. Скрипт вне репозитория, два прогона.
 
 | слои | браузер без страницы | после загрузки | после 6 прокруток |
 |---|---|---|---|
@@ -114,6 +114,15 @@
 | `O` + `Wh` + `Hs` | 44 МБ | 248 МБ | 287–290 МБ |
 
 Два оверлея (растр Waymarked и `raster-dem` с `hillshade`) добавляют ≈ 47 МБ после загрузки и ≈ 65 МБ после прокруток. Карта с одной подложкой — в пределах замера каркаса (241–242 МБ на том же профиле). С движком (+≈ 0.3 ГБ, архив spike-engine-in-worker) вкладка с тремя слоями — ≈ 0.6 ГБ; ограничивать кеш тайлов или `pixelRatio` пока не нужно. Ограничения прежние: SwiftShader вместо GPU телефона, эмуляция не ограничивает память.
+
+### На проде
+
+После merge PR sergeycw/nakarte#99 прогон `deploy pages` выкатил Pages, jobs `pages` и `smoke` зелёные. 2026-10-08, `https://nakarte-routing.pages.dev/next/`, браузерная панель Claude:
+
+- Тайлы всех 31 слоя: со страницы `/next/` `fetch` в режиме `cors` (как WebGL) по образцовому тайлу каждого кода (те же `z/x/y`, что в `catalog.test.ts`) — 30 ответов `200` с картинкой, у Strava winter на тайле `8/151/87` (Украина) — `404`: там нет данных, на `8/133/89` и `10/533/358` (Альпы) — `200`. Strava и `Mt` идут через прокси клона, остальные — напрямую.
+- Старая ссылка `#m=12/41.93638/77.54768&l=O/Mt/Wp&p=…`: открывается OpenStreetMap с Tsvetkov поверх, `Wp` отброшен, в адресе `l=O/Mt`, `p=` остался на месте.
+- `leafletLayersSettings` со старыми кодами (`T`, `Wp`, скрытый `Co`, `Otm`) при пустом своём ключе: CyclOSM скрыт, OpenTopoMap в списке, свой ключ записан с `listed` из старых настроек; ошибок в консоли нет. Настройки вкладки до проверки сохранены и восстановлены.
+- Переход по одному `#` (без перезагрузки) меняет вид и слои; отмывка поверх OpenTopoMap — тени без засветки.
 
 ## Risks / Trade-offs
 
