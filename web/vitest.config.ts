@@ -1,8 +1,8 @@
 import { playwright } from '@vitest/browser-playwright';
-import { defineConfig, mergeConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import viteConfig from './vite.config.ts';
 
-// Две части: unit в Node (*.test.ts) и компоненты на настоящей карте в Chromium (*.browser.test.tsx).
+// Две части: unit в Node (*.test.ts) и то, чему нужен браузер, — в Chromium (*.browser.test.ts[x]).
 // В сеть тесты не ходят: тайлы — фикстура из src/test/.
 export default mergeConfig(
     viteConfig,
@@ -11,7 +11,12 @@ export default mergeConfig(
             projects: [
                 {
                     extends: true,
-                    test: { name: 'unit', environment: 'node', include: ['src/**/*.test.ts'] },
+                    test: {
+                        name: 'unit',
+                        environment: 'node',
+                        include: ['src/**/*.test.ts', 'vite/**/*.test.ts'],
+                        exclude: [...configDefaults.exclude, '**/*.browser.test.*'],
+                    },
                 },
                 {
                     extends: true,
