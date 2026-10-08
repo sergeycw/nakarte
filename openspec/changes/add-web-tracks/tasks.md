@@ -10,7 +10,7 @@
 - [x] 2.2 Фикстуры `web/src/tracks/fixtures/`: GPX-прототипы из `test/track_load_data/files/`, новые KML, KMZ, GeoJSON, PLT, RTE, WPT (Windows-1251), ZIP (CP866), GPX в Windows-1251, испорченные варианты; ожидания для форматов старого клиента — JSON результата его парсеров на тех же файлах (скрипт вне репозитория); проверка: файлы на месте, источник каждого описан в `fixtures/README.md`
 - [x] 2.3 Парсеры `web/src/tracks/parsers/` (GPX, KML, KMZ, GeoJSON, Ozi, ZIP) и `parseGeoFile`; unit-тест `parsers.test.ts` по всем фикстурам (сценарии «Открыть GPX», «Архив с несколькими файлами», «Кириллица в Windows-1251», «Неизвестный формат», «Испорченный трек») и browser-тест `parsers.browser.test.ts` на тех же фикстурах в Chromium; проверка: `npm test` зелёный
 - [x] 2.4 `web/src/tracks/nktk.ts`: разбор версий 0–4, запись версии 4, последовательность через `/`; unit-тест на `nktk` и `nktj` из `old-links.txt`, на строках старого `saveNktk` версий 1–4 и на круге запись → чтение; проверка: `npm test` зелёный
-- [ ] 2.5 `web/src/tracks/export.ts`: GPX, KML, ZIP, имена файлов; unit-тест: экспорт → парсер → тот же трек («Сохранить в GPX»), «Все треки в ZIP», пустой трек, экранирование XML, деление у 180°; проверка: `npm test` зелёный
+- [x] 2.5 `web/src/tracks/export.ts`: GPX, KML, ZIP, имена файлов; unit-тест: экспорт → парсер → тот же трек («Сохранить в GPX»), «Все треки в ZIP», пустой трек, экранирование XML, деление у 180°; проверка: `npm test` зелёный
 
 ## 3. Ссылки и импорт
 
