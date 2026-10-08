@@ -14,7 +14,7 @@ export function isTrackParam(key: string): key is TrackParam {
 }
 
 async function fromStorage(keys: readonly string[], sources: TrackSources): Promise<GeoData[]> {
-    // запросы к хранилищу — без credentials: Worker отражает Origin и так (design add-web-tracks, «Ссылки»)
+    // запросы к хранилищу — без credentials: Worker отражает Origin и так (design add-web-tracks, «`nktk` и ссылки старого клиента»)
     const responses = await Promise.all(
         keys.map((key) => fetchOrNull(sources, `${sources.tracksStorageServer}/track/${key}`)),
     );

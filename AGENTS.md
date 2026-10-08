@@ -50,6 +50,8 @@
 
 Движок прокладки — `web/src/engine/` (решения и замеры — архив change `spike-engine-in-worker`): синглтон `engine.ts` с очередью, CheerpJ в Web Worker, запасной путь — на главном потоке. Стенд замеров — `/next/engine-bench.html` (параметры — шапка `src/bench/engine-bench.ts`), выкатывается и на прод. Dev-сервер и `vite preview` отдают `/brouter-wasm/` с Range (`vite/engine-files.ts`) из `experiments/wasm/cheerpj/` после `build.sh` и `brouter/segments4/`; `/tiles/` для `npm run dev:clone` проксируется на `nakarte-tiles-worker` (8788).
 
+Треки — `web/src/tracks/` (решения и замеры — архив change `add-web-tracks`, поведение — спеки `tracks` и `track-files`): парсеры файлов — чистые функции от байтов в `parsers/`, строки `nktk` — `nktk.ts`, параметры адреса `nktk`/`nktl`/`nktu`/`nktp`/`nktj` — `links.ts`, импорт по ссылке — `import-url.ts`, ссылка `nktl` — `share.ts`, действия списка без React — `actions.ts`, слои треков на карте — `style.ts`. Откуда фикстуры и эталоны старого клиента — `src/tracks/fixtures/README.md`.
+
 Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.ts[x]`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы любых слоёв — фикстура `src/test/tile.png`: в browser mode через проп `transformRequest` у `App` (`src/test/tiles.ts`), в e2e — по регуляркам из того же каталога (`e2e/fixtures.ts`); запрос мимо `localhost` и подменённых тайлов валит тест. Названия тестов совпадают со сценариями спеки.
 
 Подвохи:
@@ -60,13 +62,19 @@
 - Browser-тест рендерит `App` вместе с `index.css`: без стилей контейнер карты растёт бесконечно (`ResizeObserver loop`), и карта не загружается.
 - `shadcn add` берёт алиас `@/*` из корневого `tsconfig.json`; тема только светлая — блок `.dark` из `index.css` после `shadcn` удалять.
 - Провайдеры тайлов меняют адреса: `slazav.xyz` и `static.mapy.hiking.sk` отвечают редиректом без CORS-заголовка, а WebGL требует CORS на каждом ответе цепочки — в каталоге конечные адреса. Проверка — `curl -IL -H 'Origin: https://nakarte-routing.pages.dev'`.
-- `ALLOWED_ORIGINS` прокси не включает 8769 и 4173: Strava, `Mt` и свои слои через прокси локально не грузятся, проверять на проде.
+- `ALLOWED_ORIGINS` прокси и хранилища треков не включают 8769 и 4173: Strava, `Mt`, свои слои и импорт треков по ссылке через прокси, «Copy link» и `nktl=` локально не работают — тесты на заглушках, живьём проверять на проде.
 - CSS MapLibre вне `@layer` перебивает и утилиты Tailwind: свойства элементов MapLibre (`.maplibregl-ctrl-*`) задавать с `!` (`top-12!` в `BaseMap.tsx`).
 - `@custom-variant dark` в `index.css` нужен, хотя тёмной темы нет: без него классы `dark:` компонентов shadcn включаются темой системы.
 - Dev-сервер Vitest на любой несуществующий путь отвечает `200 text/html`: тайл с нужным статусом — `/__status__/<код>/…` (плагин в `vitest.config.ts`). MapLibre на `404` растра события `error` не шлёт.
 - Новую зависимость UI, которую импортируют browser-тесты, добавлять в `optimizeDeps.include` browser-проекта (`vitest.config.ts`): иначе Vite находит её на ходу, перезагружает тест, и вторая копия React падает с `useContext of null`.
 - `route.fulfill` Playwright браузер не проверяет на CORS: сервер без CORS в e2e — `abort` запроса с заголовком `Origin` (его шлёт только CORS-запрос). В browser mode `getByText` не находит текст подписи карты MapLibre (`<details>`) — искать `getByRole('link')`; `toHaveTextContent` со строкой сравнивает текст целиком.
 - Pages без `build/next/` отвечают на `/next/` корневым `index.html` старого клиента с кодом `200`: проверять заголовок `nakarte routing`, а не статус.
+- Парсеры треков берут глобальный `DOMParser`; в unit-проекте Node его ставит `src/test/node-dom.ts` из `@xmldom/xmldom` (ошибка разбора — исключение, как `parsererror` браузера). Сценарии парсеров — одна таблица `src/tracks/parsers/cases.ts`, она же гоняется в Chromium: расхождение двух разборщиков ловится там.
+- Двоичные фикстуры импортируются `?bytes` (плагин `fixtureBytes` в `vitest.config.ts`): `?raw` читает файл как UTF-8 и портит байты. Фикстуры треков — `-text` в `.gitattributes`: `core.autocrlf=input` превращал CRLF файлов Ozi в LF.
+- Подписи точек треков MapLibre 6 рисует сам, без `glyphs` в стиле (шрифт из `text-font` — CSS-семейство). Добавить `glyphs` — подписи пойдут в сеть за PBF.
+- Параметры треков стираются из адреса сразу после чтения (`src/state/sync.ts`): в тестах «прочие параметры остаются на местах» брать `p=`, а не `nktl=`.
+- e2e собирается как Node-модуль (`nodenext`) и не импортирует `src/tracks/*` (относительные импорты без расширений): готовые строки `nktk` — константой в тесте.
+- «Copy link» в browser-тестах — через проп `writeClipboard` у `App`; в e2e буфер обмена работает после `context.grantPermissions(['clipboard-read', 'clipboard-write'])`.
 - Воркер движка классический (загрузчик CheerpJ — только `importScripts`), а Vite в dev отдаёт воркер без сборки: любой `import` в нём падает, после `import type` Vite оставляет `export {}`. Поэтому в `engine.worker.ts` импортов нет, типы сообщений — глобальные (`src/engine/protocol.d.ts`), обвязка CheerpJ повторена в `cheerpj-router.ts`: правка одной — правка обеих.
 
 ## Где код роутинга

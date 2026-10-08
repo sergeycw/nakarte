@@ -19,7 +19,7 @@ export interface TrackActionsDeps {
     sources: TrackSources;
     notify: Notify;
     location: () => { origin: string; pathname: string; hash: string };
-    // запись в буфер обмена; получает промис ссылки сразу, в обработчике клика (design add-web-tracks, «Ссылка»)
+    // запись в буфер обмена; получает промис ссылки сразу, в обработчике клика (design add-web-tracks, «Ссылка — после ответа хранилища»)
     writeClipboard?: (text: Promise<string>) => Promise<void>;
 }
 
