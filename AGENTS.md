@@ -10,6 +10,7 @@
 - `functions/` — Pages Functions клона: `tiles` и `brouter-wasm` (Range для файлов движка).
 - `scripts/` — сборка (`build.js`), тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
 - `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter.
+- `docs/architecture/` — схема системы: контекст, контейнеры, диаграммы по областям, реестр решений.
 - `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `deploy-pages.yml` (весь клон по push в `master`), ручные и плановые загрузки данных, `strava heatmap check`.
 
 ## Где что записано
@@ -17,6 +18,7 @@
 Каждый факт — в одном месте, из остальных — ссылка:
 - поведение — `openspec/specs/`;
 - решения и их причины — `openspec/changes/archive/` (не правится);
+- структура и связи (кто куда ходит) и реестр решений со ссылками на причины — `docs/architecture/`; поменял связь в коде — поправь диаграмму;
 - идеи, отложенное и риски — `openspec/backlog.md`;
 - ресёрч под будущие changes — `openspec/research/`; когда его changes сделаны, документ удаляется;
 - запуск, окружение, подвохи и карта репозитория — этот файл; `README.md` — только вход для человека.

@@ -21,4 +21,5 @@ The map opens at http://localhost:8765. Routing tiles and everything else about 
 ## Docs
 
 - [AGENTS.md](AGENTS.md): setup, environment, pitfalls and a map of the repository (in Russian).
+- [docs/architecture/](docs/architecture/README.md): architecture diagrams from the system context down to each area, and a registry of technical decisions (in Russian).
 - [openspec/](openspec/): behaviour specs (`specs/`), plans and decisions (`changes/`), backlog (`backlog.md`).
