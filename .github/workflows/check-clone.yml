@@ -1,0 +1,27 @@
+name: check clone
+
+# Сборка клона и проверка бандла на адреса автора до merge: деплой проверяет то же самое,
+# но уже после него (openspec/specs/clone-deploy, «Бандл без адресов автора»). Файлы движка
+# здесь не собираются: проверке бандла они не нужны.
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'openspec/**'
+      - '**.md'
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: cp src/secrets.js.template src/secrets.js
+      - run: yarnpkg
+      - run: npm run build
+        env:
+          NAKARTE_TARGET: clone
+      - run: node scripts/check-no-author-hosts.mjs build
