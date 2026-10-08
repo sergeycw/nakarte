@@ -15,6 +15,7 @@ flowchart LR
     check["check (main.yml)<br/>lint, build default, karma"]
     cproxy["check cors proxy"]
     ctracks["check tracks"]
+    ctiles["check tiles"]
     celev["check elevation"]
     deploy["deploy pages"]
 
@@ -29,8 +30,9 @@ flowchart LR
     cron1 --> check
     pr -->|"paths: workers/cors-proxy/**"| cproxy
     pr -->|"paths: workers/tracks/**"| ctracks
+    pr -->|"paths: workers/tiles/**, functions/**"| ctiles
     pr -->|"paths: workers/elevation/**"| celev
-    push -->|"те же paths"| cproxy & ctracks & celev
+    push -->|"те же paths"| cproxy & ctracks & ctiles & celev
     push --> deploy
     ghcr -->|"docker create, build.sh:<br/>jar и профили движка"| deploy
     deploy -->|"wrangler pages deploy build"| pages
@@ -82,7 +84,7 @@ flowchart LR
 | Workflow | Когда | Что делает | Куда |
 |---|---|---|---|
 | `check` ([main.yml](../../.github/workflows/main.yml)) | PR, push в `master`, ежедневно 03:15 UTC | lint, сборка default, karma в Firefox 52 ESR, Firefox latest, Chrome | — |
-| `check cors proxy`, `check tracks` | PR и push с изменениями в каталоге сервиса | `vitest` в `workerd` | — |
+| `check cors proxy`, `check tracks`, `check tiles` | PR и push с изменениями в каталоге сервиса (`check tiles` — ещё и в `functions/`) | `vitest` в `workerd` | — |
 | `check elevation` | PR и push с изменениями в `workers/elevation/` | `cargo fmt`, `clippy` (и под wasm32), `cargo test`, `npm test` в `workerd` | — |
 | `deploy pages` | push в `master`, вручную | сборка клона и деплой | Pages, три Worker'а |
 | `brouter tiles sync` | понедельник 04:00 UTC, вручную | инкрементальная синхронизация тайлов | R2 `nakarte-tiles` |
@@ -106,4 +108,4 @@ flowchart LR
 
 ## Сверено по
 
-[.github/workflows/](../../.github/workflows/) (все девять файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+[.github/workflows/](../../.github/workflows/) (все десять файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).

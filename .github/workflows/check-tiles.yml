@@ -1,0 +1,30 @@
+name: check tiles
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'workers/tiles/**'
+      - 'functions/**'
+      - '.github/workflows/check-tiles.yml'
+  pull_request:
+    paths:
+      - 'workers/tiles/**'
+      - 'functions/**'
+      - '.github/workflows/check-tiles.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/tiles
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: workers/tiles/package-lock.json
+      - run: npm ci
+      - run: npm test
