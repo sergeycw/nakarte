@@ -15,17 +15,25 @@ export function buildStyle(layers: readonly LayerDef[]): StyleSpecification {
     };
 }
 
+// multidirectional — рекомендация ресёрча new-ui.md («Подложка по умолчанию»): тени с нескольких сторон читаются на
+// любой подложке. Подсветка склонов прозрачная: белая по умолчанию высветляет растровую подложку так, что подписи и
+// дороги OSM почти не видны (замечание владельца 2026-10-08); остаются только тени.
+export const HILLSHADE_PAINT = {
+    'hillshade-method': 'multidirectional',
+    'hillshade-highlight-color': 'rgba(255, 255, 255, 0)',
+    'hillshade-shadow-color': 'rgba(0, 0, 0, 0.4)',
+    'hillshade-accent-color': 'rgba(0, 0, 0, 0.2)',
+} as const;
+
 function layerSpec(layer: LayerDef): LayerSpecification {
     const zoom = layer.minZoom === undefined ? {} : { minzoom: layer.minZoom };
     if (layer.source.type === 'raster-dem') {
-        // multidirectional — рекомендация ресёрча new-ui.md («Подложка по умолчанию»): тени с нескольких сторон
-        // читаются на любой подложке, а не только против северо-запада
         return {
             id: layer.code,
             type: 'hillshade',
             source: layer.code,
             ...zoom,
-            paint: { 'hillshade-method': 'multidirectional' },
+            paint: HILLSHADE_PAINT,
         };
     }
     return {

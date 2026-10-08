@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { buildCatalog, type LayerDef } from './catalog';
-import { buildStyle } from './style';
+import { buildStyle, HILLSHADE_PAINT } from './style';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 
@@ -21,8 +21,10 @@ test('отмывка — слой hillshade поверх raster-dem', () => {
         id: 'Hs',
         type: 'hillshade',
         source: 'Hs',
-        paint: { 'hillshade-method': 'multidirectional' },
+        paint: HILLSHADE_PAINT,
     });
+    // без белой подсветки: она высветляет подложку
+    expect(HILLSHADE_PAINT['hillshade-highlight-color']).toMatch(/, 0\)$/);
 });
 
 test('прозрачность Strava и минимальный зум региональных слоёв', () => {
