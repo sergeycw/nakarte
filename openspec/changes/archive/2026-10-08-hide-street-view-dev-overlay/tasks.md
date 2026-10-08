@@ -7,7 +7,7 @@
 
 ## 2. Прод
 
-- [ ] 2.1 На `https://nakarte-routing.pages.dev` окно Street View без водяного знака и негатива; проверка: две инверсии, знак скрыт
+- [x] 2.1 На `https://nakarte-routing.pages.dev` окно Street View без водяного знака и негатива; проверка: две инверсии, знак скрыт
 
 ## Workflow follow-up
 
