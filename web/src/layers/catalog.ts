@@ -21,7 +21,6 @@ export interface LayerDef {
     isOverlay: boolean;
     // показывать в переключателе без настроек пользователя (isDefault старого клиента)
     isDefault: boolean;
-    hotkey: string | null;
     source: LayerSource;
     // зум карты MapLibre, с которого слой виден
     minZoom?: number;
@@ -113,7 +112,7 @@ const TERRAIN_ATTRIBUTION =
 // [west, south, east, north]; значения — bounds старого каталога ([[south, west], [north, east]])
 const NORWAY_BOUNDS: [number, number, number, number] = [4.19674, 57.81324, 31.56094, 71.27961];
 
-type Def = Omit<LayerDef, 'order' | 'hotkey'> & { hotkey?: string };
+type Def = Omit<LayerDef, 'order'>;
 
 function raster(
     tiles: string[],
@@ -255,7 +254,6 @@ function definitions(env: CatalogEnv): Def[] {
             group: 'OpenStreetMap alternatives',
             isOverlay: false,
             isDefault: false,
-            hotkey: 'V',
             source: raster(
                 subdomains('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'),
                 '<a href="https://opentopomap.org/">OpenTopoMap</a>',
@@ -496,8 +494,6 @@ export function buildCatalog(env: CatalogEnv): LayerDef[] {
         if (!order) {
             throw new Error(`Layer ${def.code} has no place in ORDER`);
         }
-        // хоткей по умолчанию — однобуквенный код или свой (getLayerDefaultHotkey старого клиента)
-        const hotkey = def.hotkey ?? (def.code.length === 1 ? def.code : null);
-        return { ...def, order, hotkey };
+        return { ...def, order };
     });
 }

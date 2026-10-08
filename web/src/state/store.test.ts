@@ -60,14 +60,13 @@ describe('свои слои', () => {
         expect(s.getState().selection).toEqual({ base: code, overlays: [] });
     });
 
-    test('изменение: новый код, включённый слой остаётся включённым, хоткей переезжает', () => {
+    test('изменение: новый код, включённый слой остаётся включённым, видимость в списке переезжает', () => {
         const s = store();
         const code = s.getState().addCustomLayer(OVERLAY);
-        s.getState().updateSettings({ hotkeys: { [code]: '5' } });
         const next = s.getState().replaceCustomLayer(code, { ...OVERLAY, corsProxy: true });
         expect(next).not.toBe(code);
         expect(s.getState().settings.custom).toEqual([next]);
-        expect(s.getState().settings.hotkeys).toEqual({ [next]: '5' });
+        expect(s.getState().settings.listed).toEqual({ [next]: true });
         expect(s.getState().selection.overlays).toEqual([next]);
         expect(s.getState().layers.get(next)?.source.tiles?.[0]).toMatch(/^https:\/\/proxy\.test\/https\//);
     });

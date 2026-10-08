@@ -9,8 +9,7 @@ import { ConfigureLayersDialog } from './ConfigureLayersDialog';
 import { CustomLayerDialog } from './CustomLayerDialog';
 import type { LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
-import { hotkeyOf, isListed } from './settings';
-import { useHotkeysEnabled, useLayerHotkeys } from './useLayerHotkeys';
+import { isListed } from './settings';
 
 // Переключатель слоёв справа сверху (design add-web-map-layers, «Переключатель»): свёрнут в кнопку на всех
 // экранах — развёрнутый список старого клиента на телефоне закрывал пол-экрана. Подложки — радиокнопками,
@@ -24,27 +23,16 @@ function LayerHint({ layer }: { layer: LayerDef }) {
     return <span className="text-muted-foreground text-xs">zoom ≥ {layer.minZoom + 1}</span>;
 }
 
-function Hotkey({ value }: { value: string | null }) {
-    if (!value) {
-        return null;
-    }
-    return (
-        <kbd className="ml-auto rounded border border-border px-1 font-mono text-muted-foreground text-xs">{value}</kbd>
-    );
-}
-
 export function LayerSwitcher() {
     const layers = useAppStore((state) => state.layers);
     const settings = useAppStore((state) => state.settings);
     const selection = useAppStore((state) => state.selection);
     const selectBase = useAppStore((state) => state.selectBase);
     const toggleOverlay = useAppStore((state) => state.toggleOverlay);
-    const hotkeysEnabled = useHotkeysEnabled();
     const [open, setOpen] = useState(false);
     const [configOpen, setConfigOpen] = useState(false);
     // null — диалог закрыт, '' — новый слой, код — правка своего слоя
     const [customCode, setCustomCode] = useState<string | null>(null);
-    useLayerHotkeys(hotkeysEnabled && !configOpen && customCode === null);
 
     const listed = useMemo(() => {
         const visible = [...layers.values()].filter(
@@ -63,7 +51,6 @@ export function LayerSwitcher() {
                     <span>{layer.title}</span>
                     <LayerHint layer={layer} />
                 </span>
-                {hotkeysEnabled && <Hotkey value={hotkeyOf(layer, settings)} />}
             </>
         );
         const labelClass = 'flex min-h-7 flex-1 cursor-pointer items-center gap-2';
@@ -153,7 +140,7 @@ export function LayerSwitcher() {
                     </div>
                 </PopoverContent>
             </Popover>
-            <ConfigureLayersDialog open={configOpen} onOpenChange={setConfigOpen} hotkeysEnabled={hotkeysEnabled} />
+            <ConfigureLayersDialog open={configOpen} onOpenChange={setConfigOpen} />
             {customCode !== null && <CustomLayerDialog code={customCode || null} onClose={() => setCustomCode(null)} />}
         </div>
     );

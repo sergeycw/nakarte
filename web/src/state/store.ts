@@ -24,7 +24,7 @@ export interface AppState {
     selectBase(code: string): void;
     toggleOverlay(code: string): void;
     applyLayersParam(parsed: ParsedLayers): void;
-    updateSettings(patch: Partial<Pick<LayerSettings, 'listed' | 'hotkeys'>>): void;
+    updateSettings(patch: Partial<Pick<LayerSettings, 'listed'>>): void;
     // возвращают код слоя
     addCustomLayer(fields: CustomLayerFields): string;
     replaceCustomLayer(code: string, fields: CustomLayerFields): string;
@@ -103,9 +103,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
                 const { settings } = get();
                 const listed = { ...settings.listed };
                 for (const code of [selection.base, ...selection.overlays]) {
-                    if (code in listed) {
-                        listed[code] = true;
-                    }
+                    listed[code] = true;
                 }
                 const merged = [...settings.custom, ...custom.filter((code) => !settings.custom.includes(code))];
                 set(withCustom({ ...settings, listed, custom: merged }, selection));
@@ -151,7 +149,6 @@ export function createAppStore(init: AppStoreInit): AppStore {
                             ...settings,
                             custom: [...new Set(custom)],
                             listed: renameKey(settings.listed, oldCode, code),
-                            hotkeys: renameKey(settings.hotkeys, oldCode, code),
                         },
                         next,
                     ),
@@ -162,13 +159,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();
                 const { [code]: _listed, ...listed } = settings.listed;
-                const { [code]: _hotkey, ...hotkeys } = settings.hotkeys;
-                set(
-                    withCustom(
-                        { ...settings, listed, hotkeys, custom: settings.custom.filter((c) => c !== code) },
-                        selection,
-                    ),
-                );
+                set(withCustom({ ...settings, listed, custom: settings.custom.filter((c) => c !== code) }, selection));
             },
         };
     });

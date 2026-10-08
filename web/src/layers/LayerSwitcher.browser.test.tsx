@@ -28,7 +28,7 @@ async function openSwitcher() {
 }
 
 function storedListed(listed: Record<string, boolean>) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, listed, hotkeys: {}, custom: [], selection: null }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, listed, custom: [], selection: null }));
 }
 
 describe('Подложка и оверлеи', () => {
@@ -109,39 +109,6 @@ describe('Настройка списка слоёв', () => {
         switcher = await openSwitcher();
         await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
         expect(switcher.getByText('CyclOSM').elements()).toHaveLength(0);
-    });
-
-    test('занятый хоткей не назначается', async () => {
-        await renderApp(tiles);
-        const switcher = await openSwitcher();
-        await switcher.getByText('Configure layers').click();
-        const dialog = page.getByRole('dialog');
-        await dialog.getByRole('button', { name: 'Hotkey for CyclOSM' }).click();
-        await userEvent.keyboard('e');
-        await expect.element(dialog.getByText('Hotkey "E" is already used by layer "ESRI Satellite"')).toBeVisible();
-        await userEvent.keyboard('7');
-        await expect.element(dialog.getByRole('button', { name: 'Hotkey for CyclOSM' })).toHaveTextContent('7');
-    });
-});
-
-describe('Хоткеи слоёв', () => {
-    test('Хоткей слоя', async () => {
-        const { map } = await renderApp(tiles);
-        await userEvent.keyboard('e');
-        await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
-        await userEvent.keyboard('o');
-        await expect.poll(() => mapLayerIds(map)).toEqual(['O']);
-    });
-
-    test('Хоткей в поле ввода', async () => {
-        const { map } = await renderApp(tiles);
-        const input = document.createElement('input');
-        document.body.append(input);
-        input.focus();
-        await userEvent.keyboard('e');
-        expect(input.value).toBe('e');
-        expect(mapLayerIds(map)).toEqual(['O']);
-        input.remove();
     });
 });
 

@@ -2,15 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { memoryStorage } from '@/test/memory-storage';
 import { buildCatalog } from './catalog';
 import { serializeCustomLayer } from './custom';
-import {
-    EMPTY_SETTINGS,
-    hotkeyOf,
-    isListed,
-    LEGACY_STORAGE_KEY,
-    loadSettings,
-    STORAGE_KEY,
-    saveSettings,
-} from './settings';
+import { EMPTY_SETTINGS, isListed, LEGACY_STORAGE_KEY, loadSettings, STORAGE_KEY, saveSettings } from './settings';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 const layer = (code: string) => catalog.find((item) => item.code === code) ?? catalog[0];
@@ -33,6 +25,7 @@ describe('Настройки старого клиента', () => {
                 { code: 'F', isCustom: false, enabled: true },
                 { code: 'Wp', isCustom: false, enabled: true, hotkey: 'W' },
                 { code: 'Co', isCustom: false, enabled: false, hotkey: null },
+                // хоткеи старого клиента не переносятся: в новом приложении их нет
                 { code: 'Otm', isCustom: false, enabled: true, hotkey: 'T' },
                 { code: OLD_CUSTOM, isCustom: true, enabled: true, hotkey: '5' },
             ],
@@ -40,7 +33,7 @@ describe('Настройки старого клиента', () => {
         const storage = memoryStorage({ [LEGACY_STORAGE_KEY]: JSON.stringify(legacy) });
         const settings = loadSettings(storage, catalog);
         expect(settings.listed).toEqual({ Co: false, Otm: true, [OLD_CUSTOM]: true });
-        expect(settings.hotkeys).toEqual({ Otm: 'T', [OLD_CUSTOM]: '5' });
+        expect(settings).not.toHaveProperty('hotkeys');
         expect(settings.custom).toEqual([OLD_CUSTOM]);
         expect(isListed(layer('Co'), settings)).toBe(false);
         // старый ключ не трогается: старый клиент живёт на том же origin
@@ -92,7 +85,6 @@ describe('Выбор переживает перезагрузку', () => {
         const storage = memoryStorage();
         const settings = {
             listed: { Co: false },
-            hotkeys: { O: null, Otm: '7' },
             custom: [OLD_CUSTOM],
             selection: { base: 'E', overlays: ['Hs'] },
         };
@@ -108,11 +100,5 @@ describe('умолчания каталога', () => {
         expect(isListed(layer('Otm'), EMPTY_SETTINGS)).toBe(false);
         expect(isListed(layer('Hs'), EMPTY_SETTINGS)).toBe(true);
         expect(isListed(layer('Otm'), { ...EMPTY_SETTINGS, listed: { Otm: true } })).toBe(true);
-    });
-
-    test('хоткей: умолчание, свой, убранный', () => {
-        expect(hotkeyOf(layer('Otm'), EMPTY_SETTINGS)).toBe('V');
-        expect(hotkeyOf(layer('Otm'), { ...EMPTY_SETTINGS, hotkeys: { Otm: '7' } })).toBe('7');
-        expect(hotkeyOf(layer('O'), { ...EMPTY_SETTINGS, hotkeys: { O: null } })).toBeNull();
     });
 });

@@ -17,8 +17,6 @@ export interface LayerSettings {
     // показывать ли слой в переключателе; кода нет — умолчание каталога (isDefault), так новый слой по умолчанию
     // появится и у тех, у кого настройки уже сохранены (как у старого клиента)
     listed: Record<string, boolean>;
-    // кода нет — хоткей каталога; null — пользователь хоткей убрал
-    hotkeys: Record<string, string | null>;
     // коды своих слоёв -cs… в порядке добавления
     custom: string[];
     // последний выбор; применяется, если в адресе нет годного l=
@@ -29,7 +27,7 @@ interface StoredSettings extends LayerSettings {
     version: 1;
 }
 
-export const EMPTY_SETTINGS: LayerSettings = { listed: {}, hotkeys: {}, custom: [], selection: null };
+export const EMPTY_SETTINGS: LayerSettings = { listed: {}, custom: [], selection: null };
 
 // Свой слой в настройках и ссылках хранится каноничным кодом: старый клиент перекодировал код при загрузке
 // (upgrade isTop), и сравнение дубликатов идёт по коду
@@ -59,7 +57,6 @@ function parseOwn(raw: unknown): LayerSettings | null {
     const selection = isRecord(raw.selection) && typeof raw.selection.base === 'string' ? raw.selection : null;
     return {
         listed: isRecord(raw.listed) ? (raw.listed as Record<string, boolean>) : {},
-        hotkeys: isRecord(raw.hotkeys) ? (raw.hotkeys as Record<string, string | null>) : {},
         custom: Array.isArray(raw.custom) ? raw.custom.filter((code) => typeof code === 'string') : [],
         selection: selection
             ? {
@@ -73,13 +70,13 @@ function parseOwn(raw: unknown): LayerSettings | null {
 }
 
 // leafletLayersSettings старого клиента: {layers: [{code, isCustom, enabled, hotkey}]} (saveSettings в
-// leaflet.control.layers.configure). Коды удалённых слоёв пропускаются; пустой hotkey старый клиент заменял
-// умолчанием (`hotkey || getLayerDefaultHotkey`), поэтому переносятся только непустые.
+// leaflet.control.layers.configure). Коды удалённых слоёв пропускаются; hotkey не переносится: хоткеев слоёв
+// в новом приложении нет (решение владельца, design add-web-map-layers).
 function parseLegacy(raw: unknown, isKnown: (code: string) => boolean): LayerSettings | null {
     if (!isRecord(raw) || !Array.isArray(raw.layers)) {
         return null;
     }
-    const settings: LayerSettings = { listed: {}, hotkeys: {}, custom: [], selection: null };
+    const settings: LayerSettings = { listed: {}, custom: [], selection: null };
     for (const item of raw.layers) {
         if (!isRecord(item) || typeof item.code !== 'string') {
             continue;
@@ -96,9 +93,6 @@ function parseLegacy(raw: unknown, isKnown: (code: string) => boolean): LayerSet
         }
         if (typeof item.enabled === 'boolean') {
             settings.listed[code] = item.enabled;
-        }
-        if (typeof item.hotkey === 'string' && item.hotkey) {
-            settings.hotkeys[code] = item.hotkey;
         }
     }
     return settings;
@@ -128,8 +122,4 @@ export function saveSettings(storage: Storage | null, settings: LayerSettings): 
 export function isListed(layer: LayerDef, settings: LayerSettings): boolean {
     // свой слой пользователь добавил сам — он в списке, пока его не скрыли
     return settings.listed[layer.code] ?? (isCustomLayerCode(layer.code) || layer.isDefault);
-}
-
-export function hotkeyOf(layer: LayerDef, settings: LayerSettings): string | null {
-    return layer.code in settings.hotkeys ? settings.hotkeys[layer.code] : layer.hotkey;
 }

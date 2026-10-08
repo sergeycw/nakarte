@@ -130,11 +130,6 @@ describe('Каталог слоёв', () => {
         expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P']);
     });
 
-    test('хоткеи по умолчанию: однобуквенный код и V у OpenTopoMap', () => {
-        const hotkeys = Object.fromEntries(catalog.filter((l) => l.hotkey).map((l) => [l.code, l.hotkey]));
-        expect(hotkeys).toEqual({ O: 'O', E: 'E', G: 'G', L: 'L', P: 'P', I: 'I', Q: 'Q', Z: 'Z', Otm: 'V' });
-    });
-
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
         const order = (code: string) => byCode.get(code)?.order ?? 0;
         expect(order('Nm')).toBeLessThan(order('Hs'));

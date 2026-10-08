@@ -90,7 +90,6 @@ export function customLayerDef(code: string, fields: CustomLayerFields, corsProx
         order: fields.isOverlay && fields.isTop ? CUSTOM_TOP_ORDER : CUSTOM_BOTTOM_ORDER,
         isOverlay: fields.isOverlay,
         isDefault: false,
-        hotkey: null,
         source: { type: 'raster', tiles, scheme, tileSize: 256, maxzoom: fields.maxZoom },
     };
 }
