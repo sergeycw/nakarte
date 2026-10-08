@@ -15,6 +15,10 @@
 // и их имена надо добавить в SESSION_COOKIES. Значения нигде не печатаются, читаются из stdin, чтобы
 // не попасть в историю shell.
 // --dry-run: только разбор и локальная проверка, без wrangler и проверки через прокси.
+// --probe: ничего не записывает, ищет куку «запомнить меня». 2026-10-08 журнал прокси показал, что страница
+// heatmap не продлевает _strava4_session, значит, секрет с одной сессией умрёт вместе с ней. Если Strava
+// выдаёт новую сессию по другой, долгоживущей куке, перебор найдёт минимальный набор кук, с которым
+// heatmap работает без _strava4_session, и напечатает только имена; их и надо класть в SESSION_COOKIES.
 import {spawnSync} from 'node:child_process';
 
 import {HEATMAP_COOKIES, fetchHeatmapCookies} from '../workers/cors-proxy/src/strava.js';
@@ -27,6 +31,9 @@ const ORIGIN = 'https://nakarte-routing.pages.dev';
 const TEST_TILE = 'https/content-a.strava.com/identified/globalheat/all/hot/12/2557/1514.png?px=256';
 const MIN_NODE_MAJOR = 22;
 const dryRun = process.argv.includes('--dry-run');
+const probeMode = process.argv.includes('--probe');
+// пауза между запросами перебора: десяток загрузок страницы подряд не должен выглядеть как бот
+const PROBE_DELAY_MS = 1000;
 
 function fail(message) {
     console.error(message);
@@ -80,7 +87,37 @@ async function tryRefresh(label, header) {
     }
 }
 
-if (!dryRun && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
+async function heatmapWorks(cookies, names) {
+    await new Promise((resolve) => setTimeout(resolve, PROBE_DELAY_MS));
+    try {
+        await fetchHeatmapCookies(cookieHeader(cookies, names));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Жадный перебор: убираем по одной куке, пока без неё heatmap ещё работает.
+async function probe(cookies) {
+    const others = [...cookies.keys()].filter((name) => name !== '_strava4_session');
+    console.log(`header cookies: ${[...cookies.keys()].join(', ')}`);
+    if (!(await tryRefresh('without _strava4_session', cookieHeader(cookies, others)))) {
+        console.log('no other cookie logs strava in: the session cannot renew itself, it lives until it expires');
+        return;
+    }
+    let needed = others;
+    for (const name of others) {
+        const rest = needed.filter((other) => other !== name);
+        if (await heatmapWorks(cookies, rest)) {
+            needed = rest;
+        }
+    }
+    console.log(`minimal set without _strava4_session: ${needed.join(', ')}`);
+    // set-cookie этого ответа покажет, выдаёт ли Strava по ним новую _strava4_session и с каким сроком
+    await tryRefresh('minimal set', cookieHeader(cookies, needed));
+}
+
+if (!dryRun && !probeMode && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
     fail(
         `wrangler needs Node >= ${MIN_NODE_MAJOR}, this is ${process.versions.node}: ` +
             'pbpaste | PATH=/usr/local/bin:$PATH node scripts/strava-session-secret.mjs'
@@ -88,6 +125,10 @@ if (!dryRun && Number(process.versions.node.split('.')[0]) < MIN_NODE_MAJOR) {
 }
 
 const cookies = parseCookies(await readStdin());
+if (probeMode) {
+    await probe(cookies);
+    process.exit(0);
+}
 const missing = SESSION_COOKIES.filter((name) => !cookies.get(name));
 if (missing.length) {
     fail(`missing cookies: ${missing.join(', ')}; copy the Cookie header of a www.strava.com request while logged in`);
