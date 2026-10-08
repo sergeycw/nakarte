@@ -17,7 +17,7 @@
 
 ## 4. Выкатка
 
-- [ ] 4.1 PR, зелёный CI (`check cors proxy`, `check`), merge, деплой прокси workflow `deploy pages`; проверка — тайл heatmap через прокси без `STRAVA_SESSION` отвечает как раньше (`STRAVA_COOKIES`)
+- [x] 4.1 PR, зелёный CI (`check cors proxy`, `check`), merge, деплой прокси workflow `deploy pages`; проверка — тайл heatmap через прокси без `STRAVA_SESSION` отвечает как раньше (`STRAVA_COOKIES`)
 
 ## Workflow follow-up
 
