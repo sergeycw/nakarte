@@ -27,7 +27,7 @@ flowchart LR
 
 | Точка входа | CORS | Частота за 60 с (`namespace_id`) | Потолок на вызов | Лимит запроса | Где |
 |---|---|---|---|---|---|
-| `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials`; в списке и karma `localhost:9876` | 1200 (`1004`) | `cpu_ms = 500`, `subrequests = 50` | — | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
+| `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials`; в списке и karma `localhost:9876` | хосты слоёв — 1200 (`1004`), остальные — 300 (`1007`) | `cpu_ms = 500`, `subrequests = 50` | только `GET`/`HEAD` без тела; свои адреса — `403` | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
 | `nakarte-tracks` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1003`), из них записей 10 (`1006`) | `cpu_ms = 500`, `subrequests = 10` | тело ≤ 2 МиБ, только алфавит ссылки | [wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
 | `nakarte-elevation`, `POST /` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1002`); бюджет чтений R2 — 32 единицы по 64 чтения (`1005`) | `cpu_ms = 10000`, `subrequests = 1100` | ≤ 10 000 точек, ≤ 250 000 байт, ≤ 512 чтений R2 (градусы + куски), иначе `413` | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs), [request.rs](../../workers/elevation/core/src/request.rs) |
 | `nakarte-elevation`, `/tiles/` | `*` без проверки `Origin` | 600 (`1001`) | как у API | z ≤ 11 | то же |

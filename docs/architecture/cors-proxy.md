@@ -12,33 +12,47 @@ Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) п
 flowchart TD
     req["Запрос /{https|http}/{host}/{path}<br/>или /wikimapia/…"]
     origin{"Origin или Referer<br/>в ALLOWED_ORIGINS?"}
-    rate{"RATE_LIMITER<br/>по CF-Connecting-IP"}
+    role{"хост цели в LAYER_HOSTS<br/>(или цель не разобралась)?"}
+    rate{"RATE_LIMITER (1200)<br/>по CF-Connecting-IP"}
+    other{"OTHER_RATE_LIMITER (300)<br/>по CF-Connecting-IP"}
     options{"OPTIONS?"}
+    method{"GET или HEAD?"}
     target{"targetUrl разобрался?"}
+    own{"свой адрес:<br/>*.nakarte-routing.workers.dev,<br/>nakarte-routing.pages.dev и поддомены?"}
     strava{"тайл heatmap<br/>content-*.strava.com/identified/globalheat/?"}
     cookies["heatmapCookie: куки и их источник"]
-    send["fetch(target), redirect manual<br/>заголовки: accept, accept-language,<br/>content-type, range, user-agent (+ cookie)<br/>HEAD уходит как GET"]
-    resp["Ответ клиенту: без set-cookie,<br/>с CORS, Location переписан на прокси,<br/>X-Strava-Cookies для тайлов heatmap"]
+    send["fetch(target) методом GET, без тела, redirect manual<br/>заголовки: accept, accept-language,<br/>content-type, range, user-agent (+ cookie)"]
+    resp["Ответ клиенту: без set-cookie,<br/>с CORS, Location переписан на прокси,<br/>X-Strava-Cookies для тайлов heatmap,<br/>на HEAD — без тела"]
     r403["403 Forbidden"]
     r429["429, Retry-After: 60"]
-    r204["204 preflight"]
+    r204["204 preflight<br/>GET, HEAD, OPTIONS"]
+    r405["405"]
     r404["404"]
+    r403own["403 Forbidden target"]
 
     req --> origin
     origin -->|"нет"| r403
-    origin -->|"да"| rate
+    origin -->|"да"| role
+    role -->|"да"| rate
+    role -->|"нет"| other
     rate -->|"превышен"| r429
+    other -->|"превышен"| r429
     rate -->|"ок"| options
+    other -->|"ок"| options
     options -->|"да"| r204
-    options -->|"нет"| target
+    options -->|"нет"| method
+    method -->|"нет"| r405
+    method -->|"да"| target
     target -->|"нет"| r404
-    target -->|"да"| strava
+    target -->|"да"| own
+    own -->|"да"| r403own
+    own -->|"нет"| strava
     strava -->|"да"| cookies --> send
     strava -->|"нет"| send
     send --> resp
 ```
 
-Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему `HEAD` уходит как `GET`, зачем пересылается `User-Agent` и откуда origin karma `localhost:9876` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md).
+Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET`, зачем пересылается `User-Agent` и откуда origin karma `localhost:9876` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md).
 
 ## Куки Strava heatmap
 
