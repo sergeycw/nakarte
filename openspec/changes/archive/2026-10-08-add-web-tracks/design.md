@@ -2,20 +2,20 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Что переносится — [ресёрч, п. 5](../../research/new-ui.md#5-инвентаризация-функций) и [п. 6](../../research/new-ui.md#6-контракты-которые-новый-ui-держит); контракт хранилища — спека [track-storage](../../specs/track-storage/spec.md) и [аудит, п. 2](../../research/system-design-audit.md#2-контракты); решения владельца — архивы [record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md); адрес, стор и тестовая сеть — [add-web-map-layers](../archive/2026-10-08-add-web-map-layers/design.md).
+Зачем — [proposal](proposal.md). Что переносится — [ресёрч, п. 5](../../../research/new-ui.md#5-инвентаризация-функций) и [п. 6](../../../research/new-ui.md#6-контракты-которые-новый-ui-держит); контракт хранилища — спека [track-storage](../../../specs/track-storage/spec.md) и [аудит, п. 2](../../../research/system-design-audit.md#2-контракты); решения владельца — архивы [record-ui-decisions](../2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md); адрес, стор и тестовая сеть — [add-web-map-layers](../2026-10-08-add-web-map-layers/design.md).
 
-Справочник старого клиента — [src/lib/leaflet.control.track-list/](../../../src/lib/leaflet.control.track-list/): парсеры [lib/parsers/](../../../src/lib/leaflet.control.track-list/lib/parsers/), сервисы импорта [lib/services/](../../../src/lib/leaflet.control.track-list/lib/services/), экспорт [geo_file_exporters.js](../../../src/lib/leaflet.control.track-list/lib/geo_file_exporters.js), деление у меридиана 180° [meridian180.js](../../../src/lib/leaflet.control.track-list/lib/meridian180.js), список и ссылки [track-list.js](../../../src/lib/leaflet.control.track-list/track-list.js), параметры адреса [track-list.hash-state.js](../../../src/lib/leaflet.control.track-list/track-list.hash-state.js) и [App.js](../../../src/App.js) (`bindHashStateReadOnly`: параметр трека читается и стирается из адреса, без годного `m=` карта показывает треки целиком).
+Справочник старого клиента — [src/lib/leaflet.control.track-list/](../../../../src/lib/leaflet.control.track-list/): парсеры [lib/parsers/](../../../../src/lib/leaflet.control.track-list/lib/parsers/), сервисы импорта [lib/services/](../../../../src/lib/leaflet.control.track-list/lib/services/), экспорт [geo_file_exporters.js](../../../../src/lib/leaflet.control.track-list/lib/geo_file_exporters.js), деление у меридиана 180° [meridian180.js](../../../../src/lib/leaflet.control.track-list/lib/meridian180.js), список и ссылки [track-list.js](../../../../src/lib/leaflet.control.track-list/track-list.js), параметры адреса [track-list.hash-state.js](../../../../src/lib/leaflet.control.track-list/track-list.hash-state.js) и [App.js](../../../../src/App.js) (`bindHashStateReadOnly`: параметр трека читается и стирается из адреса, без годного `m=` карта показывает треки целиком).
 
 Что выяснилось при чтении старого кода (2026-10-08, `master` `f1663a2`):
 
 - Файлы читаются как «двоичная строка» (`readAsBinaryString`), а названия потом раскодируются из UTF-8 (`utf8.decode`). GPX или KML в Windows-1251 с честным `encoding=` дают испорченные названия; имена файлов в ZIP всегда раскодируются как CP866, даже с флагом UTF-8 (бит 11).
 - Парсер GeoJSON стоит последним и на любой нераспознанный файл отвечает `CORRUPT`, а не `UNSUPPORTED`: «испорчен» вместо «формат не поддерживается».
 - Экспорт пишет UTF-8 через двоичную строку (`utf8.encode`, потом `blobFromString` кладёт каждый символ байтом) — в новом коде это просто строка в `Blob`. KML закрывается строкой `\t</kml>`; имя ZIP берёт месяц из `getMonth()` (январь — `00`).
-- Ссылка `nktl=` копируется до ответа хранилища, ошибка записи приходит уведомлением, когда ссылка уже у пользователя ([track-storage.md](../../../docs/architecture/track-storage.md)).
-- Фикстуры [test/track_load_data](../../../test/track_load_data/): `files/` — GPX-прототипы, которые автор загружал в сервисы; `testcases/` — ссылки на сервисы и ожидаемый результат разбора. Самих ответов сервисов нет: karma ходит в живые сервисы. Файлов KML, KMZ, GeoJSON, Ozi и ZIP нет.
+- Ссылка `nktl=` копируется до ответа хранилища, ошибка записи приходит уведомлением, когда ссылка уже у пользователя ([track-storage.md](../../../../docs/architecture/track-storage.md)).
+- Фикстуры [test/track_load_data](../../../../test/track_load_data/): `files/` — GPX-прототипы, которые автор загружал в сервисы; `testcases/` — ссылки на сервисы и ожидаемый результат разбора. Самих ответов сервисов нет: karma ходит в живые сервисы. Файлов KML, KMZ, GeoJSON, Ozi и ZIP нет.
 - MapLibre 6.13 без `glyphs` в стиле рисует подписи символьного слоя локально (TinySDF, шрифт из `text-font` как CSS-семейство): `GlyphManager._getAndCacheGlyphsPromise` в `maplibre-gl` идёт в `_drawGlyph`, когда `url` не задан. Файлов шрифтов для подписей точек не нужно. `diff` стиля для GeoJSON-источника с новыми данными делает `setGeoJSONSourceData`, без пересоздания источника.
 
-Версии зависимостей на 2026-10-08 (`npm view`): `fflate` 0.8.3 (MIT), `pbf` 5.1.2 (BSD-3-Clause), `blueimp-md5` (тот же, что у Worker'а [workers/tracks](../../../workers/tracks/src/key.js)), `@xmldom/xmldom` 0.9.12 (MIT, только для тестов в Node). `fflate.unzipSync` раскодирует имя файла как Latin-1, если у записи нет флага UTF-8 (`strFromU8(…, !(flags & 2048))` в `esm/browser.js`), и бросает на неизвестном методе сжатия.
+Версии зависимостей на 2026-10-08 (`npm view`): `fflate` 0.8.3 (MIT), `pbf` 5.1.2 (BSD-3-Clause), `blueimp-md5` (тот же, что у Worker'а [workers/tracks](../../../../workers/tracks/src/key.js)), `@xmldom/xmldom` 0.9.12 (MIT, только для тестов в Node). `fflate.unzipSync` раскодирует имя файла как Latin-1, если у записи нет флага UTF-8 (`strFromU8(…, !(flags & 2048))` в `esm/browser.js`), и бросает на неизвестном методе сжатия.
 
 ## Goals / Non-Goals
 
@@ -52,9 +52,9 @@ XML разбирает `DOMParser` браузера (`text/xml`); ошибка �
 
 ### `nktk` и ссылки старого клиента
 
-- `web/src/tracks/nktk.ts`: разбор версий 0 (`track://`), 1–3 (упакованные числа) и 4 (protobuf, `pbf`; схема — [nktk.proto](../../../src/lib/leaflet.control.track-list/lib/parsers/nktk.proto), чтение и запись написаны руками, сгенерированный `nktk_pb.js` не переносится), запись — только версия 4, как старый `saveNktk`. Base64url с `=` и без, байты вместо двоичной строки.
+- `web/src/tracks/nktk.ts`: разбор версий 0 (`track://`), 1–3 (упакованные числа) и 4 (protobuf, `pbf`; схема — [nktk.proto](../../../../src/lib/leaflet.control.track-list/lib/parsers/nktk.proto), чтение и запись написаны руками, сгенерированный `nktk_pb.js` не переносится), запись — только версия 4, как старый `saveNktk`. Base64url с `=` и без, байты вместо двоичной строки.
 - `web/src/tracks/links.ts`: `nktk`, `nktl` (`GET {tracksStorageServer}/track/{key}`), `nktu` (`decodeURIComponent` → импорт по ссылке), `nktp` (точка), `nktj` (JSON с `n`, `t`, `p`, `u`, `c`, `v`, `m`, как `loadTracksFromJson`). Параметры читаются при старте и на `hashchange`; после чтения параметр стирается из адреса (`replaceState`), остальные — на местах. Без годного `m=` в адресе карта после загрузки показывает все загруженные треки (`fitBounds`).
-- Запросы к хранилищу — без `credentials` **[агент]**: Worker отражает `Origin` и так ([track-storage](../../specs/track-storage/spec.md), «CORS только для клона»), а cookies ему не нужны; аудит, п. 2, называет `withCredentials` наследием старого клиента. Контракт Worker'а не меняется.
+- Запросы к хранилищу — без `credentials` **[агент]**: Worker отражает `Origin` и так ([track-storage](../../../specs/track-storage/spec.md), «CORS только для клона»), а cookies ему не нужны; аудит, п. 2, называет `withCredentials` наследием старого клиента. Контракт Worker'а не меняется.
 
 ### Ссылка — после ответа хранилища
 
@@ -105,7 +105,7 @@ XML разбирает `DOMParser` браузера (`text/xml`); ошибка �
 
 ### Память при большом треке
 
-Сценарий из задачи change: импорт большого GPX (≈ 100 тыс. точек, шум больше допуска упрощения, чтобы упрощение не спасало). Замер `phys_footprint` по дереву процессов Chromium (`launchServer`, `footprint --pid`), эмуляция Pixel 7, `vite preview`, как в архивах [spike-engine-in-worker](../archive/2026-10-08-spike-engine-in-worker/design.md#память-вкладки) и [add-web-map-layers](../archive/2026-10-08-add-web-map-layers/design.md#память-при-нескольких-слоях): только карта против карты с треком, после загрузки и после прокруток. Итог — раздел «Проверки».
+Сценарий из задачи change: импорт большого GPX (≈ 100 тыс. точек, шум больше допуска упрощения, чтобы упрощение не спасало). Замер `phys_footprint` по дереву процессов Chromium (`launchServer`, `footprint --pid`), эмуляция Pixel 7, `vite preview`, как в архивах [spike-engine-in-worker](../2026-10-08-spike-engine-in-worker/design.md#память-вкладки) и [add-web-map-layers](../2026-10-08-add-web-map-layers/design.md#память-при-нескольких-слоях): только карта против карты с треком, после загрузки и после прокруток. Итог — раздел «Проверки».
 
 ## Проверки
 
@@ -120,6 +120,14 @@ XML разбирает `DOMParser` браузера (`text/xml`); ошибка �
 | 100 тыс. точек (≈ 1000 км, 9.7 МБ GPX) | 205–208 МБ | 443–474 МБ | 363–382 МБ | 0.75 с |
 
 По процессам (100 тыс. точек): рендерер 83 → 264–304 МБ, GPU 87 → 142 МБ; JS-куча главного потока после сборки мусора — 6 → 13 МБ. Значит, почти всё — воркер MapLibre (индекс GeoJSON и буферы линии) и видеопамять, а не стор и React. `maxzoom` 12 и 14 у источников треков ничего не меняет. Вид «трек целиком» на 1000 км грузит другие тайлы, так что часть разницы — тайлы. С движком (+≈ 0.3 ГБ, архив spike-engine-in-worker) экстремальный трек даёт вкладку ≈ 0.7–0.8 ГБ; обычный (≤ 10 тыс. точек) — в пределах замера слоёв. Делать сейчас ничего не нужно; если упрёмся — упрощение линии для отрисовки по зуму отдельно от данных трека или источник на трек. Ограничения прежние: SwiftShader вместо GPU телефона, эмуляция не ограничивает память.
+
+### На проде
+
+После merge PR sergeycw/nakarte#104 прогон `deploy pages` выкатил Pages, jobs `pages`, `prune` и `smoke` зелёные. 2026-10-08, `https://nakarte-routing.pages.dev/next/`, браузерная панель Claude:
+
+- Ссылка старого клиента `#nktl=eULz6eCr_il5HksAhitPnA` (пара из `workers/tracks/test/fixtures/client-track.json`, объект есть в хранилище клона): трек `New track` 0.80 km, `nktl=` ушёл из адреса, карта показала трек целиком (Тбилиси).
+- «Copy link for all tracks»: `POST` в `nakarte-tracks` — `200`, ключ тот же `eULz6eCr_il5HksAhitPnA` (тело совпало со старым байт в байт, новый объект не появился). Буфер обмена панели запись запретил — ссылка пришла окном «Link to tracks», как задумано; путь с `ClipboardItem` проверен e2e в Chromium.
+- Импорт по ссылке через прокси клона, все ответы `200`: трек OSM `3376100` → «Test - Тест - Zkouška», Sports Tracker `5f2d4cb86643bb7d5bdc599c` → «Тестовое описание», Tracedetrail `125395` → «Test - ???? - Zkouška», файл `raw.githubusercontent.com/…/route.gpx` → «route.gpx». Сообщений об ошибках нет.
 
 ## Risks / Trade-offs
 

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { parseHash } from '../src/state/hash.ts';
 import { expect, test } from './fixtures.ts';
 
-// Названия тестов — сценарии спек tracks и track-files (openspec/changes/add-web-tracks/specs/). Хранилище треков и
+// Названия тестов — сценарии спек tracks и track-files (openspec/specs/tracks, openspec/specs/track-files). Хранилище треков и
 // прокси — в памяти (e2e/fixtures.ts), в сеть тесты не ходят.
 
 const fixture = (path: string) => fileURLToPath(new URL(`../src/${path}`, import.meta.url));
