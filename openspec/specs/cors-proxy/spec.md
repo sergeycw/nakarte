@@ -73,7 +73,7 @@
 
 ### Requirement: Куки Strava для тайлов heatmap
 
-Если у прокси задан секрет `STRAVA_COOKIES` (куки `CloudFront-Key-Pair-Id`, `CloudFront-Policy`, `CloudFront-Signature` вошедшего аккаунта Strava), прокси SHALL подставлять его заголовком `Cookie` в запросы к тайлам `content-*.strava.com/identified/globalheat/` и SHALL NOT отправлять его на другие адреса. Без секрета запросы уходят без кук.
+Если у прокси задан секрет `STRAVA_COOKIES` (куки `CloudFront-Key-Pair-Id`, `CloudFront-Policy`, `CloudFront-Signature` и JWT `_strava_idcf` вошедшего аккаунта Strava; без `_strava_idcf` функция CloudFront отвечает `401`), прокси SHALL подставлять его заголовком `Cookie` в запросы к тайлам `content-*.strava.com/identified/globalheat/` и SHALL NOT отправлять его на другие адреса. Без секрета запросы уходят без кук.
 
 #### Scenario: Тайл heatmap
 
