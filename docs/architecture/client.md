@@ -105,7 +105,7 @@ flowchart LR
 | `elevationsServer` | `elevations`, `index.js` | `https://nakarte-elevation.nakarte-routing.workers.dev/` |
 | `elevationTileUrl` | `App.js` → `leaflet.control.coordinates` | `${elevationsServer}tiles/{z}/{x}/{y}` |
 | `routingEngine` | `brouter` | `'browser'` (по умолчанию `'server'`) |
-| `routingServer` | `brouter`, `track-list` | `http://localhost:17777` |
+| `routingServer` | `brouter` | `http://localhost:17777`, не используется |
 | `routingTilesPath` | `brouter/browser-engine.js` | `'/tiles/'` (по умолчанию `'/brouter-wasm/segments4/'`) |
 | `googleApiUrl` | `googleMapsApi`, `panoramas/lib/google/keyless.js` | `…/maps/api/js?v=3&key=` + `secrets.google` |
 | `eventsLogUrl`, `sentryDSN` | `logging`, `index.js` | пустые |

@@ -32,7 +32,16 @@ import {parseNktkSequence, arcUnit} from './lib/parsers/nktk';
 import * as coordFormats from '~/lib/leaflet.control.coordinates/formats';
 import {polygonArea} from '~/lib/polygon-area';
 import {polylineHasSelfIntersections} from '~/lib/polyline-selfintersects';
-import {activities, getActivity, fetchRoute, isServerReachable, warmUpRouting} from '~/lib/brouter';
+import {
+    activities,
+    getActivity,
+    fetchRoute,
+    isServerReachable,
+    warmUpRouting,
+    isRoutingConfigured,
+    routerDownStatus,
+    routerDownHint,
+} from '~/lib/brouter';
 import safeLocalStorage from '~/lib/safe-localstorage';
 
 const TRACKLIST_TRACK_COLORS = ['#77f', '#f95', '#0ff', '#f77', '#f7f', '#ee5'];
@@ -187,7 +196,7 @@ L.Control.TrackList = L.Control.extend({
             this.isPlacingPoint = false;
             this.trackAddingPoint = ko.observable(null);
             this.trackAddingSegment = ko.observable(null);
-            this.routingAvailable = Boolean(config.routingServer);
+            this.routingAvailable = isRoutingConfigured();
             this.routingActivityId = ko.observable(
                 getActivity(safeLocalStorage.getItem(ROUTING_ACTIVITY_STORAGE_KEY))?.id ?? null
             );
@@ -304,7 +313,7 @@ L.Control.TrackList = L.Control.extend({
                 () => ({
                     text: this.routingServerReachable()
                         ? 'Alt+click draws a straight segment'
-                        : 'BRouter is not running, start it with <b>yarn local</b>',
+                        : routerDownHint(),
                     disabled: true,
                 }),
                 {text: 'Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z: undo, redo', disabled: true},
@@ -405,7 +414,7 @@ L.Control.TrackList = L.Control.extend({
                 return 'Routing is off: lines are straight';
             }
             if (!this.routingServerReachable()) {
-                return `Routing: ${activity.title}. BRouter is not running`;
+                return `Routing: ${activity.title}. ${routerDownStatus()}`;
             }
             return `Routing: ${activity.title}`;
         },
@@ -446,7 +455,7 @@ L.Control.TrackList = L.Control.extend({
                     notify(`Routing failed: ${e.message}`);
                 } else if (this.routingServerReachable()) {
                     this.routingServerReachable(false);
-                    notify('BRouter is not running, start it with <b>yarn local</b>. Lines stay straight until then.');
+                    notify(`${routerDownHint()}. Lines stay straight until then.`);
                 }
                 throw e;
             }
