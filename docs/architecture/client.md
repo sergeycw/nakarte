@@ -1,5 +1,7 @@
 # Клиент
 
+Уровень выше: [общая схема](README.md#общая-схема), блок ①.
+
 SPA на Leaflet + knockout из апстрима, собирается webpack. Точка входа — [src/index.js](../../src/index.js), карта и контролы собираются в [src/App.js](../../src/App.js). Обзор системы — [README.md](README.md).
 
 ## Основные модули

@@ -1,5 +1,7 @@
 # Защита и лимиты
 
+Уровень выше: [общая схема](README.md#общая-схема), блок «Cloudflare» и ⑦.
+
 Что ограничивает нагрузку и расходы на Cloudflare и что не даёт клону сходить в инфраструктуру автора. Поведение — спеки [worker-limits](../../openspec/specs/worker-limits/spec.md) и [clone-deploy](../../openspec/specs/clone-deploy/spec.md) («Бандл без адресов автора»), CORS каждого сервиса — в его спеке; решения и цифры — архив [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md); правила для нового счётчика — `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme).
 
 ## Порядок проверок в Worker'е

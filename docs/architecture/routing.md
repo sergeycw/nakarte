@@ -1,5 +1,7 @@
 # Прокладка отрезка
 
+Уровень выше: [общая схема](README.md#общая-схема), блоки ②, ③ и ⑧.
+
 Как отрезок между двумя опорными точками превращается в точки маршрута. Движок выбирает ключ `routingEngine` ([client.md](client.md)): `'server'` — BRouter в docker, `'browser'` — тот же BRouter на CheerpJ в странице. Для редактора результат одинаковый: массив `L.LatLng` или `RoutingError`.
 
 Поведение — спеки [routing](../../openspec/specs/routing/spec.md) и [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md); где лежит код — `AGENTS.md`, [«Где код роутинга»](../../AGENTS.md#где-код-роутинга).

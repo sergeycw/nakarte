@@ -1,5 +1,7 @@
 # Хранилище треков: ссылка `nktl=`
 
+Уровень выше: [общая схема](README.md#общая-схема), блок ⑤.
+
 Короткая ссылка на треки: в адресе только ключ, сами треки лежат в Worker'е `nakarte-tracks` ([workers/tracks](../../workers/tracks/)) в R2. Контракт повторяет авторский `tracks.nakarte.me`, поэтому клиент не менялся. Поведение — спека [track-storage](../../openspec/specs/track-storage/spec.md); решения — архив [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md).
 
 ## От «Copy link» до открытия

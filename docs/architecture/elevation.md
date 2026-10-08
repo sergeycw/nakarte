@@ -1,5 +1,7 @@
 # Сервис высот
 
+Уровень выше: [общая схема](README.md#общая-схема), блок ⑥.
+
 Worker `nakarte-elevation` ([workers/elevation](../../workers/elevation/)) отвечает на два запроса: API высот (`POST /`, список точек → высоты) для профиля трека и экспорта, и тайлы высот (`GET /tiles/{z}/{x}/{y}`) для высоты и уклона под курсором. Данные и арифметика — как у автора (DEM 3″ viewfinderpanoramas). Поведение — спеки [elevation-api](../../openspec/specs/elevation-api/spec.md) и [elevation-tiles](../../openspec/specs/elevation-tiles/spec.md); решения — архив [add-elevation-api](../../openspec/changes/archive/2026-10-07-add-elevation-api/design.md) и [add-elevation-tiles](../../openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md); сборка, проверки и подвохи — `AGENTS.md`, [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation).
 
 ## Крейты Rust-воркспейса
