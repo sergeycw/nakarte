@@ -11,10 +11,10 @@
 | Клиент на Leaflet + knockout, сборка webpack | причина не записана (стек апстрима) | — |
 | Прокладка через BRouter | причина не записана; автор в невлитой ветке выбрал тот же движок | `AGENTS.md`, [«Апстрим»](../../AGENTS.md#апстрим) |
 | Движок в браузере на CheerpJ (jar BRouter как есть) | причина не записана; замеры и альтернативы есть | backlog, «Варианты движка в браузере» |
-| Хостинг клона и своих бэкендов на Cloudflare (Pages, Workers Paid, R2) | причина не записана (была в `openspec/research/own-backends.md`, удалён в `554a1fa`); Paid нужен из-за потолка CPU 10 мс на Free | `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare) |
-| Сервис высот на Rust | причина не записана (была в удалённом `own-backends.md`) | — |
+| Хостинг клона и своих бэкендов на Cloudflare (Pages, Workers Paid, R2) | ≈ $5–6 в месяц, egress бесплатный; VPS не дешевле и добавляет администрирование и защиту от DDoS; Paid нужен из-за потолка CPU 10 мс на Free | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md) |
+| Сервис высот на Rust | решение владельца; записаны требования: ядро без ввода-вывода с адаптерами Worker и VPS, перепаковка без GDAL, память изолята 128 МБ | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md) |
 | Свой продукт на базе форка: в апстрим не мерджимся, неиспользуемый код удаляем | решение владельца 2026-10-08, цель — автономия от автора | `AGENTS.md`, [«Апстрим»](../../AGENTS.md#апстрим), backlog, «Глобальное направление» |
-| Монорепо: сервис в `workers/<сервис>/`, контракт и клиент одним PR, свой workflow `check-<сервис>.yml` | причина не записана | `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme) |
+| Монорепо: сервис в `workers/<сервис>/`, контракт и клиент одним PR, свой workflow `check-<сервис>.yml` | контракт сервиса и правка клиента одним PR, спеки рядом с кодом; каждый сервис деплоится отдельно | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md); `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme) |
 | `config-target` только для различий клона и серверного режима | свои адреса общие для всех сборок, клон отличается только движком | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Свои сервисы по умолчанию» |
 
 ## Прокладка и движок в браузере
