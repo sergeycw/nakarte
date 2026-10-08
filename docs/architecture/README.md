@@ -99,6 +99,7 @@ flowchart LR
         proxy["nakarte-cors-proxy"]
         tracks["nakarte-tracks"]
         elev["nakarte-elevation"]
+        guard["nakarte-guard<br/>без workers.dev"]
     end
 
     subgraph r2["R2, EEUR"]
@@ -117,11 +118,12 @@ flowchart LR
     fwasm -->|"ASSETS.fetch"| static
     engine -->|"Range /tiles/*.rd5"| ftiles
     ftiles -->|"get с range"| r2tiles
+    fwasm & ftiles -->|"_middleware: service binding GUARD,<br/>лимит по IP"| guard
     spa -->|"POST, GET /track/{key}"| tracks
     tracks -->|"tracks/{key}"| r2tracks
     spa -->|"POST /, GET /tiles/{z}/{x}/{y}"| elev
     elev -->|"range dem3/*, tiles/elevation-z0-9"| r2elev
-    spa -->|"GET, POST, HEAD /{https}/{host}/…"| proxy
+    spa -->|"GET, HEAD /{https}/{host}/…"| proxy
     proxy -->|"fetch, redirect manual"| ext
 ```
 
@@ -189,6 +191,7 @@ flowchart LR
 | Pages-проект `nakarte-routing` | статика `build/` и Pages Functions, адрес `nakarte-routing.pages.dev` | [wrangler.toml](../../wrangler.toml) |
 | Pages Function `tiles` | тайлы BRouter `/tiles/*` из R2 с Range; код — `workers/tiles` | [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/src/index.js](../../workers/tiles/src/index.js) |
 | Pages Function `brouter-wasm` | Range для файлов движка (jar, профили) поверх статики Pages | [functions/brouter-wasm](../../functions/brouter-wasm/[[path]].js) |
+| Worker `nakarte-guard` | счётчик частоты для Pages Functions, снаружи закрыт (`workers_dev = false`) | [workers/guard/wrangler.toml](../../workers/guard/wrangler.toml), [index.js](../../workers/guard/src/index.js), [client.js](../../workers/guard/src/client.js) |
 | Worker `nakarte-cors-proxy` | CORS-прокси, куки Strava heatmap | [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js), [strava.js](../../workers/cors-proxy/src/strava.js) |
 | Worker `nakarte-tracks` | хранилище треков для `nktl=` | [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
 | Worker `nakarte-elevation` | API высот и тайлы высот, Rust → wasm | [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs) |
@@ -208,13 +211,14 @@ flowchart LR
 | движок в браузере → `functions/brouter-wasm` | `Range /brouter-wasm/lib/*.jar`, `/brouter-wasm/profiles/*` | [browser-engine.js](../../src/lib/brouter/browser-engine.js) (`BASE_DIR`, `CLASSPATH`) |
 | движок в браузере → `functions/tiles` | `Range /tiles/*.rd5`, пустой `/tiles/storageconfig.txt` | [clone.js](../../src/config-target/clone.js) (`routingTilesPath`), [workers/tiles/src/index.js](../../workers/tiles/src/index.js) (`EMPTY_FILES`) |
 | `functions/tiles` → R2 `nakarte-tiles` | `TILES.get(key, {range})`, `TILES.head` | [workers/tiles/src/index.js](../../workers/tiles/src/index.js) |
+| `functions/*/_middleware.js` → `nakarte-guard` | `GUARD.fetch` с `X-Client-IP`, ответ `204` или `429` | [client.js](../../workers/guard/src/client.js), [wrangler.toml](../../wrangler.toml) (`[[services]]`) |
 | браузер → CDN CheerpJ | `GET https://cjrtnc.leaningtech.com/4.3/loader.js`, дальше JDK кусками | [browser-engine.js](../../src/lib/brouter/browser-engine.js) (`RUNTIME_LOADER_URL`) |
 | браузер → BRouter в docker | `GET http://localhost:17777/brouter?lonlats=…&profile=…&format=geojson` | [lib/brouter/index.js](../../src/lib/brouter/index.js) (`fetchGeojsonFromServer`), [config.js](../../src/config.js) (`routingServer`) |
 | браузер → `nakarte-tracks` | `POST /track/{key}`, `GET /track/{key}` | [track-list.js](../../src/lib/leaflet.control.track-list/track-list.js) (`copyTracksLinkToClipboard`), [services/nakarte](../../src/lib/leaflet.control.track-list/lib/services/nakarte/index.js) |
 | `nakarte-tracks` → R2 `nakarte-tracks` | `head`/`put`/`get` `tracks/{key}` | [workers/tracks/src/index.js](../../workers/tracks/src/index.js) |
 | браузер → `nakarte-elevation` | `POST /` (точки построчно), `GET /tiles/{z}/{x}/{y}` | [lib/elevations](../../src/lib/elevations/index.js), [config.js](../../src/config.js) (`elevationTileUrl`), [App.js](../../src/App.js) (`L.Control.Coordinates`) |
 | `nakarte-elevation` → R2 `nakarte-elevation` | range-чтения `dem3/*` и `tiles/elevation-z0-9` | [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [archive.rs](../../workers/elevation/core/src/archive.rs) |
-| браузер → `nakarte-cors-proxy` | `GET`/`POST`/`HEAD /{http,https}/{host}/{path}`, `/wikimapia/…` | [CORSProxy](../../src/lib/CORSProxy/index.js), [layers.js](../../src/layers.js), [search/providers](../../src/lib/leaflet.control.search/providers/) |
+| браузер → `nakarte-cors-proxy` | `GET`/`HEAD /{http,https}/{host}/{path}`, `/wikimapia/…` | [CORSProxy](../../src/lib/CORSProxy/index.js), [layers.js](../../src/layers.js), [search/providers](../../src/lib/leaflet.control.search/providers/) |
 | `nakarte-cors-proxy` → внешние сайты | `fetch(target, {redirect: 'manual'})` | [cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js) (`proxy`) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
 | браузер → тайловые провайдеры | `GET` тайлов напрямую (большинство слоёв) | [layers.js](../../src/layers.js) |

@@ -6,7 +6,7 @@
 
 - `src/` — клиент (Leaflet + knockout, webpack): `layers.js` — все слои карты, `config.js` — адреса сервисов по умолчанию, `config-target/` — отличия сборки клона, `lib/` — модули (импорт треков — `leaflet.control.track-list/lib/services/`, роутинг — раздел «Где код роутинга»).
 - `test/` — karma-тесты клиента, их гоняет `main.yml`.
-- `workers/<сервис>/` — Cloudflare Worker'ы: `cors-proxy`, `tracks`, `elevation` (Rust), `tiles` (тайлы BRouter из R2, работает как Pages Function `functions/tiles`; там же тесты обеих Pages Functions). Правила — раздел «Свои бэкенды».
+- `workers/<сервис>/` — Cloudflare Worker'ы: `cors-proxy`, `tracks`, `elevation` (Rust), `tiles` (тайлы BRouter из R2, работает как Pages Function `functions/tiles`; там же тесты обеих Pages Functions и их middleware), `guard` (счётчик частоты Pages Functions, закрыт снаружи, функции зовут его по service binding `GUARD`). Правила — раздел «Свои бэкенды».
 - `functions/` — Pages Functions клона: `tiles` и `brouter-wasm` (Range для файлов движка).
 - `scripts/` — сборка (`build.js`), тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
 - `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter.
@@ -93,10 +93,11 @@
 Сборка и деплой клона вручную — запасной путь, если автодеплой сломан (шаги CI — `deploy-pages.yml`):
 - `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
 - `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`. Ручная сборка берёт локальный `src/secrets.js` (итог перебивает `config-target`), CI — шаблон. Перед публикацией — `node scripts/check-no-author-hosts.mjs build`.
-- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); прокси — `npx wrangler@4 deploy` из `workers/cors-proxy`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`; высоты — `PATH=/usr/local/bin:$PATH npx wrangler@4 deploy` из `workers/elevation` (собирает wasm сам, нужен `worker-build` в `PATH`).
+- `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); Worker'ы — до Pages (привязка `GUARD` ссылается на `nakarte-guard`); прокси и счётчик — `npx wrangler@4 deploy` из `workers/cors-proxy` и `workers/guard`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`; высоты — `PATH=/usr/local/bin:$PATH npx wrangler@4 deploy` из `workers/elevation` (собирает wasm сам, нужен `worker-build` в `PATH`).
 - Без шагов в Cloudflare: `npx wrangler@4 pages functions build --outdir <tmp>` и `npx wrangler@4 deploy --dry-run` в `workers/cors-proxy`.
 
 Подвохи клона:
+- Деплой в CI оставляет у Pages только текущий деплой (job `prune`): старые отвечали по `<хеш>.nakarte-routing.pages.dev` без новых лимитов. Откат Pages — revert и push, старого деплоя в дашборде нет.
 - Изменения в `webpack/webpack.config.js` (алиасы, `devServer`) dev-сервер подхватывает только после перезапуска. Симптом: `Cannot find module '~/config-target'` и пустая страница.
 - Файлы движка попадают в сборку, только если перед ней отработал `build.sh`; без них сборка проходит молча (`noErrorOnMissing`).
 - Синхронизация тайлов локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). По расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.
