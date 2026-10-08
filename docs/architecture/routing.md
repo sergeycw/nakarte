@@ -87,6 +87,33 @@ sequenceDiagram
 
 Подробности и проверенные на практике подвохи — `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../AGENTS.md#движок-в-браузере-cheerpj). Требования к движку — спека [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md): «Один движок на страницу», «Очередь запросов», «Данные движка с того же origin», «Рантайм с CDN Leaning Technologies». Откуда берутся тайлы в R2 — [ci-cd.md](ci-cd.md); замеры движка и альтернативы — backlog, «Варианты движка в браузере».
 
+### Новое приложение: движок в Web Worker
+
+В `web/` тот же CheerpJ и те же файлы, но CheerpJ живёт в классическом Web Worker, и главный поток страницы во время запуска и расчёта свободен. Очередь и отмена — на стороне страницы, в воркер уходит по одному запросу. Если воркер не поднялся, движок в той же попытке запускается на главном потоке, как в старом клиенте. Решения и замеры — design change `spike-engine-in-worker`; требование — «Расчёт маршрута вне главного потока» в спеке [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as компонент
+    participant EN as engine.ts
+    participant WK as engine.worker.ts
+    participant CDN as cjrtnc.leaningtech.com
+    participant PG as Pages: brouter-wasm, tiles
+
+    UI->>EN: startEngine() при выборе активности
+    EN->>WK: new Worker, {type: 'start', paths}
+    WK->>CDN: importScripts(loader.js 4.3), cheerpjInit, JDK кусками
+    WK->>PG: Range /brouter-wasm/lib/*.jar — /app/ от корня origin, не /next/
+    WK-->>EN: started
+    UI->>EN: routeInEngine(query, signal)
+    EN->>EN: очередь, отменённые не уходят в воркер
+    EN->>WK: {type: 'route', id, query}
+    WK->>PG: Range /brouter-wasm/profiles/*, /tiles/*.rd5
+    WK-->>EN: routed: GeoJSON или route-failed: текст исключения Java
+    EN-->>UI: промис
+    Note over EN,WK: воркер не поднялся — завершить и запустить CheerpJ на главном потоке
+```
+
 ## Сверено по
 
-[src/lib/brouter/index.js](../../src/lib/brouter/index.js), [src/lib/brouter/browser-engine.js](../../src/lib/brouter/browser-engine.js), [track-list.js](../../src/lib/leaflet.control.track-list/track-list.js) (`routeSegment`, `checkRoutingServer`, `onRoutingActivityChanged`), [functions/](../../functions/), [workers/tiles/src/index.js](../../workers/tiles/src/index.js), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [docker-compose.yml](../../docker-compose.yml), [src/config-target/clone.js](../../src/config-target/clone.js).
+[src/lib/brouter/index.js](../../src/lib/brouter/index.js), [src/lib/brouter/browser-engine.js](../../src/lib/brouter/browser-engine.js), [track-list.js](../../src/lib/leaflet.control.track-list/track-list.js) (`routeSegment`, `checkRoutingServer`, `onRoutingActivityChanged`), [functions/](../../functions/), [workers/tiles/src/index.js](../../workers/tiles/src/index.js), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [docker-compose.yml](../../docker-compose.yml), [src/config-target/clone.js](../../src/config-target/clone.js), [web/src/engine/](../../web/src/engine/), [web/vite/engine-files.ts](../../web/vite/engine-files.ts).

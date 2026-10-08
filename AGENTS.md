@@ -46,7 +46,9 @@
 
 Стек и решения — архив change `add-web-skeleton`, поведение — спека `web-client`. Сборка — `build/next/` с `base: '/next/'`, тот же Pages-проект; деплой собирает его после старого клиента. Команды — `scripts` в `web/package.json`; dev-сервер на 8769 открывается на `/next/`, запись `nakarte-web` в `../.claude/launch.json`. Адреса сервисов — только `web/src/config.ts`, режим Vite `clone` включает движок в браузере.
 
-Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.tsx`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы — фикстура `src/test/tile.png`, e2e валит любой запрос мимо `localhost` (`e2e/fixtures.ts`). Названия тестов совпадают со сценариями спеки.
+Движок прокладки — `web/src/engine/` (решения — change `spike-engine-in-worker`): синглтон `engine.ts` с очередью, CheerpJ в Web Worker, запасной путь — на главном потоке. Стенд замеров — `/next/engine-bench.html` (параметры — шапка `src/bench/engine-bench.ts`), выкатывается и на прод. Dev-сервер и `vite preview` отдают `/brouter-wasm/` с Range (`vite/engine-files.ts`) из `experiments/wasm/cheerpj/` после `build.sh` и `brouter/segments4/`; `/tiles/` для `npm run dev:clone` проксируется на `nakarte-tiles-worker` (8788).
+
+Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.ts[x]`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы — фикстура `src/test/tile.png`, e2e валит любой запрос мимо `localhost` (`e2e/fixtures.ts`). Названия тестов совпадают со сценариями спеки.
 
 Подвохи:
 - Vitest 5 требует Node ≥ 22.12: все команды с `PATH=/usr/local/bin:$PATH`, lock-файл — `npx --yes npm@11 install` (те же подвохи npm, что у Worker'ов, раздел «Свои бэкенды»).
@@ -56,6 +58,7 @@
 - Browser-тест рендерит `App` вместе с `index.css`: без стилей контейнер карты растёт бесконечно (`ResizeObserver loop`), и карта не загружается.
 - `shadcn add` берёт алиас `@/*` из корневого `tsconfig.json`; тема только светлая — блок `.dark` из `index.css` после `shadcn` удалять.
 - Pages без `build/next/` отвечают на `/next/` корневым `index.html` старого клиента с кодом `200`: проверять заголовок `nakarte routing`, а не статус.
+- Воркер движка классический (загрузчик CheerpJ — только `importScripts`), а Vite в dev отдаёт воркер без сборки: любой `import` в нём падает, после `import type` Vite оставляет `export {}`. Поэтому в `engine.worker.ts` импортов нет, типы сообщений — глобальные (`src/engine/protocol.d.ts`), обвязка CheerpJ повторена в `cheerpj-router.ts`: правка одной — правка обеих.
 
 ## Где код роутинга
 
@@ -88,11 +91,11 @@
 
 Подвохи CheerpJ, проверенные на практике (в документации их нет):
 - В `/app/` нет каталогов: `stat` делается запросом `Range: bytes=0-0`, размер берётся из `Content-Range`, `isDirectory()` всегда `false`. `NodesCache` падает с `segment directory ... does not exist`, отсюда патч. Отрицательный `stat` не кешируется, поэтому в патче проверка префикса `/app/` стоит до `isDirectory()`, иначе ~6 лишних запросов на маршрут.
-- `/app/` читает только с origin страницы. Редирект 302 на другой origin с CORS работает, но нужен `Access-Control-Expose-Headers: Content-Range`.
+- `/app/` — корень origin страницы, и из Web Worker, и со страницы `/next/`; другой origin не читает. Редирект 302 на другой origin с CORS работает, но нужен `Access-Control-Expose-Headers: Content-Range`.
 - Сервер обязан отвечать на Range с `206` и `Content-Range`. Статика Cloudflare Pages Range игнорирует и отвечает 200, поэтому есть `functions/brouter-wasm`.
-- На страницу разрешён один library-поток: второй `cheerpjRunLibrary` бросает `Only one library thread supported`. Одна инициализация на страницу, запросы в очередь.
+- Один library-поток и один `cheerpjInit` на глобальную область — страницу или Web Worker: второй `cheerpjRunLibrary` бросает `Only one library thread supported`, второй `cheerpjInit` — `CheerpJ: Already initialized`. У каждого воркера свой экземпляр, так что новый воркер — чистый перезапуск. Одна инициализация на область, запросы в очередь.
 - `/str/` плоская: `cheerpOSAddStringFile('/str/a/b')` Java не находит, `/str/b` находит.
-- JDK (`11/lib/modules`, 43 МБ кусками через Range) грузится из cross-origin iframe `c.html`: эти запросы не видны ни CDP страницы, ни Claude in Chrome. Для учёта байтов — `rt=proxy` стенда. `performance.measureUserAgentSpecificMemory()` работает только с `COI=1` и `rt=proxy` и видит лишь JS-кучу, память мерить по RSS процесса.
+- JDK (`11/lib/modules`, 43 МБ кусками через Range) грузится из cross-origin iframe `c.html`: эти запросы не видны ни CDP страницы, ни Claude in Chrome. Для учёта байтов — `rt=proxy` стенда. `performance.measureUserAgentSpecificMemory()` работает только с `COI=1` и `rt=proxy` и видит лишь JS-кучу. Память мерить суммой `phys_footprint` дерева процессов браузера (`footprint --pid …` на macOS): RSS не учитывает сжатую память и падает, пока память ещё занята.
 - В фоновой вкладке rAF не тикает: блокировку главного потока мерить через `MessageChannel`-пинг.
 - Переполнение стека в CheerpJ приходит как `java.lang.ArithmeticException` без текста, а не как `StackOverflowError`. BRouter ловит `StackOverflowError` в `OsmNodesMap.cleanupPeninsulas`, отсюда патч `patch/btools/mapaccess/OsmNodesMap.java`. `RoutingEngine` пишет в ошибку `getMessage()`, так что исключение без текста превращается в пустой трек без ошибки. Чтобы увидеть стек, создать `RoutingEngine` с непустым `outfileBase` (например `/files/dbg`): тогда он печатает лог и стек в консоль.
 - Патчи из `patch/` подменяют классы `brouter.jar` целиком: исходник брать из той же ревизии, что jar, и сверять `javap -p`.
