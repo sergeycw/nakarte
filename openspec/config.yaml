@@ -6,20 +6,17 @@ context: |
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
   Code, file paths, config keys and UI strings stay as in the code.
 
-  Project: fork of wladich/nakarte (Leaflet map app, webpack, ES modules, knockout)
-  with routing via BRouter, either a local server or BRouter running in the browser
-  (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2 for tiles,
-  a Worker as CORS proxy. Run, environment and pitfalls are in AGENTS.md.
-  Own product built on top of nakarte: no merges or PRs to upstream, upstream code is a
-  reference to borrow from; editing or deleting upstream files is fine, unused code is
-  deleted rather than hidden. Fork-only files live in openspec/, workers/,
-  functions/, experiments/, scripts/brouter-* and src/config-target/.
-  Ideas not yet proposed live in openspec/backlog.md.
+  Project: own product grown from a fork of wladich/nakarte (Leaflet map app, webpack,
+  ES modules, knockout) with routing via BRouter, either a local server or BRouter running
+  in the browser (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2,
+  own Workers in workers/ instead of the author's *.nakarte.me services.
+  Upstream is a reference only: no merges or PRs to it, upstream files may be edited or
+  deleted, unused code is deleted rather than hidden.
+  Where facts live (one place each) and run, environment, pitfalls: AGENTS.md.
 
 rules:
   tasks:
-    - 'В change с кодом есть задачи на тесты и на подключение их к CI (код сервиса — свой workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`, апстримный `main.yml` не трогать; код клиента — тесты karma в `test/`, их запускает `main.yml`); у каждой задачи с кодом проверка — зелёный тест.'
-    - 'Тесты в CI не ходят в сеть и живые сервисы: внешние ответы — через фикстуры или заглушки.'
+    - 'В change с кодом есть задачи на тесты и на подключение их к CI по правилам `AGENTS.md`, раздел «Свои бэкенды» (свой workflow сервиса, karma для клиента, без сети); у каждой задачи с кодом проверка — зелёный тест.'
 
 operations:
   apply:
