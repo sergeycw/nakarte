@@ -12,6 +12,7 @@
 - [x] 2.2 Свои сервисы по умолчанию в `src/config.js`, в `clone.js` только `routingEngine` и `routingTilesPath`; `eventsLogUrl` и `sentryDSN` пустые, заглушки `sentryDSN` и `mapyCz` убраны из шаблона секретов, `Sentry.init` только с DSN; проверка: тест karma — адреса сервисов конфига не на `nakarte.me`, `eventsLogUrl` и `sentryDSN` пустые
 - [x] 2.3 Подпись карты — название и ссылка на репозиторий форка; проверка: тест karma — в `caption` нет `nakarte.me`, есть `github.com/sergeycw/nakarte`
 - [x] 2.4 `test_track_load.js` через свой прокси локально, как в CI (шаблон секретов); проверка: тесты проходят, сетевые тесты Strava и Garmin, которые проходили только через авторский прокси, убраны с причиной в `design.md`
+- [x] 2.6 Короткие ссылки `goo.gl/maps` через свой прокси: адрес из `continue` капчи Google; проверка: `test_search_links.js` зелёный
 - [x] 2.5 Поиск mapy.cz через свой прокси; проверка: в браузере на 8766 поиск находит место, иначе — пункт в бэклоге
 
 ## 3. Без запросов к автору
