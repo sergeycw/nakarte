@@ -70,7 +70,6 @@
 
 ## Сопровождение
 
-- Мёртвые ключи `src/config.js`: `routingProfile` (добавлен в `4f0a193`, нигде не читается, профиль задаёт активность в `lib/brouter`) и `urlsBypassCORSProxy` с `pkk.rosreestr.ru` (из апстрима, слоёв Росреестра в коде нет). Найдено при сверке `docs/architecture/` 2026-10-08.
 - Доступность прокладки в клоне держится на `routingServer`: `routingAvailable = Boolean(config.routingServer)` в `track-list.js`, а в клоне это неиспользуемый `http://localhost:17777`, который заодно попадает в бандл. Привязать доступность к `routingEngine`.
 - `strava heatmap check` без условия `github.repository == 'sergeycw/nakarte'`, как у остальных workflow с обращением к клону: в чужом форке падает каждый день.
 - `deploy pages` на каждый push в `master` выкатывает все три Worker'а и собирает Rust, даже на правку документации. Кандидат: job на сервис с фильтром по путям.
