@@ -23,7 +23,7 @@ const stravaCalls = new Map();
 const offsiteCalls = [];
 
 // Страница www.strava.com/maps/global-heatmap. Поведение задаёт значение `_strava4_session`
-// до первого `-`: ok, redirect, login, offsite, partial, noexpiry, error; хвост делает сессию уникальной,
+// до первого `-`: ok, redirect, login, offsite, anon, partial, noexpiry, error; хвост делает сессию уникальной,
 // чтобы тесты не делили кеш изолята.
 function stravaPage(request) {
     const url = new URL(request.url);
@@ -39,6 +39,9 @@ function stravaPage(request) {
     }
     if (mode === 'offsite') {
         return new Response(null, {status: 302, headers: {Location: 'https://evil.test/collect'}});
+    }
+    if (mode === 'anon') {
+        return new Response('<html></html>', {headers});
     }
     if (mode === 'error') {
         return new Response('oops', {status: 503});

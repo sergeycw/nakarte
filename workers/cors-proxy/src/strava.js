@@ -90,6 +90,10 @@ async function fetchHeatmapCookies(session, fetchImpl = fetch) {
         if (!response.ok) {
             throw new Error(`strava page answered ${response.status}`);
         }
+        // так Strava ответила 2026-10-08 на подставную сессию: 200 без кук, а не редирект на /login
+        if (!found.size) {
+            throw new Error(`strava page set no heatmap cookies: ${response.status}, session not logged in`);
+        }
         const missing = HEATMAP_COOKIES.filter((name) => !found.has(name));
         if (missing.length) {
             throw new Error(`strava page set no ${missing.join(', ')}`);

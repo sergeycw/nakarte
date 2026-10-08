@@ -1,6 +1,6 @@
 // Обновление кук Strava heatmap по сессии в workerd. Страница www.strava.com — заглушка
 // `outboundService` из vitest.config.js: поведение задаёт значение `_strava4_session`
-// (ok, redirect, login, offsite, partial, noexpiry, error), хвост сессии отделяет кеш тестов.
+// (ok, redirect, login, offsite, anon, partial, noexpiry, error), хвост сессии отделяет кеш тестов.
 import {exports as workerExports} from 'cloudflare:workers';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
@@ -56,6 +56,9 @@ describe('fetchHeatmapCookies', () => {
         await expect(fetchHeatmapCookies(session('offsite'))).rejects.toThrow('redirects off https://www.strava.com');
         expect((await calls(session('none'))).offsite).toBe(0);
         await expect(fetchHeatmapCookies(session('error'))).rejects.toThrow('strava page answered 503');
+        await expect(fetchHeatmapCookies(session('anon'))).rejects.toThrow(
+            'strava page set no heatmap cookies: 200, session not logged in'
+        );
         await expect(fetchHeatmapCookies(session('partial'))).rejects.toThrow(
             'strava page set no CloudFront-Key-Pair-Id, _strava_idcf'
         );
