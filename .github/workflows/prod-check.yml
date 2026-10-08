@@ -1,0 +1,19 @@
+name: prod check
+
+# Синтетическая проверка своих сервисов клона на проде (scripts/prod-check.sh): раз в день и после
+# каждого деплоя (job smoke в deploy-pages.yml). Падение = GitHub шлёт письмо; что сломалось —
+# в логе шага, строки FAIL. После 60 дней без коммитов GitHub отключает расписание.
+
+on:
+  schedule:
+    - cron: '40 5 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  check:
+    if: github.repository == 'sergeycw/nakarte'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh scripts/prod-check.sh

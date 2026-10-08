@@ -60,6 +60,9 @@ flowchart LR
     edata["elevation data<br/>elevation-data.sh"]
     etiles["elevation tiles<br/>elevation-tiles.sh"]
     scheck["strava heatmap check"]
+    pcheck["prod check<br/>scripts/prod-check.sh"]
+    cron4(["cron 05:40 UTC ежедневно,<br/>после деплоя"])
+    own["Свои сервисы клона:<br/>Pages, высоты, треки, прокси"]
 
     brouterde["brouter.de<br/>segments4, lookups.dat"]
     vfp["viewfinderpanoramas.org"]
@@ -82,6 +85,10 @@ flowchart LR
     etiles -->|"S3 API: tiles/elevation-z0-9"| r2elev
     scheck -->|"GET тайла heatmap,<br/>X-Strava-Cookies = session?"| proxy
     scheck -.-> mail
+    cron4 --> pcheck
+    manual --> pcheck
+    pcheck -->|"только чтение: Range, точка высоты,<br/>тайлы высот, 404 трека, preflight прокси"| own
+    pcheck -.-> mail
 ```
 
 | Workflow | Когда | Что делает | Куда |
@@ -95,6 +102,7 @@ flowchart LR
 | `elevation data` | вручную | перепаковка HGT в `dem3/*` | R2 `nakarte-elevation` |
 | `elevation tiles` | вручную, после обновления `dem3/` | архив тайлов z0–9 | R2 `nakarte-elevation` |
 | `strava heatmap check` | ежедневно 05:17 UTC, вручную | тайл heatmap через прокси, падает без `session` | — |
+| `prod check` | ежедневно 05:40 UTC, после деплоя (job `smoke`), вручную | `scripts/prod-check.sh`: свои сервисы клона отвечают, только чтение | — |
 
 Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены форком условием `github.repository == 'sergeycw/nakarte'`.
 
@@ -112,4 +120,4 @@ flowchart LR
 
 ## Сверено по
 
-[.github/workflows/](../../.github/workflows/) (все одиннадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+[.github/workflows/](../../.github/workflows/) (все двенадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).

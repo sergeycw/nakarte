@@ -2,6 +2,12 @@ name = "nakarte-tracks"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
+# Workers Logs: история запросов и console.log в дашборде Cloudflare, хранятся 7 дней. В Workers Paid
+# включено 20 млн событий в месяц, дальше $0.60 за миллион (цены меняются с 2026-12-01); при росте
+# трафика понизить head_sampling_rate (доля записываемых запросов, по умолчанию 1).
+[observability]
+enabled = true
+
 # Потолок на один вызов: наблюдённый максимум CPU — 2 мс, на запрос одно обращение к R2.
 [limits]
 cpu_ms = 500

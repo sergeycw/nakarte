@@ -14,6 +14,7 @@ on:
 
 jobs:
   check:
+    if: github.repository == 'sergeycw/nakarte'
     runs-on: ubuntu-latest
     steps:
       - name: heatmap tile through the proxy uses the session

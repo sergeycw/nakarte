@@ -179,3 +179,12 @@ jobs:
       - name: check no author hosts in the build
         run: node scripts/check-no-author-hosts.mjs build
       - run: npx --yes wrangler@4 pages deploy build --project-name nakarte-routing --branch master
+
+  # Проверка прода после деплоя хотя бы одного сервиса; тот же workflow идёт раз в день сам.
+  smoke:
+    needs: [changes, cors-proxy, tracks, elevation, pages]
+    if: >-
+      ${{ !cancelled() && !failure() && (needs.changes.outputs.pages == 'true'
+      || needs.changes.outputs.cors_proxy == 'true' || needs.changes.outputs.tracks == 'true'
+      || needs.changes.outputs.elevation == 'true') }}
+    uses: ./.github/workflows/prod-check.yml
