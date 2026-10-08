@@ -1,6 +1,6 @@
 import { Map as MapLibreMap, type MapRef, NavigationControl } from '@vis.gl/react-maplibre';
 import type { RequestTransformFunction } from 'maplibre-gl';
-import { type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
 import { useAppStore } from '@/state/context';
@@ -38,22 +38,12 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
         [ref],
     );
 
-    // прежняя подложка держится под новой до события idle (все тайлы вида загружены), потом уходит из стиля
-    const [fallbackBase, setFallbackBase] = useState<string | null>(null);
-    const shownBase = useRef(selection.base);
-    useEffect(() => {
-        if (shownBase.current !== selection.base) {
-            setFallbackBase(shownBase.current);
-            shownBase.current = selection.base;
-        }
-    }, [selection.base]);
-
     const mapStyle = useMemo(() => {
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
-        return buildStyle(defs, fallbackBase ? layers.get(fallbackBase) : undefined);
-    }, [selection, layers, fallbackBase]);
+        return buildStyle(defs);
+    }, [selection, layers]);
 
     useEffect(() => {
         if (viewRequest) {
@@ -73,7 +63,6 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 mapStyle={mapStyle}
                 transformRequest={transformRequest}
                 style={{ width: '100%', height: '100%' }}
-                onIdle={() => setFallbackBase(null)}
                 onMoveEnd={(event) => {
                     const center = event.target.getCenter().wrap();
                     setView({ lat: center.lat, lng: center.lng, zoom: event.target.getZoom() });

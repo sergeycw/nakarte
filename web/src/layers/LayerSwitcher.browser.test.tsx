@@ -45,6 +45,22 @@ describe('Подложка и оверлеи', () => {
         expect(location.hash).toContain('l=E');
     });
 
+    test('Серый фон под слоями', async () => {
+        // тайлы ESRI не придут никогда (404): видно, что под новой подложкой — фон, а не прежняя карта
+        tiles.respond(/arcgisonline\.com/, new URL('/__status__/404/tile.png', location.href).href);
+        const { map } = await renderApp(tiles);
+        expect(map.getStyle().layers[0]).toMatchObject({
+            id: 'background',
+            type: 'background',
+            paint: { 'background-color': '#ddd' },
+        });
+        const switcher = await openSwitcher();
+        await switcher.getByText('ESRI Satellite').click();
+        // прежняя подложка уходит сразу, без ожидания загрузки новой
+        await expect.poll(() => mapLayerIds(map), { timeout: 1000 }).toEqual(['E']);
+        expect(map.getStyle().layers[0].id).toBe('background');
+    });
+
     test('Порядок оверлеев', async () => {
         storedListed({ Sa: true, Nm: true });
         const { map } = await renderApp(tiles);

@@ -15,7 +15,10 @@ export async function renderApp(tiles: FixtureTiles, hash = '') {
     return { screen, map: mapRef.current!.getMap() };
 }
 
-// id слоёв карты снизу вверх
+// id слоёв карты снизу вверх, без серого фона (он есть всегда, style.ts)
 export function mapLayerIds(map: { getStyle(): { layers: { id: string }[] } }) {
-    return map.getStyle().layers.map((layer) => layer.id);
+    return map
+        .getStyle()
+        .layers.map((layer) => layer.id)
+        .filter((id) => id !== 'background');
 }
