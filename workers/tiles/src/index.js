@@ -23,6 +23,11 @@ function resolvedRange(object) {
     return {offset, length: range.length ?? size - offset};
 }
 
+function startsPastEnd(rangeHeader, size) {
+    const match = /^bytes=(\d+)-/u.exec(rangeHeader ?? '');
+    return Boolean(match) && Number(match[1]) >= size;
+}
+
 async function head(env, key) {
     const object = await env.TILES.head(key);
     if (!object) {
@@ -43,6 +48,12 @@ async function get(request, env, key) {
     }
     if (!object) {
         return new Response('Not found', {status: 404});
+    }
+    // R2 в Cloudflare на диапазон за концом объекта бросает исключение (выше → 416), а локальный R2
+    // miniflare отдаёт объект; проверяем сами, чтобы wrangler dev и тесты вели себя как прод.
+    if (hasRange && startsPastEnd(request.headers.get('Range'), object.size)) {
+        await object.body.cancel();
+        return new Response(null, {status: 416, headers: {'Content-Range': `bytes */${object.size}`}});
     }
     const headers = objectHeaders(object);
     if (!hasRange || !object.range) {
