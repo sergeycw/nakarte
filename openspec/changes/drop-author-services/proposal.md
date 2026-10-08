@@ -2,13 +2,16 @@
 
 ## Why
 
-После своих сервисов треков и высот и скрытых слоёв и панорам у клона остаются последние обращения к инфраструктуре автора: слои mapy.cz через `proxy.nakarte.me/mapy/…` (захардкожено в `src/layers.js`; панорама mapy.cz удалена из кода `remove-panorama-providers`) и ссылки в подписи карты на docs, news, donate и почту автора. Этот change закрывает автономию и фиксирует её проверяемым требованием. Делается последним, после остальных changes из `openspec/research/own-backends.md`.
+После своих сервисов треков и высот, удалённых провайдеров панорам и слоёв на данных автора у приложения остаются последние обращения к инфраструктуре автора: слои mapy.cz через `proxy.nakarte.me/mapy/…` (захардкожено в `src/layers.js`), адреса автора по умолчанию в `src/config.js` (сборка без цели ходит в `proxy.nakarte.me`, `tracks.nakarte.me`, `elevation.nakarte.me`, `tiles.nakarte.me/elevation`, `nakarte.me/event`), ссылки в подписи карты на docs, news, donate и почту автора. Решение владельца 2026-10-08: свой продукт на базе nakarte, апстрим — справочник (`AGENTS.md`, «Апстрим»), поэтому свои сервисы становятся значениями по умолчанию, а не переопределением клона. Change закрывает автономию и фиксирует её проверяемым требованием. Делается и архивируется последним из плана `openspec/research/own-backends.md`.
 
 ## What Changes
 
-- Тайлы mapy.cz (туристическая и зимняя карты) идут через свой прокси `nakarte-cors-proxy` с ключом mapy.cz в секретах Worker; если условия mapy.cz этого не позволяют — слои mapy.cz скрываются в клоне тем же механизмом, что слои сканов.
-- Подпись карты клона (`caption`) — свои ссылки: репозиторий форка вместо docs, news, donate и почты автора.
-- Требование и проверка: клон не делает ни одного сетевого запроса к `*.nakarte.me`.
+- Слои «mapy.cz tourist (Out of order)» (`Czt`) и «mapy.cz winter (Out of order)» (`Czw`) удалены из `src/layers.js`: ключа mapy.cz у владельца нет, у автора они помечены неработающими. Свой маршрут `/mapy/` в прокси не делается. Поиск mapy.cz и ссылка на mapy.cz во внешних картах остаются.
+- Значения по умолчанию в `src/config.js` — свои Worker'ы: `CORSProxyUrl`, `wikimapiaTilesBaseUrl`, `tracksStorageServer`, `elevationsServer`, `elevationTileUrl`, `elevationsAttribution`; `eventsLogUrl` и `sentryDSN` пустые, Sentry без DSN не инициализируется. В `src/config-target/clone.js` остаются только отличия сборки клона от локального серверного режима: `routingEngine` и `routingTilesPath`.
+- Из `src/secrets.js.template` удалены заглушки `sentryDSN` и неиспользуемый `mapyCz`.
+- Подпись карты (`caption`) — короткое название и ссылка на репозиторий форка `https://github.com/sergeycw/nakarte`, без донатов и почты.
+- Прокси `nakarte-cors-proxy` пускает origin karma `http://localhost:9876`: тесты `test_track_load.js` теперь идут через свой прокси.
+- Скрипт `scripts/check-no-author-hosts.mjs` ищет адреса `*.nakarte.me` в собранном бандле, кроме известных строк-метаданных, и запускается в `deploy-pages.yml` после сборки: находка останавливает деплой.
 
 ## Capabilities
 
@@ -16,11 +19,13 @@
 
 ### Modified Capabilities
 
-- `clone-hosting`: требование «Сборка под клон» дополняется прокси mapy.cz и своей подписью карты; новое требование — без запросов к `*.nakarte.me`.
-- `cors-proxy`: требование «Формат адреса» дополняется маршрутом `/mapy/` для тайлов mapy.cz.
+- `clone-hosting`: «Сборка под клон» — клон отличается только движком в браузере и путём тайлов, свои сервисы и подпись — во всех сборках; новые требования «Без запросов к инфраструктуре автора» и «Без слоёв mapy.cz».
+- `clone-deploy`: новое требование — деплой падает, если в бандле есть адреса `*.nakarte.me`.
+- `cors-proxy`: «Только разрешённые origin» — в списке origin karma.
 
 ## Impact
 
-- Изменения: `src/config-target/clone.js`, `src/config.js` или место подстановки адресов mapy.cz, `workers/cors-proxy/src/index.js` и его секреты, `openspec/specs/cors-proxy`.
-- Внешнее: ключ API mapy.cz заводит владелец.
-- Зависимость: архивировать после `add-track-storage`, `add-elevation-api`, `add-elevation-tiles`, `hide-map-data-layers`, `remove-panorama-providers`, `drop-author-scan-layers` — иначе требование «без запросов к `*.nakarte.me`» не выполняется.
+- Апстримные файлы: `src/config.js`, `src/layers.js`, `src/index.js`, `src/secrets.js.template`. Сборка без цели теперь тоже ходит в свои Worker'ы.
+- `src/config-target/clone.js`, `workers/cors-proxy/wrangler.toml`, `.github/workflows/deploy-pages.yml`, новый `scripts/check-no-author-hosts.mjs`.
+- Строки `nakarte.me`, которые не являются запросами (`creator="http://nakarte.me"` в GPX, имя файла JNX, текст уведомления сессий, `<title>`), не трогаются: переименование продукта — вне этого change.
+- Зависимость: архивировать последним из changes `own-backends.md`.
