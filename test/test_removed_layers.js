@@ -6,8 +6,9 @@ import enableLayersConfig from '~/lib/leaflet.control.layers.configure';
 import '~/lib/leaflet.hashState/Leaflet.Control.Layers'; // eslint-disable-line import/no-unassigned-import
 import safeLocalStorage from '~/lib/safe-localstorage';
 
-// Слои на данных автора, удалённые change drop-author-scan-layers: 17 сканов на tiles.nakarte.me,
-// перевалы Вестры и geocaching.su. Коды могут остаться в старых ссылках и в localStorage.
+// Слои на данных автора: 17 сканов на tiles.nakarte.me, перевалы Вестры и geocaching.su
+// (drop-author-scan-layers), mapy.cz через proxy.nakarte.me/mapy/ (drop-author-services).
+// Коды могут остаться в старых ссылках и в localStorage.
 const REMOVED_CODES = [
     'T',
     'D',
@@ -28,6 +29,8 @@ const REMOVED_CODES = [
     'Pur',
     'Wp',
     'Gc',
+    'Czt',
+    'Czw',
 ];
 const SETTINGS_KEY = 'leafletLayersSettings';
 
@@ -54,10 +57,10 @@ test('removed codes are not defined', function () {
     }
 });
 
-test('no tiles from tiles.nakarte.me', function () {
+test('no tiles from nakarte.me', function () {
     for (const layerDef of layersDefs) {
         for (const url of tileUrls(layerDef.layer)) {
-            assert.notMatch(url, /tiles\.nakarte\.me/u, layerDef.title);
+            assert.notMatch(url, /nakarte\.me/u, layerDef.title);
         }
     }
 });

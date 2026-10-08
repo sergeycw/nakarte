@@ -1,18 +1,8 @@
-const CORS_PROXY_URL = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev/';
-
+// Отличия публичного клона на Cloudflare от локального серверного режима: BRouter в браузере
+// (CheerpJ) и тайлы BRouter с того же origin через functions/tiles.
 const configTarget = {
-    CORSProxyUrl: CORS_PROXY_URL,
-    tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
-    elevationsServer: 'https://nakarte-elevation.nakarte-routing.workers.dev/',
-    elevationTileUrl: 'https://nakarte-elevation.nakarte-routing.workers.dev/tiles/{z}/{x}/{y}',
-    elevationsAttribution:
-        'Elevation data: <a href="https://viewfinderpanoramas.org/dem3.html" target="_blank">' +
-        'viewfinderpanoramas.org</a> (Jonathan de Ferranti)',
-    wikimapiaTilesBaseUrl: `${CORS_PROXY_URL}wikimapia/`,
     routingEngine: 'browser',
     routingTilesPath: '/tiles/',
-    eventsLogUrl: '',
-    sentryDSN: '',
 };
 
 export default configTarget;

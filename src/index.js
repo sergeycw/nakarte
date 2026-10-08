@@ -36,7 +36,8 @@ preconnect(config.elevationsServer);
 preconnect(config.CORSProxyUrl);
 preconnect(config.tracksStorageServer);
 
-if (NODE_ENV === 'production') {
+// Без DSN (своего Sentry нет, config.sentryDSN пуст) SDK не инициализируется и ничего не отправляет.
+if (NODE_ENV === 'production' && config.sentryDSN) {
     Sentry.init({
         dsn: config.sentryDSN,
         release: RELEASE_VER

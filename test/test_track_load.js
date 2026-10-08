@@ -37,20 +37,6 @@ function reduceSegmentsPointsPrecision(segments) {
 
 suite('Load tracks from services');
 [
-    'strava_with_title',
-    'strava_without_title',
-    'strava_private',
-    'strava_not_exists',
-    'strava_short_url_private',
-    'strava_short_url_not_exists',
-    'strava_short_url_deleted',
-    'garmin_connect_activity_with_title',
-    'garmin_connect_activity_without_title',
-    'garmin_connect_activity_private',
-    'garmin_connect_activity_not_exists',
-    'garmin_connect_route_with_title',
-    'garmin_connect_route_private',
-    'garmin_connect_route_not_exists',
     'osm_with_title',
     'osm_without_title',
     'osm_private',

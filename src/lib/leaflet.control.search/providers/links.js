@@ -126,6 +126,19 @@ const GoogleMapsQueryUrl = {
     },
 };
 
+// Google отправляет запросы с IP прокси (Cloudflare Workers) на капчу www.google.com/sorry/ с ответом 429,
+// а исходный адрес кладёт в параметр continue. Капчу не проходим: адрес с координатами берём оттуда.
+// Авторский proxy.nakarte.me капчу не получает, поэтому в апстриме этого нет.
+async function resolveGoogleShortUrl(url) {
+    const xhr = await fetch(urlViaCorsProxy(url.toString()), {method: 'HEAD', isResponseSuccess: () => true});
+    const finalUrl = new URL(xhr.responseURL);
+    const continueUrl = finalUrl.searchParams.get('continue');
+    if (/\/www\.google\.[a-z.]+\/sorry\//u.test(finalUrl.pathname) && continueUrl) {
+        return new URL(continueUrl);
+    }
+    return finalUrl;
+}
+
 const GoogleMapsUrl = {
     subprocessors: [GoogleMapsSimpleMapUrl, GoogleMapsQueryUrl],
 
@@ -139,8 +152,7 @@ const GoogleMapsUrl = {
         try {
             if (url.hostname === 'goo.gl') {
                 isShort = true;
-                const xhr = await fetch(urlViaCorsProxy(url.toString()), {method: 'HEAD'});
-                actualUrl = new URL(xhr.responseURL);
+                actualUrl = await resolveGoogleShortUrl(url);
             } else {
                 actualUrl = url;
             }

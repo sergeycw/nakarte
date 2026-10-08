@@ -47,6 +47,10 @@ jobs:
           NAKARTE_TARGET: clone
       - name: check engine files are in the build
         run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
+      # Адрес *.nakarte.me в бандле — обращение к инфраструктуре автора: деплой стоп
+      # (требование «Бандл без адресов автора» в openspec/specs/clone-deploy).
+      - name: check no author hosts in the build
+        run: node scripts/check-no-author-hosts.mjs build
       - run: npx --yes wrangler@4 pages deploy build --project-name nakarte-routing --branch master
       - run: npx --yes wrangler@4 deploy
         working-directory: workers/cors-proxy
