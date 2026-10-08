@@ -11,8 +11,6 @@ const configTarget = {
     wikimapiaTilesBaseUrl: `${CORS_PROXY_URL}wikimapia/`,
     routingEngine: 'browser',
     routingTilesPath: '/tiles/',
-    // Слои на данных автора без своей замены: перевалы Вестры и geocaching.su (backlog.md).
-    excludedLayerCodes: ['Wp', 'Gc'],
     eventsLogUrl: '',
     sentryDSN: '',
 };

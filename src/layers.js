@@ -4,9 +4,7 @@ import '~/lib/leaflet.layer.google';
 import {BingSatLayer, BingOrdnanceSurveyLayer} from '~/lib/leaflet.layer.bing';
 import config from './config';
 import '~/lib/leaflet.layer.soviet-topomaps-grid';
-import '~/lib/leaflet.layer.westraPasses';
 import '~/lib/leaflet.layer.wikimapia';
-import {GeocachingSu} from '~/lib/leaflet.layer.geocaching-su';
 import {RetinaTileLayer} from '~/lib/leaflet.layer.RetinaTileLayer';
 import {urlViaCorsProxy} from '~/lib/CORSProxy';
 import '~/lib/leaflet.layer.TileLayer.cutline';
@@ -182,80 +180,7 @@ class LayerGroupWithOptions extends L.LayerGroup {
                         }
                     )
                 },
-                {
-                    title: 'Soviet topo maps (AtloMaps)',
-                    isDefault: true,
-                    layer: L.tileLayer(
-                        'https://tiles.nakarte.me/topomapper/{z}/{x}/{y}',
-                        {
-                            code: 'T',
-                            isOverlay: false,
-                            scaleDependent: true,
-                            maxNativeZoom: 13,
-                            noCors: false,
-                            print: true,
-                            jnx: true,
-                            shortName: 'soviet_topo',
-                            attribution:
-                                '<a href="https://play.google.com/store/apps/details?id=com.atlogis.atlomaps">' +
-                                'AtloMaps</a>',
-                        }
-                    )
-                },
 
-                {
-                    title: 'Topo 10km',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/topo001m/{z}/{x}/{y}",
-                        {
-                            code: 'D',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 10,
-                            print: true,
-                            jnx: true,
-                            shortName: 'topo_10k'
-                        }
-                    )
-                },
-                {
-                    title: 'GGC 2 km',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/ggc2000/{z}/{x}/{y}",
-                        {
-                            code: 'N',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 12,
-                            print: true,
-                            jnx: true,
-                            shortName: 'ggc_2k'
-                        }
-                    )
-                },
-                {
-                    title: 'ArbaletMO',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/ArbaletMO/{z}/{x}/{y}",
-                        {
-                            code: 'A',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 13,
-                            print: true,
-                            jnx: true,
-                            shortName: 'arbalet',
-                            attribution:
-                                '<a href="http://www.velozona.ru/forums/showmessage.php?id=3370">Arbalet (2004)</a>',
-                        }
-                    )
-                },
                 {
                     title: 'Slazav mountains',
                     isDefault: true,
@@ -272,91 +197,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                             jnx: true,
                             shortName: 'slazav_mountains',
                             attribution: '<a href="http://slazav.xyz/maps">Vladislav Zavjalov</a>',
-                        }
-                    )
-                },
-                {
-                    title: 'GGC 1km',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/ggc1000/{z}/{x}/{y}",
-                        {
-                            code: 'J',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 13,
-                            print: true,
-                            jnx: true,
-                            shortName: 'ggc_1k'
-                        }
-                    )
-                },
-                {
-                    title: 'Topo 1km',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/topo1000/{z}/{x}/{y}",
-                        {
-                            code: 'C',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 13,
-                            print: true,
-                            jnx: true,
-                            shortName: 'topo_1k'
-                        }
-                    )
-                },
-                {
-                    title: 'GGC 500m',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/ggc500/{z}/{x}/{y}",
-                        {
-                            code: 'F',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 14,
-                            print: true,
-                            jnx: true,
-                            shortName: 'ggc_500'
-                        }
-                    )
-                },
-                {
-                    title: 'Topo 500m',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/topo500/{z}/{x}/{y}",
-                        {
-                            code: 'B',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 14,
-                            print: true,
-                            jnx: true,
-                            shortName: 'topo_500'
-                        }
-                    )
-                },
-                {
-                    title: 'GGC 250m',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/ggc250/{z}/{x}/{y}",
-                        {
-                            code: 'K',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 15,
-                            print: true,
-                            jnx: true,
-                            shortName: 'ggc_250'
                         }
                     )
                 },
@@ -380,40 +220,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                     )
                 },
                 {
-                    title: 'Races',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/adraces/{z}/{x}/{y}",
-                        {
-                            code: 'U',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 15,
-                            print: true,
-                            jnx: true,
-                            shortName: 'races'
-                        }
-                    )
-                },
-                {
-                    title: 'O-sport',
-                    isDefault: true,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/osport/{z}/{x}/{y}",
-                        {
-                            code: 'R',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 17,
-                            print: true,
-                            jnx: true,
-                            shortName: 'osport'
-                        }
-                    )
-                },
-                {
                     title: 'Soviet topo maps grid',
                     isDefault: true,
                     layer: new L.Layer.SovietTopoGrid({
@@ -433,25 +239,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                         jnx: false,
                         attribution: '<a href="https://wikimapia.org/">Wikimapia</a>',
                         tilesBaseUrl: config.wikimapiaTilesBaseUrl,
-                    })
-                },
-                {
-                    title: 'Mountain passes (Westra)',
-                    isDefault: true,
-                    layer: new L.Layer.WestraPasses(config.westraDataBaseUrl, {
-                        code: 'Wp',
-                        print: true,
-                        jnx: false,
-                        scaleDependent: true,
-                        isOverlay: true,
-                        isOverlayTransparent: true,
-                        shortName: 'passes',
-                        markersOptions: {
-                            isOverlay: true,
-                            isOverlayTransparent: true,
-                            shortName: 'passes'
-                        },
-                        attribution: '<a href="http://westra.ru/passes/">Westra passes catalog</a>',
                     })
                 },
                 {
@@ -512,95 +299,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                     )
                 },
                 {
-                    title: 'Eurasia 25km',
-                    // description: '1975-80',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/eurasia25km/{z}/{x}/{y}",
-                        {
-                            code: 'E25m',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            maxNativeZoom: 9,
-                            print: true,
-                            jnx: true,
-                            scaleDependent: false,
-                            shortName: 'eurasia_25k'
-                        }
-                    )
-                },
-                {
-                    title: 'Caucasus 1km',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/new_gsh_100k/{z}/{x}/{y}",
-                        {
-                            code: 'NT1',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            maxNativeZoom: 14,
-                            print: true,
-                            jnx: true,
-                            scaleDependent: false,
-                            shortName: 'caucasus_1k',
-                            attribution: '<a href="http://genshtab-yuga.narod.ru/">Topo maps (2006)</a>',
-                        }
-                    )
-                },
-                {
-                    title: 'Caucasus 500m',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/new_gsh_050k/{z}/{x}/{y}",
-                        {
-                            code: 'NT5',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            maxNativeZoom: 15,
-                            print: true,
-                            jnx: true,
-                            scaleDependent: false,
-                            shortName: 'caucasus_500',
-                            attribution: '<a href="http://genshtab-yuga.narod.ru/">Topo maps (1998 - 2003)</a>',
-                        }
-                    )
-                },
-                {
-                    title: 'Topo 250m',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/topo250/{z}/{x}/{y}",
-                        {
-                            code: 'T25',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            maxNativeZoom: 15,
-                            print: true,
-                            jnx: true,
-                            scaleDependent: false,
-                            shortName: 'topo_250'
-                        }
-                    )
-                },
-                {
-                    title: 'Montenegro topo 250m',
-                    // description: '1970-72',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/montenegro250m/{z}/{x}/{y}",
-                        {
-                            code: 'MN25',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            maxNativeZoom: 15,
-                            print: true,
-                            jnx: true,
-                            scaleDependent: false,
-                            shortName: 'montenegro_250'
-                        }
-                    )
-                },
-                {
                     title: 'Mountains by Aleksey Tsvetkov',
                     isDefault: true,
                     layer: new LayerGroupWithOptions(
@@ -637,19 +335,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                             isWrapper: true,
                         }
                     ),
-                },
-                {
-                    title: 'geocaching.su',
-                    isDefault: false,
-                    layer: new GeocachingSu(config.geocachingSuUrl, {
-                        code: 'Gc',
-                        isOverlay: true,
-                        isOverlayTransparent: true,
-                        print: true,
-                        jnx: false,
-                        shortName: 'geocaching',
-                        attribution: '<a href="https://geocaching.su/">geocaching.su</a>',
-                    })
                 },
                 {
                     title: 'OpenStreetMap GPS traces',
@@ -1066,25 +751,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
                     )
                 },
                 {
-                    title: 'Mountains by Alexander Purikov',
-                    isDefault: false,
-                    layer: L.tileLayer("https://{s}.tiles.nakarte.me/purikov/{z}/{x}/{y}",
-                        {
-                            code: 'Pur',
-                            isOverlay: true,
-                            isOverlayTransparent: false,
-                            tms: true,
-                            scaleDependent: false,
-                            maxNativeZoom: 14,
-                            noCors: false,
-                            print: true,
-                            jnx: true,
-                            shortName: 'purikov_mountains',
-                            attribution: '<a href="https://westra.ru/reports/">Alexander Purikov</a>',
-                        }
-                    )
-                },
-                {
                     title: 'Sweden topo',
                     isDefault: false,
                     layer: L.tileLayer(
@@ -1126,23 +792,11 @@ class LayerGroupWithOptions extends L.LayerGroup {
                 'Google Satellite',
                 'Google Terrain',
                 'Bing Satellite',
-                'Soviet topo maps (AtloMaps)',
-                'Topo 10km',
-                'GGC 2 km',
-                'ArbaletMO',
                 'Mountains by Aleksey Tsvetkov',
                 'Slazav mountains',
-                'GGC 1km',
-                'Topo 1km',
-                'GGC 500m',
-                'Topo 500m',
-                'GGC 250m',
                 'Slazav Moscow region map',
-                'Races',
-                'O-sport',
                 'Soviet topo maps grid',
                 'Wikimapia',
-                'Mountain passes (Westra)'
             ],
         },
         {
@@ -1159,11 +813,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
         {
             title: 'Topo maps',
             layers: [
-                'Eurasia 25km',
-                'Caucasus 1km',
-                'Caucasus 500m',
-                'Topo 250m',
-                'Montenegro topo 250m',
                 'Finland Topo',
                 'Sweden topo',
                 'Great Britain Topo',
@@ -1175,9 +824,7 @@ class LayerGroupWithOptions extends L.LayerGroup {
         {
             title: 'Miscellaneous',
             layers: [
-                'Mountains by Alexander Purikov',
                 'Google Hybrid',
-                'geocaching.su'
             ]
         },
         {
@@ -1223,17 +870,11 @@ class LayerGroupWithOptions extends L.LayerGroup {
         'Yandex map',
         'Google Map',
         'Google Terrain',
-        // Topo maps
-        'Soviet topo maps (AtloMaps)',
 
         // local base layers
 
         // map overlays
         '#custom-bottom',
-        'Eurasia 25km',
-        'Topo 10km',
-        'GGC 2 km',
-        'ArbaletMO',
         'Norway roads',
         'Norway paper map',
         'Norway topo',
@@ -1241,23 +882,11 @@ class LayerGroupWithOptions extends L.LayerGroup {
         'Sweden topo',
         'Slovakia topo',
         'Spain topo',
-        'Mountains by Alexander Purikov',
         'Mountains by Aleksey Tsvetkov',
         'Slazav mountains',
-        'GGC 1km',
-        'Topo 1km',
-        'Caucasus 1km',
         'Great Britain Topo',
-        'GGC 500m',
-        'Topo 500m',
-        'Caucasus 500m',
-        'GGC 250m',
-        'Topo 250m',
-        'Montenegro topo 250m',
         'Switzerland topo',
         'Slazav Moscow region map',
-        'Races',
-        'O-sport',
         '#custom-top',
 
         // line overlays
@@ -1271,10 +900,6 @@ class LayerGroupWithOptions extends L.LayerGroup {
         'Strava heatmap (winter)',
         'Soviet topo maps grid',
         'Wikimapia',
-
-        // point overlays
-        'Mountain passes (Westra)',
-        'geocaching.su',
     ];
 
 function getLayers() {
