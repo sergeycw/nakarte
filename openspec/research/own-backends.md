@@ -9,7 +9,7 @@
 - Хостинг — Cloudflare, план Workers Paid ($5 в месяц). Включает и оплачивает владелец; агент токены и биллинг не трогает.
 - Данные высот — DEM 3″ viewfinderpanoramas, те же, что у автора (решение 2026-10-07 в `add-elevation-api`, GLO-30 отложен в backlog), сервис высот на Rust.
 - Перевалы и геокешинг — свои скраперы, а не зеркало файлов автора.
-- 17 слоёв сканов карт автора убираем из клона.
+- 17 слоёв сканов карт автора, слои перевалов Вестры и geocaching.su удаляем из кода (решение 2026-10-08, `drop-author-scan-layers`).
 
 ## Карта бэкендов
 
@@ -20,14 +20,14 @@
 | `tracksStorageServer` = `https://tracks.nakarte.me` | ссылка «Copy link» (`nktl=`) | свой Worker + R2 |
 | `elevationsServer` = `https://elevation.nakarte.me/` | профиль высот, экспорт с высотами, внешние карты | свой API высот на Rust |
 | `elevationTileUrl` = `https://tiles.nakarte.me/elevation/{z}/{x}/{y}` | высота и уклон под курсором | свои тайлы из тех же данных |
-| `westraDataBaseUrl` = `https://nakarte.me/westraPasses/` | слой перевалов | отложено, слой скрыт в клоне (`openspec/backlog.md`) |
-| `geocachingSuUrl` = `https://nakarte.me/geocachingSu/geocaching_su2.json` | слой geocaching.su | отложено, слой скрыт в клоне (`openspec/backlog.md`) |
+| `westraDataBaseUrl` = `https://nakarte.me/westraPasses/` | слой перевалов | слой, его код и ключ удалены (`drop-author-scan-layers`); свои данные — `openspec/backlog.md` |
+| `geocachingSuUrl` = `https://nakarte.me/geocachingSu/geocaching_su2.json` | слой geocaching.su | слой, его код и ключ удалены (`drop-author-scan-layers`); свои данные — `openspec/backlog.md` |
 | `wikimediaCommonsCoverageUrl` = `https://tiles.nakarte.me/wikimedia_commons_images/{z}/{x}/{y}` | покрытие фото Wikimedia Commons | отменено: провайдер удалён из кода (`remove-panorama-providers`) |
 | `mapillaryRasterTilesUrl` = `https://mapillary.nakarte.me/{z}/{x}/{y}` | покрытие Mapillary | отменено: провайдер удалён из кода (`remove-panorama-providers`) |
 | `https://proxy.nakarte.me/mapy/...` (захардкожено в `src/layers.js` и `leaflet.control.panoramas/lib/mapycz`) | слои mapy.cz, панорамы | слои — перевести на свой прокси `nakarte-cors-proxy`; панорама mapy.cz удалена из кода (`remove-panorama-providers`) |
 | `caption` (docs, news, donate, почта) | подпись карты | свои ссылки |
 | `eventsLogUrl`, `sentryDSN` | логирование | в клоне уже выключено |
-| `{s}.tiles.nakarte.me/...`, `tiles.nakarte.me/topomapper/...` — 17 слоёв | сканы карт | убрать из клона |
+| `{s}.tiles.nakarte.me/...`, `tiles.nakarte.me/topomapper/...` — 17 слоёв | сканы карт | удалены из кода (`drop-author-scan-layers`) |
 
 Слои сканов: Soviet topo maps (AtloMaps), Topo 10km, GGC 2km, ArbaletMO, GGC 1km, Topo 1km, GGC 500m, Topo 500m, GGC 250m, Races, O-sport, Eurasia 25km, Caucasus 1km, Caucasus 500m, Topo 250m, Montenegro topo 250m, Mountains by Alexander Purikov.
 
@@ -60,8 +60,8 @@
 
 ### Перевалы и геокешинг
 
-- Перевалы: клиент берёт с `westraDataBaseUrl` файлы `westra_passes2.json`, `westra_coverage.json`, `westra_regions_labels1.json`, `westra_regions_labels2.json` (`src/lib/leaflet.layer.westraPasses/`). У автора `westra_passes2.json` ≈ 7.4 МБ без сжатия, обновляется ежедневно.
-- Геокешинг: один JSON `geocaching_su2.json` (`src/lib/leaflet.layer.geocaching-su/`), ≈ 0.8 МБ в gzip.
+- Перевалы (клиент удалён в `drop-author-scan-layers`, код — в истории git и `upstream/master`): клиент брал с `westraDataBaseUrl` файлы `westra_passes2.json`, `westra_coverage.json`, `westra_regions_labels1.json`, `westra_regions_labels2.json` (`src/lib/leaflet.layer.westraPasses/`). У автора `westra_passes2.json` ≈ 7.4 МБ без сжатия, обновляется ежедневно.
+- Геокешинг (клиент удалён там же): один JSON `geocaching_su2.json` (`src/lib/leaflet.layer.geocaching-su/`), ≈ 0.8 МБ в gzip.
 - Схему JSON агент снимает с текущих файлов автора и фиксирует как фикстуры теста; скрапер обязан выдавать ту же схему.
 
 ## Сервис высот
@@ -131,10 +131,10 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 1. **Хранилище треков.** Worker + R2, проверка md5-ключа, `413`, CORS с `credentials`. Тесты в рантайме Workers (`@cloudflare/vitest-pool-workers` или аналог). Заодно отрабатывается шаблон деплоя сервиса.
 2. **API высот на Rust.** Утилита перепаковки, ядро, адаптер `workers-rs`, контрактный тест: формат ответа совпадает с автором, высоты на эталонных точках в пределах допуска (эталоны снять заранее и положить фикстурами). Атрибуция viewfinderpanoramas в UI.
 3. **Тайлы высот.** Генерация в формате клиента, тест декодирования и сверки с эталонным тайлом. Возможно, внутри change 2.
-4. **Скраперы перевалов и геокешинга.** Отложено 2026-10-07 (итоги ресёрча — `openspec/backlog.md`), слои скрыты в клоне. Сначала проверить условия использования westra.ru и geocaching.su. Cron Trigger → R2, тесты на сохранённых страницах источников, проверка схемы JSON против фикстур от файлов автора.
+4. **Скраперы перевалов и геокешинга.** Отложено 2026-10-07 (итоги ресёрча — `openspec/backlog.md`), слои сначала скрыты в клоне, потом удалены из кода (`drop-author-scan-layers`). Сначала проверить условия использования westra.ru и geocaching.su. Cron Trigger → R2, тесты на сохранённых страницах источников, проверка схемы JSON против фикстур от файлов автора.
 5. **Покрытия Wikimedia Commons и Mapillary.** Отменено решением владельца: в панорамах только Google Street View; Wikimedia Commons, Mapillary и mapy.cz сначала скрыты в клоне (`hide-panorama-providers`, 2026-10-07), потом удалены из кода (`remove-panorama-providers`, 2026-10-08).
 6. **Прокси mapy и подпись карты.** `proxy.nakarte.me/mapy/...` → `nakarte-cors-proxy`, свои ссылки в `caption`.
-7. **Убрать слои сканов.** Решение владельца 2026-10-08: удалить 17 слоёв из `src/layers.js` во всех сборках, а не прятать фильтром — в апстрим мы не мерджимся (`AGENTS.md`, «Апстрим»).
+7. **Убрать слои сканов.** Решение владельца 2026-10-08: удалить 17 слоёв из `src/layers.js` во всех сборках, а не прятать фильтром — в апстрим мы не мерджимся (`AGENTS.md`, «Апстрим»). Тем же change удалены слои перевалов Вестры и geocaching.su и фильтр `excludedLayerCodes`.
 
 ### Changes в `openspec/changes/`
 
@@ -143,10 +143,10 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 1 | `add-track-storage` | — | в проде и в архиве с 2026-10-07, шаблон сервиса — `workers/tracks/` |
 | 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в проде и в архиве с 2026-10-07: данные viewfinderpanoramas 3″ всего мира, сервис `workers/elevation` |
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде и в архиве с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
-| 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, в проде и в архиве с 2026-10-07) |
+| 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, архив 2026-10-07), потом удалены из кода вместе с фильтром (`drop-author-scan-layers`) |
 | 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрыл Wikimedia Commons, Mapillary и mapy.cz (в архиве с 2026-10-07), `remove-panorama-providers` удалил их код (в проде и в архиве с 2026-10-08) |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
-| 7 | `drop-author-scan-layers` | — | |
+| 7 | `drop-author-scan-layers` | — | 2026-10-08: 17 слоёв сканов, `Wp` и `Gc` удалены из кода во всех сборках, фильтр `excludedLayerCodes` удалён |
 
 ## Открытые вопросы
 

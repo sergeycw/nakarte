@@ -21,7 +21,6 @@ import enableLayersMinimize from '~/lib/leaflet.control.layers.minimize';
 import enableLayersConfig from '~/lib/leaflet.control.layers.configure';
 import raiseControlsOnFocus from '~/lib/leaflet.controls.raise-on-focus';
 import {getLayers} from './layers';
-import {excludeLayers} from '~/config-target/exclude-layers';
 import '~/lib/leaflet.control.layers.events';
 import '~/lib/leaflet.control.jnx';
 import '~/lib/leaflet.control.jnx/hash-state';
@@ -192,9 +191,7 @@ function setUp() { // eslint-disable-line complexity
     }
     enableLayersControlAdaptiveHeight(layersControl);
     enableLayersMinimize(layersControl);
-    enableLayersConfig(layersControl, excludeLayers(getLayers(), config.excludedLayerCodes), {
-        withHotkeys: areHotkeysEnabled,
-    });
+    enableLayersConfig(layersControl, getLayers(), {withHotkeys: areHotkeysEnabled});
     layersControl.addTo(map);
     layersControl.enableHashState('l');
 
