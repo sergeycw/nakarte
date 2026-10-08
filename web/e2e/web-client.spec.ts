@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-// Названия тестов — сценарии спеки web-client (openspec/changes/add-web-skeleton/specs/web-client/spec.md).
+// Названия тестов — сценарии спеки web-client (openspec/specs/web-client/spec.md).
 
 // тайл z/x/y, в который попадает точка, — формула Web Mercator из вики OSM (Slippy map tilenames)
 function tileOf(lat: number, lng: number, zoom: number) {

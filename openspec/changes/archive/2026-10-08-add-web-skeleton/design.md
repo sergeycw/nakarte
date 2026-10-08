@@ -2,12 +2,12 @@
 
 ## Context
 
-Стек, UI-библиотека, карта и план перехода выбраны в [ресёрче](../../research/new-ui.md) (п. 1–3, 7) и в архивах [record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md); здесь — как это собрать. Версии на 2026-10-08 по `npm view`: `react` 19.3.0, `vite` 8.3.4, `@vitejs/plugin-react` 6.1.2, `typescript` 7.0.2, `vitest` и `@vitest/browser-playwright` 5.0.3, `@biomejs/biome` 2.5.15, `@playwright/test` 1.64.0, `maplibre-gl` 6.13.0, `@vis.gl/react-maplibre` 8.1.3 (peer `maplibre-gl >=4`), `tailwindcss` 4.3.3, `shadcn` 4.21.4, `@base-ui/react` 1.8.0, `zustand` 5.0.15.
+Стек, UI-библиотека, карта и план перехода выбраны в [ресёрче](../../../research/new-ui.md) (п. 1–3, 7) и в архивах [record-ui-decisions](../2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md); здесь — как это собрать. Версии на 2026-10-08 по `npm view`: `react` 19.3.0, `vite` 8.3.4, `@vitejs/plugin-react` 6.1.2, `typescript` 7.0.2, `vitest` и `@vitest/browser-playwright` 5.0.3, `@biomejs/biome` 2.5.15, `@playwright/test` 1.64.0, `maplibre-gl` 6.13.0, `@vis.gl/react-maplibre` 8.1.3 (peer `maplibre-gl >=4`), `tailwindcss` 4.3.3, `shadcn` 4.21.4, `@base-ui/react` 1.8.0, `zustand` 5.0.15.
 
 Ограничения окружения:
-- Старый клиент собирается webpack'ом с `CleanWebpackPlugin` в `build/` ([webpack.config.js](../../../webpack/webpack.config.js)): новое приложение собирается в `build/next/` только после него, иначе каталог сотрут.
+- Старый клиент собирается webpack'ом с `CleanWebpackPlugin` в `build/` ([webpack.config.js](../../../../webpack/webpack.config.js)): новое приложение собирается в `build/next/` только после него, иначе каталог сотрут.
 - Vitest 5 требует Node `^22.12 || ^24 || >=26`; локально по умолчанию Node 20, Node 22 — в `/usr/local/bin` (`AGENTS.md`, «Подвохи тестового стенда Workers»).
-- Job `changes` в [deploy-pages.yml](../../../.github/workflows/deploy-pages.yml) решает про Pages списком исключений (`workers/<сервис>/`, `docs/`, `openspec/`, `test/`, `.github/`, `*.md`), поэтому `web/**` уже включает Pages. Правка фильтра не нужна, нужен комментарий.
+- Job `changes` в [deploy-pages.yml](../../../../.github/workflows/deploy-pages.yml) решает про Pages списком исключений (`workers/<сервис>/`, `docs/`, `openspec/`, `test/`, `.github/`, `*.md`), поэтому `web/**` уже включает Pages. Правка фильтра не нужна, нужен комментарий.
 - shadcn на Base UI с 2026-07 — выбор по умолчанию у `shadcn init` ([changelog](https://ui.shadcn.com/docs/changelog/2026-07-base-ui-default)); его тост построен на Base UI Toast, API `toast.add({title})` и `<Toaster />` ([docs](https://ui.shadcn.com/docs/components/base/toast)).
 
 ## Goals / Non-Goals
@@ -35,7 +35,7 @@
 
 ### Конфиг: функция от режима Vite, а не `.env`-файлы
 
-`web/src/config.ts` экспортирует `makeConfig(mode)` и `config = makeConfig(import.meta.env.MODE)`. Значения — как в [src/config.js](../../../src/config.js) и [config-target/clone.js](../../../src/config-target/clone.js): прокси, треки, высоты, `routingEngine`/`routingTilesPath`/`routingServer`, начальный вид. Режим `clone` (`vite build --mode clone`, скрипт `build`) включает движок в браузере, остальные — серверный BRouter. Почему не `.env.clone` с `VITE_*`: значения — строки без типов и живут в двух файлах, а различие — два поля. `VITE_*` понадобятся для секретов (ключ Google — change 8). Функция от режима проверяется unit-тестом в Node без сборки.
+`web/src/config.ts` экспортирует `makeConfig(mode)` и `config = makeConfig(import.meta.env.MODE)`. Значения — как в [src/config.js](../../../../src/config.js) и [config-target/clone.js](../../../../src/config-target/clone.js): прокси, треки, высоты, `routingEngine`/`routingTilesPath`/`routingServer`, начальный вид. Режим `clone` (`vite build --mode clone`, скрипт `build`) включает движок в браузере, остальные — серверный BRouter. Почему не `.env.clone` с `VITE_*`: значения — строки без типов и живут в двух файлах, а различие — два поля. `VITE_*` понадобятся для секретов (ключ Google — change 8). Функция от режима проверяется unit-тестом в Node без сборки.
 
 ### Карта: inline-стиль с одним растровым источником
 
@@ -104,6 +104,8 @@ shadcn 4.21 (`init -b base -p nova`): `cn` — пакет `cn` самого shad
 Карта MapLibre добавляет ≈ 110–210 МБ к пустой вкладке против ≈ 15–65 МБ у Leaflet. Холст — 1082×2202 физических пикселей. В headless Chromium WebGL идёт через SwiftShader, поэтому видеопамять сидит в RSS процесса GPU; на телефоне она тоже из общей RAM, но объём может отличаться. С CheerpJ (0.6–0.8 ГБ, ресёрч, п. 4) вкладка выходит ≈ 1–1.1 ГБ. Для каркаса приемлемо; проверить на живом телефоне вместе с движком в change 2, резерв — ограничить `pixelRatio` карты и кеш тайлов.
 
 ### `/next/` на проде
+
+После merge PR sergeycw/nakarte#95 (`813354a`) прогон `deploy pages` выкатил всё (менялся сам workflow): тесты `web/` в job `pages` — Vitest 7/7, e2e 6/6; job `smoke` — `ok    site` и `ok    site next`. На `https://nakarte-routing.pages.dev/next/` 2026-10-08: страница `200`, `<title>nakarte routing</title>`, скрипты, стили, шрифт и воркер MapLibre — из `/next/assets/` с кодом `200`, тайлы OSM z8 вокруг стартовой точки (`8/151/87`) — `200`, холст во всё окно, тоста нет. Консоль (Playwright, Chromium headless) — без ошибок, только предупреждения драйвера WebGL `GPU stall due to ReadPixels` программного GL; неудачных запросов нет. `/` — старый клиент, как до change. `/next` и `/next/index.html` Pages перенаправляют на `/next/` (`308`, проверено `wrangler pages dev`).
 
 ## Risks / Trade-offs
 

@@ -44,7 +44,7 @@
 
 ## Новое приложение (`web/`)
 
-Стек и решения — design change `add-web-skeleton` (после archive — в `openspec/changes/archive/`), поведение — спека `web-client`. Сборка — `build/next/` с `base: '/next/'`, тот же Pages-проект; деплой собирает его после старого клиента. Команды — `scripts` в `web/package.json`; dev-сервер на 8769 открывается на `/next/`, запись `nakarte-web` в `../.claude/launch.json`. Адреса сервисов — только `web/src/config.ts`, режим Vite `clone` включает движок в браузере.
+Стек и решения — архив change `add-web-skeleton`, поведение — спека `web-client`. Сборка — `build/next/` с `base: '/next/'`, тот же Pages-проект; деплой собирает его после старого клиента. Команды — `scripts` в `web/package.json`; dev-сервер на 8769 открывается на `/next/`, запись `nakarte-web` в `../.claude/launch.json`. Адреса сервисов — только `web/src/config.ts`, режим Vite `clone` включает движок в браузере.
 
 Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.tsx`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы — фикстура `src/test/tile.png`, e2e валит любой запрос мимо `localhost` (`e2e/fixtures.ts`). Названия тестов совпадают со сценариями спеки.
 

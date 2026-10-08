@@ -18,16 +18,16 @@
 
 ## 4. CI, деплой, мониторинг
 
-- [ ] 4.1 `.github/workflows/check-web.yml` по design (действия по SHA, Node 24); проверка: зелёный прогон `check web` на PR
-- [ ] 4.2 `deploy-pages.yml`: шаги `web/` в job `pages` после сборки старого клиента и движка, комментарий в job `changes` про `web/`; проверка: после merge прогон `deploy pages` зелёный, `/` — старый клиент, `/next/` — новое приложение
-- [ ] 4.3 `scripts/prod-check.sh`: проверка `/next/`; проверка: `sh scripts/prod-check.sh` после деплоя печатает `ok    site next`
+- [x] 4.1 `.github/workflows/check-web.yml` по design (действия по SHA, Node 24); проверка: зелёный прогон `check web` на PR
+- [x] 4.2 `deploy-pages.yml`: шаги `web/` в job `pages` после сборки старого клиента и движка, комментарий в job `changes` про `web/`; проверка: после merge прогон `deploy pages` зелёный, `/` — старый клиент, `/next/` — новое приложение
+- [x] 4.3 `scripts/prod-check.sh`: проверка `/next/`; проверка: `sh scripts/prod-check.sh` после деплоя печатает `ok    site next`
 
 ## 5. Проверки рисков
 
 - [x] 5.1 Preflight против CSS MapLibre: стили контролов, атрибуции и холста на живой карте; итог — в design, «Проверки»
 - [x] 5.2 Панели над картой: `z-index` контролов MapLibre против панели и тоста; итог — в design
 - [x] 5.3 Память на мобильной эмуляции (Playwright, профиль телефона): JS-куча и RSS процессов браузера после прокрутки и зума; итог — в design
-- [ ] 5.4 `/next/` на проде после деплоя: страница, ассеты, тайлы OSM, консоль без ошибок; итог — в design
+- [x] 5.4 `/next/` на проде после деплоя: страница, ассеты, тайлы OSM, консоль без ошибок; итог — в design
 
 ## 6. Документы
 
