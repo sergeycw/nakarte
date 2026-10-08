@@ -145,10 +145,10 @@
 Ограничения из спеки [browser-routing-engine](../specs/browser-routing-engine/spec.md) и `AGENTS.md` ([«Движок в браузере»](../../AGENTS.md#движок-в-браузере-cheerpj)) от UI не зависят и переносятся как есть:
 
 - **Один library-поток на страницу** → движок — синглтон вне React (модуль `engine.ts`), очередь запросов внутри; компоненты получают только промисы. Не создавать движок в эффекте компонента: Strict Mode в dev вызывает эффекты дважды.
-- **`/app/` только с origin страницы, Range с `206`** → `/tiles/` и `/brouter-wasm/` остаются Pages Functions того же проекта ([clone-hosting](../specs/clone-hosting/spec.md), «Тайлы BRouter на том же origin», «Range для файлов движка»). `/app/` CheerpJ — корень origin, поэтому приложение на `/next/` тоже работает (на практике не проверено — проверить в change 2, решение владельца в change 1).
+- **`/app/` только с origin страницы, Range с `206`** → `/tiles/` и `/brouter-wasm/` остаются Pages Functions того же проекта ([clone-hosting](../specs/clone-hosting/spec.md), «Тайлы BRouter на том же origin», «Range для файлов движка»). `/app/` CheerpJ — корень origin, поэтому приложение на `/next/` тоже работает (проверено в change 2 на проде).
 - **Холодный старт 5–6 с, первый маршрут до 10+ с** → прогрев при выборе активности (уже требование), в UI — явное состояние «движок загружается» на кнопке активности вместо молчаливого ожидания.
-- **0.6–0.8 ГБ на вкладку** → не грузить движок, пока прокладка выключена (уже требование).
-- **Блокировка главного потока.** Новое: CheerpJ с [3.0rc2](https://cheerpj.com/docs/changelog.html) (2023-11-29) поддерживает Web Worker через `importScripts`; сейчас последняя версия — 4.3 (2026-04-21). Движок в Worker'е не подвешивает карту на время маршрута. Работает ли там наш `cheerpjRunLibrary` с `/app/` и один ли library-поток на Worker — не проверено, отсюда спайк ([changes](#changes-по-порядку), № 2).
+- **0.6–0.8 ГБ на вкладку** (по RSS; в change 2 движок в воркере — ≈ 0.3–0.5 ГБ `phys_footprint`) → не грузить движок, пока прокладка выключена (уже требование).
+- **Блокировка главного потока.** Новое: CheerpJ с [3.0rc2](https://cheerpj.com/docs/changelog.html) (2023-11-29) поддерживает Web Worker через `importScripts`; сейчас последняя версия — 4.3 (2026-04-21). Движок в Worker'е не подвешивает карту на время маршрута. Проверено в change 2 ([архив](../changes/archive/2026-10-08-spike-engine-in-worker/design.md)): работает, главный поток свободен, library-поток — один на воркер.
 - **Рантайм с CDN Leaning Technologies** и лицензия Community — без изменений ([backlog](../backlog.md), «Отложено»).
 
 ### Серверный BRouter на VPS
@@ -254,7 +254,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | № | Change | Что | Цена |
 |---|---|---|---|
 | 1 | [`add-web-skeleton`](../changes/archive/2026-10-08-add-web-skeleton/design.md) — сделан | `web/` с Vite, React, TS, Biome, Vitest, Playwright, shadcn; `check-web.yml`; сборка в `build/next/` и деплой; конфиг сервисов; пустая карта MapLibre с OSM; проверка Preflight против стилей карты, памяти на телефоне и `/app/` CheerpJ с `/next/` | 1–2 |
-| 2 | `spike-engine-in-worker` | CheerpJ в Web Worker в новом приложении: `cheerpjRunLibrary`, `/app/`, один поток, замер блокировки главного потока; модуль `engine.ts` с очередью | 0.5–1 |
+| 2 | [`spike-engine-in-worker`](../changes/archive/2026-10-08-spike-engine-in-worker/design.md) — сделан | CheerpJ в Web Worker в новом приложении: `cheerpjRunLibrary`, `/app/`, один поток, замер блокировки главного потока; модуль `engine.ts` с очередью | 0.5–1 |
 | 3 | `add-web-map-layers` | каталог растровых слоёв с кодами без `Y`, `S`, `W`, `Ng`; `l=` и старые коды; переключатель слоёв, свои слои по URL; отмывка AWS Terrain Tiles как слой | 2–3 |
 | 4 | `add-web-tracks` | парсеры и экспорт как чистые модули с тестами, чтение старых ссылок (`nktk` 1–4, `nktl`, `nktu`, `nktp`, `nktj`), список треков, ссылка на треки после ответа хранилища | 3–4 |
 | 5 | `add-web-route-editor` | модель редактора на TS, отрисовка на карте, активности, непроложенный отрезок + тост, undo/redo с кнопками; спеки `routing` и `route-editing` дельтами | 5–7 |

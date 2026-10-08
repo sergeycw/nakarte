@@ -2,7 +2,7 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Ограничения движка, которые от UI не зависят, — спека [browser-routing-engine](../../specs/browser-routing-engine/spec.md) и `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../../AGENTS.md#движок-в-браузере-cheerpj); решения про движок в новом приложении — [ресёрч, п. 4](../../research/new-ui.md#cheerpj-в-новом-приложении); каркас `web/` — архив [add-web-skeleton](../archive/2026-10-08-add-web-skeleton/design.md). Справочник — движок старого клиента [browser-engine.js](../../../src/lib/brouter/browser-engine.js): загрузчик с CDN, `cheerpjInit({version: 11})`, `cheerpjRunLibrary` с `brouter-patch.jar:brouter.jar:wasm-router.jar`, очередь промисов, всё на главном потоке.
+Зачем — [proposal](proposal.md). Ограничения движка, которые от UI не зависят, — спека [browser-routing-engine](../../../specs/browser-routing-engine/spec.md) и `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../../../AGENTS.md#движок-в-браузере-cheerpj); решения про движок в новом приложении — [ресёрч, п. 4](../../../research/new-ui.md#cheerpj-в-новом-приложении); каркас `web/` — архив [add-web-skeleton](../2026-10-08-add-web-skeleton/design.md). Справочник — движок старого клиента [browser-engine.js](../../../../src/lib/brouter/browser-engine.js): загрузчик с CDN, `cheerpjInit({version: 11})`, `cheerpjRunLibrary` с `brouter-patch.jar:brouter.jar:wasm-router.jar`, очередь промисов, всё на главном потоке.
 
 Первоисточники CheerpJ, сверено 2026-10-08: [changelog](https://cheerpj.com/docs/changelog.html) — «Support for Web Workers (just use `importScripts`)» в 3.0rc2 (2023-11-29), последняя версия 4.3 (2026-04-21); [Migration from CheerpJ 2](https://cheerpj.com/docs/migrating-from-cheerpj2.html) — `CheerpJWorker` убран, в воркере `importScripts` и дальше «as usual»; [cheerpjInit](https://cheerpj.com/docs/reference/cheerpjInit.html) — «must be called once in the page», про воркеры ничего. Vite: [Features → Web Workers](https://vite.dev/guide/features.html#web-workers) — воркер находится только по `new Worker(new URL(..., import.meta.url))`, в dev ESM в воркере опирается на поддержку браузера; [worker.format](https://vite.dev/config/worker-options.html) по умолчанию `'iife'`.
 
@@ -55,6 +55,17 @@ Playwright, профиль `Pixel 7` (412×839, DPR 2.625), dev-сервер, р
 
 Движок добавляет к карте ≈ 0.3 ГБ, вкладка с картой и движком — ≈ 0.55 ГБ на пике против оценки 1–1.1 ГБ из архива add-web-skeleton (там 0.6–0.8 ГБ движка — оценка старого стенда по RSS). Резерв (`pixelRatio` карты, кеш тайлов) сейчас не нужен. Ограничения: headless Chromium на macOS, WebGL через SwiftShader, эмуляция не ограничивает память как телефон. На живом телефоне не проверено — устройства и симулятора в сессии нет; проверить на проде по `/next/engine-bench.html` при первой возможности.
 
+### Стенд на проде
+
+После merge PR sergeycw/nakarte#97 прогон `deploy pages` выкатил Pages, job `smoke` зелёный. 2026-10-08, `https://nakarte-routing.pages.dev/next/engine-bench.html` (Pages отвечает `308` на `/next/engine-bench`, дальше `200`), Playwright, чистый профиль, длинный маршрут из таблицы выше, три маршрута подряд:
+
+| | холодный старт | 1-й маршрут | следующие | макс. пауза главного потока | long tasks за маршрут |
+|---|---|---|---|---|---|
+| воркер | 5.7 с | 5.0 с | 0.79–0.82 с | 10 мс на старте, ≤ 4 мс на маршруте | 0 |
+| главный поток | 6.9 с | 4.8 с | 0.77–0.79 с | 45 мс на старте, 232–283 мс на маршруте | 0.66–0.9 с |
+
+Маршрут тот же, что локально (29 728 м, 1045 точек). `/brouter-wasm/` — 13 ответов `206`, `/tiles/` — 20 ответов `206` и один `200` (`storageconfig.txt`), всё с корня origin, а не из `/next/`; ошибок в консоли нет. Первый маршрут на проде вдвое дольше локального: тайл `E40_N40` читается кусками из R2 через `functions/tiles`. Сценарии «Маршрут не подвешивает страницу» и «Страница на /next/» выполняются на проде.
+
 ## Decisions
 
 Решений, которых нет в ресёрче, архивах и задаче change, три — помечены **[владелец]**; владелец подтвердил их 2026-10-08.
@@ -77,7 +88,7 @@ Playwright, профиль `Pixel 7` (412×839, DPR 2.625), dev-сервер, р
 
 ### Отмена: из очереди — да, начатый расчёт не прерывается **[владелец]**
 
-`routeInEngine(query, signal)`: отменённый в очереди запрос сразу отклоняется и в движок не уходит; отменённый во время расчёта — отклоняется сразу, но движок дочитает его, и следующий запрос начнётся после. Альтернатива — `worker.terminate()` и новый воркер — прерывает расчёт мгновенно, но стоит холодного старта 1.4–4 с против оставшихся 0.2–3 с расчёта, и на главном потоке так не сделать. Редактору (change 5) этого хватает: устаревшие ответы он и так отбрасывает ([route-editing](../../specs/route-editing/spec.md)).
+`routeInEngine(query, signal)`: отменённый в очереди запрос сразу отклоняется и в движок не уходит; отменённый во время расчёта — отклоняется сразу, но движок дочитает его, и следующий запрос начнётся после. Альтернатива — `worker.terminate()` и новый воркер — прерывает расчёт мгновенно, но стоит холодного старта 1.4–4 с против оставшихся 0.2–3 с расчёта, и на главном потоке так не сделать. Редактору (change 5) этого хватает: устаревшие ответы он и так отбрасывает ([route-editing](../../../specs/route-editing/spec.md)).
 
 ### Один воркер на страницу **[владелец]**
 
@@ -89,7 +100,7 @@ Playwright, профиль `Pixel 7` (412×839, DPR 2.625), dev-сервер, р
 
 ### Файлы движка в dev-сервере и `vite preview`
 
-Плагин `web/vite/engine-files.ts` вешает middleware до внутренних Vite (пути вне `base: '/next/'`): `/brouter-wasm/lib/` и `/brouter-wasm/profiles/` — из `experiments/wasm/cheerpj/` после `build.sh`, `/brouter-wasm/segments4/` — из `brouter/segments4/` (режим без `clone`, `routingTilesPath` — `/brouter-wasm/segments4/`), пустой `storageconfig.txt`. Range — тот же разбор, что в [functions/brouter-wasm](../../../functions/brouter-wasm/[[path]].js): `206` с `Content-Range`, суффикс, `416`. `/tiles/` (режим `clone`, `npm run dev:clone`) — `server.proxy` на `nakarte-tiles-worker` (8788), как у старого dev-сервера ([webpack.config.js](../../../webpack/webpack.config.js), `devServer`). Почему не статика Vite: каталоги вне `root`, и без `206` CheerpJ не видит размер файла. Тот же middleware стоит и в `vite preview`, чтобы стенд работал на production-сборке; e2e эти пути не трогает.
+Плагин `web/vite/engine-files.ts` вешает middleware до внутренних Vite (пути вне `base: '/next/'`): `/brouter-wasm/lib/` и `/brouter-wasm/profiles/` — из `experiments/wasm/cheerpj/` после `build.sh`, `/brouter-wasm/segments4/` — из `brouter/segments4/` (режим без `clone`, `routingTilesPath` — `/brouter-wasm/segments4/`), пустой `storageconfig.txt`. Range — тот же разбор, что в [functions/brouter-wasm](../../../../functions/brouter-wasm/[[path]].js): `206` с `Content-Range`, суффикс, `416`. `/tiles/` (режим `clone`, `npm run dev:clone`) — `server.proxy` на `nakarte-tiles-worker` (8788), как у старого dev-сервера ([webpack.config.js](../../../../webpack/webpack.config.js), `devServer`). Почему не статика Vite: каталоги вне `root`, и без `206` CheerpJ не видит размер файла. Тот же middleware стоит и в `vite preview`, чтобы стенд работал на production-сборке; e2e эти пути не трогает.
 
 ### Тесты
 
@@ -104,7 +115,7 @@ Playwright, профиль `Pixel 7` (412×839, DPR 2.625), dev-сервер, р
 - [Safari и iOS не проверены] → стенд на проде открывается с телефона; если воркер там не взлетит, сработает запасной путь.
 - [CheerpJ в воркере держит отдельную копию JDK-кеша от главного потока] → только если сработали оба бэкенда; один движок на страницу этого не допускает.
 - [Воркер умер молча (браузер выгрузил его по памяти) — событие `error` не приходит, запрос в нём повиснет] → не наблюдалось; если всплывёт в change 5, таймаут запроса в `engine.ts` больше `maxRunningTime` BRouter (60 с в `WasmRouter`) с перезапуском воркера.
-- [Стенд на проде открыт всем] → рантайм грузит только тот, кто открыл; Pages Functions за счётчиком `GUARD` ([worker-limits](../../specs/worker-limits/spec.md)).
+- [Стенд на проде открыт всем] → рантайм грузит только тот, кто открыл; Pages Functions за счётчиком `GUARD` ([worker-limits](../../../specs/worker-limits/spec.md)).
 
 ## Migration Plan
 
