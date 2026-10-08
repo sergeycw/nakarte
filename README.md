@@ -2,13 +2,13 @@
 
 # nakarte
 
-Карта для походов с прокладкой маршрута по дорогам и тропам через [BRouter](https://github.com/abrensch/brouter). Публичная версия: https://nakarte-routing.pages.dev.
+A hiking map that routes tracks along roads and trails with [BRouter](https://github.com/abrensch/brouter). Public version: https://nakarte-routing.pages.dev.
 
-Вырос из форка [wladich/nakarte](https://github.com/wladich/nakarte) — кода сайта nakarte.me Сергея Орлова — и развивается как отдельный продукт. Лицензия MIT, текст — в [LICENSE](LICENSE).
+It started as a fork of [wladich/nakarte](https://github.com/wladich/nakarte), the code of nakarte.me by Sergey Orlov, and is developed as a separate product. MIT license, see [LICENSE](LICENSE).
 
-## Запуск локально
+## Run locally
 
-Нужны Node, Yarn и Docker (BRouter работает в контейнере).
+You need Node, Yarn and Docker (BRouter runs in a container).
 
 ```bash
 yarn
@@ -16,9 +16,9 @@ cp src/secrets.js.template src/secrets.js
 yarn local
 ```
 
-Карта откроется на http://localhost:8765. Тайлы для прокладки и всё остальное о разработке — в [AGENTS.md](AGENTS.md).
+The map opens at http://localhost:8765. Routing tiles and everything else about development are in [AGENTS.md](AGENTS.md).
 
-## Документация
+## Docs
 
-- [AGENTS.md](AGENTS.md) — запуск, окружение, подвохи и карта репозитория.
-- [openspec/](openspec/) — спеки поведения (`specs/`), планы и решения (`changes/`), бэклог (`backlog.md`).
+- [AGENTS.md](AGENTS.md): setup, environment, pitfalls and a map of the repository (in Russian).
+- [openspec/](openspec/): behaviour specs (`specs/`), plans and decisions (`changes/`), backlog (`backlog.md`).
