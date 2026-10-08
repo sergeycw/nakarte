@@ -7,4 +7,4 @@
 ## 2. Документация и прод
 
 - [x] 2.1 `docs/architecture/protection.md`: Version URL выключены; проверка: ссылки существуют, `openspec validate --all --strict`
-- [ ] 2.2 После деплоя: Version URL старой версии каждого Worker'а не отвечает `200`, `scripts/prod-check.sh` зелёный; проверка: `curl` по одной старой версии на Worker, `previews_enabled: false` в Cloudflare API (`workers/scripts/<имя>/subdomain`)
+- [x] 2.2 После деплоя: Version URL старой версии каждого Worker'а не отвечает `200`, `scripts/prod-check.sh` зелёный; проверка: `curl` по одной старой версии на Worker, `previews_enabled: false` в Cloudflare API (`workers/scripts/<имя>/subdomain`)

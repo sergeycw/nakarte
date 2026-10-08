@@ -12,4 +12,4 @@
 ## 3. Документация и прод
 
 - [x] 3.1 `docs/architecture/protection.md` (таблица, порядок проверок), `docs/architecture/elevation.md`; проверка: ссылки существуют, `openspec validate --all --strict`
-- [ ] 3.2 После деплоя: `scripts/prod-check.sh` зелёный, один запрос на 600 точек вразброс получает `413`; проверка: `curl` с прода
+- [x] 3.2 После деплоя: `scripts/prod-check.sh` зелёный, один запрос на 600 точек вразброс получает `413`; проверка: `curl` с прода

@@ -23,7 +23,7 @@ flowchart LR
     rate -->|"ок"| handler
 ```
 
-Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) частота не ограничивается. Version URL (`<версия>-<worker>.nakarte-routing.workers.dev`) выключены `preview_urls = false`, а у Pages деплой оставляет только текущий деплой (job `prune`, [ci-cd.md](ci-cd.md)): старая версия со старыми лимитами обходила бы новые. Привязку rate limiting Pages Functions не поддерживают, поэтому их счётчик живёт в отдельном закрытом Worker'е — design [limit-pages-functions](../../openspec/changes/limit-pages-functions/design.md). `Origin` подделывается любым `curl`, поэтому CORS защищает пользователей, а не бюджет: от злоупотреблений защищают частота и потолки.
+Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) частота не ограничивается. Version URL (`<версия>-<worker>.nakarte-routing.workers.dev`) выключены `preview_urls = false`, а у Pages деплой оставляет только текущий деплой (job `prune`, [ci-cd.md](ci-cd.md)): старая версия со старыми лимитами обходила бы новые. Привязку rate limiting Pages Functions не поддерживают, поэтому их счётчик живёт в отдельном закрытом Worker'е — design [limit-pages-functions](../../openspec/changes/archive/2026-10-08-limit-pages-functions/design.md). `Origin` подделывается любым `curl`, поэтому CORS защищает пользователей, а не бюджет: от злоупотреблений защищают частота и потолки.
 
 | Точка входа | CORS | Частота за 60 с (`namespace_id`) | Потолок на вызов | Лимит запроса | Где |
 |---|---|---|---|---|---|
@@ -33,7 +33,7 @@ flowchart LR
 | `nakarte-elevation`, `/tiles/` | `*` без проверки `Origin` | 600 (`1001`) | как у API | z ≤ 11 | то же |
 | Pages Functions `tiles`, `brouter-wasm` | тот же origin, заголовков CORS нет | 1200 на обе (`1008`), счётчик — Worker `nakarte-guard` по service binding `GUARD`; без привязки или при её сбое не ограничивается | лимиты Pages по умолчанию | — | [functions/](../../functions/), [workers/guard](../../workers/guard/) |
 
-Почему у прокси лимит выше остальных — design `add-worker-limits`, «Частота — привязка Workers Rate Limiting»; потолок и бюджет чтений R2 у API высот — design [limit-elevation-reads](../../openspec/changes/limit-elevation-reads/design.md): привязка считает вызовы без веса, поэтому запрос тратит вызов на каждые 64 чтения после проверки потолка. Угрозы с ценой худшего сценария и что ещё не защищено — [security-аудит](../../openspec/research/security-audit.md#итог).
+Почему у прокси лимит выше остальных — design `add-worker-limits`, «Частота — привязка Workers Rate Limiting»; потолок и бюджет чтений R2 у API высот — design [limit-elevation-reads](../../openspec/changes/archive/2026-10-08-limit-elevation-reads/design.md): привязка считает вызовы без веса, поэтому запрос тратит вызов на каждые 64 чтения после проверки потолка. Угрозы с ценой худшего сценария и что ещё не защищено — [security-аудит](../../openspec/research/security-audit.md#итог).
 
 ## Проверка бандла на адреса автора
 
