@@ -146,7 +146,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, архив 2026-10-07), потом удалены из кода вместе с фильтром (`drop-author-scan-layers`) |
 | 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрыл Wikimedia Commons, Mapillary и mapy.cz (в архиве с 2026-10-07), `remove-panorama-providers` удалил их код (в проде и в архиве с 2026-10-08) |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
-| 7 | `drop-author-scan-layers` | — | 2026-10-08: 17 слоёв сканов, `Wp` и `Gc` удалены из кода во всех сборках, фильтр `excludedLayerCodes` удалён |
+| 7 | `drop-author-scan-layers` | — | в проде и в архиве с 2026-10-08: 17 слоёв сканов, `Wp` и `Gc` удалены из кода во всех сборках, фильтр `excludedLayerCodes` удалён |
 
 ## Открытые вопросы
 

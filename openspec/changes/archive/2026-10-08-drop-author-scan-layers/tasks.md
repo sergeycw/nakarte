@@ -15,7 +15,7 @@
 
 ## 3. Прод
 
-- [ ] 3.1 На `https://nakarte-routing.pages.dev`: в выборе слоёв нет удалённых слоёв, `l=O/F` открывает OpenStreetMap; проверка: запросов к `tiles.nakarte.me` нет
+- [x] 3.1 На `https://nakarte-routing.pages.dev`: в выборе слоёв нет удалённых слоёв, `l=O/F` открывает OpenStreetMap; проверка: запросов к `tiles.nakarte.me` нет
 
 ## Workflow follow-up
 
