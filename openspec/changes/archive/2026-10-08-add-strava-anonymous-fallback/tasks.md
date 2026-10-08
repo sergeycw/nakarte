@@ -8,7 +8,7 @@
 ## 2. Документация и выкатка
 
 - [x] 2.1 `AGENTS.md` (Strava heatmap: анонимные тайлы, кука `_strava4_session` в браузере без срока) и `openspec/backlog.md`; проверка — `openspec validate --all --strict`
-- [ ] 2.2 PR, зелёный CI, merge, деплой; проверка — на проде тайл z12 с `X-Strava-Cookies: session` (сессия жива), анонимный путь проверен тестами
+- [x] 2.2 PR, зелёный CI, merge, деплой; проверка — на проде тайл z12 с `X-Strava-Cookies: session` (сессия жива), анонимный путь проверен тестами
 
 ## Workflow follow-up
 
