@@ -76,7 +76,6 @@ const babelConfig = {
 const sourceMapOption = {
     filename: '[file].map',
     columns: isProduction,
-    exclude: /mapillary/u,
 };
 
 const DevToolPlugin = isProduction ? Webpack.SourceMapDevToolPlugin : Webpack.EvalSourceMapDevToolPlugin;
@@ -232,7 +231,6 @@ module.exports = {
         minimizer: [
             new TerserPlugin({
                 parallel: true,
-                exclude: /node_modules\/mapillary/u,
             }),
         ],
     },

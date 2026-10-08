@@ -22,7 +22,6 @@ import enableLayersConfig from '~/lib/leaflet.control.layers.configure';
 import raiseControlsOnFocus from '~/lib/leaflet.controls.raise-on-focus';
 import {getLayers} from './layers';
 import {excludeLayers} from '~/config-target/exclude-layers';
-import {excludePanoramaProviders} from '~/config-target/exclude-panoramas';
 import '~/lib/leaflet.control.layers.events';
 import '~/lib/leaflet.control.jnx';
 import '~/lib/leaflet.control.jnx/hash-state';
@@ -162,7 +161,7 @@ function setUp() { // eslint-disable-line complexity
 
     new L.Control.TrackList.Ruler(tracklist).addTo(map);
 
-     const panoramas = new (excludePanoramaProviders(L.Control.Panoramas, config.excludedPanoramaProviders))()
+     const panoramas = new L.Control.Panoramas()
         .addTo(map)
         .enableHashState('n2');
     L.Control.Panoramas.hashStateUpgrader(panoramas).enableHashState('n');

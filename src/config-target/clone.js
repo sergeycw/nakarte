@@ -13,8 +13,6 @@ const configTarget = {
     routingTilesPath: '/tiles/',
     // Слои на данных автора без своей замены: перевалы Вестры и geocaching.su (backlog.md).
     excludedLayerCodes: ['Wp', 'Gc'],
-    // Панорамы клона — только Google Street View (решение владельца, change hide-panorama-providers).
-    excludedPanoramaProviders: ['wikimedia', 'mapillary', 'mapycz'],
     eventsLogUrl: '',
     sentryDSN: '',
 };
