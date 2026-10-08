@@ -36,6 +36,8 @@ export default defineConfig({
                 ratelimits: {
                     TILES_RATE_LIMITER: {namespace_id: '1001', simple: {limit: 3, period: 60}},
                     API_RATE_LIMITER: {namespace_id: '1002', simple: {limit: 2, period: 60}},
+                    // 5 единиц по 64 чтения: запрос на 200 чтений (4 единицы) проходит один раз
+                    API_READS_RATE_LIMITER: {namespace_id: '1005', simple: {limit: 5, period: 60}},
                 },
             },
         }),

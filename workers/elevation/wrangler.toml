@@ -12,9 +12,11 @@ preview_urls = false
 enabled = true
 
 # Потолок на один вызов. CPU — с запасом от наблюдённого максимума 3.8 с (API на тысячах точек
-# вразброс); subrequests не задан: 10 000 точек вразброс законно дают тысячи чтений R2.
+# вразброс). Чтения R2 через привязку — тоже подзапросы: запрос API читает не больше 512 раз
+# (MAX_READS в core/src/request.rs), тайл — единицы; 1100 — запас вместо платформенных 10 000.
 [limits]
 cpu_ms = 10000
+subrequests = 1100
 
 [build]
 command = "worker-build --release worker"
@@ -27,7 +29,7 @@ binding = "DEM"
 bucket_name = "nakarte-elevation"
 
 # Частота с одного IP (CF-Connecting-IP) за 60 с, у тайлов и API свои счётчики;
-# namespace_id уникален в аккаунте (1001–1004 — Worker'ы клона).
+# namespace_id уникален в аккаунте (1001–1005 — Worker'ы клона).
 [[ratelimits]]
 name = "TILES_RATE_LIMITER"
 namespace_id = "1001"
@@ -37,3 +39,10 @@ simple = { limit = 600, period = 60 }
 name = "API_RATE_LIMITER"
 namespace_id = "1002"
 simple = { limit = 60, period = 60 }
+
+# Бюджет чтений R2 API высот с одного IP за 60 с: запрос тратит вызов на каждые 64 запланированных
+# чтения (READS_PER_UNIT в core/src/http.rs), 32 вызова — 2 048 чтений, ≈ 4 профиля трека на 5 000 км.
+[[ratelimits]]
+name = "API_READS_RATE_LIMITER"
+namespace_id = "1005"
+simple = { limit = 32, period = 60 }
