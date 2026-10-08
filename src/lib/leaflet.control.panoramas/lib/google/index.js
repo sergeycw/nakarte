@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import getGoogle from '~/lib/googleMapsApi';
 import {Events} from "../common";
+import {markKeylessContainer} from './keyless';
 
 function getCoverageLayer(options) {
     return L.tileLayer(
@@ -35,6 +36,7 @@ async function getPanoramaAtPos(latlng, searchRadiusMeters) {
 const Viewer = L.Evented.extend({
     initialize: function(google, container) {
         this.google = google;
+        markKeylessContainer(container);
         const panorama = this.panorama = new google.maps.StreetViewPanorama(container, {
                 enableCloseButton: true,
                 imageDateControl: true,
