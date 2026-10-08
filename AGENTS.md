@@ -126,6 +126,7 @@
 
 Подвохи клона:
 - Деплой в CI оставляет у Pages только текущий деплой (job `prune`): старые отвечали по `<хеш>.nakarte-routing.pages.dev` без новых лимитов. Откат Pages — revert и push, старого деплоя в дашборде нет.
+- Новому job'у в `deploy-pages.yml` ниже Worker'ов нужна функция статуса в `if` (`!cancelled() && …`): без неё GitHub подставляет `success()`, и пропуск Worker'а через всю цепочку пропускает job (так `prune` не шёл в прогонах без Worker'ов, архив `fix-prune-after-skipped-workers`).
 - Изменения в `webpack/webpack.config.js` (алиасы, `devServer`) dev-сервер подхватывает только после перезапуска. Симптом: `Cannot find module '~/config-target'` и пустая страница.
 - Файлы движка попадают в сборку, только если перед ней отработал `build.sh`; без них сборка проходит молча (`noErrorOnMissing`).
 - Синхронизация тайлов локально: `ONLY=E40_N40 node ../../scripts/brouter-tiles-sync.mjs` из `workers/tiles` (пишет в локальный R2). По расписанию Actions запускаются только из ветки по умолчанию; brouter.de обновляет все тайлы разом, значит ≈ 10 ГБ на прогон.

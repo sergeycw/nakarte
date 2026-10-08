@@ -8,7 +8,7 @@
 
 ## 2. Прод
 
-- [ ] 2.1 После merge: прогон `deploy pages` с `prune=success`, в логе `deleted N old deployments`, у проекта `nakarte-routing` один деплой; проверка: `gh run view`, Cloudflare API `pages/projects/nakarte-routing/deployments`
+- [x] 2.1 После merge: прогон `deploy pages` с `prune=success`, в логе `deleted N old deployments`, у проекта `nakarte-routing` один деплой; проверка: `gh run view`, Cloudflare API `pages/projects/nakarte-routing/deployments`
 
 ## Workflow follow-up
 
