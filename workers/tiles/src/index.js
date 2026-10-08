@@ -1,6 +1,11 @@
 const PATH_PREFIX = '/tiles/';
 const EMPTY_FILES = ['storageconfig.txt'];
-const CACHE_CONTROL = 'public, max-age=86400';
+// Наружу — только тайлы; служебный manifest.json синхронизации и прочие ключи бакета не отдаются.
+const TILE_KEY = /^[EW]\d{1,3}_[NS]\d{1,2}\.rd5$/u;
+// Синхронизация перезаписывает тайл под тем же ключом, а движок читает его кусками по Range.
+// С кешем браузера (было max-age=86400) Chrome склеивает ответ из старых кешированных байт и новых
+// из сети, и BRouter получает индекс одной версии тайла и данные другой. Поэтому без кеша.
+const CACHE_CONTROL = 'no-store';
 
 function objectHeaders(object) {
     const headers = new Headers();
@@ -78,6 +83,9 @@ const worker = {
         const key = decodeURIComponent(url.pathname.slice(PATH_PREFIX.length));
         if (EMPTY_FILES.includes(key)) {
             return new Response('', {headers: {'Content-Length': '0'}});
+        }
+        if (!TILE_KEY.test(key)) {
+            return new Response('Not found', {status: 404});
         }
         if (request.method === 'HEAD') {
             return head(env, key);
