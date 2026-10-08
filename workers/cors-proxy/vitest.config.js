@@ -15,6 +15,8 @@ function upstream(request) {
     );
 }
 
+const STRAVA_COOKIES = 'CloudFront-Key-Pair-Id=k; CloudFront-Policy=p; CloudFront-Signature=s';
+
 export default defineConfig({
     plugins: [
         cloudflareTest({
@@ -23,6 +25,8 @@ export default defineConfig({
             // `namespace_id` — имя поля miniflare, camelCase тут не выбрать
             miniflare: {
                 outboundService: upstream,
+                // секрет wrangler secret put STRAVA_COOKIES; тут — заглушка
+                bindings: {STRAVA_COOKIES: STRAVA_COOKIES},
                 ratelimits: {RATE_LIMITER: {namespace_id: '1004', simple: {limit: 3, period: 60}}},
             },
         }),

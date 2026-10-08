@@ -1,5 +1,12 @@
 const PATH_ALIASES = [['/wikimapia/', 'http://wikimapia.org/']];
-const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'range'];
+// user-agent нужен Wikimapia: её nginx отвечает 403 на запрос без User-Agent, а fetch из Worker'а
+// своего не ставит.
+const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'range', 'user-agent'];
+// Тайлы Strava Global Heatmap (слои Sa/Sr/Sb/Sw) CloudFront отдаёт только с подписанными куками
+// CloudFront-Key-Pair-Id, CloudFront-Policy, CloudFront-Signature от вошедшего аккаунта Strava; без них
+// 403 `MissingKey`. Авторский proxy.nakarte.me подставляет такие куки сам, у нас они — секрет
+// STRAVA_COOKIES (заводит владелец, срок жизни ограничен). Куки уходят только на эти тайлы.
+const STRAVA_HEATMAP = {host: /^content-[a-z]\.strava\.com$/u, path: /^\/identified\/globalheat\//u};
 const DROPPED_RESPONSE_HEADERS = ['set-cookie'];
 const EXPOSED_HEADERS = 'Content-Disposition';
 const ALLOWED_METHODS = 'POST, GET, HEAD, OPTIONS';
@@ -84,13 +91,21 @@ function preflight(request, origin) {
     return new Response(null, {status: 204, headers});
 }
 
-async function proxy(request, origin, target, proxyOrigin) {
+function isStravaHeatmap(target) {
+    const url = new URL(target);
+    return STRAVA_HEATMAP.host.test(url.hostname) && STRAVA_HEATMAP.path.test(url.pathname);
+}
+
+async function proxy(request, env, origin, target, proxyOrigin) {
     const upstreamHeaders = new Headers();
     for (const name of FORWARDED_REQUEST_HEADERS) {
         const value = request.headers.get(name);
         if (value) {
             upstreamHeaders.set(name, value);
         }
+    }
+    if (env.STRAVA_COOKIES && isStravaHeatmap(target)) {
+        upstreamHeaders.set('cookie', env.STRAVA_COOKIES);
     }
     const upstream = await fetch(target, {
         method: request.method,
@@ -130,7 +145,7 @@ const worker = {
         if (!target) {
             return new Response('Not found', {status: 404, headers: corsHeaders(origin)});
         }
-        return proxy(request, origin, target, url.origin);
+        return proxy(request, env, origin, target, url.origin);
     },
 };
 
