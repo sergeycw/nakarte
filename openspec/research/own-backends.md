@@ -134,7 +134,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 4. **Скраперы перевалов и геокешинга.** Отложено 2026-10-07 (итоги ресёрча — `openspec/backlog.md`), слои скрыты в клоне. Сначала проверить условия использования westra.ru и geocaching.su. Cron Trigger → R2, тесты на сохранённых страницах источников, проверка схемы JSON против фикстур от файлов автора.
 5. **Покрытия Wikimedia Commons и Mapillary.** Отменено решением владельца: в панорамах только Google Street View; Wikimedia Commons, Mapillary и mapy.cz сначала скрыты в клоне (`hide-panorama-providers`, 2026-10-07), потом удалены из кода (`remove-panorama-providers`, 2026-10-08).
 6. **Прокси mapy и подпись карты.** `proxy.nakarte.me/mapy/...` → `nakarte-cors-proxy`, свои ссылки в `caption`.
-7. **Убрать слои сканов в клоне.** Список кодов исключённых слоёв в `config-target/clone.js` и фильтр при сборке списка слоёв, без удаления из `src/layers.js`, чтобы дифф с апстримом остался маленьким.
+7. **Убрать слои сканов.** Решение владельца 2026-10-08: удалить 17 слоёв из `src/layers.js` во всех сборках, а не прятать фильтром — в апстрим мы не мерджимся (`AGENTS.md`, «Апстрим»).
 
 ### Changes в `openspec/changes/`
 
@@ -144,7 +144,7 @@ Hetzner рассмотрен (CAX11 + Object Storage ≈ €12.5 + VAT): деш�
 | 2 | `add-elevation-api` | 1 (убирает требование, которое добавляет 1) | в проде и в архиве с 2026-10-07: данные viewfinderpanoramas 3″ всего мира, сервис `workers/elevation` |
 | 3 | `add-elevation-tiles` | 2 (данные и ядро) | в проде и в архиве с 2026-10-07: z0–9 — архив в R2, z10–11 — на лету в `workers/elevation`, значения совпадают с тайлами автора |
 | 4 | `add-map-data-scrapers` | — | отложено 2026-10-07: источники требуют ключа или согласия (итоги — `openspec/backlog.md`), слои скрыты в клоне (`hide-map-data-layers`, в проде и в архиве с 2026-10-07) |
-| 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрыл Wikimedia Commons, Mapillary и mapy.cz (в архиве с 2026-10-07), `remove-panorama-providers` удаляет их код |
+| 5 | `add-photo-coverage-tiles` → `hide-panorama-providers` | — | `add-photo-coverage-tiles` удалён 2026-10-07: решение владельца — панорамы клона только Google Street View; `hide-panorama-providers` скрыл Wikimedia Commons, Mapillary и mapy.cz (в архиве с 2026-10-07), `remove-panorama-providers` удалил их код (в проде и в архиве с 2026-10-08) |
 | 6 | `drop-author-services` | всех остальных: закрывает требование «без запросов к `*.nakarte.me`» | |
 | 7 | `drop-author-scan-layers` | — | |
 
