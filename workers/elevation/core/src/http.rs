@@ -1,7 +1,7 @@
 use crate::archive::{self, Lookup};
-use crate::request::{self, MAX_BODY_BYTES, ParseError};
+use crate::request::{self, MAX_BODY_BYTES, MAX_READS, ParseError};
 use crate::tile::{self, LIVE_MIN_ZOOM};
-use crate::{Error, Source, elevations, render, response};
+use crate::{Error, Source, elevations, read_count, render, response};
 
 const ALLOWED_METHODS: &str = "POST, OPTIONS";
 const TEXT: &str = "text/plain; charset=utf-8";
@@ -10,6 +10,25 @@ const TILES_PREFIX: &str = "/tiles/";
 const TILE_CACHE: &str = "max-age=86400";
 // Длина окна `[[ratelimits]]` в wrangler.toml.
 const RETRY_AFTER_SECONDS: &str = "60";
+/// Единица бюджета чтений: привязка rate limiting считает вызовы `limit()` без веса, поэтому запрос
+/// тратит `ceil(чтения / 64)` вызовов; бюджет в единицах — `API_READS_RATE_LIMITER` в wrangler.toml.
+pub const READS_PER_UNIT: usize = 64;
+
+/// Бюджет чтений хранилища на клиента. `spend` получает число единиц (`READS_PER_UNIT`) и отвечает,
+/// уложился ли запрос; `false` — `429`. Адаптер `worker` тратит привязку `[[ratelimits]]` по IP,
+/// `server` и тесты — `Unlimited`.
+#[allow(async_fn_in_trait)]
+pub trait ReadBudget {
+    async fn spend(&self, units: usize) -> bool;
+}
+
+pub struct Unlimited;
+
+impl ReadBudget for Unlimited {
+    async fn spend(&self, _units: usize) -> bool {
+        true
+    }
+}
 
 pub struct Request<'a> {
     pub method: &'a str,
@@ -89,13 +108,11 @@ pub fn rate_group(request: &Request<'_>, allowed_origins: &[&str]) -> Option<Rat
 /// Ответ сверх лимита — с теми же CORS-заголовками, что обычный ответ на этот путь, чтобы клиент
 /// увидел `429`, а не сбой CORS. Вызывать только для запросов, у которых `rate_group` не `None`.
 pub fn too_many_requests(request: &Request<'_>) -> Response {
-    let mut response = Response::new(429, "Too many requests\n").text();
-    response
-        .headers
-        .push(("Retry-After", RETRY_AFTER_SECONDS.to_string()));
+    let response = rate_limited();
     match request.origin {
         Some(origin) if !request.path.starts_with(TILES_PREFIX) => response.with_cors(origin),
         _ => {
+            let mut response = response;
             response
                 .headers
                 .push(("Access-Control-Allow-Origin", "*".to_string()));
@@ -104,14 +121,24 @@ pub fn too_many_requests(request: &Request<'_>) -> Response {
     }
 }
 
+// `429` без CORS: заголовки добавляет тот, кто отвечает на путь.
+fn rate_limited() -> Response {
+    let mut response = Response::new(429, "Too many requests\n").text();
+    response
+        .headers
+        .push(("Retry-After", RETRY_AFTER_SECONDS.to_string()));
+    response
+}
+
 // HTTP без привязки к рантайму: адаптер собирает `Request` и переводит `Response` обратно.
 // API высот: CORS как у `workers/tracks` — только origin из `ALLOWED_ORIGINS`, иначе (и без
 // `Origin`) — 403; коды и тексты ошибок — как у Go-сервера автора (`http.Error` дописывает `\n`).
 // Тайлы (`/tiles/`): CORS `*` без проверки `Origin`, как у `tiles.nakarte.me`.
-pub async fn handle<S: Source>(
+pub async fn handle<S: Source, B: ReadBudget>(
     request: &Request<'_>,
     allowed_origins: &[&str],
     source: &S,
+    budget: &B,
 ) -> Response {
     if let Some(path) = request.path.strip_prefix(TILES_PREFIX) {
         return respond_tile(request.method, path, source).await;
@@ -122,10 +149,14 @@ pub async fn handle<S: Source>(
     else {
         return Response::new(403, "Origin not allowed\n").text();
     };
-    respond(request, source).await.with_cors(origin)
+    respond(request, source, budget).await.with_cors(origin)
 }
 
-async fn respond<S: Source>(request: &Request<'_>, source: &S) -> Response {
+async fn respond<S: Source, B: ReadBudget>(
+    request: &Request<'_>,
+    source: &S,
+    budget: &B,
+) -> Response {
     if request.method == "OPTIONS" {
         let mut response = Response::new(204, "");
         response
@@ -159,6 +190,14 @@ async fn respond<S: Source>(request: &Request<'_>, source: &S) -> Response {
         Err(ParseError::TooBig) => return Response::new(413, "Request too big\n").text(),
         Err(ParseError::Invalid) => return Response::new(400, "Invalid request\n").text(),
     };
+    // Цена запроса — чтения R2: сначала потолок на запрос, потом бюджет клиента, и только потом чтение.
+    let reads = read_count(&points);
+    if reads > MAX_READS {
+        return Response::new(413, "Request too big\n").text();
+    }
+    if reads > 0 && !budget.spend(reads.div_ceil(READS_PER_UNIT)).await {
+        return rate_limited();
+    }
     match elevations(source, &points).await {
         Ok(values) => Response::new(200, response::format_elevations(&values)).text(),
         Err(error) => Response {

@@ -72,7 +72,12 @@ async fn handle(State(state): State<Arc<AppState>>, request: Request) -> Respons
             body: &body,
         };
         let allowed = http::parse_origins(&state.allowed_origins);
-        futures::executor::block_on(http::handle(&request, &allowed, &state.source))
+        futures::executor::block_on(http::handle(
+            &request,
+            &allowed,
+            &state.source,
+            &http::Unlimited,
+        ))
     })
     .await
     .expect("handler thread");

@@ -9,7 +9,9 @@ use std::collections::HashMap;
 
 use elevation_core::request::MAX_BODY_BYTES;
 use elevation_core::{Error as CoreError, Source, http};
-use worker::{Bucket, Context, EncodeBody, Env, Request, Response, Result, console_error, event};
+use worker::{
+    Bucket, Context, EncodeBody, Env, RateLimiter, Request, Response, Result, console_error, event,
+};
 
 // Изолят ограничен 128 МБ вместе с wasm; 32 МБ — сотни сжатых кусков (≈ 40–100 КБ каждый).
 const CACHE_BYTES: usize = 32 * 1024 * 1024;
@@ -112,6 +114,32 @@ async fn over_limit(
     Ok(!env.rate_limiter(binding)?.limit(ip).await?.success)
 }
 
+// Бюджет чтений R2 с одного IP: единица — вызов `limit()` привязки `API_READS_RATE_LIMITER`
+// (`http::READS_PER_UNIT` чтений). Без CF-Connecting-IP (локальный wrangler dev, тесты) не ограничиваем;
+// сбой привязки тоже не ограничивает — ценой бюджета, а не отказом API.
+struct ReadsBudget {
+    limiter: Option<(RateLimiter, String)>,
+}
+
+impl http::ReadBudget for ReadsBudget {
+    async fn spend(&self, units: usize) -> bool {
+        let Some((limiter, ip)) = &self.limiter else {
+            return true;
+        };
+        for _ in 0..units {
+            match limiter.limit(ip.clone()).await {
+                Ok(outcome) if !outcome.success => return false,
+                Ok(_) => {}
+                Err(error) => {
+                    console_error!("reads budget unavailable: {error}");
+                    return true;
+                }
+            }
+        }
+        true
+    }
+}
+
 #[event(fetch)]
 async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response> {
     let header = |request: &Request, name: &str| request.headers().get(name).ok().flatten();
@@ -146,7 +174,15 @@ async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response
         let source = R2Source {
             bucket: env.bucket("DEM")?,
         };
-        http::handle(&core_request, &allowed_origins, &source).await
+        let ip = header(&request, "CF-Connecting-IP");
+        let budget = ReadsBudget {
+            limiter: ip.and_then(|ip| {
+                env.rate_limiter("API_READS_RATE_LIMITER")
+                    .ok()
+                    .map(|limiter| (limiter, ip))
+            }),
+        };
+        http::handle(&core_request, &allowed_origins, &source, &budget).await
     };
     if let Some(error) = &response.error {
         console_error!("elevation error: {error}");

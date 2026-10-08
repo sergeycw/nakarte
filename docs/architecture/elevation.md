@@ -52,7 +52,7 @@ flowchart TD
     req["Запрос"]
     rl{"частота с IP:<br/>TILES_RATE_LIMITER или API_RATE_LIMITER<br/>(API с чужим Origin не считается)"}
     path{"путь"}
-    api["POST /<br/>Origin из ALLOWED_ORIGINS, иначе 403;<br/>≤ 10 000 точек, ≤ 250 000 байт"]
+    api["POST /<br/>Origin из ALLOWED_ORIGINS, иначе 403;<br/>≤ 10 000 точек, ≤ 250 000 байт,<br/>≤ 512 чтений R2, бюджет чтений по IP"]
     pts["индекс куска по точке → чтение кусков dem3<br/>(каждый кусок один раз) → интерполяция"]
     zoom{"z тайла"}
     live["z10–11 на лету:<br/>z11 — 256×256 из 1–4 кусков,<br/>z10 — 513×513 пикселей z11 и сглаживание"]

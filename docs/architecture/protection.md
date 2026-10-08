@@ -29,11 +29,11 @@ flowchart LR
 |---|---|---|---|---|---|
 | `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials`; в списке и karma `localhost:9876` | 1200 (`1004`) | `cpu_ms = 500`, `subrequests = 50` | — | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
 | `nakarte-tracks` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1003`) | `cpu_ms = 500`, `subrequests = 10` | тело ≤ 10 МиБ | [wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
-| `nakarte-elevation`, `POST /` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1002`) | `cpu_ms = 10000`, `subrequests` не задан | ≤ 10 000 точек, ≤ 250 000 байт | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs) |
+| `nakarte-elevation`, `POST /` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1002`); бюджет чтений R2 — 32 единицы по 64 чтения (`1005`) | `cpu_ms = 10000`, `subrequests = 1100` | ≤ 10 000 точек, ≤ 250 000 байт, ≤ 512 чтений R2 (градусы + куски), иначе `413` | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs), [request.rs](../../workers/elevation/core/src/request.rs) |
 | `nakarte-elevation`, `/tiles/` | `*` без проверки `Origin` | 600 (`1001`) | как у API | z ≤ 11 | то же |
 | Pages Functions `tiles`, `brouter-wasm` | тот же origin, заголовков CORS нет | нет | лимиты Pages по умолчанию | — | [functions/](../../functions/) |
 
-Почему у `subrequests` нет потолка в `nakarte-elevation` и почему у прокси лимит выше остальных — design `add-worker-limits`, «Потолок на вызов» и «Частота — привязка Workers Rate Limiting». Что ещё не защищено (Pages Functions, рост `nakarte-tracks`, прокси как открытый прокси, права токенов) — backlog, пункт «Security-аудит клона».
+Почему у прокси лимит выше остальных — design `add-worker-limits`, «Частота — привязка Workers Rate Limiting»; потолок и бюджет чтений R2 у API высот — design [limit-elevation-reads](../../openspec/changes/limit-elevation-reads/design.md): привязка считает вызовы без веса, поэтому запрос тратит вызов на каждые 64 чтения после проверки потолка. Что ещё не защищено (Pages Functions, рост `nakarte-tracks`, прокси как открытый прокси, права токенов) — backlog, пункт «Security-аудит клона».
 
 ## Проверка бандла на адреса автора
 
