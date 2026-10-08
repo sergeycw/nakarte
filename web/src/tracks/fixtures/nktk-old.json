@@ -1,0 +1,338 @@
+{
+    "cases": [
+        {
+            "version": 4,
+            "nktk": "RAoECAIYARJwChHQotC10YHRgiDRgtGA0LXQuhIUCgjele0B0gPSAxIIru7-AdID0gMSFAoIpqTtAe_P2gMSCPb8_gHz8rYIGi8IsJntARDc6v4BGhYI0QMQ0QMaDtCf0LXRgNC10LLQsNC7GgsI0gMQ0gMaA0h1dA==",
+            "decoded": [
+                {
+                    "name": "Тест трек",
+                    "color": 2,
+                    "trackHidden": true,
+                    "measureTicksShown": true,
+                    "tracks": [
+                        [
+                            {
+                                "lat": 41.690006356835745,
+                                "lng": 44.79999570846532
+                            },
+                            {
+                                "lat": 41.69500599473751,
+                                "lng": 44.80499534636708
+                            },
+                            {
+                                "lat": 41.70000563263927,
+                                "lng": 44.80999498426884
+                            }
+                        ],
+                        [
+                            {
+                                "lat": 41.71000490844279,
+                                "lng": 44.81999426007236
+                            },
+                            {
+                                "lat": -41.720004184246314,
+                                "lng": -144.83000426471258
+                            }
+                        ]
+                    ],
+                    "points": [
+                        {
+                            "name": "Перевал",
+                            "lat": 41.690006356835745,
+                            "lng": 44.789996432661795
+                        },
+                        {
+                            "name": "Hut",
+                            "lat": 41.70000563263927,
+                            "lng": 44.79999570846532
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "version": 3,
+            "nktk": "Q1HQotC10YHRgiDRgtGA0LXQukJDl7f_gO_K9oDpQelB6UHpQUK7vv-Ak9L2gMbG5HuI2JJ-QkFBQq61_4DYzPaATtCf0LXRgNC10LLQsNC7QZc-lz5DSHV0QelB6UE",
+            "decoded": [
+                {
+                    "name": "Тест трек",
+                    "tracks": [
+                        [
+                            {
+                                "lng": 44.79999570846532,
+                                "lat": 41.690006356835745
+                            },
+                            {
+                                "lng": 44.80499534636708,
+                                "lat": 41.69500599473751
+                            },
+                            {
+                                "lng": 44.80999498426884,
+                                "lat": 41.70000563263927
+                            }
+                        ],
+                        [
+                            {
+                                "lng": 44.81999426007236,
+                                "lat": 41.71000490844279
+                            },
+                            {
+                                "lng": -144.83000426471258,
+                                "lat": -41.720004184246314
+                            }
+                        ]
+                    ],
+                    "points": [
+                        {
+                            "name": "Перевал",
+                            "lat": 41.690006356835745,
+                            "lng": 44.789996432661795
+                        },
+                        {
+                            "name": "Hut",
+                            "lat": 41.70000563263927,
+                            "lng": 44.79999570846532
+                        }
+                    ],
+                    "color": 2,
+                    "measureTicksShown": 1,
+                    "trackHidden": true
+                }
+            ]
+        },
+        {
+            "version": 2,
+            "nktk": "QlHQotC10YHRgiDRgtGA0LXQukJDl7f_gO_K9oDpQelB6UHpQUK7vv-Ak9L2gMbG5HuI2JJ-QkFCrrX_gNjM9oBO0J_QtdGA0LXQstCw0LtBlz6XPkNIdXRB6UHpQQ",
+            "decoded": [
+                {
+                    "name": "Тест трек",
+                    "tracks": [
+                        [
+                            {
+                                "lng": 44.79999570846532,
+                                "lat": 41.690006356835745
+                            },
+                            {
+                                "lng": 44.80499534636708,
+                                "lat": 41.69500599473751
+                            },
+                            {
+                                "lng": 44.80999498426884,
+                                "lat": 41.70000563263927
+                            }
+                        ],
+                        [
+                            {
+                                "lng": 44.81999426007236,
+                                "lat": 41.71000490844279
+                            },
+                            {
+                                "lng": -144.83000426471258,
+                                "lat": -41.720004184246314
+                            }
+                        ]
+                    ],
+                    "points": [
+                        {
+                            "name": "Перевал",
+                            "lat": 41.690006356835745,
+                            "lng": 44.789996432661795
+                        },
+                        {
+                            "name": "Hut",
+                            "lat": 41.70000563263927,
+                            "lng": 44.79999570846532
+                        }
+                    ],
+                    "color": 2,
+                    "measureTicksShown": 1,
+                    "trackHidden": false
+                }
+            ]
+        },
+        {
+            "version": 1,
+            "nktk": "QVHQotC10YHRgiDRgtGA0LXQukJDl7f_gO_K9oDpQelB6UHpQUK7vv-Ak9L2gMbG5HuI2JJ-QUA",
+            "decoded": [
+                {
+                    "name": "Тест трек",
+                    "tracks": [
+                        [
+                            {
+                                "lng": 44.79999570846532,
+                                "lat": 41.690006356835745
+                            },
+                            {
+                                "lng": 44.80499534636708,
+                                "lat": 41.69500599473751
+                            },
+                            {
+                                "lng": 44.80999498426884,
+                                "lat": 41.70000563263927
+                            }
+                        ],
+                        [
+                            {
+                                "lng": 44.81999426007236,
+                                "lat": 41.71000490844279
+                            },
+                            {
+                                "lng": -144.83000426471258,
+                                "lat": -41.720004184246314
+                            }
+                        ]
+                    ],
+                    "points": [],
+                    "color": 1,
+                    "measureTicksShown": 0,
+                    "trackHidden": false
+                }
+            ]
+        },
+        {
+            "version": 0,
+            "nktk": "UdCi0LXRgdGCINGC0YDQtdC6QkOXt_-A78r2gOlB6UHpQelBQru-_4CT0vaAxsbke4jYkn5BQA",
+            "decoded": [
+                {
+                    "name": "Тест трек",
+                    "tracks": [
+                        [
+                            {
+                                "lng": 44.79999570846532,
+                                "lat": 41.690006356835745
+                            },
+                            {
+                                "lng": 44.80499534636708,
+                                "lat": 41.69500599473751
+                            },
+                            {
+                                "lng": 44.80999498426884,
+                                "lat": 41.70000563263927
+                            }
+                        ],
+                        [
+                            {
+                                "lng": 44.81999426007236,
+                                "lat": 41.71000490844279
+                            },
+                            {
+                                "lng": -144.83000426471258,
+                                "lat": -41.720004184246314
+                            }
+                        ]
+                    ],
+                    "points": [],
+                    "color": 1,
+                    "measureTicksShown": 0,
+                    "trackHidden": false
+                }
+            ]
+        },
+        {
+            "version": 4,
+            "nktk": "RAoCEAESAA==",
+            "note": "empty track",
+            "decoded": [
+                {
+                    "name": "Text encoded track",
+                    "color": 0,
+                    "trackHidden": false,
+                    "measureTicksShown": false
+                }
+            ]
+        }
+    ],
+    "sequence": {
+        "nktk": "RAoECAIYARJwChHQotC10YHRgiDRgtGA0LXQuhIUCgjele0B0gPSAxIIru7-AdID0gMSFAoIpqTtAe_P2gMSCPb8_gHz8rYIGi8IsJntARDc6v4BGhYI0QMQ0QMaDtCf0LXRgNC10LLQsNC7GgsI0gMQ0gMaA0h1dA==/Q1HQotC10YHRgiDRgtGA0LXQukJDl7f_gO_K9oDpQelB6UHpQUK7vv-Ak9L2gMbG5HuI2JJ-QkFBQq61_4DYzPaATtCf0LXRgNC10LLQsNC7QZc-lz5DSHV0QelB6UE",
+        "decoded": [
+            {
+                "name": "Тест трек",
+                "color": 2,
+                "trackHidden": true,
+                "measureTicksShown": true,
+                "tracks": [
+                    [
+                        {
+                            "lat": 41.690006356835745,
+                            "lng": 44.79999570846532
+                        },
+                        {
+                            "lat": 41.69500599473751,
+                            "lng": 44.80499534636708
+                        },
+                        {
+                            "lat": 41.70000563263927,
+                            "lng": 44.80999498426884
+                        }
+                    ],
+                    [
+                        {
+                            "lat": 41.71000490844279,
+                            "lng": 44.81999426007236
+                        },
+                        {
+                            "lat": -41.720004184246314,
+                            "lng": -144.83000426471258
+                        }
+                    ]
+                ],
+                "points": [
+                    {
+                        "name": "Перевал",
+                        "lat": 41.690006356835745,
+                        "lng": 44.789996432661795
+                    },
+                    {
+                        "name": "Hut",
+                        "lat": 41.70000563263927,
+                        "lng": 44.79999570846532
+                    }
+                ]
+            },
+            {
+                "name": "Тест трек",
+                "tracks": [
+                    [
+                        {
+                            "lng": 44.79999570846532,
+                            "lat": 41.690006356835745
+                        },
+                        {
+                            "lng": 44.80499534636708,
+                            "lat": 41.69500599473751
+                        },
+                        {
+                            "lng": 44.80999498426884,
+                            "lat": 41.70000563263927
+                        }
+                    ],
+                    [
+                        {
+                            "lng": 44.81999426007236,
+                            "lat": 41.71000490844279
+                        },
+                        {
+                            "lng": -144.83000426471258,
+                            "lat": -41.720004184246314
+                        }
+                    ]
+                ],
+                "points": [
+                    {
+                        "name": "Перевал",
+                        "lat": 41.690006356835745,
+                        "lng": 44.789996432661795
+                    },
+                    {
+                        "name": "Hut",
+                        "lat": 41.70000563263927,
+                        "lng": 44.79999570846532
+                    }
+                ],
+                "color": 2,
+                "measureTicksShown": 1,
+                "trackHidden": true
+            }
+        ]
+    }
+}

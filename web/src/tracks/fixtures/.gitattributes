@@ -1,0 +1,2 @@
+# фикстуры — байты как есть: Ozi пишет CRLF, а core.autocrlf=input превратил бы его в LF
+* -text

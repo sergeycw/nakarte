@@ -4,8 +4,9 @@ import { makeConfig } from '../src/config.ts';
 import { buildCatalog } from '../src/layers/catalog.ts';
 
 const TILE_FIXTURE = fileURLToPath(new URL('../src/test/tile.png', import.meta.url));
-// адрес прокси клона — тот же, что в сборке (vite build --mode clone)
+// адреса прокси и хранилища треков клона — те же, что в сборке (vite build --mode clone)
 export const CORS_PROXY_URL = makeConfig('clone').corsProxyUrl;
+export const TRACKS_STORAGE = makeConfig('clone').tracksStorageServer;
 // сервер своего слоя в тестах: выдуманный хост, ответы — фикстура
 export const CUSTOM_TILE_HOST = 'tiles.example.test';
 
@@ -44,15 +45,25 @@ interface Network {
     failTiles(code: string): void;
     // сервер своего слоя отвечает без CORS (как многие частные серверы тайлов)
     customWithoutCors(): void;
+    // хранилище треков (POST/GET /track/{key}) в памяти: ключ → тело
+    storage: Map<string, string>;
+    // ответ прокси клона на адрес (импорт по ссылке): файл фикстуры или статус
+    proxyResponds(url: string, response: { path?: string; body?: string; status?: number }): void;
 }
 
-// Сеть теста: localhost — как есть, тайлы слоёв каталога и своего слоя — фикстура с CORS (или ошибка), всё
-// остальное обрывается и валит тест в конце. Так e2e не ходит к провайдерам и ловит лишние внешние запросы.
+// Сеть теста: localhost — как есть, хранилище треков — в памяти, прокси — заданные ответы, тайлы слоёв каталога и
+// своего слоя — фикстура с CORS (или ошибка), всё остальное обрывается и валит тест в конце. Так e2e не ходит к
+// провайдерам и сервисам и ловит лишние внешние запросы.
 export const test = base.extend<{ network: Network }>({
     network: async ({ context }, use) => {
         const failing = new Set<string>();
         let customCors = true;
+        const proxied = new Map<string, { path?: string; body?: string; status?: number }>();
         const network: Network = {
+            storage: new Map(),
+            proxyResponds: (url, response) => {
+                proxied.set(CORS_PROXY_URL + url.replace(/^(https?):\/\//, '$1/'), response);
+            },
             tiles: [],
             external: [],
             tilesOf: (code) => network.tiles.filter((tile) => tile.code === code).map((tile) => tile.url),
@@ -67,6 +78,24 @@ export const test = base.extend<{ network: Network }>({
             const url = route.request().url();
             if (new URL(url).hostname === 'localhost') {
                 return route.continue();
+            }
+            // CORS отражённым Origin, как у Worker'ов клона (route.fulfill браузер на CORS не проверяет, но пусть
+            // ответ будет как настоящий)
+            const cors = { 'Access-Control-Allow-Origin': (await route.request().headerValue('origin')) ?? '*' };
+            if (url.startsWith(`${TRACKS_STORAGE}/track/`)) {
+                const key = url.slice(`${TRACKS_STORAGE}/track/`.length);
+                if (route.request().method() === 'POST') {
+                    network.storage.set(key, route.request().postData() ?? '');
+                    return route.fulfill({ status: 200, body: '', headers: cors });
+                }
+                const body = network.storage.get(key);
+                return body === undefined
+                    ? route.fulfill({ status: 404, body: 'not found', headers: cors })
+                    : route.fulfill({ status: 200, body, contentType: 'text/plain', headers: cors });
+            }
+            const proxiedResponse = proxied.get(url);
+            if (proxiedResponse) {
+                return route.fulfill({ status: proxiedResponse.status ?? 200, ...proxiedResponse, headers: cors });
             }
             const proxiedCustom = PROXIED_CUSTOM_TILE.test(url);
             const custom = !proxiedCustom && CUSTOM_TILE.test(url);
@@ -84,7 +113,6 @@ export const test = base.extend<{ network: Network }>({
                 return route.abort();
             }
             // WebGL берёт растр только с CORS: подменённый ответ несёт заголовок, как настоящие серверы слоёв
-            const cors = { 'Access-Control-Allow-Origin': '*' };
             if (failing.has(code)) {
                 return route.fulfill({ status: 503, body: 'unavailable', headers: cors });
             }

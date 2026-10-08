@@ -1,13 +1,15 @@
 import type { LayerDef } from '@/layers/catalog';
 import { formatLayersParam, parseLayersParam } from '@/layers/selection';
 import { loadSettings, saveSettings } from '@/layers/settings';
+import { isTrackParam, type TrackParam } from '@/tracks/links';
 import { formatHash, formatView, parseHash, parseView, type View, withParam } from './hash';
 import { type AppStore, createAppStore } from './store';
 
 // Связь стора с адресом и localStorage (design add-web-map-layers, «Адрес»). При старте: адрес → localStorage →
 // умолчания. Дальше стор пишет m= (не чаще раза в 300 мс: moveend идёт сериями) и l= (сразу) через
 // history.replaceState — он не шлёт hashchange, поэтому петли нет; hashchange (пользователь правит адрес)
-// переводит карту и слои.
+// переводит карту и слои. Параметры треков (nktk, nktl, nktu, nktp, nktj) читаются при старте и на hashchange и сразу
+// стираются из адреса, как bindHashStateReadOnly старого клиента; загружает их App (design add-web-tracks, «Стор»).
 
 export interface AddressWindow {
     location: { hash: string; pathname: string; search: string };
@@ -44,8 +46,38 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
 
 const VIEW_DEBOUNCE_MS = 300;
 
-export function bindAppStore(store: AppStore, win: AddressWindow, storage: Storage | null): () => void {
+export type TrackParams = [key: TrackParam, values: string[]][];
+
+// fitView — в адресе при старте не было годного m=: карта покажет загруженные треки целиком
+export type TrackParamsHandler = (params: TrackParams, fitView: boolean) => void;
+
+export function bindAppStore(
+    store: AppStore,
+    win: AddressWindow,
+    storage: Storage | null,
+    onTrackParams: TrackParamsHandler = () => {},
+): () => void {
     let viewTimer: ReturnType<typeof setTimeout> | undefined;
+
+    // параметры треков из адреса — и сразу из адреса долой; пустые (`nktk` без `=`) тоже стираются
+    function takeTrackParams(): TrackParams {
+        let params = parseHash(win.location.hash);
+        const found: TrackParams = [];
+        let removed = false;
+        for (const [key, values] of params) {
+            if (isTrackParam(key)) {
+                params = withParam(params, key, null);
+                removed = true;
+                if (values.length) {
+                    found.push([key, [...values]]);
+                }
+            }
+        }
+        if (removed) {
+            win.history.replaceState(null, '', `${win.location.pathname}${win.location.search}#${formatHash(params)}`);
+        }
+        return found;
+    }
 
     function layersParam() {
         const { selection, layers } = store.getState();
@@ -70,6 +102,7 @@ export function bindAppStore(store: AppStore, win: AddressWindow, storage: Stora
     }
 
     function onHashChange() {
+        const trackParams = takeTrackParams();
         const params = parseHash(win.location.hash);
         const state = store.getState();
         const view = parseView(params.get('m'));
@@ -82,6 +115,9 @@ export function bindAppStore(store: AppStore, win: AddressWindow, storage: Stora
         }
         // адрес без m= или l= (или с негодными) — вернуть в него текущее состояние
         writeAddress();
+        if (trackParams.length) {
+            onTrackParams(trackParams, false);
+        }
     }
 
     const unsubscribe = store.subscribe((state, prev) => {
@@ -96,9 +132,14 @@ export function bindAppStore(store: AppStore, win: AddressWindow, storage: Stora
         }
     });
     win.addEventListener('hashchange', onHashChange);
+    const fitView = parseView(parseHash(win.location.hash).get('m')) === null;
+    const trackParams = takeTrackParams();
     // старый клиент сразу пишет m= и l= в адрес — так ссылка из адресной строки всегда полная
     writeAddress();
     persist();
+    if (trackParams.length) {
+        onTrackParams(trackParams, fitView);
+    }
 
     return () => {
         clearTimeout(viewTimer);

@@ -22,6 +22,8 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     const layers = useAppStore((state) => state.layers);
     const initialView = useAppStore((state) => state.view);
     const viewRequest = useAppStore((state) => state.viewRequest);
+    const boundsRequest = useAppStore((state) => state.boundsRequest);
+    const tracks = useAppStore((state) => state.tracks);
     const setView = useAppStore((state) => state.setView);
     const mapRef = useRef<MapRef | null>(null);
     // react-maplibre отдаёт ссылку, когда карта создана (MapLibre грузится лениво), — после первого рендера,
@@ -42,8 +44,8 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
-        return buildStyle(defs);
-    }, [selection, layers]);
+        return buildStyle(defs, tracks);
+    }, [selection, layers, tracks]);
 
     useEffect(() => {
         if (viewRequest) {
@@ -51,6 +53,27 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
             mapRef.current?.jumpTo({ center: [lng, lat], zoom });
         }
     }, [viewRequest]);
+
+    // Запрос «показать границы» может прийти до того, как карта создана (треки из адреса грузятся при старте, а
+    // MapLibre — лениво): тогда его применяет onLoad. appliedBounds — чтобы не применить один запрос дважды.
+    const appliedBounds = useRef(0);
+    const fitRequestedBounds = useCallback(() => {
+        const map = mapRef.current;
+        if (!map || !boundsRequest || appliedBounds.current === boundsRequest.seq) {
+            return;
+        }
+        appliedBounds.current = boundsRequest.seq;
+        const { west, south, east, north } = boundsRequest.bounds;
+        // maxZoom 16 старого клиента (setViewToBounds) — в зуме MapLibre на 1 меньше
+        map.fitBounds(
+            [
+                [west, south],
+                [east, north],
+            ],
+            { maxZoom: 15, padding: 40, duration: 0 },
+        );
+    }, [boundsRequest]);
+    useEffect(fitRequestedBounds, [fitRequestedBounds]);
 
     return (
         // кнопки зума MapLibre — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9). С !important: CSS
@@ -63,6 +86,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 mapStyle={mapStyle}
                 transformRequest={transformRequest}
                 style={{ width: '100%', height: '100%' }}
+                onLoad={fitRequestedBounds}
                 onMoveEnd={(event) => {
                     const center = event.target.getCenter().wrap();
                     setView({ lat: center.lat, lng: center.lng, zoom: event.target.getZoom() });

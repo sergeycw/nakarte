@@ -3,7 +3,7 @@ import { buildCatalog } from '@/layers/catalog';
 import { serializeCustomLayer } from '@/layers/custom';
 import { LEGACY_STORAGE_KEY, STORAGE_KEY } from '@/layers/settings';
 import { memoryStorage } from '@/test/memory-storage';
-import { type AddressWindow, bindAppStore, startAppStore } from './sync';
+import { type AddressWindow, bindAppStore, startAppStore, type TrackParamsHandler } from './sync';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 const DEFAULT_VIEW = { lat: 49.73868, lng: 33.45886, zoom: 7 };
@@ -30,7 +30,7 @@ function fakeWindow(hash: string) {
     return win;
 }
 
-function start(hash: string, storage = memoryStorage()) {
+function start(hash: string, storage = memoryStorage(), onTrackParams?: TrackParamsHandler) {
     const win = fakeWindow(hash);
     const store = startAppStore({
         catalog,
@@ -39,7 +39,7 @@ function start(hash: string, storage = memoryStorage()) {
         hash,
         storage,
     });
-    const unbind = bindAppStore(store, win, storage);
+    const unbind = bindAppStore(store, win, storage, onTrackParams);
     return { win, store, storage, unbind };
 }
 
@@ -59,9 +59,9 @@ describe('старт', () => {
     });
 
     test('Ссылка с видом и слоями: прочие параметры остаются на местах', () => {
-        const { win, store } = start('m=13/42.68490/47.07008&l=O/K&nktl=abc');
+        const { win, store } = start('m=13/42.68490/47.07008&l=O/K&p=abc');
         expect(store.getState().view).toEqual({ lat: 42.6849, lng: 47.07008, zoom: 12 });
-        expect(win.location.hash).toBe('#m=13/42.68490/47.07008&l=O&nktl=abc');
+        expect(win.location.hash).toBe('#m=13/42.68490/47.07008&l=O&p=abc');
     });
 
     test('Неверный вид в ссылке — вид по умолчанию', () => {
@@ -112,13 +112,13 @@ describe('старт', () => {
 });
 
 describe('запись в адрес', () => {
-    test('Вид пишется в адрес не чаще раза в 300 мс, nktl остаётся', () => {
-        const { win, store } = start('m=10/41/44&nktl=key');
+    test('Вид пишется в адрес не чаще раза в 300 мс, p= остаётся', () => {
+        const { win, store } = start('m=10/41/44&p=1');
         store.getState().setView({ lat: 41.5, lng: 44.5, zoom: 10 });
         store.getState().setView({ lat: 41.6, lng: 44.6, zoom: 10.5 });
-        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&nktl=key&l=O');
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
         vi.advanceTimersByTime(300);
-        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&nktl=key&l=O');
+        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&p=1&l=O');
     });
 
     test('смена слоёв пишется сразу, оверлеи — по порядку наложения', () => {
@@ -139,8 +139,46 @@ describe('адрес поменяли руками', () => {
 
     test('без m= и l= — адрес дополняется текущим состоянием, карта не прыгает', () => {
         const { win, store } = start('');
-        win.navigate('nktl=key');
+        win.navigate('p=key');
         expect(store.getState().viewRequest).toBeNull();
-        expect(win.location.hash).toBe('#nktl=key&m=8/49.73868/33.45886&l=O');
+        expect(win.location.hash).toBe('#p=key&m=8/49.73868/33.45886&l=O');
+    });
+});
+
+describe('параметры треков', () => {
+    test('Ссылка без вида: параметр уходит из адреса, карта покажет треки целиком', () => {
+        const onTrackParams = vi.fn();
+        const { win } = start('nktk=abc/def&l=O', memoryStorage(), onTrackParams);
+        expect(onTrackParams).toHaveBeenCalledExactlyOnceWith([['nktk', ['abc', 'def']]], true);
+        expect(win.location.hash).toBe('#l=O&m=8/49.73868/33.45886');
+    });
+
+    test('с годным m= вид не меняется, остальные параметры на местах', () => {
+        const onTrackParams = vi.fn();
+        const { win } = start('m=10/41/44&nktl=key&p=1&nktp=41/44/x', memoryStorage(), onTrackParams);
+        expect(onTrackParams).toHaveBeenCalledExactlyOnceWith(
+            [
+                ['nktl', ['key']],
+                ['nktp', ['41', '44', 'x']],
+            ],
+            false,
+        );
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
+    });
+
+    test('Ссылка вставлена в адрес: параметр с hashchange тоже грузится и стирается', () => {
+        const onTrackParams = vi.fn();
+        const { win } = start('m=10/41/44&l=O', memoryStorage(), onTrackParams);
+        expect(onTrackParams).not.toHaveBeenCalled();
+        win.navigate('m=10/41.00000/44.00000&l=O&nktp=41.7/44.8/Tbilisi');
+        expect(onTrackParams).toHaveBeenCalledExactlyOnceWith([['nktp', ['41.7', '44.8', 'Tbilisi']]], false);
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&l=O');
+    });
+
+    test('пустой параметр стирается без загрузки', () => {
+        const onTrackParams = vi.fn();
+        const { win } = start('m=10/41/44&l=O&nktk', memoryStorage(), onTrackParams);
+        expect(onTrackParams).not.toHaveBeenCalled();
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&l=O');
     });
 });

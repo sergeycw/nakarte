@@ -116,8 +116,8 @@ test('Неверный вид в ссылке', async ({ page, network }) => {
 });
 
 test('Вид пишется в адрес', async ({ page, network }) => {
-    await page.goto('./#m=10/41/44&nktl=key');
-    await expect.poll(() => new URL(page.url()).hash).toBe('#m=10/41.00000/44.00000&nktl=key&l=O');
+    await page.goto('./#m=10/41/44&p=1');
+    await expect.poll(() => new URL(page.url()).hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
     // тянуть карту можно, когда она загрузилась: первые тайлы запрошены
     await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
     const box = await page.locator(canvas).boundingBox();
@@ -129,6 +129,6 @@ test('Вид пишется в адрес', async ({ page, network }) => {
     await page.mouse.move(box.x + box.width / 2 - 200, box.y + box.height / 2 + 100, { steps: 10 });
     await page.mouse.up();
     // карта уехала на юго-запад — центр севернее и восточнее, зум и остальные параметры те же
-    await expect.poll(() => new URL(page.url()).hash).not.toBe('#m=10/41.00000/44.00000&nktl=key&l=O');
-    expect(new URL(page.url()).hash).toMatch(/^#m=10\/41\.\d{5}\/44\.\d{5}&nktl=key&l=O$/);
+    await expect.poll(() => new URL(page.url()).hash).not.toBe('#m=10/41.00000/44.00000&p=1&l=O');
+    expect(new URL(page.url()).hash).toMatch(/^#m=10\/41\.\d{5}\/44\.\d{5}&p=1&l=O$/);
 });

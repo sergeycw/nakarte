@@ -1,0 +1,5 @@
+{"type":"FeatureCollection","features":[
+ {"type":"Feature","properties":{"name":"Start"},"geometry":{"type":"Point","coordinates":[44.8,41.69]}},
+ {"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[44.8,41.69],[44.81,41.7],[44.82,41.71]]}},
+ {"type":"Feature","properties":{"name":"x"},"geometry":{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}}
+]}

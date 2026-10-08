@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+<Document><name>Doc</name>
+  <Placemark><name>Line 1</name><LineString><coordinates>
+    44.800000,41.690000,0 44.805000,41.695000,0
+    44.810000,41.700000
+  </coordinates></LineString></Placemark>
+  <Placemark><name>Вершина &amp; хижина</name><Point><coordinates>44.790000,41.680000,0</coordinates></Point></Placemark>
+  <Placemark><name>GX</name><gx:Track>
+    <when>2020-01-01T00:00:00Z</when><when>2020-01-01T00:00:01Z</when>
+    <gx:coord>44.700000 41.600000 500</gx:coord><gx:coord>44.710000 41.610000 510</gx:coord>
+  </gx:Track></Placemark>
+</Document></kml>

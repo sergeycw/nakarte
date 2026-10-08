@@ -3,6 +3,8 @@ import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
 import { type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
+import type { Bounds } from '@/tracks/geometry';
+import { type GeoData, TRACK_COLORS, type Track } from '@/tracks/model';
 import type { View } from './hash';
 
 // Состояние приложения, которое делят карта, переключатель слоёв и адрес. Стор создаётся на каждый экземпляр App
@@ -18,6 +20,16 @@ export interface AppState {
     view: View;
     // вид, на который карту надо перевести (пришёл из адреса); seq различает одинаковые запросы
     viewRequest: { view: View; seq: number } | null;
+    // границы, которые карта должна показать целиком (трек, загруженные треки)
+    boundsRequest: { bounds: Bounds; seq: number } | null;
+    // список треков сверху вниз (design add-web-tracks, «Стор»)
+    tracks: readonly Track[];
+    // цвет следующего трека без своего цвета — по кругу, как _lastTrackColor старого клиента
+    nextColor: number;
+    // сколько загрузок треков (файлы, ссылки, параметры адреса) идёт сейчас
+    loadingTracks: number;
+    // ссылка на треки, которую не удалось положить в буфер обмена: показывается окном
+    sharedLink: string | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -29,6 +41,13 @@ export interface AppState {
     addCustomLayer(fields: CustomLayerFields): string;
     replaceCustomLayer(code: string, fields: CustomLayerFields): string;
     removeCustomLayer(code: string): void;
+    requestBounds(bounds: Bounds): void;
+    // данные уже подготовлены prepareImport (линии упрощены); возвращает добавленные треки
+    addTracks(data: readonly GeoData[]): Track[];
+    updateTrack(id: string, patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points'>>): void;
+    removeTracks(ids: readonly string[]): void;
+    changeLoadingTracks(delta: number): void;
+    setSharedLink(link: string | null): void;
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -60,6 +79,9 @@ function renameKey<T>(record: Record<string, T>, from: string, to: string): Reco
     return { ...rest, [to]: value };
 }
 
+// id треков уникальны на страницу (и между экземплярами стора в browser-тестах — не мешает)
+let lastTrackId = 0;
+
 export function createAppStore(init: AppStoreInit): AppStore {
     return createStore<AppState>()((set, get) => {
         // свои слои поменялись — пересобрать карту слоёв и отбросить из выбора пропавшие
@@ -74,6 +96,11 @@ export function createAppStore(init: AppStoreInit): AppStore {
             ...initial,
             view: init.view,
             viewRequest: null,
+            boundsRequest: null,
+            tracks: [],
+            nextColor: 0,
+            loadingTracks: 0,
+            sharedLink: null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -155,6 +182,41 @@ export function createAppStore(init: AppStoreInit): AppStore {
                 );
                 return code;
             },
+
+            requestBounds: (bounds) => set({ boundsRequest: { bounds, seq: (get().boundsRequest?.seq ?? 0) + 1 } }),
+
+            addTracks: (data) => {
+                let { nextColor } = get();
+                const added = data.map((item): Track => {
+                    let color = item.color;
+                    if (
+                        !(Number.isInteger(color) && (color as number) >= 0 && (color as number) < TRACK_COLORS.length)
+                    ) {
+                        color = nextColor;
+                        nextColor = (nextColor + 1) % TRACK_COLORS.length;
+                    }
+                    lastTrackId += 1;
+                    return {
+                        id: `track-${lastTrackId}`,
+                        name: item.name,
+                        segments: item.segments,
+                        points: item.points,
+                        color: color as number,
+                        visible: !item.hidden,
+                        measureTicksShown: item.measureTicksShown ?? false,
+                    };
+                });
+                set({ tracks: [...get().tracks, ...added], nextColor });
+                return added;
+            },
+
+            updateTrack: (id, patch) =>
+                set({ tracks: get().tracks.map((track) => (track.id === id ? { ...track, ...patch } : track)) }),
+
+            removeTracks: (ids) => set({ tracks: get().tracks.filter((track) => !ids.includes(track.id)) }),
+
+            changeLoadingTracks: (delta) => set({ loadingTracks: get().loadingTracks + delta }),
+            setSharedLink: (sharedLink) => set({ sharedLink }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();

@@ -1,19 +1,21 @@
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
+import type { Track } from '@/tracks/model';
+import { TRACK_LAYERS, trackSources } from '@/tracks/style';
 import type { LayerDef } from './catalog';
 
 // Стиль карты из включённых слоёв: подложка снизу, оверлеи — по порядку наложения каталога, а не по порядку
 // включения (titlesByOrder старого клиента). Один источник и один слой на код, id = код: при смене выбора
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
 // Под слоями — серый фон, как у старого клиента: пока тайлы грузятся или подложка сменилась, виден он, а не белая
-// страница (решение владельца, change gray-map-background).
-export function buildStyle(layers: readonly LayerDef[]): StyleSpecification {
+// страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts).
+export function buildStyle(layers: readonly LayerDef[], tracks: readonly Track[] = []): StyleSpecification {
     const sorted = [...layers].sort(
         (a, b) => Number(a.isOverlay) - Number(b.isOverlay) || a.order - b.order || a.code.localeCompare(b.code),
     );
     return {
         version: 8,
-        sources: Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])),
-        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec)],
+        sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...trackSources(tracks) },
+        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...TRACK_LAYERS],
     };
 }
 
