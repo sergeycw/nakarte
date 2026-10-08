@@ -47,7 +47,7 @@
 |---|---|---|
 | R2, ключ объекта — ключ ссылки | записи неизменяемые; KV даёт лимит 25 МиБ и платную запись без выигрыша | [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md) |
 | md5 той же `blueimp-md5`, что у клиента | побайтное совпадение ключа без риска кодировки строки | [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md) |
-| Лимит тела 10 МиБ | с запасом для реальных треков, ограничивает злоупотребление | [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md) |
+| Лимит тела 2 МиБ, 10 записей в минуту с IP, тело только из алфавита ссылки | 10 МиБ × 60 записей в минуту давали ≈ 27 ТБ хранения за месяц атаки; реальная ссылка — 3–4 байта на точку | [limit-track-writes](../../openspec/changes/limit-track-writes/design.md) |
 
 ## Сервис высот
 

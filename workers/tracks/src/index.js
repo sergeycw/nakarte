@@ -1,7 +1,11 @@
 import {trackKey} from './key';
 
-const MAX_TRACK_BYTES = 10 * 1024 * 1024;
+// Ссылка — упрощённый трек в nktk, 3–4 байта на точку: 2 МиБ — сотни тысяч точек. Было 10 МиБ, и с одного
+// IP это ≈ 27 ТБ хранения за месяц атаки (security-аудит, п. 3; change limit-track-writes).
+const MAX_TRACK_BYTES = 2 * 1024 * 1024;
 const KEY_PATTERN = /^[A-Za-z0-9_-]{22}$/u;
+// Тело ссылки — строки nktk в base64url клиента (паддинг `=` он не срезает), склеенные через `/`.
+const LINK_BODY = /^[A-Za-z0-9_\-=/]*$/u;
 const ALLOWED_METHODS = 'GET, POST, OPTIONS';
 // Длина окна `[[ratelimits]]` в wrangler.toml.
 const RETRY_AFTER_SECONDS = '60';
@@ -25,14 +29,19 @@ function respond(origin, status, body = null, headers = {}) {
     return new Response(body, {status, headers: {...corsHeaders(origin), ...headers}});
 }
 
-// Без CF-Connecting-IP (локальный wrangler dev, тесты) частоту не ограничиваем.
-async function overLimit(request, env) {
+// Без CF-Connecting-IP (локальный wrangler dev, тесты) частоту не ограничиваем. limiter — привязка
+// [[ratelimits]]: RATE_LIMITER на все запросы, WRITE_RATE_LIMITER ещё и на POST.
+async function overLimit(request, limiter) {
     const ip = request.headers.get('CF-Connecting-IP');
     if (!ip) {
         return false;
     }
-    const {success} = await env.RATE_LIMITER.limit({key: ip});
+    const {success} = await limiter.limit({key: ip});
     return !success;
+}
+
+function tooManyRequests(origin) {
+    return respond(origin, 429, 'Too many requests\n', {'Retry-After': RETRY_AFTER_SECONDS});
 }
 
 function preflight(request, origin) {
@@ -75,12 +84,17 @@ async function saveTrack(request, env, origin, key) {
     if (!bytes) {
         return respond(origin, 413, 'Track is too big');
     }
-    if (trackKey(new TextDecoder().decode(bytes)) !== key) {
+    const text = new TextDecoder().decode(bytes);
+    if (!LINK_BODY.test(text)) {
+        return respond(origin, 400, 'Not a track link');
+    }
+    if (trackKey(text) !== key) {
         return respond(origin, 400, 'Key does not match track');
     }
     const objectKey = `tracks/${key}`;
     if (!(await env.TRACKS.head(objectKey))) {
-        await env.TRACKS.put(objectKey, bytes);
+        // время записи — чтобы после злоупотребления найти объекты за окно листингом, не читая тел
+        await env.TRACKS.put(objectKey, bytes, {customMetadata: {created: new Date().toISOString()}});
     }
     return respond(origin, 200);
 }
@@ -102,8 +116,8 @@ const worker = {
         if (!origin || !allowedOrigins(env).includes(origin)) {
             return new Response('Origin not allowed', {status: 403});
         }
-        if (await overLimit(request, env)) {
-            return respond(origin, 429, 'Too many requests\n', {'Retry-After': RETRY_AFTER_SECONDS});
+        if (await overLimit(request, env.RATE_LIMITER)) {
+            return tooManyRequests(origin);
         }
         if (request.method === 'OPTIONS') {
             return preflight(request, origin);
@@ -117,6 +131,9 @@ const worker = {
             return respond(origin, 400, 'Malformed key');
         }
         if (request.method === 'POST') {
+            if (await overLimit(request, env.WRITE_RATE_LIMITER)) {
+                return tooManyRequests(origin);
+            }
             return saveTrack(request, env, origin, key);
         }
         if (request.method === 'GET') {

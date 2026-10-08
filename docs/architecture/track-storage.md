@@ -21,11 +21,11 @@ sequenceDiagram
     TL->>TL: key = base64url(md5(строка)), 22 символа
     TL->>U: адрес с #nktl=key в буфер обмена (сразу)
     TL->>W: POST /track/{key}, тело — строка nktk
-    W->>W: Origin, частота, формат ключа, ≤ 10 МиБ
+    W->>W: Origin, частота (записи — отдельный счётчик), формат ключа, ≤ 2 МиБ,<br/>алфавит ссылки
     W->>W: trackKey(тело) == key?
     W->>R2: head tracks/{key}
     alt объекта нет
-        W->>R2: put tracks/{key}
+        W->>R2: put tracks/{key}, customMetadata.created
     end
     W-->>TL: 200 (или 400, 403, 413, 429 → уведомление «Error making link»)
     U-->>V: передаёт ссылку
