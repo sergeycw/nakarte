@@ -100,12 +100,17 @@ if (put.status !== 0) {
 
 // Секрет применяется к новой версии Worker'а не мгновенно: несколько попыток.
 for (let attempt = 1; attempt <= 5; attempt++) {
-    const response = await fetch(`${PROXY}/${TEST_TILE}&check=${Date.now()}`, {headers: {Origin: ORIGIN}});
-    const type = response.headers.get('content-type');
-    console.log(`check ${attempt}: ${response.status} ${type}`);
-    if (response.ok && type?.startsWith('image/')) {
-        console.log('strava heatmap works through the proxy');
-        process.exit(0);
+    // сбой сети на этой машине — не повод падать: секрет уже записан, пробуем ещё раз
+    try {
+        const response = await fetch(`${PROXY}/${TEST_TILE}&check=${Date.now()}`, {headers: {Origin: ORIGIN}});
+        const type = response.headers.get('content-type');
+        console.log(`check ${attempt}: ${response.status} ${type}`);
+        if (response.ok && type?.startsWith('image/')) {
+            console.log('strava heatmap works through the proxy');
+            process.exit(0);
+        }
+    } catch (error) {
+        console.log(`check ${attempt}: ${error.cause?.code ?? error.message}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
 }
