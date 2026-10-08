@@ -23,8 +23,14 @@ ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http:
 
 # Частота с одного IP (CF-Connecting-IP) за 60 с. Через прокси идут тайловые слои (Strava,
 # Tsvetkov, swisstopo, wikimapia) и печать, поэтому лимит выше, чем у остальных Worker'ов.
-# namespace_id — номер счётчика, уникальный в аккаунте: 1001–1004 заняты Worker'ами клона.
+# RATE_LIMITER — хосты слоёв (LAYER_HOSTS в src/index.js), OTHER_RATE_LIMITER — все остальные.
+# namespace_id — номер счётчика, уникальный в аккаунте: 1001–1007 заняты Worker'ами клона.
 [[ratelimits]]
 name = "RATE_LIMITER"
 namespace_id = "1004"
 simple = { limit = 1200, period = 60 }
+
+[[ratelimits]]
+name = "OTHER_RATE_LIMITER"
+namespace_id = "1007"
+simple = { limit = 300, period = 60 }

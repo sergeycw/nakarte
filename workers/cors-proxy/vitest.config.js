@@ -104,13 +104,16 @@ export default defineConfig({
     plugins: [
         cloudflareTest({
             wrangler: {configPath: './wrangler.toml'},
-            // лимит частоты понижен, чтобы `429` проверялся несколькими запросами;
+            // лимиты частоты понижены (слои — 3, остальные хосты — 2), чтобы `429` проверялся несколькими запросами;
             // `namespace_id` — имя поля miniflare, camelCase тут не выбрать
             miniflare: {
                 outboundService: upstream,
                 // секреты wrangler secret put STRAVA_SESSION / STRAVA_COOKIES; тут — заглушки
                 bindings: {STRAVA_SESSION: '_strava4_session=ok-worker', STRAVA_COOKIES},
-                ratelimits: {RATE_LIMITER: {namespace_id: '1004', simple: {limit: 3, period: 60}}},
+                ratelimits: {
+                    RATE_LIMITER: {namespace_id: '1004', simple: {limit: 3, period: 60}},
+                    OTHER_RATE_LIMITER: {namespace_id: '1007', simple: {limit: 2, period: 60}},
+                },
             },
         }),
     ],
