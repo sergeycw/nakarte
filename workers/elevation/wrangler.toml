@@ -1,6 +1,9 @@
 name = "nakarte-elevation"
 main = "worker/build/index.js"
 compatibility_date = "2025-09-01"
+# Version URL (<версия>-<worker>.nakarte-routing.workers.dev) выключены для всех версий: старая версия
+# со старыми лимитами обходила бы лимиты новой (requirement «Только основной адрес Worker'а», worker-limits).
+preview_urls = false
 
 # Workers Logs: история запросов и console.log в дашборде Cloudflare, хранятся 7 дней. В Workers Paid
 # включено 20 млн событий в месяц, дальше $0.60 за миллион (цены меняются с 2026-12-01); при росте
