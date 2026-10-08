@@ -2,10 +2,10 @@
 
 ## 1. Обновление кук в прокси
 
-- [ ] 1.1 `workers/cors-proxy/src/strava.js`: проверка адреса тайла heatmap, запрос страницы `www.strava.com/maps/global-heatmap` с сессией (ручные редиректы только внутри `www.strava.com`, таймаут), сбор четырёх кук из `getSetCookie()`, срок из `CloudFront-Policy`; проверка — тесты 1.3 зелёные
-- [ ] 1.2 Кеш в памяти изолята с запасом 30 минут, одно обновление на параллельные запросы (`ctx.waitUntil`), пауза 10 минут после неудачи, сброс при смене сессии, фолбэк на `STRAVA_COOKIES`, журнал только с именами; `src/index.js` берёт куки тайла из модуля; проверка — тесты 1.3 зелёные
-- [ ] 1.3 Тесты vitest в `workerd` без сети: заглушка `outboundService` в `vitest.config.js` отдаёт страницу strava.com с `Set-Cookie` по сессии; проверить обновление, кеш, срок, параллельные запросы, неудачу и паузу, редирект за пределы strava.com, фолбэк, что сессия не уходит на тайлы и куки — в ответ клиенту; проверка — `PATH=/usr/local/bin:$PATH npm test` в `workers/cors-proxy` зелёный, тесты запускает существующий `check-cors-proxy.yml`
-- [ ] 1.4 Линт: `NODE_ENV=production npx eslint --ext js .` чистый, в том числе без `workers/*/node_modules`
+- [x] 1.1 `workers/cors-proxy/src/strava.js`: проверка адреса тайла heatmap, запрос страницы `www.strava.com/maps/global-heatmap` с сессией (ручные редиректы только внутри `www.strava.com`, таймаут), сбор четырёх кук из `getSetCookie()`, срок из `CloudFront-Policy`; проверка — тесты 1.3 зелёные
+- [x] 1.2 Кеш в памяти изолята с запасом 30 минут, одно обновление на параллельные запросы (`ctx.waitUntil`), пауза 10 минут после неудачи, сброс при смене сессии, фолбэк на `STRAVA_COOKIES`, журнал только с именами; `src/index.js` берёт куки тайла из модуля и ставит `X-Strava-Cookies`; проверка — тесты 1.3 зелёные
+- [x] 1.3 Тесты vitest в `workerd` без сети: заглушка `outboundService` в `vitest.config.js` отдаёт страницу strava.com с `Set-Cookie` по сессии; проверить обновление, кеш, срок, параллельные запросы, неудачу и паузу, редирект за пределы strava.com, фолбэк, `X-Strava-Cookies`, что сессия не уходит на тайлы и куки — в ответ клиенту; проверка — `PATH=/usr/local/bin:$PATH npm test` в `workers/cors-proxy` зелёный, тесты запускает существующий `check-cors-proxy.yml`
+- [x] 1.4 Линт: `NODE_ENV=production npx eslint --ext js .` чистый, в том числе без `workers/*/node_modules`
 
 ## 2. Скрипт владельца
 

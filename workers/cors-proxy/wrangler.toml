@@ -3,6 +3,7 @@ main = "src/index.js"
 compatibility_date = "2025-09-01"
 
 # Потолок на один вызов: наблюдённый максимум CPU — 2 мс, на запрос один fetch (redirect: manual).
+# Тайл heatmap при обновлении кук Strava добавляет до 4 запросов страницы (src/strava.js).
 [limits]
 cpu_ms = 500
 subrequests = 50

@@ -74,3 +74,17 @@
 
 - **WHEN** клиент получает тайл heatmap после обновления
 - **THEN** в ответе нет `Set-Cookie` и значений кук
+
+### Requirement: Источник кук Strava в ответе тайла
+
+Ответ на запрос тайла heatmap SHALL содержать заголовок `X-Strava-Cookies` со значением `session` (куки получены по сессии), `fallback` (из `STRAVA_COOKIES`) или `none` (без кук) и SHALL NOT содержать самих кук. На другие адреса заголовок не ставится. По нему владелец проверяет, что сессия работает, пока `STRAVA_COOKIES` ещё жив.
+
+#### Scenario: Куки по сессии
+
+- **WHEN** тайл запрошен после успешного обновления
+- **THEN** в ответе `X-Strava-Cookies: session`
+
+#### Scenario: Не тайл heatmap
+
+- **WHEN** запрошен `/https/www.strava.com/activities/1/streams`
+- **THEN** заголовка `X-Strava-Cookies` в ответе нет
