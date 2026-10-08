@@ -8,7 +8,7 @@
 
 ## 2. Ключ Google
 
-- [ ] 2.1 Шаг в `.github/workflows/deploy-pages.yml`: секрет `GOOGLE_MAPS_API_KEY` подставляется в `src/secrets.js`, без секрета — заглушка; проверка: деплой без секрета зелёный, в бандле прода заглушка
+- [x] 2.1 Шаг в `.github/workflows/deploy-pages.yml`: секрет `GOOGLE_MAPS_API_KEY` подставляется в `src/secrets.js`, без секрета — заглушка; проверка: деплой без секрета зелёный, в бандле прода заглушка
 
 ## 3. Документы
 
@@ -16,7 +16,7 @@
 
 ## 4. Прод
 
-- [ ] 4.1 На `https://nakarte-routing.pages.dev`: в списке панорам только Google street view, запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
+- [x] 4.1 На `https://nakarte-routing.pages.dev`: в списке панорам только Google street view, запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
 
 ## Workflow follow-up
 

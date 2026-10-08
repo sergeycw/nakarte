@@ -121,21 +121,16 @@
 - **WHEN** пользователь клона открывает выбор слоёв
 - **THEN** в нём нет «Mountain passes (Westra)» и «geocaching.su», запросов к `nakarte.me/westraPasses/` и `nakarte.me/geocachingSu/` нет
 
-### Requirement: Панорамы клона
+### Requirement: Только Google Street View в панорамах
 
-Сборка клона SHALL предлагать в панорамах только провайдеров, которых нет в `excludedPanoramaProviders` (`src/config-target/clone.js`): сейчас только Google Street View, без Wikimedia Commons, Mapillary и mapy.cz. Код скрытого провайдера в адресе (`n2=`, `n=`) SHALL не ломать загрузку карты и не включать провайдера. Сборка без цели SHALL показывать всех провайдеров как апстрим.
+Приложение SHALL предлагать в панорамах только Google Street View: провайдеров Wikimedia Commons, Mapillary и mapy.cz в коде нет. Код удалённого провайдера в адресе (`n2=`, `n=`) SHALL не ломать загрузку карты и ничего не включать.
 
 #### Scenario: Список панорам в клоне
 
 - **WHEN** пользователь клона включает панорамы
 - **THEN** в списке только «Google street view», запросов к `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` и `proxy.nakarte.me/mapy/` нет
 
-#### Scenario: Ссылка со скрытым провайдером
+#### Scenario: Ссылка с удалённым провайдером
 
 - **WHEN** клон открыт по адресу с `n2=wmc`
-- **THEN** карта открывается без ошибок, панорамы Wikimedia Commons, Mapillary и mapy.cz не включены
-
-#### Scenario: Сборка апстрима
-
-- **WHEN** приложение собрано без `NAKARTE_TARGET`
-- **THEN** в панорамах Google street view, Wikimedia commons, Mapillary и mapy.cz, как в апстриме
+- **THEN** карта открывается без ошибок, панорамы не включены
