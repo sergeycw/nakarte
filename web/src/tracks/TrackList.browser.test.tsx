@@ -1,0 +1,347 @@
+import type { FeatureCollection, MultiLineString } from 'geojson';
+import type { Map as MaplibreMap } from 'maplibre-gl';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
+import { cleanup } from 'vitest-browser-react';
+import '@/index.css';
+import { renderApp } from '@/test/render-app';
+import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { saveNktk } from './nktk';
+import { TRACK_LINES, TRACK_POINTS } from './style';
+
+// Список треков в App на настоящей карте; тайлы — фикстура, хранилище и прокси — заглушка fetch.
+// Названия тестов — сценарии спеки tracks.
+
+let tiles: FixtureTiles;
+
+beforeEach(() => {
+    localStorage.clear();
+    tiles = fixtureTiles();
+});
+
+afterEach(() => {
+    cleanup();
+    expect(tiles.external, 'запросы мимо localhost и тайлов').toEqual([]);
+});
+
+// 1° по экватору — 111 194.93 м (R = 6 371 000 м): два отрезка общей длиной ≈ 12 345 м
+const LNG_FOR_METERS = (meters: number) => meters / ((6371000 * Math.PI) / 180);
+const TWO_SEGMENTS = saveNktk({
+    name: 'Equator',
+    segments: [
+        [
+            { lat: 0, lng: 0 },
+            { lat: 0, lng: LNG_FOR_METERS(6000) },
+        ],
+        [
+            { lat: 0, lng: 1 },
+            { lat: 0, lng: 1 + LNG_FOR_METERS(6345) },
+        ],
+    ],
+    points: [{ lat: 0, lng: 0.01, name: 'Start' }],
+});
+
+function track(name: string, fields: Partial<Parameters<typeof saveNktk>[0]> = {}) {
+    return saveNktk({
+        name,
+        segments: [
+            [
+                { lat: 41.69, lng: 44.8 },
+                { lat: 41.7, lng: 44.81 },
+            ],
+        ],
+        points: [],
+        ...fields,
+    });
+}
+
+// данные GeoJSON-источника треков (источники есть в стиле всегда, src/tracks/style.ts)
+function sourceData<T extends FeatureCollection>(map: MaplibreMap, id: string): T['features'] {
+    const source = map.getSource(id);
+    if (!source) {
+        throw new Error(`нет источника ${id}`);
+    }
+    return (source.serialize() as { data: T }).data.features;
+}
+
+function lines(map: MaplibreMap) {
+    return sourceData<FeatureCollection<MultiLineString>>(map, TRACK_LINES);
+}
+
+function points(map: MaplibreMap) {
+    return sourceData(map, TRACK_POINTS);
+}
+
+function rows() {
+    return page.getByRole('list', { name: 'Tracks' }).getByRole('listitem');
+}
+
+async function trackMenu(name: string, item: string) {
+    await page.getByRole('button', { name: `Actions for ${name}` }).click();
+    await page.getByRole('menuitem', { name: item }).click();
+}
+
+async function listMenu(item: string) {
+    await page.getByRole('button', { name: 'Tracks menu' }).click();
+    await page.getByRole('menuitem', { name: item }).click();
+}
+
+describe('Список треков поверх карты', () => {
+    test('Трек в списке', async () => {
+        const { map } = await renderApp(tiles, `#m=5/0/0&l=O&nktk=${TWO_SEGMENTS}`);
+        await expect.element(rows()).toHaveLength(1);
+        const row = rows().first();
+        await expect.element(row.getByRole('button', { name: 'Equator' })).toBeVisible();
+        await expect.element(row.getByTestId('track-length')).toHaveTextContent('12.3 km');
+        await expect.element(row.getByRole('checkbox', { name: 'Show Equator' })).toBeChecked();
+        await expect.poll(() => lines(map)).toHaveLength(1);
+    });
+
+    test('Показать трек целиком', async () => {
+        const { map } = await renderApp(tiles, `#m=8/0/100&l=O&nktk=${track('Far')}`);
+        await expect.element(rows()).toHaveLength(1);
+        await page.getByRole('button', { name: 'Far' }).click();
+        await expect
+            .poll(() => {
+                const bounds = map.getBounds();
+                return bounds.contains([44.8, 41.69]) && bounds.contains([44.81, 41.7]);
+            })
+            .toBe(true);
+    });
+
+    test('сворачивается и разворачивается', async () => {
+        await renderApp(tiles, `#nktk=${track('A')}`);
+        await page.getByRole('button', { name: 'Collapse tracks' }).click();
+        await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
+        await page.getByRole('button', { name: 'Expand tracks' }).click();
+        await expect.element(rows()).toHaveLength(1);
+    });
+});
+
+describe('Треки на карте', () => {
+    test('Скрыть трек', async () => {
+        const { map } = await renderApp(
+            tiles,
+            `#m=12/41.69/44.8&nktk=${track('A', { points: [{ lat: 41.69, lng: 44.8, name: 'P' }] })}`,
+        );
+        await expect.poll(() => [lines(map).length, points(map).length]).toEqual([1, 1]);
+        await page.getByRole('checkbox', { name: 'Show A' }).click();
+        await expect.poll(() => [lines(map).length, points(map).length]).toEqual([0, 0]);
+        await expect.element(rows()).toHaveLength(1);
+    });
+
+    test('Сменить цвет', async () => {
+        const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
+        await expect.poll(() => lines(map)[0]?.properties?.color).toBe('#77f');
+        await page.getByRole('button', { name: 'Color of A' }).click();
+        await page.getByRole('button', { name: 'Color 4' }).click();
+        await expect.poll(() => lines(map)[0]?.properties?.color).toBe('#f77');
+    });
+
+    test('Shift+клик по флажку — показать только этот трек', async () => {
+        await renderApp(tiles, `#nktk=${track('A')}/${track('B', { hidden: true })}/${track('C')}`);
+        await userEvent.keyboard('{Shift>}');
+        await page.getByRole('checkbox', { name: 'Show B' }).click();
+        await userEvent.keyboard('{/Shift}');
+        await expect.element(page.getByRole('checkbox', { name: 'Show A' })).not.toBeChecked();
+        await expect.element(page.getByRole('checkbox', { name: 'Show B' })).toBeChecked();
+        await expect.element(page.getByRole('checkbox', { name: 'Show C' })).not.toBeChecked();
+    });
+});
+
+describe('Действия с треком', () => {
+    test('Переименовать', async () => {
+        await renderApp(tiles, `#nktk=${track('Old name')}`);
+        await trackMenu('Old name', 'Rename');
+        const input = page.getByRole('textbox', { name: 'Track name' });
+        await input.fill('New name');
+        await page.getByRole('button', { name: 'Ok' }).click();
+        await expect.element(page.getByRole('button', { name: 'New name' })).toBeVisible();
+        // пустое название трек не меняет
+        await trackMenu('New name', 'Rename');
+        await input.fill('  ');
+        await page.getByRole('button', { name: 'Ok' }).click();
+        await expect.element(page.getByRole('button', { name: 'New name' })).toBeVisible();
+    });
+
+    test('Развернуть', async () => {
+        const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
+        await expect.poll(() => lines(map)).toHaveLength(1);
+        const before = lines(map)[0].geometry.coordinates[0];
+        const length = rows().first().getByTestId('track-length');
+        const lengthBefore = length.element().textContent;
+        await trackMenu('A', 'Reverse');
+        await expect.poll(() => lines(map)[0].geometry.coordinates[0]).toEqual([...before].reverse());
+        expect(length.element().textContent).toBe(lengthBefore);
+    });
+
+    test('Дублировать', async () => {
+        const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
+        await trackMenu('A', 'Duplicate');
+        await expect.element(rows()).toHaveLength(2);
+        await expect
+            .poll(() => lines(map).map((feature) => feature.geometry.coordinates))
+            .toSatisfy((all: unknown[]) => JSON.stringify(all[0]) === JSON.stringify(all[1]));
+    });
+
+    test('Удалить', async () => {
+        await renderApp(tiles, `#nktk=${track('A')}/${track('B')}`);
+        await trackMenu('A', 'Delete');
+        await expect.element(rows()).toHaveLength(1);
+        await expect.element(page.getByRole('button', { name: 'B' })).toBeVisible();
+    });
+});
+
+describe('Действия со списком', () => {
+    test('Удалить скрытые', async () => {
+        await renderApp(tiles, `#nktk=${track('A')}/${track('B', { hidden: true })}/${track('C')}`);
+        await expect.element(rows()).toHaveLength(3);
+        await listMenu('Delete hidden tracks');
+        await expect.element(rows()).toHaveLength(2);
+        await listMenu('Delete all tracks');
+        await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
+    });
+
+    test('Новый трек из видимых', async () => {
+        const { map } = await renderApp(
+            tiles,
+            `#m=12/41.69/44.8&nktk=${track('A', { points: [{ lat: 41.69, lng: 44.8, name: 'P' }] })}/${track('B')}/${track('C', { hidden: true })}`,
+        );
+        await listMenu('Create new track from all visible tracks');
+        await expect.element(rows()).toHaveLength(4);
+        await expect.poll(() => lines(map).at(-1)?.geometry.coordinates).toHaveLength(2);
+        await expect.poll(() => points(map)).toHaveLength(2);
+    });
+
+    test('новый трек: название из поля ссылки или New track', async () => {
+        await renderApp(tiles);
+        await page.getByRole('button', { name: 'New track' }).click();
+        await expect.element(page.getByRole('button', { name: 'New track', exact: true }).last()).toBeVisible();
+        await page.getByRole('textbox', { name: 'Track URL' }).fill('Plan');
+        await page.getByRole('button', { name: 'New track' }).first().click();
+        await expect.element(page.getByRole('button', { name: 'Plan' })).toBeVisible();
+        await expect.element(page.getByRole('textbox', { name: 'Track URL' })).toHaveValue('');
+    });
+});
+
+describe('Импорт', () => {
+    test('Открыть GPX', async () => {
+        await renderApp(tiles);
+        const gpx =
+            '<gpx><wpt lat="1" lon="2"><name>W1</name></wpt><wpt lat="1" lon="3"><name>W2</name></wpt>' +
+            '<trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="1.1" lon="2.1"/></trkseg>' +
+            '<trkseg><trkpt lat="1.2" lon="2.2"/><trkpt lat="1.3" lon="2.3"/></trkseg></trk></gpx>';
+        await userEvent.upload(page.getByTestId('track-file-input'), new File([gpx], 'walk.gpx'));
+        await expect.element(page.getByRole('button', { name: 'walk.gpx' })).toBeVisible();
+    });
+
+    test('Неизвестный формат — тост, трек не добавлен', async () => {
+        await renderApp(tiles);
+        await userEvent.upload(page.getByTestId('track-file-input'), new File(['hello'], 'x.bin'));
+        await expect
+            .element(page.getByText('File "x.bin" has unsupported format or is badly corrupt, no data could be loaded'))
+            .toBeVisible();
+        await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
+    });
+
+    test('Файл по ссылке через прокси клона', async () => {
+        const requested: string[] = [];
+        const gpx = '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="3" lon="4"/></trkseg></trk></gpx>';
+        await renderApp(tiles, '', {
+            fetch: async (input) => {
+                requested.push(String(input));
+                return new Response(gpx);
+            },
+        });
+        await page.getByRole('textbox', { name: 'Track URL' }).fill('https://example.test/files/route.gpx');
+        await userEvent.keyboard('{Enter}');
+        await expect.element(page.getByRole('button', { name: 'route.gpx' })).toBeVisible();
+        expect(requested).toEqual([
+            'https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/example.test/files/route.gpx',
+        ]);
+    });
+});
+
+describe('Ссылка на треки после ответа хранилища', () => {
+    function deferredStorage(response: () => Response | Promise<Response>) {
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const posts: { url: string; body: string }[] = [];
+        const fetchStub: typeof fetch = async (input, init) => {
+            posts.push({ url: String(input), body: String(init?.body) });
+            await released;
+            return response();
+        };
+        return { fetchStub, posts, release };
+    }
+
+    test('Ссылка готова', async () => {
+        const storage = deferredStorage(() => new Response(''));
+        let clipboardText: string | null = null;
+        let linkPromise: Promise<string> | null = null;
+        await renderApp(tiles, `#m=12/41.69/44.8&l=O&q=search&nktk=${track('A')}`, {
+            fetch: storage.fetchStub,
+            writeClipboard: async (text) => {
+                linkPromise = text;
+                clipboardText = await text;
+            },
+        });
+        await listMenu('Copy link for all tracks');
+        await expect.poll(() => storage.posts).toHaveLength(1);
+        // запрос записи ушёл, ссылки ещё нет: хранилище не ответило
+        expect(linkPromise).not.toBeNull();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(clipboardText).toBeNull();
+        storage.release();
+        await expect.poll(() => clipboardText).toMatch(/#m=12\/41\.69000\/44\.80000&l=O&nktl=[\w-]{22}$/u);
+        const key = storage.posts[0].url.split('/').pop();
+        expect(clipboardText).toContain(`nktl=${key}`);
+        expect(storage.posts[0].url).toBe(`https://nakarte-tracks.nakarte-routing.workers.dev/track/${key}`);
+        await expect.element(page.getByText('Link copied')).toBeVisible();
+    });
+
+    test('буфер недоступен — окно со ссылкой', async () => {
+        const storage = deferredStorage(() => new Response(''));
+        storage.release();
+        await renderApp(tiles, `#nktk=${track('A')}`, {
+            fetch: storage.fetchStub,
+            writeClipboard: () => Promise.reject(new Error('denied')),
+        });
+        await trackMenu('A', 'Copy link for track');
+        const input = page.getByRole('textbox', { name: 'Link to tracks' });
+        await expect.element(input).toBeVisible();
+        expect((input.element() as HTMLInputElement).value).toMatch(/nktl=[\w-]{22}$/u);
+    });
+
+    test('Хранилище недоступно', async () => {
+        let clipboardText: string | null = null;
+        await renderApp(tiles, `#nktk=${track('A')}`, {
+            fetch: () => Promise.reject(new TypeError('Failed to fetch')),
+            writeClipboard: async (text) => {
+                clipboardText = await text;
+            },
+        });
+        await listMenu('Copy link for all tracks');
+        await expect.element(page.getByText('Error making link: network error')).toBeVisible();
+        expect(clipboardText).toBeNull();
+    });
+
+    test('Слишком большой трек', async () => {
+        await renderApp(tiles, `#nktk=${track('A')}`, {
+            fetch: async () => new Response('', { status: 413 }),
+            writeClipboard: async (text) => {
+                await text;
+            },
+        });
+        await listMenu('Copy link for visible tracks');
+        await expect.element(page.getByText('Error making link: track is too big')).toBeVisible();
+    });
+
+    test('без треков — No tracks to copy', async () => {
+        await renderApp(tiles);
+        await listMenu('Copy link for all tracks');
+        await expect.element(page.getByText('No tracks to copy')).toBeVisible();
+    });
+});

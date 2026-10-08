@@ -86,3 +86,36 @@ describe('свои слои', () => {
         expect(s.getState().layers.has(code)).toBe(false);
     });
 });
+
+describe('треки', () => {
+    const tracksStore = store;
+    const data = (name: string, fields = {}) => ({ name, segments: [], points: [], ...fields });
+
+    test('цвет из ссылки сохраняется, без цвета — следующий по кругу', () => {
+        const store = tracksStore();
+        const added = store
+            .getState()
+            .addTracks([data('a'), data('b', { color: 4 }), data('c'), data('d', { color: 9 })]);
+        expect(added.map((track) => track.color)).toEqual([0, 4, 1, 2]);
+        expect(store.getState().addTracks([data('e')])[0].color).toBe(3);
+    });
+
+    test('видимость из ссылки, уникальные id', () => {
+        const store = tracksStore();
+        const [a, b] = store.getState().addTracks([data('a', { hidden: true }), data('b')]);
+        expect([a.visible, b.visible]).toEqual([false, true]);
+        expect(a.id).not.toBe(b.id);
+    });
+
+    test('правка и удаление', () => {
+        const store = tracksStore();
+        const [a, b] = store.getState().addTracks([data('a'), data('b')]);
+        store.getState().updateTrack(a.id, { name: 'renamed', visible: false });
+        expect(store.getState().tracks.map((t) => [t.name, t.visible])).toEqual([
+            ['renamed', false],
+            ['b', true],
+        ]);
+        store.getState().removeTracks([b.id]);
+        expect(store.getState().tracks.map((t) => t.name)).toEqual(['renamed']);
+    });
+});

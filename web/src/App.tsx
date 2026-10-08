@@ -8,6 +8,9 @@ import { LayerSwitcher } from '@/layers/LayerSwitcher';
 import { AppStoreContext } from '@/state/context';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
+import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
+import { TrackActionsContext } from '@/tracks/actions-context';
+import { TrackList } from '@/tracks/TrackList';
 import { InfoPanel } from './InfoPanel';
 import { BaseMap } from './map/BaseMap';
 
@@ -38,11 +41,30 @@ function startStore(): AppStore {
 interface AppProps {
     transformRequest?: RequestTransformFunction;
     mapRef?: Ref<MapRef>;
+    // сеть треков (хранилище, прокси) и буфер обмена: browser-тесты подставляют свои, в сеть они не ходят
+    fetch?: typeof fetch;
+    writeClipboard?: TrackActionsDeps['writeClipboard'];
 }
 
-export function App({ transformRequest, mapRef }: AppProps) {
+function notify(title: string, type?: 'error' | 'success') {
+    toast.add({ title, type });
+}
+
+export function App({ transformRequest, mapRef, fetch = window.fetch.bind(window), writeClipboard }: AppProps) {
     const [store] = useState(startStore);
-    useEffect(() => bindAppStore(store, window, localStorageOrNull()), [store]);
+    const [trackActions] = useState(() =>
+        createTrackActions({
+            store,
+            sources: { fetch, corsProxyUrl: config.corsProxyUrl, tracksStorageServer: config.tracksStorageServer },
+            notify,
+            location: () => window.location,
+            writeClipboard,
+        }),
+    );
+    useEffect(
+        () => bindAppStore(store, window, localStorageOrNull(), trackActions.openTrackParams),
+        [store, trackActions],
+    );
 
     function showTileError(code: string, status: number | undefined) {
         // 404 — «тайла нет» у региональных и разреженных слоёв (Slazav внутри района), это не ошибка
@@ -60,13 +82,29 @@ export function App({ transformRequest, mapRef }: AppProps) {
 
     return (
         <AppStoreContext value={store}>
-            <Toaster>
-                <main className="fixed inset-0 overflow-hidden">
-                    <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
-                    <InfoPanel />
-                    <LayerSwitcher />
-                </main>
-            </Toaster>
+            <TrackActionsContext value={trackActions}>
+                <Toaster>
+                    <main
+                        className="fixed inset-0 overflow-hidden"
+                        // файлы треков можно бросить на карту (onFileDragDrop старого клиента)
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            if (event.dataTransfer.files.length) {
+                                trackActions.openFiles([...event.dataTransfer.files]);
+                            }
+                        }}
+                    >
+                        <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
+                        {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), клики между панелями уходят карте */}
+                        <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
+                            <InfoPanel />
+                            <TrackList />
+                        </div>
+                        <LayerSwitcher />
+                    </main>
+                </Toaster>
+            </TrackActionsContext>
         </AppStoreContext>
     );
 }
