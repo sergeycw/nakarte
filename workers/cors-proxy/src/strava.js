@@ -51,8 +51,20 @@ function policyExpiry(policy) {
     }
 }
 
-function collectHeatmapCookies(response, found) {
+// Имя куки и её срок из атрибутов Expires/Max-Age, без значения: по этому журналу видно, продлевает ли
+// Strava сессию (_strava4_session в ответе) и насколько.
+function describeSetCookie(line) {
+    const [pair, ...attributes] = line.split(';');
+    const name = pair.slice(0, pair.indexOf('=')).trim();
+    const lifetime = attributes
+        .map((attribute) => attribute.trim())
+        .filter((attribute) => /^(expires|max-age)=/iu.test(attribute));
+    return lifetime.length ? `${name} (${lifetime.join(', ')})` : name;
+}
+
+function collectHeatmapCookies(response, found, seen) {
     for (const line of response.headers.getSetCookie()) {
+        seen.push(describeSetCookie(line));
         const pair = line.split(';', 1)[0];
         const eq = pair.indexOf('=');
         const name = pair.slice(0, eq).trim();
@@ -62,9 +74,16 @@ function collectHeatmapCookies(response, found) {
     }
 }
 
+// Ошибка с описанием всех Set-Cookie цепочки (имена и сроки), чтобы журнал показал их и при неудаче.
+function refreshError(message, seen) {
+    return Object.assign(new Error(message), {setCookies: seen});
+}
+
 // Ошибки несут только статус, путь и имена кук: их текст идёт в журнал и в вывод скрипта.
+// setCookies — имена и сроки всех кук из ответов, без значений.
 async function fetchHeatmapCookies(session, fetchImpl = fetch) {
     const found = new Map();
+    const seen = [];
     let url = HEATMAP_PAGE;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
         const response = await fetchImpl(url, {
@@ -74,36 +93,40 @@ async function fetchHeatmapCookies(session, fetchImpl = fetch) {
         });
         // нужны только заголовки: HTML не читаем, CPU на него не тратим
         await response.body?.cancel();
-        collectHeatmapCookies(response, found);
+        collectHeatmapCookies(response, found, seen);
         const location = response.headers.get('location');
         if (response.status >= 300 && response.status < 400 && location) {
             const next = new URL(location, url);
             if (next.origin !== STRAVA_ORIGIN) {
-                throw new Error(`strava page redirects off ${STRAVA_ORIGIN}: ${response.status} to ${next.host}`);
+                throw refreshError(
+                    `strava page redirects off ${STRAVA_ORIGIN}: ${response.status} to ${next.host}`,
+                    seen
+                );
             }
             if (LOGIN_PATH.test(next.pathname)) {
-                throw new Error(`strava session rejected: ${response.status} to ${next.pathname}`);
+                throw refreshError(`strava session rejected: ${response.status} to ${next.pathname}`, seen);
             }
             url = next.href;
             continue;
         }
         if (!response.ok) {
-            throw new Error(`strava page answered ${response.status}`);
+            throw refreshError(`strava page answered ${response.status}`, seen);
         }
         // так Strava ответила 2026-10-08 на подставную сессию: 200 без кук, а не редирект на /login
         if (!found.size) {
-            throw new Error(`strava page set no heatmap cookies: ${response.status}, session not logged in`);
+            throw refreshError(`strava page set no heatmap cookies: ${response.status}, session not logged in`, seen);
         }
         const missing = HEATMAP_COOKIES.filter((name) => !found.has(name));
         if (missing.length) {
-            throw new Error(`strava page set no ${missing.join(', ')}`);
+            throw refreshError(`strava page set no ${missing.join(', ')}`, seen);
         }
         return {
             cookie: HEATMAP_COOKIES.map((name) => `${name}=${found.get(name)}`).join('; '),
             expiresAt: policyExpiry(found.get('CloudFront-Policy')),
+            setCookies: seen,
         };
     }
-    throw new Error(`strava page redirects more than ${MAX_REDIRECTS} times`);
+    throw refreshError(`strava page redirects more than ${MAX_REDIRECTS} times`, seen);
 }
 
 // Состояние изолята. Промис обновления разрешается строкой, а не Response, поэтому его можно ждать
@@ -122,7 +145,8 @@ function bestKnown(now, fallback) {
 
 async function refresh(session, now) {
     try {
-        const {cookie, expiresAt} = await fetchHeatmapCookies(session);
+        const {cookie, expiresAt, setCookies} = await fetchHeatmapCookies(session);
+        console.log(`strava page set-cookie: ${setCookies.join('; ')}`);
         if (state.session !== session) {
             return null;
         }
@@ -143,6 +167,9 @@ async function refresh(session, now) {
         return cookie;
     } catch (error) {
         console.error(`strava heatmap cookies not refreshed: ${error.message}`);
+        if (error.setCookies?.length) {
+            console.error(`strava page set-cookie: ${error.setCookies.join('; ')}`);
+        }
         if (state.session === session) {
             state.failedAt = now;
         }
