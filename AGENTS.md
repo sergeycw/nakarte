@@ -6,12 +6,13 @@
 
 - `src/` — клиент (Leaflet + knockout, webpack): `layers.js` — все слои карты, `config.js` — адреса сервисов по умолчанию, `config-target/` — отличия сборки клона, `lib/` — модули (импорт треков — `leaflet.control.track-list/lib/services/`, роутинг — раздел «Где код роутинга»).
 - `test/` — karma-тесты клиента, их гоняет `main.yml`.
+- `web/` — новое приложение (React, MapLibre, shadcn/ui), растёт рядом со старым клиентом и выкатывается на `/next/`; план переноса — `openspec/research/new-ui.md`, запуск и подвохи — раздел «Новое приложение».
 - `workers/<сервис>/` — Cloudflare Worker'ы: `cors-proxy`, `tracks`, `elevation` (Rust), `tiles` (тайлы BRouter из R2, работает как Pages Function `functions/tiles`; там же тесты обеих Pages Functions и их middleware), `guard` (счётчик частоты Pages Functions, закрыт снаружи, функции зовут его по service binding `GUARD`). Правила — раздел «Свои бэкенды».
 - `functions/` — Pages Functions клона: `tiles` и `brouter-wasm` (Range для файлов движка).
 - `scripts/` — сборка (`build.js`), тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
 - `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter.
 - `docs/architecture/` — схема системы: контекст, контейнеры, диаграммы по областям, реестр решений.
-- `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `deploy-pages.yml` (по push в `master` — сервисы, чьи файлы менялись), ручные и плановые загрузки данных, `strava heatmap check`, `prod check` (`scripts/prod-check.sh`).
+- `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `check-web.yml`, `deploy-pages.yml` (по push в `master` — сервисы, чьи файлы менялись), ручные и плановые загрузки данных, `strava heatmap check`, `prod check` (`scripts/prod-check.sh`).
 
 ## Где что записано
 
@@ -40,6 +41,21 @@
 - Линт `npm run lint:code` проверяет и `workers/`, и `functions/`: для них в `.eslintrc.js` отдельный override (ES-модули, глобалы рантайма Workers).
 - Corepack при запуске `yarn` дописывает в `package.json` поле `packageManager`. Его нужно откатывать: случайная правка, не относящаяся к задаче.
 - Тесты karma `test_track_load.js` ходят в живые сервисы через свой прокси (`config.CORSProxyUrl`), поэтому `http://localhost:9876` есть в `ALLOWED_ORIGINS` прокси. Strava, Garmin Connect и Wikiloc из них убраны: сервисы режут запросы не из браузера (backlog, «Отложено»). Один файл: `NODE_ENV=testing npx karma start --single-run --browsers ChromeHeadless test/karma.conf.js --glob ./test/test_track_load.js`.
+
+## Новое приложение (`web/`)
+
+Стек и решения — design change `add-web-skeleton` (после archive — в `openspec/changes/archive/`), поведение — спека `web-client`. Сборка — `build/next/` с `base: '/next/'`, тот же Pages-проект; деплой собирает его после старого клиента. Команды — `scripts` в `web/package.json`; dev-сервер на 8769 открывается на `/next/`, запись `nakarte-web` в `../.claude/launch.json`. Адреса сервисов — только `web/src/config.ts`, режим Vite `clone` включает движок в браузере.
+
+Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.tsx`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы — фикстура `src/test/tile.png`, e2e валит любой запрос мимо `localhost` (`e2e/fixtures.ts`). Названия тестов совпадают со сценариями спеки.
+
+Подвохи:
+- Vitest 5 требует Node ≥ 22.12: все команды с `PATH=/usr/local/bin:$PATH`, lock-файл — `npx --yes npm@11 install` (те же подвохи npm, что у Worker'ов, раздел «Свои бэкенды»).
+- Зум MapLibre на 1 меньше зума Leaflet при том же масштабе (мир на z0 — 512 px против 256): `m=8/…` старой ссылки — zoom 7.
+- Воркер MapLibre 6 подключается через `setWorkerUrl` и `?worker&url` (`src/map/maplibre.ts`); без этого `Worker failed to load` и пустая карта.
+- Контейнер карты — `isolation: isolate`: оверлеи MapLibre с `z-index: 99999` иначе перекрывают панели. CSS MapLibre импортируется в `index.css` вне `@layer` после Tailwind и перебивает Preflight.
+- Browser-тест рендерит `App` вместе с `index.css`: без стилей контейнер карты растёт бесконечно (`ResizeObserver loop`), и карта не загружается.
+- `shadcn add` берёт алиас `@/*` из корневого `tsconfig.json`; тема только светлая — блок `.dark` из `index.css` после `shadcn` удалять.
+- Pages без `build/next/` отвечают на `/next/` корневым `index.html` старого клиента с кодом `200`: проверять заголовок `nakarte routing`, а не статус.
 
 ## Где код роутинга
 
@@ -92,7 +108,7 @@
 
 Сборка и деплой клона вручную — запасной путь, если автодеплой сломан (шаги CI — `deploy-pages.yml`):
 - `sh experiments/wasm/cheerpj/build.sh` кладёт jar и профили в `experiments/wasm/cheerpj/`. Работает и с созданным, но не запущенным контейнером: `docker create --name <имя> ghcr.io/abrensch/brouter:nightly`, `BROUTER_CONTAINER=<имя>`, потом `docker rm <имя>`. Запущенный общий `nakarte-brouter` не перезапускать.
-- `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`. Ручная сборка берёт локальный `src/secrets.js` (итог перебивает `config-target`), CI — шаблон. Перед публикацией — `node scripts/check-no-author-hosts.mjs build`.
+- `NAKARTE_TARGET=clone PATH="$PWD/node_modules/.bin:$PATH" node scripts/build.js` — production-сборка с `src/config-target/clone.js`. Без yarn, чтобы corepack не правил `package.json`. Ручная сборка берёт локальный `src/secrets.js` (итог перебивает `config-target`), CI — шаблон. Новое приложение — `PATH=/usr/local/bin:$PATH npm run build` из `web/` строго после: webpack чистит весь `build/`. Перед публикацией — `node scripts/check-no-author-hosts.mjs build`.
 - `npx wrangler@4 pages deploy build --project-name nakarte-routing --branch master` из корня репозитория (подхватывает `functions/`); Worker'ы — до Pages (привязка `GUARD` ссылается на `nakarte-guard`); прокси и счётчик — `npx wrangler@4 deploy` из `workers/cors-proxy` и `workers/guard`; треки — `npm ci --omit=dev && npx wrangler@4 deploy` из `workers/tracks`; высоты — `PATH=/usr/local/bin:$PATH npx wrangler@4 deploy` из `workers/elevation` (собирает wasm сам, нужен `worker-build` в `PATH`).
 - Без шагов в Cloudflare: `npx wrangler@4 pages functions build --outdir <tmp>` и `npx wrangler@4 deploy --dry-run` в `workers/cors-proxy`.
 
@@ -110,7 +126,7 @@
 
 - Адреса своих Worker'ов — значения по умолчанию в `src/config.js`, в `src/config-target/clone.js` только отличия клона (движок в браузере, путь тайлов BRouter). Новый сервис — отдельный change и свой ключ в `src/config.js`.
 - Монорепо: сервис живёт в `workers/<сервис>/` со своим `wrangler.toml` и деплоится отдельно, а контракт сервиса (спека) и правка клиента идут одним PR.
-- Тесты обязательны. Сервис подключает свои отдельным workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`; апстримный `main.yml` (`check`) не трогаем. Тесты клиента — karma в `test/`, их запускает `main.yml`. В сеть и живые сервисы тесты не ходят: ответы внешних сервисов — через фикстуры или заглушки (как не надо — сетевые тесты `test_track_load.js`, которые падали из-за Cloudflare у wikiloc).
+- Тесты обязательны. Сервис подключает свои отдельным workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`; апстримный `main.yml` (`check`) не трогаем. Тесты старого клиента — karma в `test/`, их запускает `main.yml`; нового — Vitest и Playwright в `web/`, их запускает `check-web.yml`. В сеть и живые сервисы тесты не ходят: ответы внешних сервисов — через фикстуры или заглушки (как не надо — сетевые тесты `test_track_load.js`, которые падали из-за Cloudflare у wikiloc).
 - Шаблон сервиса на JS — `workers/tracks/`: свои `package.json`, `package-lock.json` и `.npmrc`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2, workflow `check-tracks.yml`, job в `deploy-pages.yml` (тесты сервиса перед деплоем, фильтр путей в job `changes`), ключ в `src/config.js`.
 - Тесты сервиса: `PATH=/usr/local/bin:$PATH npm test` из `workers/<сервис>`; внешние запросы прокси в тесте подменяет `outboundService` miniflare в `vitest.config.js`.
 - Лимиты Worker'ов — `[limits]` и `[[ratelimits]]` в `wrangler.toml` каждого (поведение — спека `worker-limits`, цифры и решения — архив `add-worker-limits`). `namespace_id` уникален в аккаунте: новому счётчику — следующий за занятыми (они перечислены в комментариях `wrangler.toml`). Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) лимит не применяется: тест `429` задаёт заголовок сам, а `vitest.config.js` понижает лимиты через `miniflare.ratelimits`.
