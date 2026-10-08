@@ -27,6 +27,7 @@
 | Тайлы BRouter и файлы движка с origin клона | CheerpJ читает `/app/` только с origin страницы, у brouter.de нет CORS | [sync-world-tiles](../../openspec/changes/archive/2026-10-07-sync-world-tiles/design.md), «Context» |
 | Pages Function `brouter-wasm` для Range | статика Pages Range игнорирует, а CheerpJ требует `206` | `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../AGENTS.md#движок-в-браузере-cheerpj) |
 | Патчи `NodesCache` и `OsmNodesMap` вместо форка BRouter | в `/app/` нет каталогов, переполнение стека приходит как `ArithmeticException` | `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../AGENTS.md#движок-в-браузере-cheerpj) |
+| Тайлы BRouter без кеша браузера (`no-store`) | синхронизация перезаписывает тайл под тем же ключом, Chrome склеивает ответ Range из старых и новых байт | [fix-tile-cache-after-sync](../../openspec/changes/archive/2026-10-08-fix-tile-cache-after-sync/proposal.md) |
 | Тайлы BRouter в R2, а не на своём сервере | egress бесплатный, free tier покрывает ≈ 250 тыс. маршрутов в месяц | [sync-world-tiles](../../openspec/changes/archive/2026-10-07-sync-world-tiles/design.md) |
 | Загрузка тайлов через `wrangler r2 object put` | самый большой тайл 253 МБ при лимите 315 МБ, multipart не нужен | [sync-world-tiles](../../openspec/changes/archive/2026-10-07-sync-world-tiles/design.md) |
 | Образ BRouter с тегом `nightly` | у `latest` нет сборки под arm64, CI берёт тот же jar, что локально | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md); `AGENTS.md`, [«Запуск»](../../AGENTS.md#запуск) |
@@ -78,11 +79,12 @@
 | Решение | Почему | Источник |
 |---|---|---|
 | Деплой на каждый push в `master`, последний побеждает | прод совпадает с `master`; публикация Pages атомарна | [clone-deploy](../../openspec/specs/clone-deploy/spec.md); [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
-| Выкатываются только изменённые сервисы, база — последний успешный деплой | правка документации не сбрасывает изоляты; отменённый или упавший прогон не теряет изменений | [deploy-per-service](../../openspec/changes/deploy-per-service/design.md) |
-| Тесты сервиса — шаг его деплоя, Worker'ы раньше Pages | Worker не выкатывается без тестов; клиент не опережает сервис при смене контракта | [deploy-per-service](../../openspec/changes/deploy-per-service/design.md) |
+| Выкатываются только изменённые сервисы, база — последний успешный деплой | правка документации не сбрасывает изоляты; отменённый или упавший прогон не теряет изменений | [deploy-per-service](../../openspec/changes/archive/2026-10-08-deploy-per-service/design.md) |
+| Тесты сервиса — шаг его деплоя, Worker'ы раньше Pages | Worker не выкатывается без тестов; клиент не опережает сервис при смене контракта | [deploy-per-service](../../openspec/changes/archive/2026-10-08-deploy-per-service/design.md) |
 | `docker create` и явная проверка файлов движка | контейнер не нужно запускать; локальная сборка без него работает как раньше | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
 | `npx --yes wrangler@4` без `devDependencies` | не трогать `package.json` | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
 | Статическая проверка бандла на `*.nakarte.me` | деплой не выкатит обращение к инфраструктуре автора | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла» |
+| Синтетическая проверка прода и Workers Logs | поломку видно раньше пользователя, ошибку Worker'а можно найти после | [clone-monitoring](../../openspec/specs/clone-monitoring/spec.md); [add-prod-monitoring](../../openspec/changes/archive/2026-10-08-add-prod-monitoring/proposal.md) |
 | Частота — привязка Workers Rate Limiting | Durable Object даёт задержку на каждый запрос, KV дороже самого запроса | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md) |
 | Сначала `Origin`, потом частота | чужой запрос не тратит счётчик, `429` приходит с CORS | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md), «Порядок проверок» |
 | `cpu_ms` с запасом от наблюдённого максимума | защита от перерасхода на Cloudflare; цифры — от замеров | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md), «Потолок на вызов» |
