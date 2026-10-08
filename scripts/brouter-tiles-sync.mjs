@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {createWriteStream} from 'node:fs';
-import {mkdtemp, rm, stat} from 'node:fs/promises';
+import {mkdtemp, readFile, rm, stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Readable} from 'node:stream';
@@ -10,45 +10,94 @@ import {pipeline} from 'node:stream/promises';
 const SOURCE_URL = 'https://brouter.de/brouter/segments4/';
 const LOOKUPS_URL = 'https://brouter.de/brouter/profiles2/lookups.dat';
 const BUCKET = process.env.R2_BUCKET ?? 'nakarte-tiles';
-const MODE = process.env.R2_MODE === 'remote' ? '--remote' : '--local';
+const REMOTE = process.env.R2_MODE === 'remote';
 const ONLY = (process.env.ONLY ?? '').split(',').filter(Boolean);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 4);
 const MANIFEST_KEY = 'manifest.json';
 const MANIFEST_SAVE_EVERY = 20;
-// Точную версию задаёт workflow (переменная WRANGLER), локально хватает последней 4.x.
+// Локальный R2 (wrangler dev) — только через wrangler; локально хватает последней 4.x.
 const WRANGLER = process.env.WRANGLER ?? 'wrangler@4';
 const INDEX_ROW = /<a href="([^"]+\.rd5)">[^<]*<\/a>\s+(\S+ \S+)\s+(\d+)/gu;
+// S3 API R2 так отвечает на отсутствующий ключ; любая другая ошибка чтения манифеста — не «пустой манифест».
+const NO_SUCH_KEY = /NoSuchKey/u;
 
-function wrangler(args, {capture = false} = {}) {
+function run(command, args, {env = process.env, capture = false} = {}) {
     return new Promise((resolve, reject) => {
-        const child = spawn('npx', ['--yes', WRANGLER, 'r2', 'object', ...args, MODE], {
-            stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit'],
+        const child = spawn(command, args, {env, stdio: ['ignore', capture ? 'pipe' : 'inherit', 'pipe']});
+        const out = [];
+        const err = [];
+        child.stdout?.on('data', (chunk) => out.push(chunk));
+        child.stderr.on('data', (chunk) => {
+            err.push(chunk);
+            process.stderr.write(chunk);
         });
-        const chunks = [];
-        child.stdout?.on('data', (chunk) => chunks.push(chunk));
         child.on('error', reject);
         child.on('close', (code) => {
             if (code !== 0) {
-                reject(new Error(`wrangler ${args.slice(0, 2).join(' ')} exited with ${code}`));
+                const error = new Error(`${command} ${args.slice(0, 2).join(' ')} exited with ${code}`);
+                error.stderr = Buffer.concat(err).toString();
+                reject(error);
                 return;
             }
-            resolve(Buffer.concat(chunks).toString());
+            resolve(Buffer.concat(out).toString());
         });
     });
 }
 
-async function readManifest() {
-    try {
-        return JSON.parse(await wrangler(['get', `${BUCKET}/${MANIFEST_KEY}`, '--pipe'], {capture: true}));
-    } catch {
-        return {lookupsSha256: null, tiles: {}};
+// Cloudflare — S3 API R2, как заливка высот (workers/elevation/scripts/elevation-data.sh): REST API объектов,
+// в который ходит wrangler, не принимает токен с правом на один бакет (change sync-tiles-via-s3).
+// Ключи из секретов GitHub часто приходят с переводом строки, а aws CLI тогда собирает битый Authorization.
+function awsEnv() {
+    return {
+        ...process.env,
+        AWS_ACCESS_KEY_ID: (process.env.R2_ACCESS_KEY_ID ?? '').replace(/\s/gu, ''),
+        AWS_SECRET_ACCESS_KEY: (process.env.R2_SECRET_ACCESS_KEY ?? '').replace(/\s/gu, ''),
+        AWS_DEFAULT_REGION: 'auto',
+    };
+}
+
+function aws(args) {
+    return run('aws', [...args, '--endpoint-url', process.env.R2_ENDPOINT], {env: awsEnv()});
+}
+
+function wrangler(args, options) {
+    return run('npx', ['--yes', WRANGLER, 'r2', 'object', ...args, '--local'], options);
+}
+
+async function getObject(key, path) {
+    if (REMOTE) {
+        await aws(['s3api', 'get-object', '--bucket', BUCKET, '--key', key, path]);
+        return;
     }
+    const body = await wrangler(['get', `${BUCKET}/${key}`, '--pipe'], {capture: true});
+    await pipeline(Readable.from([body]), createWriteStream(path));
+}
+
+function putObject(key, path, contentType) {
+    if (REMOTE) {
+        return aws(['s3', 'cp', path, `s3://${BUCKET}/${key}`, '--content-type', contentType, '--only-show-errors']);
+    }
+    return wrangler(['put', `${BUCKET}/${key}`, '--file', path, '--content-type', contentType]);
+}
+
+async function readManifest(dir) {
+    const path = join(dir, MANIFEST_KEY);
+    try {
+        await getObject(MANIFEST_KEY, path);
+    } catch (e) {
+        // локальный стенд без манифеста — норма; в Cloudflare пустым считаем только отсутствующий объект
+        if (!REMOTE || NO_SUCH_KEY.test(e.stderr ?? '')) {
+            return {lookupsSha256: null, tiles: {}};
+        }
+        throw new Error(`cannot read ${MANIFEST_KEY}, nothing synced: ${e.message}`);
+    }
+    return JSON.parse(await readFile(path, 'utf8'));
 }
 
 async function writeManifest(manifest, dir) {
     const path = join(dir, MANIFEST_KEY);
     await pipeline(Readable.from([JSON.stringify(manifest, null, 1)]), createWriteStream(path));
-    await wrangler(['put', `${BUCKET}/${MANIFEST_KEY}`, '--file', path, '--content-type', 'application/json']);
+    await putObject(MANIFEST_KEY, path, 'application/json');
 }
 
 async function fetchIndex() {
@@ -85,13 +134,13 @@ async function syncTile(tile, dir) {
     if (size !== tile.size) {
         throw new Error(`${tile.name}: expected ${tile.size} bytes, got ${size}`);
     }
-    await wrangler(['put', `${BUCKET}/${tile.name}`, '--file', path, '--content-type', 'application/octet-stream']);
+    await putObject(tile.name, path, 'application/octet-stream');
     await rm(path);
 }
 
 async function main() {
     const dir = await mkdtemp(join(tmpdir(), 'brouter-tiles-'));
-    const manifest = await readManifest();
+    const manifest = await readManifest(dir);
 
     const sha = await lookupsSha256();
     if (manifest.lookupsSha256 && manifest.lookupsSha256 !== sha) {

@@ -225,7 +225,7 @@ flowchart LR
 | браузер → photon.komoot.io | `GET /api/` поиска | [photon.js](../../src/lib/leaflet.control.search/providers/photon.js) |
 | браузер → Google | Maps JavaScript API для Street View | [config.js](../../src/config.js) (`googleApiUrl`), [googleMapsApi](../../src/lib/googleMapsApi/index.js) |
 | dev-сервер 8766 → `wrangler dev` тайлов 8788 | прокси `/tiles` | [webpack.config.js](../../webpack/webpack.config.js) (`devServer.proxy`) |
-| GitHub Actions → Cloudflare | `wrangler pages deploy`, `wrangler deploy`, `wrangler r2 object put`, S3 API R2 | [ci-cd.md](ci-cd.md) |
+| GitHub Actions → Cloudflare | `wrangler pages deploy`, `wrangler deploy`, Pages API (удаление старых деплоев), S3 API R2 (тайлы BRouter и высоты) | [ci-cd.md](ci-cd.md) |
 
 ## Сверено по
 

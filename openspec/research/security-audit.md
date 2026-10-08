@@ -154,7 +154,7 @@ Workflow с записью в Cloudflare и R2 — `deploy pages`, `brouter tile
 | Спам записей треков | +408 за каждый месяц атаки, копится | 60 в минуту, 10 МиБ | 10 записей в минуту, 2 МиБ, алфавит `nktk`, время в метаданных → +13.6 | полдня | сделано, [`limit-track-writes`](../changes/archive/2026-10-08-limit-track-writes/design.md) |
 | Утечка `CLOUDFLARE_API_TOKEN` через зависимости в job'е деплоя | не ограничен; потеря треков | условие на репозиторий, `read` у `GITHUB_TOKEN` | токен только у шагов `wrangler`, действия по SHA, точный `wrangler` | час | сделано, [`harden-ci-secrets`](../changes/archive/2026-10-08-harden-ci-secrets/design.md) |
 | Прокси как открытый релей, блокировка аккаунта, выкачка heatmap от имени владельца | ≈ 48 (деньги не главное) | 1 200 в минуту, `Origin` | только `GET`/`HEAD`, свои адреса закрыты, 300 в минуту на хосты вне слоёв | полдня | сделано, [`restrict-cors-proxy`](../changes/archive/2026-10-08-restrict-cors-proxy/design.md) |
-| Широкий токен Cloudflare | не ограничен | права на весь аккаунт | отдельные токены деплоя и синхронизации, Worker'ы поштучно, R2 по бакету, TTL | час владельца | P1, [шаги владельца](#шаги-владельца) |
+| Широкий токен Cloudflare | не ограничен | права на весь аккаунт | отдельные токены деплоя и синхронизации, Worker'ы поштучно, R2 по бакету, TTL | час владельца | сделано, [шаги владельца](#шаги-владельца) 1–3 |
 | Нет потолка расходов | — | письма $3, $8, $10 раз в сутки | свой выключатель по GraphQL Analytics | полдня | P2, решение владельца |
 | Тайлы высот z10–11 на лету | 63–103 | 600 в минуту | общий бюджет чтений R2 с API высот | 2 часа | P2 |
 | Сессия Strava — личный аккаунт владельца | доступ к аккаунту | секрет Worker'а | отдельный аккаунт Strava | владелец | P2 |
@@ -169,9 +169,9 @@ Workflow с записью в Cloudflare и R2 — `deploy pages`, `brouter tile
 
 Cloudflare (дашборд, агент токены не вводит):
 
-1. Деплойный токен: **My Profile → API Tokens → Create Token → Custom**: Account → Workers Scripts → Edit, ресурсы — только `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard` (после деплоя `limit-pages-functions`: первый деплой нового Worker'а требует прав на весь продукт, поэтому сужать после него); Account → Cloudflare Pages → Edit; без R2. TTL — год. Положить в `CLOUDFLARE_API_TOKEN`, запустить `deploy pages` вручную (`workflow_dispatch`): если `pages deploy` попросит права на R2 — добавить Workers R2 Storage Bucket Item Read на `nakarte-tiles`.
-2. Токен синхронизации тайлов: Workers R2 Storage Bucket Item Write только на `nakarte-tiles`, TTL — год, в секрет `CLOUDFLARE_TILES_TOKEN`. После `harden-ci-secrets` синхронизация берёт его, если он задан, иначе `CLOUDFLARE_API_TOKEN`. Проверка — ручной запуск `brouter tiles sync` с `only = E40_N40`: работает ли `wrangler r2 object put` с токеном на один бакет, в документации не сказано.
-3. Старый широкий токен удалить после проверки обоих.
+1. Сделано 2026-10-08 (агент в дашборде с разрешения владельца): существующий Account API token «nakarte deploy» (это и был `CLOUDFLARE_API_TOKEN`) сужен до Pages Write на аккаунт и Editor на `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard`, без R2, срок до 2027-10-09; значение токена прежнее, секрет не менялся. Ручной `deploy pages` — все job'ы зелёные, включая `prune`. Новый Worker этим токеном не создать: Editor только обновляет существующие.
+2. Сделано 2026-10-08 иначе, чем планировалось: REST API объектов R2, в который ходит `wrangler r2 object put`, токен с правом на один бакет не принял (`403`). Синхронизация переведена на S3 API ([sync-tiles-via-s3](../changes/sync-tiles-via-s3/design.md)), а токен «nakarte-elevation data upload» (ключи `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) получил запись в `nakarte-tiles`. `CLOUDFLARE_TILES_TOKEN` не нужен.
+3. Отдельного широкого токена не осталось: сужен сам `nakarte deploy`.
 4. Бюджетные оповещения оставить; при желании выключатель расходов — сказать агенту, нужен токен Analytics Read + Workers Scripts Edit в секрете GitHub.
 
 GitHub:
