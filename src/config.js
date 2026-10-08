@@ -2,7 +2,7 @@ import configTarget from '~/config-target';
 
 import secrets from './secrets';
 
-// Свои Worker'ы на Cloudflare вместо сервисов автора *.nakarte.me (openspec/research/own-backends.md).
+// Свои Worker'ы на Cloudflare вместо сервисов автора *.nakarte.me (workers/, AGENTS.md «Свои бэкенды»).
 // Значения общие для всех сборок; ~/config-target переопределяет только отличия клона.
 const CORS_PROXY_URL = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev/';
 const ELEVATION_SERVER_URL = 'https://nakarte-elevation.nakarte-routing.workers.dev/';

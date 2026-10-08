@@ -2,6 +2,16 @@
 
 Форк [wladich/nakarte](https://github.com/wladich/nakarte) (MIT), из которого растёт свой продукт: в апстрим не мерджимся, код автора — справочник (раздел «Апстрим»). Добавлена прокладка маршрута по дорогам и тропам через BRouter: локально через сервер, в публичном клоне https://nakarte-routing.pages.dev — движком прямо в браузере.
 
+## Карта репозитория
+
+- `src/` — клиент (Leaflet + knockout, webpack): `layers.js` — все слои карты, `config.js` — адреса сервисов по умолчанию, `config-target/` — отличия сборки клона, `lib/` — модули (импорт треков — `leaflet.control.track-list/lib/services/`, роутинг — раздел «Где код роутинга»).
+- `test/` — karma-тесты клиента, их гоняет `main.yml`.
+- `workers/<сервис>/` — Cloudflare Worker'ы: `cors-proxy`, `tracks`, `elevation` (Rust), `tiles` (тайлы BRouter из R2, работает как Pages Function `functions/tiles`). Правила — раздел «Свои бэкенды».
+- `functions/` — Pages Functions клона: `tiles` и `brouter-wasm` (Range для файлов движка).
+- `scripts/` — сборка (`build.js`), тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
+- `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter.
+- `.github/workflows/` — `main.yml` (`check`, апстрим), `check-<сервис>.yml`, `deploy-pages.yml` (весь клон по push в `master`), ручные и плановые загрузки данных, `strava heatmap check`.
+
 ## Спеки и планы: `openspec/`
 
 Проект ведётся по [OpenSpec](https://github.com/Fission-AI/OpenSpec) (CLI `openspec`, Node ≥ 20.19.0). Здесь, в `AGENTS.md`, — только запуск, окружение и подвохи.
@@ -9,7 +19,7 @@
 - `openspec/specs/` — как система ведёт себя сейчас: `routing`, `browser-routing-engine`, `route-editing`, `clone-hosting`, `clone-deploy`, `cors-proxy`, `tile-sync`, `track-storage`, `elevation-api`, `elevation-tiles`, `worker-limits`.
 - `openspec/changes/` — работа в процессе, у каждой `proposal.md`, `design.md`, `tasks.md` и дельта спеков.
 - `openspec/backlog.md` — идеи и отложенное, ещё не оформленное в changes, и сравнение вариантов движка.
-- `openspec/research/` — ресёрчи, из которых нарезаются changes (например, `own-backends.md` — свои бэкенды вместо `*.nakarte.me`).
+- `openspec/research/` — ресёрч под будущие changes. Когда changes нарезаны и сделаны, документ удаляется: выводы живут в спеках, архиве changes и backlog.
 - Новая работа: `/opsx:explore` → `/opsx:propose` → `/opsx:apply` → `/opsx:archive` (скиллы в `.claude/`). Проверка: `openspec validate --all --strict`.
 - Язык артефактов — русский, заголовки OpenSpec и SHALL/MUST — английские (`openspec/config.yaml`).
 
@@ -111,11 +121,10 @@
 
 ## Свои бэкенды вместо `*.nakarte.me`
 
-- Карта бэкендов, контракты, решения и план — `openspec/research/own-backends.md`.
 - Приложение не ходит в `*.nakarte.me` ни в одной сборке (`drop-author-services`): адреса своих Worker'ов — значения по умолчанию в `src/config.js`, в `src/config-target/clone.js` только отличия клона (движок в браузере, путь тайлов BRouter). Новый сервис — отдельный change и свой ключ в `src/config.js`.
-- Монорепо: сервис живёт в `workers/<сервис>/` со своим `wrangler.toml` (раскладка — в `own-backends.md`, раздел «Структура репозитория»).
+- Монорепо: сервис живёт в `workers/<сервис>/` со своим `wrangler.toml` и деплоится отдельно, а контракт сервиса и правка клиента идут одним PR. Контракты — спеки `track-storage`, `elevation-api`, `elevation-tiles`, `cors-proxy`. Хостинг — Cloudflare Workers Paid, план включает и оплачивает владелец.
 - Тесты обязательны. Сервис подключает свои отдельным workflow `.github/workflows/check-<сервис>.yml` с фильтром `paths:`; апстримный `main.yml` (`check`) не трогаем. Тесты клиента — karma в `test/`, их запускает `main.yml`. В сеть и живые сервисы они не ходят: ответы внешних сервисов — через фикстуры или заглушки (пример, как не надо, — тесты wikiloc, упавшие из-за Cloudflare).
-- Шаблон сервиса на JS — `workers/tracks/`: свой `package.json` и `package-lock.json`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2 (`vitest.config.js` берёт привязки из `wrangler.toml`), workflow `check-tracks.yml`, шаг деплоя в `deploy-pages.yml` после `npm ci --omit=dev`, ключ в `src/config-target/clone.js`.
+- Шаблон сервиса на JS — `workers/tracks/`: свой `package.json` и `package-lock.json`, тесты `vitest` + `@cloudflare/vitest-pool-workers` в `workerd` с локальным R2 (`vitest.config.js` берёт привязки из `wrangler.toml`), workflow `check-tracks.yml`, шаг деплоя в `deploy-pages.yml` после `npm ci --omit=dev`, ключ в `src/config.js`.
 - Запуск тестов сервиса: `PATH=/usr/local/bin:$PATH npm test` из `workers/<сервис>`. Тесты есть у `tracks`, `elevation` и `cors-proxy` (свои `check-*.yml`); внешние запросы прокси в тесте подменяет `outboundService` miniflare в `vitest.config.js`.
 - Лимиты Worker'ов — в `wrangler.toml` каждого (решения и цифры — `openspec/specs/worker-limits` и `openspec/changes/archive/2026-10-07-add-worker-limits/design.md`): `[limits]` — потолок CPU и подзапросов на вызов, `[[ratelimits]]` — запросов с одного IP (`CF-Connecting-IP`) за 60 с, сверх лимита `429` с `Retry-After: 60` и CORS сервиса. `namespace_id` 1001–1004 заняты (тайлы высот, API высот, треки, прокси), новому счётчику — следующий. Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) лимит не применяется; тест `429` задаёт заголовок сам, а `vitest.config.js` понижает лимиты через `miniflare.ratelimits`. Поднять лимит — правка `wrangler.toml` и деплой.
 
