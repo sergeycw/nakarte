@@ -7,9 +7,9 @@
 
 ## 2. Деплой
 
-- [ ] 2.1 `deploy-pages.yml`: `guard` в `changes`, job `guard` до `pages`, job `prune` после `pages` (Pages API: `canonical_deployment`, удаление остальных с `force=true`); проверка: прогон после merge — `guard`, `pages`, `prune` зелёные, у проекта один деплой
+- [x] 2.1 `deploy-pages.yml`: `guard` в `changes`, job `guard` до `pages`, job `prune` после `pages` (Pages API: `canonical_deployment`, удаление остальных с `force=true`); проверка: прогон после merge — `guard`, `pages`, `prune` зелёные, у проекта один деплой
 
 ## 3. Документация и прод
 
 - [x] 3.1 `docs/architecture/protection.md`, `ci-cd.md`, `README.md`; `AGENTS.md` — карта репозитория и ручной деплой (скилл `writing-for-agents`, раздел Pruning); проверка: ссылки существуют, `openspec validate --all --strict`
-- [ ] 3.2 После деплоя: `scripts/prod-check.sh` зелёный, старый деплой `762b3e5f.nakarte-routing.pages.dev` не отдаёт тайл, `nakarte-guard` без адреса `workers.dev`; проверка: `curl` с прода, Cloudflare API (только чтение)
+- [x] 3.2 После деплоя: `scripts/prod-check.sh` зелёный, старый деплой `762b3e5f.nakarte-routing.pages.dev` не отдаёт тайл, `nakarte-guard` без адреса `workers.dev`; проверка: `curl` с прода, Cloudflare API (только чтение)

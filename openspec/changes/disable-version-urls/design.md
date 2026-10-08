@@ -18,3 +18,7 @@
 ## Risks / Trade-offs
 
 - [Version URL понадобятся для проверки версии до выката] → сейчас ими никто не пользуется: деплой — `wrangler deploy` сразу в прод. Включить обратно можно одной строкой.
+
+## Результат
+
+2026-10-08, после деплоя (`deploy pages` 37774510941): Version URL старых версий — `887323ef-nakarte-elevation`, `c4a10e46-nakarte-cors-proxy`, `eac2b934-nakarte-tracks` — отвечают `404` (до деплоя `887323ef` отвечал `200`); Cloudflare API — `previews_enabled: false` у всех трёх; `scripts/prod-check.sh` — 9 из 9.

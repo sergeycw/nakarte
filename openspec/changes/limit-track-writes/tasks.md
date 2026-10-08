@@ -7,4 +7,4 @@
 ## 2. Документация и прод
 
 - [x] 2.1 `docs/architecture/protection.md`, `docs/architecture/track-storage.md`, реестр `decisions.md` (лимит тела); проверка: ссылки существуют, `openspec validate --all --strict`
-- [ ] 2.2 После деплоя: `scripts/prod-check.sh` зелёный (`GET` неизвестного ключа — `404`), `POST` с телом вне алфавита — `400`; проверка: `curl` с прода
+- [x] 2.2 После деплоя: `scripts/prod-check.sh` зелёный (`GET` неизвестного ключа — `404`), `POST` с телом вне алфавита — `400`; проверка: `curl` с прода

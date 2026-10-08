@@ -39,3 +39,7 @@ Middleware в каталоге каждой функции зовёт `env.GUARD
 - [Первый деплой: Pages с привязкой на ещё не созданный Worker] → `pages` идёт после `guard`; если `guard` упал — Pages не выкатывается (как с остальными Worker'ами).
 - [Сужение токена] → создание нового Worker'а требует прав на весь продукт Workers; сужать токен до поштучных Worker'ов — после первого деплоя `nakarte-guard` (шаги владельца в аудите).
 - [Пользователь за NAT с большим числом маршрутов] → 1 200 в минуту — это ≈ 30 маршрутов в минуту на всех за одним IP.
+
+## Результат
+
+2026-10-08, прогон `deploy pages` после merge: `guard`, `pages`, `prune`, `smoke` зелёные, `prune` удалил 78 старых деплоев, у проекта один деплой. Старый деплой `762b3e5f.nakarte-routing.pages.dev/tiles/E40_N40.rd5` — `404` (до — `206`); `nakarte-guard.nakarte-routing.workers.dev` — `404`, в Cloudflare API `enabled: false`, `previews_enabled: false`; привязка `GUARD` в конфиге Pages. По GraphQL Analytics каждый вызов функции даёт подзапрос в `nakarte-guard`; тайл с прода — `206`, `scripts/prod-check.sh` — 9 из 9. `429` на проде не проверялся: это флуд, лимит проверен тестами.

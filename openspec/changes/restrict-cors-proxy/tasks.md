@@ -7,4 +7,4 @@
 ## 2. Документация и прод
 
 - [x] 2.1 `docs/architecture/cors-proxy.md`, `protection.md`, строка «Прокси по ролям» в `openspec/research/system-design-audit.md`; проверка: ссылки существуют, `openspec validate --all --strict`
-- [ ] 2.2 После деплоя: `scripts/prod-check.sh` и `strava heatmap check` зелёные, `POST` через прокси — `405`, прокси на `nakarte-routing.pages.dev` — `403`; проверка: `curl` с прода, ручной запуск workflow
+- [x] 2.2 После деплоя: `scripts/prod-check.sh` и `strava heatmap check` зелёные, `POST` через прокси — `405`, прокси на `nakarte-routing.pages.dev` — `403`; проверка: `curl` с прода, ручной запуск workflow
