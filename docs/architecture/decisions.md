@@ -47,7 +47,7 @@
 |---|---|---|
 | R2, ключ объекта — ключ ссылки | записи неизменяемые; KV даёт лимит 25 МиБ и платную запись без выигрыша | [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md) |
 | md5 той же `blueimp-md5`, что у клиента | побайтное совпадение ключа без риска кодировки строки | [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md) |
-| Лимит тела 2 МиБ, 10 записей в минуту с IP, тело только из алфавита ссылки | 10 МиБ × 60 записей в минуту давали ≈ 27 ТБ хранения за месяц атаки; реальная ссылка — 3–4 байта на точку | [limit-track-writes](../../openspec/changes/limit-track-writes/design.md) |
+| Лимит тела 2 МиБ, 10 записей в минуту с IP, тело только из алфавита ссылки | 10 МиБ × 60 записей в минуту давали ≈ 27 ТБ хранения за месяц атаки; реальная ссылка — 3–4 байта на точку | [limit-track-writes](../../openspec/changes/archive/2026-10-08-limit-track-writes/design.md) |
 
 ## Сервис высот
 
@@ -73,6 +73,7 @@
 | Кеш кук в изоляте, а не Cron + KV | одно обновление на изолят в сутки, без нового ресурса | [add-strava-heatmap-refresh](../../openspec/changes/archive/2026-10-08-add-strava-heatmap-refresh/design.md), п. 5 |
 | Заголовок `X-Strava-Cookies` | отличить сессию от запасных кук снаружи | [add-strava-heatmap-refresh](../../openspec/changes/archive/2026-10-08-add-strava-heatmap-refresh/design.md), п. 9 |
 | Анонимные тайлы подменяет прокси, а не клиент | клиент не знает про сессию, z13–16 живы, пока жива сессия | [add-strava-anonymous-fallback](../../openspec/changes/archive/2026-10-08-add-strava-anonymous-fallback/design.md) |
+| Прокси только читает, свои адреса закрыты, лимит по роли хоста цели | открытый релей с IP Cloudflare грозит блокировкой аккаунта; печать своих слоёв и импорт идут на любые хосты, поэтому вместо списка — меньший лимит | [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md) |
 
 ## Деплой и защита
 
@@ -82,12 +83,16 @@
 | Выкатываются только изменённые сервисы, база — последний успешный деплой | правка документации не сбрасывает изоляты; отменённый или упавший прогон не теряет изменений | [deploy-per-service](../../openspec/changes/archive/2026-10-08-deploy-per-service/design.md) |
 | Тесты сервиса — шаг его деплоя, Worker'ы раньше Pages | Worker не выкатывается без тестов; клиент не опережает сервис при смене контракта | [deploy-per-service](../../openspec/changes/archive/2026-10-08-deploy-per-service/design.md) |
 | `docker create` и явная проверка файлов движка | контейнер не нужно запускать; локальная сборка без него работает как раньше | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
-| `npx --yes wrangler@4` без `devDependencies` | не трогать `package.json` | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md) |
+| `npx --yes` с точной версией `wrangler` из переменной `WRANGLER`, без `devDependencies` | не трогать `package.json`; шаг с токеном не тянет новую 4.x | [add-pages-autodeploy](../../openspec/changes/archive/2026-10-07-add-pages-autodeploy/design.md), [harden-ci-secrets](../../openspec/changes/archive/2026-10-08-harden-ci-secrets/design.md) |
+| Секреты Cloudflare только в `env` шагов `wrangler`, действия по SHA | установка зависимостей, тесты и сборка не видят токен; перезаписанный тег не меняет код рядом с секретами | [harden-ci-secrets](../../openspec/changes/archive/2026-10-08-harden-ci-secrets/design.md) |
 | Статическая проверка бандла на `*.nakarte.me` | деплой не выкатит обращение к инфраструктуре автора | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла» |
 | Синтетическая проверка прода и Workers Logs | поломку видно раньше пользователя, ошибку Worker'а можно найти после | [clone-monitoring](../../openspec/specs/clone-monitoring/spec.md); [add-prod-monitoring](../../openspec/changes/archive/2026-10-08-add-prod-monitoring/proposal.md) |
 | Частота — привязка Workers Rate Limiting | Durable Object даёт задержку на каждый запрос, KV дороже самого запроса | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md) |
 | Сначала `Origin`, потом частота | чужой запрос не тратит счётчик, `429` приходит с CORS | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md), «Порядок проверок» |
 | `cpu_ms` с запасом от наблюдённого максимума | защита от перерасхода на Cloudflare; цифры — от замеров | [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md), «Потолок на вызов» |
+| Version URL выключены, у Pages только текущий деплой | старая версия со старыми лимитами обходила бы новые | [disable-version-urls](../../openspec/changes/archive/2026-10-08-disable-version-urls/design.md), [limit-pages-functions](../../openspec/changes/archive/2026-10-08-limit-pages-functions/design.md) |
+| Потолок 512 чтений R2 на запрос API высот и бюджет 2 048 чтений в минуту с IP | 10 000 точек вразброс — до 10 000 чтений класса B на вызов; привязка считает вызовы без веса, поэтому единица — 64 чтения | [limit-elevation-reads](../../openspec/changes/archive/2026-10-08-limit-elevation-reads/design.md) |
+| Лимит Pages Functions — закрытый Worker `nakarte-guard` по service binding | привязку rate limiting Pages не поддерживают; вызов по service binding не тарифицируется как запрос; middleware в каталоге функции, чтобы статика осталась бесплатной | [limit-pages-functions](../../openspec/changes/archive/2026-10-08-limit-pages-functions/design.md) |
 
 ## Панорамы и слои
 
