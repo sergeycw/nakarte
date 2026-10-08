@@ -46,9 +46,11 @@
 
 Стек и решения — архив change `add-web-skeleton`, поведение — спека `web-client`. Сборка — `build/next/` с `base: '/next/'`, тот же Pages-проект; деплой собирает его после старого клиента. Команды — `scripts` в `web/package.json`; dev-сервер на 8769 открывается на `/next/`, запись `nakarte-web` в `../.claude/launch.json`. Адреса сервисов — только `web/src/config.ts`, режим Vite `clone` включает движок в браузере.
 
+Слои и адрес (решения — design change `add-web-map-layers`, поведение — спека `map-layers`): каталог — данные в `web/src/layers/catalog.ts` с кодами старого клиента, свои слои — `custom.ts` (формат `-cs` старого клиента), настройки — `settings.ts` (свой ключ `nakarte-web:layers`, старый `leafletLayersSettings` только читается), разбор `m=` и `l=` — `src/state/hash.ts` и `src/layers/selection.ts`, состояние — стор Zustand `src/state/store.ts` и связь с адресом и `localStorage` `src/state/sync.ts`. Фикстура реальных старых ссылок — `src/state/fixtures/old-links.txt`.
+
 Движок прокладки — `web/src/engine/` (решения и замеры — архив change `spike-engine-in-worker`): синглтон `engine.ts` с очередью, CheerpJ в Web Worker, запасной путь — на главном потоке. Стенд замеров — `/next/engine-bench.html` (параметры — шапка `src/bench/engine-bench.ts`), выкатывается и на прод. Dev-сервер и `vite preview` отдают `/brouter-wasm/` с Range (`vite/engine-files.ts`) из `experiments/wasm/cheerpj/` после `build.sh` и `brouter/segments4/`; `/tiles/` для `npm run dev:clone` проксируется на `nakarte-tiles-worker` (8788).
 
-Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.ts[x]`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы — фикстура `src/test/tile.png`, e2e валит любой запрос мимо `localhost` (`e2e/fixtures.ts`). Названия тестов совпадают со сценариями спеки.
+Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.ts[x]`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы любых слоёв — фикстура `src/test/tile.png`: в browser mode через проп `transformRequest` у `App` (`src/test/tiles.ts`), в e2e — по регуляркам из того же каталога (`e2e/fixtures.ts`); запрос мимо `localhost` и подменённых тайлов валит тест. Названия тестов совпадают со сценариями спеки.
 
 Подвохи:
 - Vitest 5 требует Node ≥ 22.12: все команды с `PATH=/usr/local/bin:$PATH`, lock-файл — `npx --yes npm@11 install` (те же подвохи npm, что у Worker'ов, раздел «Свои бэкенды»).
@@ -57,6 +59,13 @@
 - Контейнер карты — `isolation: isolate`: оверлеи MapLibre с `z-index: 99999` иначе перекрывают панели. CSS MapLibre импортируется в `index.css` вне `@layer` после Tailwind и перебивает Preflight.
 - Browser-тест рендерит `App` вместе с `index.css`: без стилей контейнер карты растёт бесконечно (`ResizeObserver loop`), и карта не загружается.
 - `shadcn add` берёт алиас `@/*` из корневого `tsconfig.json`; тема только светлая — блок `.dark` из `index.css` после `shadcn` удалять.
+- Провайдеры тайлов меняют адреса: `slazav.xyz` и `static.mapy.hiking.sk` отвечают редиректом без CORS-заголовка, а WebGL требует CORS на каждом ответе цепочки — в каталоге конечные адреса. Проверка — `curl -IL -H 'Origin: https://nakarte-routing.pages.dev'`.
+- `ALLOWED_ORIGINS` прокси не включает 8769 и 4173: Strava, `Mt` и свои слои через прокси локально не грузятся, проверять на проде.
+- CSS MapLibre вне `@layer` перебивает и утилиты Tailwind: свойства элементов MapLibre (`.maplibregl-ctrl-*`) задавать с `!` (`top-12!` в `BaseMap.tsx`).
+- `@custom-variant dark` в `index.css` нужен, хотя тёмной темы нет: без него классы `dark:` компонентов shadcn включаются темой системы.
+- Dev-сервер Vitest на любой несуществующий путь отвечает `200 text/html`: тайл с нужным статусом — `/__status__/<код>/…` (плагин в `vitest.config.ts`). MapLibre на `404` растра события `error` не шлёт.
+- Новую зависимость UI, которую импортируют browser-тесты, добавлять в `optimizeDeps.include` browser-проекта (`vitest.config.ts`): иначе Vite находит её на ходу, перезагружает тест, и вторая копия React падает с `useContext of null`.
+- `route.fulfill` Playwright браузер не проверяет на CORS: сервер без CORS в e2e — `abort` запроса с заголовком `Origin` (его шлёт только CORS-запрос). В browser mode `getByText` не находит текст подписи карты MapLibre (`<details>`) — искать `getByRole('link')`; `toHaveTextContent` со строкой сравнивает текст целиком.
 - Pages без `build/next/` отвечают на `/next/` корневым `index.html` старого клиента с кодом `200`: проверять заголовок `nakarte routing`, а не статус.
 - Воркер движка классический (загрузчик CheerpJ — только `importScripts`), а Vite в dev отдаёт воркер без сборки: любой `import` в нём падает, после `import type` Vite оставляет `export {}`. Поэтому в `engine.worker.ts` импортов нет, типы сообщений — глобальные (`src/engine/protocol.d.ts`), обвязка CheerpJ повторена в `cheerpj-router.ts`: правка одной — правка обеих.
 

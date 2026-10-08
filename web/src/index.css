@@ -6,6 +6,10 @@
    поэтому там, где MapLibre задаёт свойство, выигрывает MapLibre (design add-web-skeleton, «Проверки»). */
 @import "maplibre-gl/dist/maplibre-gl.css";
 
+/* Только светлая тема, но классы dark: в компонентах shadcn остаются. Без этой строки Tailwind 4 включает их по
+   prefers-color-scheme: dark, то есть по теме системы; с ней — только под классом .dark, которого в приложении нет. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: "Geist Variable", sans-serif;

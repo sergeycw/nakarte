@@ -1,28 +1,66 @@
 import { fileURLToPath } from 'node:url';
 import { test as base, expect } from '@playwright/test';
+import { makeConfig } from '../src/config.ts';
+import { buildCatalog } from '../src/layers/catalog.ts';
 
 const TILE_FIXTURE = fileURLToPath(new URL('../src/test/tile.png', import.meta.url));
-const OSM_TILE = /^https:\/\/tile\.openstreetmap\.org\/(\d+)\/(\d+)\/(\d+)\.png$/;
+// адрес прокси клона — тот же, что в сборке (vite build --mode clone)
+export const CORS_PROXY_URL = makeConfig('clone').corsProxyUrl;
+// сервер своего слоя в тестах: выдуманный хост, ответы — фикстура
+export const CUSTOM_TILE_HOST = 'tiles.example.test';
 
-interface Network {
-    // тайлы OSM, которые запросила карта, в виде z/x/y
-    osmTiles: string[];
-    // запросы мимо localhost и подменённых тайлов: тест обязан закончиться с пустым списком
-    external: string[];
-    // ответить ошибкой на все тайлы OSM
-    failOsmTiles: () => void;
+function escapeRegExp(text: string) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Сеть теста: localhost — как есть, тайлы OSM — фикстура (или ошибка), всё остальное обрывается и
-// валит тест в конце. Так e2e не зависит от tile.openstreetmap.org и ловит лишние внешние запросы.
+// Шаблон адреса тайла → регулярка: токены MapLibre — числа и квадключ, {ratio} — необязательный @2x, язык
+// подписей Google — любой (в браузере теста navigator.language свой)
+function templateToRegExp(template: string) {
+    const pattern = escapeRegExp(template)
+        .replace(/\\\{[zxy]\\\}/g, '\\d+')
+        .replace(/\\\{quadkey\\\}/g, '[0-3]*')
+        .replace(/\\\{ratio\\\}/g, '(?:@2x)?')
+        .replace(/hl=LANG/g, 'hl=[^&]*');
+    return new RegExp(`^${pattern}$`);
+}
+
+// Каталог тем же модулем, что приложение: и обычный, и retina (адреса Strava отличаются px=)
+const LAYER_TILES: [code: string, pattern: RegExp][] = [1, 2].flatMap((pixelRatio) =>
+    buildCatalog({ pixelRatio, language: 'LANG', corsProxyUrl: CORS_PROXY_URL }).flatMap((layer) =>
+        (layer.source.tiles ?? []).map((template): [string, RegExp] => [layer.code, templateToRegExp(template)]),
+    ),
+);
+const CUSTOM_TILE = new RegExp(`^https://${escapeRegExp(CUSTOM_TILE_HOST)}/`);
+const PROXIED_CUSTOM_TILE = new RegExp(`^${escapeRegExp(CORS_PROXY_URL)}https/${escapeRegExp(CUSTOM_TILE_HOST)}/`);
+
+interface Network {
+    // запрошенные тайлы: код слоя (или 'custom') и адрес
+    tiles: { code: string; url: string }[];
+    // запросы мимо localhost и подменённых тайлов: тест обязан закончиться с пустым списком
+    external: string[];
+    // адреса тайлов слоя
+    tilesOf(code: string): string[];
+    // ответить ошибкой 503 на тайлы слоя
+    failTiles(code: string): void;
+    // сервер своего слоя отвечает без CORS (как многие частные серверы тайлов)
+    customWithoutCors(): void;
+}
+
+// Сеть теста: localhost — как есть, тайлы слоёв каталога и своего слоя — фикстура с CORS (или ошибка), всё
+// остальное обрывается и валит тест в конце. Так e2e не ходит к провайдерам и ловит лишние внешние запросы.
 export const test = base.extend<{ network: Network }>({
     network: async ({ context }, use) => {
-        let failTiles = false;
+        const failing = new Set<string>();
+        let customCors = true;
         const network: Network = {
-            osmTiles: [],
+            tiles: [],
             external: [],
-            failOsmTiles: () => {
-                failTiles = true;
+            tilesOf: (code) => network.tiles.filter((tile) => tile.code === code).map((tile) => tile.url),
+            failTiles: (code) => {
+                failing.add(code);
+            },
+            customWithoutCors: () => {
+                customCors = false;
             },
         };
         await context.route('**/*', async (route) => {
@@ -30,19 +68,30 @@ export const test = base.extend<{ network: Network }>({
             if (new URL(url).hostname === 'localhost') {
                 return route.continue();
             }
-            const tile = url.match(OSM_TILE);
-            if (!tile) {
+            const proxiedCustom = PROXIED_CUSTOM_TILE.test(url);
+            const custom = !proxiedCustom && CUSTOM_TILE.test(url);
+            const code = proxiedCustom || custom ? 'custom' : LAYER_TILES.find(([, pattern]) => pattern.test(url))?.[0];
+            if (!code) {
                 network.external.push(url);
                 return route.abort();
             }
-            network.osmTiles.push(`${tile[1]}/${tile[2]}/${tile[3]}`);
-            if (failTiles) {
-                return route.fulfill({ status: 503, body: 'unavailable' });
+            network.tiles.push({ code, url });
+            // Сервер без CORS: на ответ route.fulfill браузер CORS не проверяет, поэтому CORS-запрос (fetch с
+            // mode: 'cors', тайл MapLibre) обрывается — для страницы это та же TypeError, что и отказ CORS;
+            // no-cors запрос получает ответ. Отличаем по Origin: Chromium шлёт его только в CORS-запросе
+            // (Sec-Fetch-Mode перехват Playwright не показывает)
+            if (custom && !customCors && (await route.request().headerValue('origin'))) {
+                return route.abort();
             }
-            return route.fulfill({ path: TILE_FIXTURE, contentType: 'image/png' });
+            // WebGL берёт растр только с CORS: подменённый ответ несёт заголовок, как настоящие серверы слоёв
+            const cors = { 'Access-Control-Allow-Origin': '*' };
+            if (failing.has(code)) {
+                return route.fulfill({ status: 503, body: 'unavailable', headers: cors });
+            }
+            return route.fulfill({ path: TILE_FIXTURE, contentType: 'image/png', headers: cors });
         });
         await use(network);
-        expect(network.external, 'запросы мимо localhost и тайлов OSM').toEqual([]);
+        expect(network.external, 'запросы мимо localhost и подменённых тайлов').toEqual([]);
     },
 });
 
