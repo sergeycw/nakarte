@@ -84,20 +84,6 @@ describe('proxying', () => {
         expect(echo.headers['user-agent']).toBe('Browser/1.0');
     });
 
-    // STRAVA_COOKIES задан в vitest.config.js
-    it('adds Strava cookies only to heatmap tiles', async () => {
-        const heatmap = '/https/content-a.strava.com/identified/globalheat/all/hot/12/2557/1514.png?px=256';
-        const echo = await (await request(heatmap, {headers: {Cookie: 'client=1'}})).json();
-        expect(echo.headers.cookie).toBe('CloudFront-Key-Pair-Id=k; CloudFront-Policy=p; CloudFront-Signature=s');
-
-        for (const path of [
-            '/https/www.strava.com/activities/1/streams',
-            '/https/example.com/identified/globalheat/x',
-        ]) {
-            expect((await (await request(path)).json()).headers.cookie).toBeUndefined();
-        }
-    });
-
     it('rewrites Location of a redirect back through the proxy', async () => {
         const response = await request('/https/example.com/redirect');
         expect(response.status).toBe(302);

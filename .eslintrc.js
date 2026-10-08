@@ -105,9 +105,13 @@ module.exports = {
                 atob: true,
                 btoa: true,
                 setTimeout: true,
+                AbortSignal: true,
+                console: true,
             },
             rules: {
                 'import/no-unused-modules': 'off',
+                // console — журнал Worker'а (wrangler tail, Workers Logs)
+                'no-console': 'off',
                 'import/no-unresolved': ['error', {ignore: ['^cloudflare:']}],
             },
         },
