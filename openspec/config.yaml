@@ -10,7 +10,9 @@ context: |
   with routing via BRouter, either a local server or BRouter running in the browser
   (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2 for tiles,
   a Worker as CORS proxy. Run, environment and pitfalls are in AGENTS.md.
-  Keep the diff with upstream small: fork-only files live in openspec/, workers/,
+  Own product built on top of nakarte: no merges or PRs to upstream, upstream code is a
+  reference to borrow from; editing or deleting upstream files is fine, unused code is
+  deleted rather than hidden. Fork-only files live in openspec/, workers/,
   functions/, experiments/, scripts/brouter-* and src/config-target/.
   Ideas not yet proposed live in openspec/backlog.md.
 
