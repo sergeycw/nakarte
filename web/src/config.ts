@@ -11,7 +11,6 @@ export interface Config {
     repoUrl: string;
     defaultLocation: [lat: number, lng: number];
     defaultZoom: number;
-    osmTileUrl: string;
     corsProxyUrl: string;
     elevationsServer: string;
     tracksStorageServer: string;
@@ -30,7 +29,6 @@ export function makeConfig(mode: string): Config {
         // Разбор m= из старых ссылок обязан вычитать 1.
         defaultLocation: [49.73868, 33.45886],
         defaultZoom: 7,
-        osmTileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
         corsProxyUrl: CORS_PROXY_URL,
         elevationsServer: ELEVATION_SERVER_URL,
         tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
