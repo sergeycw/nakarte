@@ -234,9 +234,12 @@ jobs:
   # clone-deploy). Отдельный job: сбой чистки не помечает деплой упавшим. Текущий — canonical_deployment
   # проекта с коммитом этого прогона; не совпал — ничего не удаляем. curl, а не wrangler pages deployment delete: тот может
   # спросить подтверждение.
+  # !cancelled() обязателен: без функции статуса GitHub неявно добавляет success(), а пропуск Worker'а
+  # тянется по цепочке через pages, и prune пропускался в каждом прогоне без Worker'ов
+  # (архив fix-prune-after-skipped-workers).
   prune:
     needs: pages
-    if: needs.pages.result == 'success'
+    if: ${{ !cancelled() && needs.pages.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: delete old pages deployments
