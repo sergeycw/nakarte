@@ -2,6 +2,12 @@ name = "nakarte-elevation"
 main = "worker/build/index.js"
 compatibility_date = "2025-09-01"
 
+# Workers Logs: история запросов и console.log в дашборде Cloudflare, хранятся 7 дней. В Workers Paid
+# включено 20 млн событий в месяц, дальше $0.60 за миллион (цены меняются с 2026-12-01); при росте
+# трафика понизить head_sampling_rate (доля записываемых запросов, по умолчанию 1).
+[observability]
+enabled = true
+
 # Потолок на один вызов. CPU — с запасом от наблюдённого максимума 3.8 с (API на тысячах точек
 # вразброс); subrequests не задан: 10 000 точек вразброс законно дают тысячи чтений R2.
 [limits]
