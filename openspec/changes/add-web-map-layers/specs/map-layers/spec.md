@@ -26,8 +26,8 @@
 
 #### Scenario: Сменить подложку
 
-- **WHEN** пользователь выбирает подложку «OpenTopoMap» вместо «OpenStreetMap»
-- **THEN** карта показывает тайлы OpenTopoMap, тайлы OpenStreetMap больше не запрашиваются
+- **WHEN** пользователь выбирает подложку «ESRI Satellite» вместо «OpenStreetMap»
+- **THEN** карта показывает тайлы ESRI Satellite, тайлы OpenStreetMap больше не запрашиваются
 
 #### Scenario: Порядок оверлеев
 

@@ -53,7 +53,9 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     }, [viewRequest]);
 
     return (
-        <div className="absolute inset-0 isolate" data-testid="map">
+        // кнопки зума MapLibre — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9). С !important: CSS
+        // MapLibre подключён вне @layer и без него перебивает утилиту Tailwind своим top: 0
+        <div className="absolute inset-0 isolate [&_.maplibregl-ctrl-top-right]:top-12!" data-testid="map">
             <MapLibreMap
                 ref={setMapRef}
                 mapLib={maplibre}

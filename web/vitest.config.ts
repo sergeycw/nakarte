@@ -36,6 +36,21 @@ export default mergeConfig(
                 {
                     extends: true,
                     plugins: [statusResponses()],
+                    // зависимости, которые Vite иначе находит уже во время прогона и перезагружает тест
+                    // («Vite unexpectedly reloaded a test»): вторая копия React падает с useContext of null.
+                    // С холодным кешем (CI) так падает первый файл, который их импортирует.
+                    optimizeDeps: {
+                        include: [
+                            '@base-ui/react/checkbox',
+                            '@base-ui/react/dialog',
+                            '@base-ui/react/popover',
+                            '@base-ui/react/radio',
+                            '@base-ui/react/radio-group',
+                            'lucide-react',
+                            'zustand',
+                            'zustand/vanilla',
+                        ],
+                    },
                     test: {
                         name: 'browser',
                         include: ['src/**/*.browser.test.{ts,tsx}'],

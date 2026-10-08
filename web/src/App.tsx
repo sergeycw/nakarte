@@ -4,6 +4,7 @@ import { type Ref, useEffect, useState } from 'react';
 import { Toaster, toast } from '@/components/ui/toast';
 import { config } from '@/config';
 import { buildCatalog } from '@/layers/catalog';
+import { LayerSwitcher } from '@/layers/LayerSwitcher';
 import { AppStoreContext } from '@/state/context';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
@@ -63,6 +64,7 @@ export function App({ transformRequest, mapRef }: AppProps) {
                 <main className="fixed inset-0 overflow-hidden">
                     <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
                     <InfoPanel />
+                    <LayerSwitcher />
                 </main>
             </Toaster>
         </AppStoreContext>
