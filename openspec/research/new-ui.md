@@ -1,6 +1,6 @@
 # Новый фронтенд клона
 
-Ресёрч 2026-10-08 по пункту «Переписать и обновить UI» из [backlog](../backlog.md), раздел «Глобальное направление». Код не менялся, changes не нарезаны: сначала ответы владельца на [вопросы](#вопросы-владельцу). Когда changes из [списка](#changes-по-порядку) сделаны, документ удаляется (`AGENTS.md`, «Где что записано»), а причины решений уходят в архив changes.
+Ресёрч 2026-10-08 по пункту «Переписать и обновить UI» из [backlog](../backlog.md), раздел «Глобальное направление». Код не менялся, changes не нарезаны. Владелец ответил на вопросы 2026-10-08 — архив [record-new-ui-decisions](../changes/archive/2026-10-08-record-new-ui-decisions/design.md); открыт один — [слой по умолчанию](#вопросы-владельцу). Разделы ниже уже учитывают ответы. Когда changes из [списка](#changes-по-порядку) сделаны, документ удаляется (`AGENTS.md`, «Где что записано»), а причины решений уходят в архив changes.
 
 Решения владельца не переспрашиваются, они в архиве [record-ui-decisions](../changes/archive/2026-10-08-record-ui-decisions/design.md): только последние браузеры, только светлая тема, главный принцип — красивый, простой и понятный UI, непроложенный отрезок с тостом, ссылки клона (`nktl=`, `nktk=` всех версий, `l=`) читаются, список удаляемых функций, порог VPS. Контракты сервисов не пересказываются — [аудит, п. 2](system-design-audit.md#2-контракты) и [«Что влияет на переписывание UI»](system-design-audit.md#что-влияет-на-переписывание-ui).
 
@@ -9,10 +9,10 @@
 ## Коротко
 
 - **Стек:** React 19.3 + Vite 8 + TypeScript 7 + Vitest 5 + Biome 2.5 + Playwright, состояние — Zustand и свой модуль адреса. Пожелание владельца подтверждается, с одной оговоркой про Biome ([п. 1](#1-стек)).
-- **UI-библиотека:** shadcn/ui на Base UI + Tailwind CSS 4; запасной вариант — Mantine 9 ([п. 2](#2-ui-библиотека)).
-- **Карта:** MapLibre GL JS 6 вместо Leaflet. Растровые слои переносятся почти все, кроме Яндекса (другая проекция, нужна перепроекция). Красивая подложка по умолчанию — свой векторный стиль с отмывкой рельефа: $0 на чужом хостинге или ≈ +$2.1 в месяц на своём ([п. 3](#3-карта)).
+- **UI-библиотека:** shadcn/ui на Base UI + Tailwind CSS 4 — выбор владельца ([п. 2](#2-ui-библиотека)).
+- **Карта:** MapLibre GL JS 6 вместо Leaflet. Растровые слои переносятся почти все; Яндекс (другая проекция), Wikimapia и сетка советских топокарт в новый UI не идут. Отмывка рельефа — AWS Terrain Tiles. Красивая подложка — свой векторный стиль за $0 или туристический слой Tracestrack Topo; что по умолчанию, не решено ([п. 3](#3-карта)).
 - **Движок:** остаётся CheerpJ в браузере. Самый дешёвый годный VPS — ≈ +$4.4–5.2 в месяц, порог владельца он не проходит ([п. 4](#4-движок-прокладки)). Новое — проверить запуск движка в Web Worker, это снимет блокировку страницы.
-- **Переход:** новое приложение в `web/`, до готовности живёт на `/next/` того же Pages-проекта, потом встаёт на `/`, старый клиент удаляется целиком ([п. 7](#7-план-перехода)). Около 21–33 дней работы в 10 changes.
+- **Переход:** новое приложение в `web/`, до готовности живёт на `/next/` того же Pages-проекта, после changes 1–8 встаёт на `/` (без новой подложки), старый клиент удаляется целиком ([п. 7](#7-план-перехода)). Около 18–31 дня работы в 10 changes.
 
 ## 1. Стек
 
@@ -64,14 +64,14 @@
 | Ant Design 6 | 6.6.5 | CSS-in-JS | своя | есть | ≈ 134 КБ | живо | тяжёлый, корпоративный вид |
 | Ark UI / Park UI | 5.39.3 / пресет 2024-11 | без стилей / Panda | Zag | есть | ≈ 50 КБ | Park UI встал | нет |
 
-**Рекомендация: shadcn/ui на Base UI + [Tailwind CSS 4](https://tailwindcss.com/docs/compatibility).**
+**Рекомендация и выбор владельца: shadcn/ui на Base UI + [Tailwind CSS 4](https://tailwindcss.com/docs/compatibility).**
 
 - Вид «из коробки» сдержанный и современный, тема — CSS-переменные в одном файле: светлая тема по умолчанию, тёмную просто не подключаем.
 - Компоненты лежат в репозитории: панель на карте, тост, меню правятся как свой код, без борьбы с чужими стилями. Минус тот же: обновления компонентов — руками через CLI.
 - Base UI без стилей и без своих `z-index`, слои над картой задаём сами (`isolation: isolate` у контейнера карты). У Mantine модалка 200 и поповер 300 — их надо поднимать над контролами карты.
 - Tailwind 4 требует Chrome 111, Safari 16.4, Firefox 128 — это и есть «последние браузеры». Preflight лежит в `@layer base`, а стили MapLibre не в слое и его перебивают ([MDN `@layer`](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)); на живой карте это не проверено — первая задача skeleton-change.
 
-**Mantine 9** — если не хочется Tailwind: самый полный набор для панелей настроек (Slider, SegmentedControl, NumberInput, уведомления), светлая тема — `forceColorScheme="light"`, требует React 19.2+. Что красивее — вопрос вкуса, [вопрос 1](#вопросы-владельцу).
+**Mantine 9** — запасной вариант без Tailwind: самый полный набор для панелей настроек (Slider, SegmentedControl, NumberInput, уведомления), светлая тема — `forceColorScheme="light"`, требует React 19.2+. Владелец его не выбрал.
 
 ## 3. Карта
 
@@ -102,9 +102,9 @@
 - Отдают `Access-Control-Allow-Origin`: OSM, CyclOSM, ESRI, Яндекс (карта и спутник), Google (карта, спутник, рельеф), Bing (тайлы `t.ssl.ak.tiles.virtualearth.net`), Slazav (`Q`), OpenTopoMap, Thunderforest, OSM GPS traces, Kartverket, Norway roads, Finland (отражает `Origin`), Waymarked Trails, Slovakia (`St`), IGN, swisstopo, Lantmäteriet (отражает `Origin`), покрытие Street View. Флаг `noCors` у `Q`, `Z` и `St` устарел: сейчас они CORS отдают.
 - Через прокси (у него свой CORS): Strava, Tsvetkov (`Mt`), swisstopo, Wikimapia. Прямой тайл Strava отвечает `403`.
 - Токены URL MapLibre: `{quadkey}` (Bing), `{ratio}` (`@2x`), `{prefix}` есть ([tile_id.ts](https://github.com/maplibre/maplibre-gl-js/blob/v6.13.0/src/tile/tile_id.ts)); поддомены `{s}` — массивом адресов. Google сейчас считает `zoom = 17 − z` — через `transformRequest` или адрес с `z=`.
-- **Яндекс (`Y`, `S`)** — EPSG:3395, MapLibre его [не поддерживает](https://github.com/maplibre/maplibre-gl-js/discussions/6400). Вариант — перепроекция в браузере через [`addProtocol`](https://maplibre.org/maplibre-gl-js/docs/API/functions/addProtocol/): склеить два тайла Яндекса со сдвигом по вертикали, как сейчас делает `_adjustHeight` ([leaflet.layer.yandex](../../src/lib/leaflet.layer.yandex/index.js)). Около дня; [вопрос 2](#вопросы-владельцу).
+- **Яндекс (`Y`, `S`)** — EPSG:3395, MapLibre его [не поддерживает](https://github.com/maplibre/maplibre-gl-js/discussions/6400). Вариант — перепроекция в браузере через [`addProtocol`](https://maplibre.org/maplibre-gl-js/docs/API/functions/addProtocol/): склеить два тайла Яндекса со сдвигом по вертикали, как сейчас делает `_adjustHeight` ([leaflet.layer.yandex](../../src/lib/leaflet.layer.yandex/index.js)). Около дня. Решение владельца: в первой версии Яндекса нет, вернуть — пункт backlog.
 - **Обрезка по контуру** (`TileLayer.cutline` у `Mt`, `Nr`, `Fmk`, `Gbt`, `St`, `Sp`, `Si`) — в MapLibre есть только прямоугольник `bounds` у источника. Предлагаю `bounds` и без обрезки по полигону.
-- **Wikimapia (`W`)** и **сетка советских топокарт (`Ng`)** — свои слои на canvas, не тайлы. Сетка — GeoJSON, полдня. Wikimapia — свой загрузчик через прокси в GeoJSON, около дня; [вопрос 9](#вопросы-владельцу).
+- **Wikimapia (`W`)** и **сетка советских топокарт (`Ng`)** — свои слои на canvas, не тайлы: сетка — GeoJSON, полдня; Wikimapia — свой загрузчик через прокси, около дня. Решение владельца: убираются.
 - Свои слои пользователя (диалог «Add custom layer» в [layers.configure](../../src/lib/leaflet.control.layers.configure/index.js)) — растр по URL; без CORS не покажутся. Решение: проверять CORS при добавлении и предлагать прокси.
 
 ### Подложка по умолчанию: векторная, туристическая
@@ -126,7 +126,11 @@
 | [Mapterhorn](https://mapterhorn.com/data-access), Terrarium WebP 512 px | z12 планета, z13–17 регионами | $0 | `*` | условия хостинга не опубликованы |
 | Наши тайлы высот ([elevation-tiles](../specs/elevation-tiles/spec.md)) | z11, 3″ | $0 сверху, но формат не картинка: перекодировать в Terrarium (`addProtocol` или новый путь Worker'а) | свой | мыльно на крупных масштабах; z10–11 считаются на лету без бюджета чтений R2 (P2 в backlog) |
 
-**Рекомендация.** Свой стиль «outdoor» на тайлах OpenFreeMap (схема OpenMapTiles): лес и растительность цветом, тропы ярче дорог, подписи `name:ru` с откатом на `name`, вершины и перевалы с высотой; отмывка — AWS Terrain Tiles, `hillshade-method: multidirectional`. Шрифты с кириллицей — Noto PBF [protomaps/basemaps-assets](https://github.com/protomaps/basemaps-assets) (OFL) статикой Pages. Итог $0. Если OpenFreeMap закроется — та же схема OpenMapTiles генерируется [Planetiler](https://github.com/onthegomap/planetiler) в PMTiles на свой R2; ресурсы для планеты по README Planetiler — память ≈ половины `.osm.pbf` и несколько часов, размер результата не подтверждён. Отдельным, но не первым шагом. Разметка троп по SAC — только свой профиль Planetiler на Java (недели). Выбор источника — [вопрос 3](#вопросы-владельцу).
+Сейчас подложка по умолчанию — первый слой списка, растровый OpenStreetMap `tile.openstreetmap.org` (выбор первого базового слоя — [layers.configure](../../src/lib/leaflet.control.layers.configure/index.js)); на момент переключения она такой и останется (решение владельца).
+
+Туристический слой самого openstreetmap.org — **Tracestrack Topo** ([список слоёв сайта](https://github.com/openstreetmap/openstreetmap-website/blob/master/config/layers.yml)): растр с рельефом и тропами, только по ключу; у сайта OSM ключ свой. Условия на [tracestrack.com](https://tracestrack.com/) (2026-10-08): бесплатный тариф Intro — 100 тыс. кредитов в месяц, растровый тайл — 1 кредит, только некоммерческое использование; что при превышении, не сказано; Personal — €3.99 в месяц, 250 тыс. кредитов, тоже некоммерческий; подпись «Maps © Tracestrack» обязательна ([условия](https://www.tracestrack.com/en/terms)). Заход на карту — порядка 50–150 тайлов (оценка), то есть 700–2000 заходов в месяц. Предложение: Tracestrack Topo по умолчанию, ключ в секрете прокси (иначе квоту выберут с чужих сайтов), откат на OSM при ошибке; ключ заводит владелец. Ответа нет — [открытый вопрос](#вопросы-владельцу).
+
+**Рекомендация на потом.** Свой стиль «outdoor» на тайлах OpenFreeMap (схема OpenMapTiles): лес и растительность цветом, тропы ярче дорог, подписи `name:ru` с откатом на `name`, вершины и перевалы с высотой; отмывка — AWS Terrain Tiles (решение владельца — попробовать), `hillshade-method: multidirectional`. Шрифты с кириллицей — Noto PBF [protomaps/basemaps-assets](https://github.com/protomaps/basemaps-assets) (OFL) статикой Pages. Итог $0. Если OpenFreeMap закроется — та же схема OpenMapTiles генерируется [Planetiler](https://github.com/onthegomap/planetiler) в PMTiles на свой R2; ресурсы для планеты по README Planetiler — память ≈ половины `.osm.pbf` и несколько часов, размер результата не подтверждён. Отдельным, но не первым шагом. Разметка троп по SAC — только свой профиль Planetiler на Java (недели).
 
 Раздавать свои PMTiles, если до них дойдёт, — Pages Function на `nakarte-routing.pages.dev`, как `functions/tiles`: Cache API на `*.workers.dev` [не работает](https://developers.cloudflare.com/r2/examples/cache-api/), а у Pages Functions [доступен](https://developers.cloudflare.com/workers/runtime-apis/cache/) (на живом `*.pages.dev` не проверено).
 
@@ -164,7 +168,7 @@
 | Oracle Always Free A1 | 2 OCPU, 12 ГБ, до 200 ГБ | $0 | проходит, но простаивающий инстанс Oracle [может забрать](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm) (CPU, сеть и память ниже 20% за 7 дней — наш случай), при создании бывает «out of host capacity» |
 | API brouter.de напрямую | — | $0 | CORS открыт, но условий для сторонних приложений нет, сервер один, «one session kills the other» ([online.html](https://brouter.de/brouter/online.html)) — без согласия автора нельзя |
 
-**Рекомендация.** Движок остаётся в браузере. Платный VPS (+$4.4–7) порог не проходит, Oracle Free проходит по деньгам, но добавляет администрирование и риск, что сервер заберут; с CheerpJ его выигрыш — скорость (сервер в 3–4 раза быстрее) и память вкладки. Вернуться к VPS, если CheerpJ упрётся в лицензию или CDN. Спайк Web Worker — главное улучшение движка для нового UI.
+**Рекомендация.** Движок остаётся в браузере. Платный VPS (+$4.4–7) порог не проходит, Oracle Free проходит по деньгам, но добавляет администрирование и риск, что сервер заберут; с CheerpJ его выигрыш — скорость (сервер в 3–4 раза быстрее) и память вкладки. Вернуться к VPS, если CheerpJ упрётся в лицензию или CDN; Oracle Always Free владелец хочет попробовать отдельно — пункт backlog. Спайк Web Worker — главное улучшение движка для нового UI.
 
 #### Источники цены VPS
 
@@ -176,30 +180,30 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 
 | Функция | Где сейчас | Решение |
 |---|---|---|
-| Слои: выбор, группы, хоткеи, настройка списка, свои слои по URL, `l=` | `layers.js`, `leaflet.control.layers.*` | переносим ([п. 3](#что-будет-со-слоями-из-srclayersjs)) |
+| Слои: выбор, группы, хоткеи, настройка списка, свои слои по URL, `l=` | `layers.js`, `leaflet.control.layers.*` | переносим без Яндекса, Wikimapia и сетки `Ng` ([п. 3](#что-будет-со-слоями-из-srclayersjs)) |
 | Список треков: новый трек, видимость, цвет, длина, отметки расстояния, переименовать, дублировать, развернуть, удалить, удалить все/скрытые, новый трек из видимых | `track-list` | переносим |
 | Правка линии: сегменты, точки, Cut, Join, Shortcut, удалить сегмент, новый трек из сегмента | `track-list`, `polyline-edit` | переносим |
 | Точки: переименовать, переместить, скопировать координаты, удалить | `track-list` | переносим |
 | Прокладка, активности, редактор, undo/redo | `brouter`, `polyline-edit` | переносим; непроложенный отрезок + тост (решение владельца); кнопки undo/redo — backlog «Редактор и активности» |
 | Импорт файлов: GPX, KML, KMZ, GeoJSON, Ozi (`plt`, `rte`, `wpt`), ZIP | `parsers/` | переносим, парсеры — чистые модули, тесты на фикстурах |
 | Импорт по ссылкам: Yandex, OSM, SportsTracker, Tracedetrail, ссылки nakarte | `services/` | переносим |
-| Импорт Strava, Garmin Connect, Wikiloc | `services/` | не работают (backlog, «Отложено») — предлагаю убрать из UI, [вопрос 6](#вопросы-владельцу) |
+| Импорт Strava, Garmin Connect, Wikiloc | `services/` | не работают (backlog, «Отложено») — **убираются** (решение владельца) |
 | Экспорт GPX, KML, ZIP, GPX с высотами | `geo_file_exporters.js` | переносим |
 | Ссылка на треки (`nktl=`, «Copy link for track/all/visible») | `track-list`, `services/nakarte` | переносим; ссылка отдаётся после ответа хранилища, а не до ([аудит, п. 2](system-design-audit.md#2-контракты)) |
 | Профиль высот | `leaflet.control.elevation-profile`, `elevations` | переносим |
-| Линейка («Measure distance» — трек «Ruler» с отметками) | `control-ruler.js` | переносим как инструмент трека, [вопрос 5](#вопросы-владельцу) |
+| Линейка («Measure distance» — трек «Ruler» с отметками) | `control-ruler.js` | переносим как инструмент трека (решение владельца) |
 | Поиск: photon, mapy.cz, координаты, ссылки на карты; метка `r=` | `leaflet.control.search`, `leaflet.placemark` | переносим |
 | Street View | `leaflet.control.panoramas` | переносим: панорама — в своём `div` через Maps JS API, покрытие — растр с CORS |
 | Внешние карты (Google, Yandex, OSM, Google Earth, Mapy.cz, Wikimapia, Meteoblue) | `leaflet.control.external-maps` | переносим |
 | Геолокация, масштаб, индикатор зума | `locate`, `zoom-display` | переносим |
-| Встраивание в iframe: `min=`, `autoprofile`, без сессий в iframe | `App.js` | отложить до ответа, [вопрос 7](#вопросы-владельцу) |
+| Встраивание в iframe: `min=`, `autoprofile`, без сессий в iframe | `App.js` | **не переносим** (решение владельца), параметры игнорируются |
 | Журнал событий и Sentry | `logging` | не переносим: `eventsLogUrl` и `sentryDSN` пустые; ошибки клиента — отдельный P2 аудита |
 | Экспорт JNX, печать в PDF, контрол координат с высотой, «Recent sessions», «Copy share link», азимут | — | **удаляются** (решение владельца) |
 
 ### Последствия удаления
 
-- **Тайлы высот.** Единственный потребитель в коде — контрол координат (`elevationTileUrl` читает только [App.js](../../src/App.js) → `leaflet.control.coordinates`). Отмывку новой карты дешевле брать из AWS Terrain Tiles ([п. 3](#подложка-по-умолчанию-векторная-туристическая)). Тогда тайлы высот выводятся из эксплуатации в change переключения: маршрут `/tiles/` Worker'а высот, архив `tiles/elevation-z0-9` (≈ 3.8 ГБ, ≈ $0.06 в месяц), спека [elevation-tiles](../specs/elevation-tiles/spec.md), требование «Свои тайлы высот» в [clone-hosting](../specs/clone-hosting/spec.md); заодно закрывается P2 backlog «Тайлы высот z10–11 без бюджета чтений R2». API высот остаётся (профиль, GPX с высотами). [Вопрос 4](#вопросы-владельцу).
-- **Сессии.** Код показывает больше, чем записано в архиве: сессия хранит не только разметку маршрута, а **сами треки вкладки** между перезагрузками (`loadSession` → `loadTracksFromString` + `applyRouteMarkup` в [leaflet.control.sessions](../../src/lib/leaflet.control.sessions/index.js), IndexedDB `sessions`). Без сессий треки исчезают при перезагрузке. Предложение: убрать список сессий, `sid=`, `BroadcastChannel` и переключение вкладок; оставить автосохранение рабочего набора (треки + разметка) в IndexedDB. Импортировать ли последнюю сессию старого клиента при переключении — [вопрос 8](#вопросы-владельцу).
+- **Тайлы высот.** Единственный потребитель в коде — контрол координат (`elevationTileUrl` читает только [App.js](../../src/App.js) → `leaflet.control.coordinates`). Отмывку новой карты дешевле брать из AWS Terrain Tiles ([п. 3](#подложка-по-умолчанию-векторная-туристическая)). Решение владельца: так и делаем — тайлы высот выводятся из эксплуатации в change переключения: маршрут `/tiles/` Worker'а высот, архив `tiles/elevation-z0-9` (≈ 3.8 ГБ, ≈ $0.06 в месяц), спека [elevation-tiles](../specs/elevation-tiles/spec.md), требование «Свои тайлы высот» в [clone-hosting](../specs/clone-hosting/spec.md); заодно закрывается P2 backlog «Тайлы высот z10–11 без бюджета чтений R2». API высот остаётся (профиль, GPX с высотами).
+- **Сессии.** Код показывает больше, чем записано в архиве: сессия хранит не только разметку маршрута, а **сами треки вкладки** между перезагрузками (`loadSession` → `loadTracksFromString` + `applyRouteMarkup` в [leaflet.control.sessions](../../src/lib/leaflet.control.sessions/index.js), IndexedDB `sessions`). Без сессий треки исчезают при перезагрузке. Решение владельца: убрать список сессий, `sid=`, `BroadcastChannel` и переключение вкладок; оставить автосохранение рабочего набора (треки + разметка) в IndexedDB. Подхватывать ли при переключении последнюю сессию старого клиента — решается в change переключения.
 - **Прокси для `noCors`.** Через прокси шли растеризация печати и JNX (`leaflet.layer.rasterize`) и обрезка по контуру; с удалением печати и JNX растеризация уходит. Для показа в MapLibre CORS нужен всем растровым слоям — проверка выше: прямые хосты его отдают, через прокси идут Strava, Tsvetkov, swisstopo, Wikimapia, импорт по ссылкам, поиск mapy.cz и страница Bing для слоя Ordnance Survey. Роли прокси не расширяются.
 
 ## 6. Контракты, которые новый UI держит
@@ -233,15 +237,15 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | Состояние и адрес | Zustand; Jotai; TanStack Router; nuqs | Zustand + свой `hash.ts` | одна страница, свой формат адреса | — |
 | Тесты | karma; Vitest; Playwright | Vitest (unit + browser mode) + Playwright e2e | один раннер, Chromium из Playwright | — |
 | CI | `main.yml`; свой workflow | `check-web.yml` с `paths: web/**`; `main.yml` удаляется со старым клиентом | правило монорепо | — |
-| UI-библиотека | shadcn/ui; Mantine; React Aria; HeroUI; MUI; antd | shadcn/ui на Base UI + Tailwind 4 | красиво из коробки, лёгкий, свой код, без `z-index`-войн | — |
+| UI-библиотека | shadcn/ui; Mantine; React Aria; HeroUI; MUI; antd | shadcn/ui на Base UI + Tailwind 4 — решение владельца | красиво из коробки, лёгкий, свой код, без `z-index`-войн | — |
 | Карта | Leaflet 1.9; MapLibre 6; OpenLayers | MapLibre GL JS 6 + `@vis.gl/react-maplibre` | вектор, отмывка, растр сохраняется; Leaflet 2 застрял | +≈ 430 КБ gzip, WebGL2 |
-| Подложка | растр OSM; OpenFreeMap + свой стиль; Protomaps в R2; MapTiler Outdoor | OpenFreeMap + свой стиль outdoor | $0, `name:ru`, вершины, седловины | $0; запасной путь +$2.1/мес |
-| Отмывка | AWS Terrain Tiles; Mapterhorn; свои тайлы высот | AWS Terrain Tiles | $0, открытые данные, до z15 | $0 |
-| Яндекс | перепроекция; убрать | по ответу владельца | MapLibre только Web Mercator | ≈ день |
-| Движок | CheerpJ; VPS; Oracle Free; brouter.de | CheerpJ + спайк Web Worker | VPS +$4.4–7 не проходит порог | спайк полдня–день |
-| Тайлы высот | оставить; отмывка из них; вывести | вывести при переключении | единственный клиент удаляется | −≈ $0.06/мес, минус P2-риск |
-| Сессии | убрать всё; автосохранение без списка | автосохранение без списка | без него треки пропадают при перезагрузке | входит в change автосохранения |
-| Переход | большой взрыв; по кусочку в старом; рядом на `/next/` | `web/` на `/next/`, потом `/` | прод с первого change, тот же origin | change переключения 1–2 дня |
+| Подложка | растр OSM; Tracestrack Topo; OpenFreeMap + свой стиль; Protomaps в R2; MapTiler Outdoor | при переключении — растр OSM (решение владельца); дальше — не решено: Tracestrack Topo или свой стиль на OpenFreeMap | Tracestrack — готовый туристический слой с сайта OSM; свой стиль — без квот | Tracestrack $0 до 100 тыс. тайлов в месяц; свой стиль $0 |
+| Отмывка | AWS Terrain Tiles; Mapterhorn; свои тайлы высот | AWS Terrain Tiles — владелец: попробовать | $0, открытые данные, до z15 | $0 |
+| Яндекс | перепроекция; убрать | нет в первой версии, пункт backlog — решение владельца | MapLibre только Web Mercator | ≈ день, когда вернём |
+| Движок | CheerpJ; VPS; Oracle Free; brouter.de | CheerpJ + спайк Web Worker; Oracle Free — backlog | VPS +$4.4–7 не проходит порог | спайк полдня–день |
+| Тайлы высот | оставить; отмывка из них; вывести | вывести при переключении — решение владельца | единственный клиент удаляется | −≈ $0.06/мес, минус P2-риск |
+| Сессии | убрать всё; автосохранение без списка | автосохранение без списка — решение владельца | без него треки пропадают при перезагрузке | входит в change автосохранения |
+| Переход | большой взрыв; по кусочку в старом; рядом на `/next/` | `web/` на `/next/`, после changes 1–8 — на `/` (решение владельца) | прод с первого change, тот же origin | change переключения 1–2 дня |
 
 ## Changes по порядку
 
@@ -251,28 +255,19 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 |---|---|---|---|
 | 1 | `add-web-skeleton` | `web/` с Vite, React, TS, Biome, Vitest, Playwright, shadcn; `check-web.yml`; сборка в `build/next/` и деплой; конфиг сервисов; пустая карта MapLibre с OSM; проверка Preflight против стилей карты, памяти на телефоне и `/app/` CheerpJ с `/next/` | 1–2 |
 | 2 | `spike-engine-in-worker` | CheerpJ в Web Worker в новом приложении: `cheerpjRunLibrary`, `/app/`, один поток, замер блокировки главного потока; модуль `engine.ts` с очередью | 0.5–1 |
-| 3 | `add-web-map-layers` | каталог растровых слоёв с кодами, `l=` и старые коды, переключатель слоёв, свои слои по URL, Яндекс (если оставляем), сетка `Ng`, Wikimapia (если оставляем) | 3–4 |
+| 3 | `add-web-map-layers` | каталог растровых слоёв с кодами без `Y`, `S`, `W`, `Ng`; `l=` и старые коды; переключатель слоёв, свои слои по URL; отмывка AWS Terrain Tiles как слой | 2–3 |
 | 4 | `add-web-tracks` | парсеры и экспорт как чистые модули с тестами, чтение старых ссылок (`nktk` 1–4, `nktl`, `nktu`, `nktp`, `nktj`), список треков, ссылка на треки после ответа хранилища | 3–4 |
 | 5 | `add-web-route-editor` | модель редактора на TS, отрисовка на карте, активности, непроложенный отрезок + тост, undo/redo с кнопками; спеки `routing` и `route-editing` дельтами | 5–7 |
 | 6 | `add-web-autosave` | автосохранение треков и разметки в IndexedDB, разметка маршрута в ссылке (новая версия `nktk`) | 1–2 |
 | 7 | `add-web-elevation-profile` | профиль высот, GPX с высотами | 1–2 |
 | 8 | `add-web-search-panoramas` | поиск, метка `r=`, Street View, внешние карты, геолокация, линейка | 2–3 |
-| 9 | `add-outdoor-basemap` | свой стиль outdoor на OpenFreeMap, отмывка AWS Terrain Tiles, шрифты с кириллицей, подложка по умолчанию; закрывает пункт backlog про слой как у MapMagic | 3–5 |
-| 10 | `switch-to-web-app` | новое приложение на `/`, удаление старого клиента, karma, webpack, `main.yml`; спеки и `docs/architecture`; вывод тайлов высот (если решено) | 1–2 |
+| 9 | `switch-to-web-app` | новое приложение на `/` с OSM по умолчанию, удаление старого клиента, karma, webpack, `main.yml`; спеки и `docs/architecture`; вывод тайлов высот | 1–2 |
+| 10 | `add-outdoor-basemap` | туристическая подложка по умолчанию: Tracestrack Topo через прокси или свой стиль на OpenFreeMap (по ответу владельца); закрывает пункт backlog про слой как у MapMagic | 1–5 |
 
-Итого ≈ 21–33 дня. Контракты `v2` Worker'ов (аудит, P2) — отдельно, по сервису, 1–2 дня каждый, когда понадобятся.
+Итого ≈ 18–31 день. Контракты `v2` Worker'ов (аудит, P2) — отдельно, по сервису, 1–2 дня каждый, когда понадобятся.
 
 ## Вопросы владельцу
 
-1. **UI-библиотека.** shadcn/ui (Tailwind) или Mantine — вопрос вкуса. По умолчанию shadcn; если хочется посмотреть оба — сделаю две одинаковые панели в skeleton-change.
-2. **Яндекс (карта и спутник).** На MapLibre нужна перепроекция, около дня. Оставлять?
-3. **Подложка.** OpenFreeMap ($0, чужой хостинг без гарантий) или свои тайлы Protomaps в R2 (≈ +$2.1 в месяц, обновление редко и вручную)? Рекомендую OpenFreeMap.
-4. **Тайлы высот.** Отмывка из AWS Terrain Tiles, а тайлы высот вывести из эксплуатации при переключении — согласны?
-5. **Линейка** («Measure distance»). Владелец удалил азимут, но не линейку. Оставляем как инструмент трека?
-6. **Импорт Strava, Garmin Connect, Wikiloc** не работает (backlog, «Отложено»). Убираем из нового UI?
-7. **Встраивание в iframe** (`min=`, `autoprofile`). Нужно?
-8. **Сессии.** Убираем список, `sid=` и переключение вкладок, оставляем автосохранение рабочего набора — верно? При переключении один раз подхватить последнюю сессию старого клиента или начать с чистого листа?
-9. **Wikimapia и сетка советских топокарт.** Переносим (≈ день и полдня) или убираем?
-10. **Язык интерфейса.** Сейчас английский. Английский, русский или оба?
-11. **Когда переключать.** Достаточно ли changes 1–8 (без новой подложки) для переключения, или ждём и № 9?
-12. **Oracle Always Free** под серверный BRouter: $0, но сервер могут забрать за простой. Рассматриваем или окончательно CheerpJ?
+Ответы 2026-10-08 — архив [record-new-ui-decisions](../changes/archive/2026-10-08-record-new-ui-decisions/design.md). Открыт один:
+
+- **Слой по умолчанию после переключения.** Tracestrack Topo (туристический слой openstreetmap.org, бесплатно до 100 тыс. тайлов в месяц, только некоммерческое использование, ключ заводит владелец) или свой стиль на OpenFreeMap ($0 без квот, 3–5 дней работы)? Факты — [подложка по умолчанию](#подложка-по-умолчанию-векторная-туристическая). Решение нужно к change `add-outdoor-basemap`.
