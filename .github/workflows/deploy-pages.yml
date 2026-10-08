@@ -9,6 +9,12 @@ concurrency:
   group: deploy-pages
   cancel-in-progress: true
 
+# Секреты Cloudflare — только в env шагов с wrangler: установка зависимостей, тесты и сборка идут без них
+# (requirement «Секреты только у шагов публикации», clone-deploy). Версия wrangler точная: npx не тянет
+# новую 4.x на каждом деплое; обновлять здесь.
+env:
+  WRANGLER: wrangler@4.148.0
+
 permissions:
   contents: read
   # gh run list в job changes: ищет последний успешный деплой
@@ -28,7 +34,7 @@ jobs:
       tracks: ${{ steps.diff.outputs.tracks }}
       elevation: ${{ steps.diff.outputs.elevation }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: diff
@@ -60,63 +66,60 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cors_proxy == 'true'
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     defaults:
       run:
         working-directory: workers/cors-proxy
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: workers/cors-proxy/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npx --yes wrangler@4 deploy
+      - run: npx --yes $WRANGLER deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   tracks:
     needs: changes
     if: needs.changes.outputs.tracks == 'true'
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     defaults:
       run:
         working-directory: workers/tracks
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: workers/tracks/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npx --yes wrangler@4 deploy
+      - run: npx --yes $WRANGLER deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   elevation:
     needs: changes
     if: needs.changes.outputs.elevation == 'true'
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     defaults:
       run:
         working-directory: workers/elevation
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: workers/elevation
       - run: cargo test --workspace
       - run: cargo install worker-build --version 0.8.7 --locked
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
@@ -125,7 +128,10 @@ jobs:
       # npm test собирает wasm и гоняет его в workerd; wrangler deploy собирает его заново
       # командой [build] из wrangler.toml
       - run: npm test
-      - run: npx --yes wrangler@4 deploy
+      - run: npx --yes $WRANGLER deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Pages после Worker'ов: при смене контракта новый клиент не должен ходить в старый сервис.
   # Упал деплой Worker'а — Pages не выкатываются; пропущенные Worker'ы не мешают.
@@ -133,15 +139,12 @@ jobs:
     needs: [changes, cors-proxy, tracks, elevation]
     if: ${{ !cancelled() && !failure() && needs.changes.outputs.pages == 'true' }}
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '17'
@@ -178,7 +181,10 @@ jobs:
       # check-clone.yml.
       - name: check no author hosts in the build
         run: node scripts/check-no-author-hosts.mjs build
-      - run: npx --yes wrangler@4 pages deploy build --project-name nakarte-routing --branch master
+      - run: npx --yes $WRANGLER pages deploy build --project-name nakarte-routing --branch master
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Проверка прода после деплоя хотя бы одного сервиса; тот же workflow идёт раз в день сам.
   smoke:

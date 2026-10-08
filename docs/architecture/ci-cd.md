@@ -110,13 +110,14 @@ flowchart LR
 
 | Секрет | Где хранится | Кто использует | Права |
 |---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | GitHub | `deploy pages`, `brouter tiles sync` | Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit |
-| `CLOUDFLARE_ACCOUNT_ID` | GitHub | `deploy pages`, `brouter tiles sync` | — |
+| `CLOUDFLARE_API_TOKEN` | GitHub | шаги `wrangler` в `deploy pages`; `brouter tiles sync`, если нет `CLOUDFLARE_TILES_TOKEN` | Pages Edit, Workers Scripts Edit, Workers R2 Storage Edit |
+| `CLOUDFLARE_TILES_TOKEN` | GitHub, необязательный | шаг синхронизации `brouter tiles sync` | запись только в `nakarte-tiles` |
+| `CLOUDFLARE_ACCOUNT_ID` | GitHub | шаги `wrangler` в `deploy pages`, `brouter tiles sync` | — |
 | `GOOGLE_MAPS_API_KEY` | GitHub, необязательный | `deploy pages` (подставляется в `src/secrets.js`) | ограничения ключа в Google Cloud |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | GitHub | `elevation data`, `elevation tiles` | Object Read & Write только на `nakarte-elevation` |
 | `STRAVA_SESSION`, `STRAVA_COOKIES` | секреты Worker'а `nakarte-cors-proxy` | прокси ([cors-proxy.md](cors-proxy.md)) | — |
 
-Все секреты заводит владелец, агент токены не вводит. Права токенов и порядок заведения — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare) и [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation); утечка и сужение прав — backlog, пункт «Security-аудит клона».
+Секреты передаются только шагам, которые их используют (`env` шага, а не job'а): установка зависимостей, тесты и сборка идут без них. В своих workflow действия закреплены полным SHA, `wrangler` в шагах с токеном — точной версией из переменной `WRANGLER` (requirement «Секреты только у шагов публикации», [clone-deploy](../../openspec/specs/clone-deploy/spec.md)); апстримный `main.yml` секретов не получает и остаётся на тегах. Все секреты заводит владелец, агент токены не вводит. Права токенов и порядок заведения — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare) и [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation); утечка и сужение прав — [security-аудит](../../openspec/research/security-audit.md), п. 5 и «Шаги владельца».
 
 ## Сверено по
 

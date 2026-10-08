@@ -15,11 +15,13 @@ const ONLY = (process.env.ONLY ?? '').split(',').filter(Boolean);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 4);
 const MANIFEST_KEY = 'manifest.json';
 const MANIFEST_SAVE_EVERY = 20;
+// Точную версию задаёт workflow (переменная WRANGLER), локально хватает последней 4.x.
+const WRANGLER = process.env.WRANGLER ?? 'wrangler@4';
 const INDEX_ROW = /<a href="([^"]+\.rd5)">[^<]*<\/a>\s+(\S+ \S+)\s+(\d+)/gu;
 
 function wrangler(args, {capture = false} = {}) {
     return new Promise((resolve, reject) => {
-        const child = spawn('npx', ['--yes', 'wrangler@4', 'r2', 'object', ...args, MODE], {
+        const child = spawn('npx', ['--yes', WRANGLER, 'r2', 'object', ...args, MODE], {
             stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit'],
         });
         const chunks = [];
