@@ -1,0 +1,91 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { engineFilesMiddleware, parseRange } from './engine-files.ts';
+
+// CheerpJ узнаёт размер файла из Content-Range ответа на Range: bytes=0-0 и без 206 файла не видит,
+// поэтому dev-сервер обязан отвечать как functions/brouter-wasm на проде.
+describe('Файлы движка в dev-сервере', () => {
+    let root: string;
+    let server: Server;
+    let base: string;
+
+    beforeAll(async () => {
+        root = mkdtempSync(path.join(tmpdir(), 'engine-files-'));
+        mkdirSync(path.join(root, 'lib'));
+        writeFileSync(path.join(root, 'lib', 'brouter.jar'), '0123456789');
+        writeFileSync(path.join(root, 'secret.txt'), 'secret');
+        const middleware = engineFilesMiddleware([['/brouter-wasm/lib/', path.join(root, 'lib')]]);
+        server = createServer((req, res) =>
+            middleware(req, res, () => {
+                res.statusCode = 418;
+                res.end();
+            }),
+        );
+        await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+        base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    });
+
+    afterAll(() => {
+        server.close();
+        rmSync(root, { recursive: true });
+    });
+
+    test('Range: первый байт — 206 и размер в Content-Range', async () => {
+        const response = await fetch(`${base}/brouter-wasm/lib/brouter.jar`, { headers: { Range: 'bytes=0-0' } });
+        expect(response.status).toBe(206);
+        expect(response.headers.get('content-range')).toBe('bytes 0-0/10');
+        expect(await response.text()).toBe('0');
+    });
+
+    test('Range: кусок и суффикс', async () => {
+        const middle = await fetch(`${base}/brouter-wasm/lib/brouter.jar`, { headers: { Range: 'bytes=3-5' } });
+        expect(await middle.text()).toBe('345');
+        const tail = await fetch(`${base}/brouter-wasm/lib/brouter.jar`, { headers: { Range: 'bytes=-2' } });
+        expect(tail.headers.get('content-range')).toBe('bytes 8-9/10');
+        expect(await tail.text()).toBe('89');
+    });
+
+    test('Range за концом файла — 416', async () => {
+        const response = await fetch(`${base}/brouter-wasm/lib/brouter.jar`, { headers: { Range: 'bytes=20-' } });
+        expect(response.status).toBe(416);
+        expect(response.headers.get('content-range')).toBe('bytes */10');
+    });
+
+    test('Без Range — весь файл', async () => {
+        const response = await fetch(`${base}/brouter-wasm/lib/brouter.jar`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get('accept-ranges')).toBe('bytes');
+        expect(await response.text()).toBe('0123456789');
+    });
+
+    test('Нет файла и выход за каталог — 404', async () => {
+        expect((await fetch(`${base}/brouter-wasm/lib/missing.jar`)).status).toBe(404);
+        expect((await fetch(`${base}/brouter-wasm/lib/%2e%2e%2fsecret.txt`)).status).toBe(404);
+    });
+
+    test('storageconfig.txt пустой, как у functions/tiles', async () => {
+        const response = await fetch(`${base}/brouter-wasm/segments4/storageconfig.txt`);
+        expect(response.status).toBe(200);
+        expect(await response.text()).toBe('');
+    });
+
+    test('Чужие пути — дальше по цепочке Vite', async () => {
+        expect((await fetch(`${base}/next/`)).status).toBe(418);
+    });
+});
+
+describe('parseRange', () => {
+    test('как functions/brouter-wasm', () => {
+        expect(parseRange(undefined, 10)).toBeNull();
+        expect(parseRange('bytes=-', 10)).toBeNull();
+        expect(parseRange('bytes=2-', 10)).toEqual({ start: 2, end: 9 });
+        expect(parseRange('bytes=2-100', 10)).toEqual({ start: 2, end: 9 });
+        expect(parseRange('bytes=-100', 10)).toEqual({ start: 0, end: 9 });
+        expect(parseRange('bytes=10-', 10)).toBe('unsatisfiable');
+        expect(parseRange('items=0-1', 10)).toBeNull();
+    });
+});

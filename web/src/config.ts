@@ -16,6 +16,7 @@ export interface Config {
     elevationsServer: string;
     tracksStorageServer: string;
     routingEngine: RoutingEngine;
+    routingEngineRuntimeUrl: string;
     routingServer: string;
     routingTilesPath: string;
 }
@@ -34,6 +35,8 @@ export function makeConfig(mode: string): Config {
         elevationsServer: ELEVATION_SERVER_URL,
         tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
         routingEngine: clone ? 'browser' : 'server',
+        // загрузчик CheerpJ той же версии, что у старого клиента: лицензия Community работает только с этим CDN
+        routingEngineRuntimeUrl: 'https://cjrtnc.leaningtech.com/4.3/loader.js',
         routingServer: 'http://localhost:17777',
         // клон читает тайлы BRouter с того же origin (functions/tiles), локальный dev — со стенда движка
         routingTilesPath: clone ? '/tiles/' : '/brouter-wasm/segments4/',
