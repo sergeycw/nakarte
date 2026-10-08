@@ -8,7 +8,8 @@ cpu_ms = 500
 subrequests = 50
 
 [vars]
-ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
+# 9876 — karma: апстримные тесты test_track_load.js ходят в живые сервисы через этот прокси.
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766,http://localhost:9876"
 
 # Частота с одного IP (CF-Connecting-IP) за 60 с. Через прокси идут тайловые слои (Strava,
 # Tsvetkov, swisstopo, wikimapia) и печать, поэтому лимит выше, чем у остальных Worker'ов.

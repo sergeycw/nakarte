@@ -29,6 +29,13 @@ describe('origin check', () => {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
     });
 
+    // test_track_load.js апстрима ходит в живые сервисы через этот прокси со страницы karma
+    it('accepts the karma origin', async () => {
+        const response = await request('/https/example.com/', {origin: 'http://localhost:9876'});
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:9876');
+    });
+
     it('answers preflight with 204, methods and requested headers', async () => {
         const response = await request('/https/example.com/', {
             method: 'OPTIONS',
