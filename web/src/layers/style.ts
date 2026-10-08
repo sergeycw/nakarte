@@ -4,10 +4,15 @@ import type { LayerDef } from './catalog';
 // Стиль карты из включённых слоёв: подложка снизу, оверлеи — по порядку наложения каталога, а не по порядку
 // включения (titlesByOrder старого клиента). Один источник и один слой на код, id = код: при смене выбора
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
-export function buildStyle(layers: readonly LayerDef[]): StyleSpecification {
+// fallback — прежняя подложка под новой, пока у новой не загрузились тайлы: без неё при смене подложки между
+// слоями мелькал белый фон карты (замечание владельца 2026-10-08).
+export function buildStyle(layers: readonly LayerDef[], fallback?: LayerDef): StyleSpecification {
     const sorted = [...layers].sort(
         (a, b) => Number(a.isOverlay) - Number(b.isOverlay) || a.order - b.order || a.code.localeCompare(b.code),
     );
+    if (fallback && !sorted.some((layer) => layer.code === fallback.code)) {
+        sorted.unshift(fallback);
+    }
     return {
         version: 8,
         sources: Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])),

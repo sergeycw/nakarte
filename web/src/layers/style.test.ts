@@ -39,3 +39,10 @@ test('атрибуция — в источниках, MapLibre собирает 
     expect(style.sources.O).toHaveProperty('attribution', expect.stringContaining('OpenStreetMap'));
     expect(style.sources.Wh).toHaveProperty('attribution', expect.stringContaining('Waymarked Hiking Trails'));
 });
+
+test('прежняя подложка — под новой, пока новая грузится', () => {
+    const [osm, esri, wh] = pick('O', 'E', 'Wh');
+    expect(buildStyle([esri, wh], osm).layers.map((layer) => layer.id)).toEqual(['O', 'E', 'Wh']);
+    // та же подложка второй раз не добавляется
+    expect(buildStyle([esri, wh], esri).layers.map((layer) => layer.id)).toEqual(['E', 'Wh']);
+});
