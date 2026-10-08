@@ -24,11 +24,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+      # S3 API R2 (aws CLI есть на раннере) с ключами токена «nakarte-elevation data upload»: запись только в
+      # бакеты nakarte-elevation и nakarte-tiles; токен Cloudflare синхронизации не нужен (change sync-tiles-via-s3)
       - run: node scripts/brouter-tiles-sync.mjs
         env:
           R2_MODE: remote
           ONLY: ${{ github.event.inputs.only }}
-          # узкий токен (запись только в nakarte-tiles), если владелец его завёл; иначе общий
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TILES_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          WRANGLER: wrangler@4.148.0
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ENDPOINT: https://1f81a3ec34abfc6581cdd0484bbf56a9.r2.cloudflarestorage.com
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
