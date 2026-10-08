@@ -7,7 +7,7 @@
 // (найдено 2026-10-08 в браузере владельца: запросы getKey и notifications их не ставят). Поэтому
 // прокси держит секрет STRAVA_SESSION — куки сессии Strava в форме заголовка Cookie — и сам
 // запрашивает эту страницу, когда куки кончаются. Запасной путь — статический секрет STRAVA_COOKIES
-// (scripts/strava-heatmap-secret.mjs). Решения — openspec/changes/*-add-strava-heatmap-refresh/design.md.
+// (scripts/strava-heatmap-secret.mjs). Решения — openspec/changes/archive/*-add-strava-heatmap-refresh/design.md.
 //
 // Ни сессия, ни куки, ни строки Set-Cookie не попадают в журнал: только имена и статусы.
 // fetchHeatmapCookies не зависит от env Worker'а: её импортирует scripts/strava-session-secret.mjs под Node.
