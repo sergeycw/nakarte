@@ -2,13 +2,13 @@
 
 ## 1. Зависимости
 
-- [ ] 1.1 `fflate`, `pbf`, `blueimp-md5` в `dependencies`, `@xmldom/xmldom` и типы в `devDependencies` `web/package.json` (версии по `npm view`), lock — `npx --yes npm@11 install`; `setupFiles` проекта `unit` ставит `DOMParser` из `@xmldom/xmldom`; компонент shadcn `dropdown-menu`; проверка: `npm run typecheck` и `npx biome ci` зелёные
+- [x] 1.1 `fflate`, `pbf`, `blueimp-md5` в `dependencies`, `@xmldom/xmldom` и типы в `devDependencies` `web/package.json` (версии по `npm view`), lock — `npx --yes npm@11 install`; `setupFiles` проекта `unit` ставит `DOMParser` из `@xmldom/xmldom`; компонент shadcn `dropdown-menu`; проверка: `npm run typecheck` и `npx biome ci` зелёные
 
 ## 2. Модель и форматы
 
-- [ ] 2.1 `web/src/tracks/model.ts` и `geometry.ts`: типы трека, длина по сфере, упрощение `simplifyLatlngs` (радиус + Дуглас — Пекер Leaflet 1.0.3), развёртка и деление у меридиана 180°; unit-тест `geometry.test.ts` (длина известного отрезка, упрощение по допуску, развёртка через 180°, деление на два отрезка); проверка: `npm test` зелёный
-- [ ] 2.2 Фикстуры `web/src/tracks/fixtures/`: GPX-прототипы из `test/track_load_data/files/`, новые KML, KMZ, GeoJSON, PLT, RTE, WPT (Windows-1251), ZIP (CP866), GPX в Windows-1251, испорченные варианты; ожидания для форматов старого клиента — JSON результата его парсеров на тех же файлах (скрипт вне репозитория); проверка: файлы на месте, источник каждого описан в `fixtures/README.md`
-- [ ] 2.3 Парсеры `web/src/tracks/parsers/` (GPX, KML, KMZ, GeoJSON, Ozi, ZIP) и `parseGeoFile`; unit-тест `parsers.test.ts` по всем фикстурам (сценарии «Открыть GPX», «Архив с несколькими файлами», «Кириллица в Windows-1251», «Неизвестный формат», «Испорченный трек») и browser-тест `parsers.browser.test.ts` на тех же фикстурах в Chromium; проверка: `npm test` зелёный
+- [x] 2.1 `web/src/tracks/model.ts` и `geometry.ts`: типы трека, длина по сфере, упрощение `simplifyLatlngs` (радиус + Дуглас — Пекер Leaflet 1.0.3), развёртка и деление у меридиана 180°; unit-тест `geometry.test.ts` (длина известного отрезка, упрощение по допуску, развёртка через 180°, деление на два отрезка); проверка: `npm test` зелёный
+- [x] 2.2 Фикстуры `web/src/tracks/fixtures/`: GPX-прототипы из `test/track_load_data/files/`, новые KML, KMZ, GeoJSON, PLT, RTE, WPT (Windows-1251), ZIP (CP866), GPX в Windows-1251, испорченные варианты; ожидания для форматов старого клиента — JSON результата его парсеров на тех же файлах (скрипт вне репозитория); проверка: файлы на месте, источник каждого описан в `fixtures/README.md`
+- [x] 2.3 Парсеры `web/src/tracks/parsers/` (GPX, KML, KMZ, GeoJSON, Ozi, ZIP) и `parseGeoFile`; unit-тест `parsers.test.ts` по всем фикстурам (сценарии «Открыть GPX», «Архив с несколькими файлами», «Кириллица в Windows-1251», «Неизвестный формат», «Испорченный трек») и browser-тест `parsers.browser.test.ts` на тех же фикстурах в Chromium; проверка: `npm test` зелёный
 - [ ] 2.4 `web/src/tracks/nktk.ts`: разбор версий 0–4, запись версии 4, последовательность через `/`; unit-тест на `nktk` и `nktj` из `old-links.txt`, на строках старого `saveNktk` версий 1–4 и на круге запись → чтение; проверка: `npm test` зелёный
 - [ ] 2.5 `web/src/tracks/export.ts`: GPX, KML, ZIP, имена файлов; unit-тест: экспорт → парсер → тот же трек («Сохранить в GPX»), «Все треки в ZIP», пустой трек, экранирование XML, деление у 180°; проверка: `npm test` зелёный
 

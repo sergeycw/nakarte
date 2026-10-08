@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="fixture">
+  <wpt lat="41.6900" lon="44.8000"><name>Перевал</name><sym>Flag</sym></wpt>
+  <trk><name>Тбилиси</name><trkseg>
+    <trkpt lat="41.70" lon="44.80"/><trkpt lat="41.71" lon="44.81"/>
+  </trkseg></trk>
+</gpx>

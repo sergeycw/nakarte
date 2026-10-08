@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { playwright } from '@vitest/browser-playwright';
 import type { Plugin } from 'vite';
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
@@ -17,11 +18,28 @@ function statusResponses(): Plugin {
     };
 }
 
+// Фикстура байтами: `import data from './x.zip?bytes'` даёт base64 файла (src/test/bytes.ts раскодирует). ?raw портит
+// двоичные файлы (читает как UTF-8), а ?inline Vite отдаёт только для известных типов ассетов, не для .gpx/.plt/.kmz.
+function fixtureBytes(): Plugin {
+    return {
+        name: 'test-fixture-bytes',
+        enforce: 'pre',
+        load(id) {
+            if (!id.endsWith('?bytes')) {
+                return null;
+            }
+            const base64 = readFileSync(id.slice(0, -'?bytes'.length)).toString('base64');
+            return `export default ${JSON.stringify(base64)};`;
+        },
+    };
+}
+
 // Две части: unit в Node (*.test.ts) и то, чему нужен браузер, — в Chromium (*.browser.test.ts[x]).
 // В сеть тесты не ходят: тайлы — фикстура из src/test/.
 export default mergeConfig(
     viteConfig,
     defineConfig({
+        plugins: [fixtureBytes()],
         test: {
             projects: [
                 {
@@ -31,6 +49,8 @@ export default mergeConfig(
                         environment: 'node',
                         include: ['src/**/*.test.ts', 'vite/**/*.test.ts'],
                         exclude: [...configDefaults.exclude, '**/*.browser.test.*'],
+                        // DOMParser браузера для парсеров треков (design add-web-tracks, «Парсеры»)
+                        setupFiles: ['src/test/node-dom.ts'],
                     },
                 },
                 {
@@ -43,10 +63,14 @@ export default mergeConfig(
                         include: [
                             '@base-ui/react/checkbox',
                             '@base-ui/react/dialog',
+                            '@base-ui/react/menu',
                             '@base-ui/react/popover',
                             '@base-ui/react/radio',
                             '@base-ui/react/radio-group',
+                            'blueimp-md5',
+                            'fflate',
                             'lucide-react',
+                            'pbf',
                             'zustand',
                             'zustand/vanilla',
                         ],
