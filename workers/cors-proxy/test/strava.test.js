@@ -45,6 +45,23 @@ describe('fetchHeatmapCookies', () => {
         expect(expiresAt).toBe(POLICY_EXPIRY_MS);
     });
 
+    it('describes every Set-Cookie by name and lifetime, without values', async () => {
+        const s = session('ok');
+        const {setCookies} = await fetchHeatmapCookies(s);
+        expect(setCookies).toEqual([
+            '_strava4_session (Expires=Fri, 08 Oct 2027 00:00:00 GMT)',
+            '_strava_CloudFront-Expires',
+            'CloudFront-Policy',
+            'CloudFront-Signature',
+            'CloudFront-Key-Pair-Id',
+            '_strava_idcf',
+        ]);
+        expect(setCookies.join(' ')).not.toContain(s.split('=')[1]);
+        await expect(fetchHeatmapCookies(session('partial'))).rejects.toMatchObject({
+            setCookies: expect.arrayContaining(['CloudFront-Policy']),
+        });
+    });
+
     it('follows redirects inside www.strava.com', async () => {
         const s = session('redirect');
         expect((await fetchHeatmapCookies(s)).cookie).toContain('CloudFront-Signature=sig-');

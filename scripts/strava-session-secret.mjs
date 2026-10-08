@@ -66,7 +66,9 @@ function cookieHeader(cookies, names) {
 // Тот же запрос, что делает прокси; печатает только имена и срок.
 async function tryRefresh(label, header) {
     try {
-        const {expiresAt} = await fetchHeatmapCookies(header);
+        const {expiresAt, setCookies} = await fetchHeatmapCookies(header);
+        // имена и сроки всех кук ответа: есть ли там продлённая _strava4_session
+        console.log(`${label}: set-cookie ${setCookies.join('; ')}`);
         console.log(`${label}: got ${HEATMAP_COOKIES.join(', ')}`);
         console.log(
             `${label}: expires ${expiresAt ? new Date(expiresAt).toISOString() : 'unknown (policy not parsed)'}`

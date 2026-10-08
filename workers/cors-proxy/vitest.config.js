@@ -50,7 +50,7 @@ function stravaPage(request) {
         return new Response(null, {status: 302, headers: {Location: '/maps/global-heatmap?moved=1'}});
     }
     // ротацию сессии прокси обязан игнорировать
-    cookie('_strava4_session', 'rotated');
+    cookie('_strava4_session', 'rotated; Expires=Fri, 08 Oct 2027 00:00:00 GMT');
     cookie('_strava_CloudFront-Expires', String(STRAVA_POLICY_EPOCH * 1000));
     cookie('CloudFront-Policy', mode === 'noexpiry' ? 'not-a-policy' : cloudFrontPolicy(STRAVA_POLICY_EPOCH));
     cookie('CloudFront-Signature', `sig-${session}`);
