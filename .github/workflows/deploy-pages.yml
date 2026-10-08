@@ -26,15 +26,15 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: cp src/secrets.js.template src/secrets.js
-      # Ключ Maps JavaScript API для окна Street View (секрет заводит владелец). Ключ всё равно
-      # окажется в бандле: защищает его ограничение по referrer и API в Google Cloud, а не секретность.
-      # Без секрета остаётся заглушка шаблона, покрытие Street View рисуется и так.
+      # Ключ Maps JavaScript API для окна Street View. Без секрета ключ пустой: API работает в режиме
+      # без ключа, как на nakarte.me (панорама открывается с водяным знаком «For development purposes
+      # only» и окном «This page can't load Google Maps correctly»), а заглушка шаблона ломает окно
+      # совсем. С секретом GOOGLE_MAPS_API_KEY (заводит владелец) — чистая панорама; ключ всё равно
+      # окажется в бандле, защищают его ограничения по referrer и API в Google Cloud.
       - name: google maps key
         run: |
-          if [ -n "$GOOGLE_MAPS_API_KEY" ]; then
-            sed -i "s/^    google: '[^']*',$/    google: '$GOOGLE_MAPS_API_KEY',/" src/secrets.js
-            grep -qF "google: '$GOOGLE_MAPS_API_KEY'," src/secrets.js
-          fi
+          sed -i "s/^    google: '[^']*',$/    google: '$GOOGLE_MAPS_API_KEY',/" src/secrets.js
+          grep -qF "google: '$GOOGLE_MAPS_API_KEY'," src/secrets.js
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
       - run: yarnpkg
