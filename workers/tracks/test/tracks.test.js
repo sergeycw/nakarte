@@ -26,7 +26,7 @@ function postTrack(key, body, options = {}) {
 
 describe('POST /track/{key}', () => {
     it('stores a new track', async () => {
-        const body = 'new track';
+        const body = 'newTrack';
         const key = clientKey(body);
         const response = await postTrack(key, body);
         expect(response.status).toBe(200);
@@ -35,7 +35,7 @@ describe('POST /track/{key}', () => {
     });
 
     it('answers 200 on repeated write and keeps the stored object', async () => {
-        const body = 'repeated track';
+        const body = 'repeatedTrack';
         const key = clientKey(body);
         await postTrack(key, body);
         const {uploaded} = await env.TRACKS.head(`tracks/${key}`);
@@ -46,18 +46,18 @@ describe('POST /track/{key}', () => {
     });
 
     it('rejects a key of another body with 400 and stores nothing', async () => {
-        const keyOfB = clientKey('track B');
-        const response = await postTrack(keyOfB, 'track A');
+        const keyOfB = clientKey('trackB');
+        const response = await postTrack(keyOfB, 'trackA');
         expect(response.status).toBe(400);
         expect(await env.TRACKS.head(`tracks/${keyOfB}`)).toBeNull();
     });
 
     it('keeps the original body when a forged write targets its key', async () => {
-        const keyOfB = clientKey('track B');
-        await postTrack(keyOfB, 'track B');
-        const response = await postTrack(keyOfB, 'track A');
+        const keyOfB = clientKey('trackB');
+        await postTrack(keyOfB, 'trackB');
+        const response = await postTrack(keyOfB, 'trackA');
         expect(response.status).toBe(400);
-        expect(await (await env.TRACKS.get(`tracks/${keyOfB}`)).text()).toBe('track B');
+        expect(await (await env.TRACKS.get(`tracks/${keyOfB}`)).text()).toBe('trackB');
     });
 
     for (const key of ['short', 'a'.repeat(23), 'aaaaaaaaaaaaaaaaaaaa%3D', 'aaaaaaaaaaaaaaaaaaaaa=']) {
@@ -67,8 +67,8 @@ describe('POST /track/{key}', () => {
         });
     }
 
-    it('rejects a body over 10 MiB with 413 and stores nothing', async () => {
-        const body = 'x'.repeat(10 * 1024 * 1024 + 1);
+    it('rejects a body over 2 MiB with 413 and stores nothing', async () => {
+        const body = 'x'.repeat(2 * 1024 * 1024 + 1);
         const key = clientKey(body);
         const response = await postTrack(key, body);
         expect(response.status).toBe(413);
@@ -76,7 +76,7 @@ describe('POST /track/{key}', () => {
         expect(await env.TRACKS.head(`tracks/${key}`)).toBeNull();
     });
 
-    it('rejects a streamed body over 10 MiB without Content-Length', async () => {
+    it('rejects a streamed body over 2 MiB without Content-Length', async () => {
         const chunk = new Uint8Array(1024 * 1024).fill(120);
         let sent = 0;
         const body = new ReadableStream({
@@ -98,16 +98,44 @@ describe('POST /track/{key}', () => {
         expect(response.status).toBe(413);
     });
 
-    it('accepts a body of exactly 10 MiB', async () => {
-        const body = 'y'.repeat(10 * 1024 * 1024);
+    it('accepts a body of exactly 2 MiB', async () => {
+        const body = 'y'.repeat(2 * 1024 * 1024);
         const response = await postTrack(clientKey(body), body);
         expect(response.status).toBe(200);
     });
 });
 
+describe('link body', () => {
+    it('stores tracks joined by / with base64url padding', async () => {
+        const body = `${fixture.serialized}/${fixture.serialized}==`;
+        const response = await postTrack(clientKey(body), body);
+        expect(response.status).toBe(200);
+    });
+
+    for (const body of ['two words', 'line\nbreak', 'percent%20', 'тропа']) {
+        it(`rejects ${JSON.stringify(body)} with 400 and stores nothing`, async () => {
+            const key = clientKey(body);
+            const response = await postTrack(key, body);
+            expect(response.status).toBe(400);
+            expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+            expect(await env.TRACKS.head(`tracks/${key}`)).toBeNull();
+        });
+    }
+
+    it('stores the write time in custom metadata', async () => {
+        const before = Date.now();
+        const body = 'createdTrack';
+        await postTrack(clientKey(body), body);
+        const object = await env.TRACKS.head(`tracks/${clientKey(body)}`);
+        const created = Date.parse(object.customMetadata.created);
+        expect(created).toBeGreaterThanOrEqual(before - 1000);
+        expect(created).toBeLessThanOrEqual(Date.now() + 1000);
+    });
+});
+
 describe('GET /track/{key}', () => {
     it('returns the stored body as text/plain', async () => {
-        const body = 'stored track';
+        const body = 'storedTrack';
         const key = clientKey(body);
         await postTrack(key, body);
         const response = await request(`/track/${key}`);
@@ -124,7 +152,7 @@ describe('GET /track/{key}', () => {
 
 describe('CORS', () => {
     it('reflects an allowed Origin with credentials', async () => {
-        const body = 'cors track';
+        const body = 'corsTrack';
         const response = await postTrack(clientKey(body), body);
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
         expect(response.headers.get('Access-Control-Allow-Credentials')).toBe('true');
@@ -143,7 +171,7 @@ describe('CORS', () => {
     });
 
     it('answers 403 to a foreign Origin and stores nothing', async () => {
-        const body = 'foreign track';
+        const body = 'foreignTrack';
         const key = clientKey(body);
         const response = await postTrack(key, body, {origin: 'https://example.com'});
         expect(response.status).toBe(403);
@@ -188,6 +216,26 @@ describe('rate limit', () => {
         expect(limited.headers.get('Access-Control-Allow-Credentials')).toBe('true');
         expect(await limited.text()).toBe('Too many requests\n');
         expect((await fromIp('192.0.2.2')).status).toBe(404);
+    });
+
+    it('answers 429 to writes over their own limit while the common limit is not spent', async () => {
+        // в vitest.config.js лимит записей — 2 за 60 с, общий — 3: третий POST укладывается в общий
+        const body = 'writeLimitTrack';
+        const headers = {'CF-Connecting-IP': '192.0.2.4'};
+        expect((await postTrack(clientKey(body), body, {headers})).status).toBe(200);
+        expect((await postTrack(clientKey(body), body, {headers})).status).toBe(200);
+        const limited = await postTrack(clientKey(body), body, {headers});
+        expect(limited.status).toBe(429);
+        expect(limited.headers.get('Retry-After')).toBe('60');
+        expect(limited.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
+    });
+
+    it('keeps reads available after the write limit is spent', async () => {
+        const body = 'readAfterWritesTrack';
+        const headers = {'CF-Connecting-IP': '192.0.2.5'};
+        await postTrack(clientKey(body), body, {headers});
+        await postTrack(clientKey(body), body, {headers});
+        expect((await request(`/track/${clientKey(body)}`, {headers})).status).toBe(200);
     });
 
     it('answers 403 to a foreign Origin without spending the limit', async () => {
