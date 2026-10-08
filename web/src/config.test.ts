@@ -21,6 +21,12 @@ describe('Адреса сервисов клона', () => {
         expect(local.elevationsServer).toBe(clone.elevationsServer);
     });
 
+    test('Рантайм движка с CDN Leaning Technologies', () => {
+        for (const mode of ['clone', 'development']) {
+            expect(new URL(makeConfig(mode).routingEngineRuntimeUrl).origin).toBe('https://cjrtnc.leaningtech.com');
+        }
+    });
+
     test('Адрес автора', () => {
         for (const mode of ['clone', 'development', 'production']) {
             expect(JSON.stringify(makeConfig(mode))).not.toMatch(/nakarte\.me/);

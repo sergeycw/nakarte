@@ -22,7 +22,7 @@ export default mergeConfig(
                     extends: true,
                     test: {
                         name: 'browser',
-                        include: ['src/**/*.browser.test.tsx'],
+                        include: ['src/**/*.browser.test.{ts,tsx}'],
                         browser: {
                             enabled: true,
                             provider: playwright(),
