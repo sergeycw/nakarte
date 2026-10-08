@@ -34,6 +34,31 @@ const UNKNOWN_EXPIRY_TTL_MS = 60 * 60 * 1000;
 // После неудачи (сессия отклонена, Strava ответила не так) не дёргать страницу на каждый тайл.
 const RETRY_PAUSE_MS = 10 * 60 * 1000;
 
+// Анонимная heatmap: без входа Strava отдаёт те же тайлы с heatmap-external-{a,b,c}.strava.com/tiles/
+// до z12 при px=256 и до z11 при px=512, выше — 403 (замер 2026-10-08; так же делает canicule). Прокси
+// берёт их, когда кук нет или CloudFront их не принял: слои не пустеют на обзорных зумах без сессии.
+const ANONYMOUS_MAX_ZOOM = {256: 12, 512: 11};
+const ANONYMOUS_HOSTS = ['a', 'b', 'c'];
+const HEATMAP_TILE_PATH = /^\/identified\/globalheat\/(\w+)\/(\w+)\/(\d+)\/(\d+)\/(\d+)\.png$/u;
+
+// Адрес того же тайла без входа или null, если зум выше порога. Без px Strava отдаёт 256.
+function anonymousTileUrl(target) {
+    const url = new URL(target);
+    const match = HEATMAP_TILE_PATH.exec(url.pathname);
+    if (!match) {
+        return null;
+    }
+    const [, activity, color, z, x, y] = match;
+    const px = url.searchParams.get('px') ?? '256';
+    const maxZoom = ANONYMOUS_MAX_ZOOM[px];
+    if (maxZoom === undefined || Number(z) > maxZoom) {
+        return null;
+    }
+    // поддомен по тайлу, как subdomains у Leaflet: один тайл — всегда один хост
+    const host = ANONYMOUS_HOSTS[(Number(x) + Number(y)) % ANONYMOUS_HOSTS.length];
+    return `https://heatmap-external-${host}.strava.com/tiles/${activity}/${color}/${z}/${x}/${y}.png?px=${px}`;
+}
+
 function isStravaHeatmap(target) {
     const url = new URL(target);
     return HEATMAP_TILE.host.test(url.hostname) && HEATMAP_TILE.path.test(url.pathname);
@@ -209,4 +234,12 @@ async function heatmapCookie(env, ctx, now = Date.now()) {
     return cookie ? {cookie, source: 'session'} : bestKnown(now, fallback);
 }
 
-export {HEATMAP_COOKIES, RETRY_PAUSE_MS, fetchHeatmapCookies, heatmapCookie, isStravaHeatmap, policyExpiry};
+export {
+    HEATMAP_COOKIES,
+    RETRY_PAUSE_MS,
+    anonymousTileUrl,
+    fetchHeatmapCookies,
+    heatmapCookie,
+    isStravaHeatmap,
+    policyExpiry,
+};

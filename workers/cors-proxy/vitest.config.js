@@ -72,6 +72,20 @@ function upstream(request) {
     if (url.host === 'www.strava.com' && url.pathname === '/maps/global-heatmap') {
         return stravaPage(request);
     }
+    // CloudFront Strava: без кук и с «мёртвыми» куками (STRAVA_COOKIES из теста) — 403 MissingKey
+    if (/^content-[a-z]\.strava\.com$/u.test(url.host)) {
+        const cookie = request.headers.get('cookie') ?? '';
+        if (!cookie || cookie.includes('CloudFront-Signature=dead')) {
+            return new Response('MissingKey', {status: 403, headers: {'Content-Type': 'text/plain'}});
+        }
+    }
+    // анонимная heatmap: эхо запроса тайла, как у остальных адресов, но с типом картинки
+    if (/^heatmap-external-[abc]\.strava\.com$/u.test(url.host)) {
+        return Response.json(
+            {url: request.url, method: request.method, headers: Object.fromEntries(request.headers)},
+            {headers: {'X-Anonymous-Tile': 'yes'}}
+        );
+    }
     if (url.host === 'evil.test') {
         offsiteCalls.push(request.url);
     }
