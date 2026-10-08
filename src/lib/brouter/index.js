@@ -134,4 +134,31 @@ function warmUpRouting() {
     startEngine().catch(() => null);
 }
 
-export {activities, getActivity, fetchRoute, isServerReachable, warmUpRouting};
+// Прокладка есть в сборке, если движку есть где считать: движку в браузере сервер не нужен,
+// серверному нужен адрес. В клоне routingServer остаётся значением по умолчанию и не используется.
+function isRoutingConfigured() {
+    return config.routingEngine === 'browser' || Boolean(config.routingServer);
+}
+
+// Короткий статус для подсказки кнопки, когда роутер недоступен.
+function routerDownStatus() {
+    return config.routingEngine === 'browser' ? 'BRouter engine failed to load' : 'BRouter is not running';
+}
+
+// Статус с тем, что делать пользователю. `yarn local` имеет смысл только для серверного режима.
+function routerDownHint() {
+    return config.routingEngine === 'browser'
+        ? 'BRouter engine failed to load, reload the page to retry'
+        : 'BRouter is not running, start it with <b>yarn local</b>';
+}
+
+export {
+    activities,
+    getActivity,
+    fetchRoute,
+    isServerReachable,
+    warmUpRouting,
+    isRoutingConfigured,
+    routerDownStatus,
+    routerDownHint,
+};
