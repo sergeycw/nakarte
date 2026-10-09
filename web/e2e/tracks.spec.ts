@@ -107,7 +107,7 @@ test('Сохранить в GPX', async ({ page }) => {
     await page.goto(`./#m=12/41.7/44.8&nktk=${TBILISI}`);
     await page.getByRole('button', { name: 'Actions for Mtatsminda' }).click();
     const download = page.waitForEvent('download');
-    await page.getByRole('menuitem', { name: 'Save as GPX' }).click();
+    await page.getByRole('menuitem', { name: 'Save as GPX', exact: true }).click();
     const file = await download;
     expect(file.suggestedFilename()).toBe('Mtatsminda.gpx');
     const content = readFileSync(await file.path(), 'utf8');

@@ -7,6 +7,9 @@ const TILE_FIXTURE = fileURLToPath(new URL('../src/test/tile.png', import.meta.u
 // адреса прокси и хранилища треков клона — те же, что в сборке (vite build --mode clone)
 export const CORS_PROXY_URL = makeConfig('clone').corsProxyUrl;
 export const TRACKS_STORAGE = makeConfig('clone').tracksStorageServer;
+// сервис высот клона: в тестах отвечает заглушка, высота — функция широты (elevationAt)
+export const ELEVATION_SERVER = makeConfig('clone').elevationsServer;
+export const elevationAt = (lat: number) => Math.round((lat - 41.6) * 10000 * 100) / 100;
 // сервер своего слоя в тестах: выдуманный хост, ответы — фикстура
 export const CUSTOM_TILE_HOST = 'tiles.example.test';
 // загрузчик рантайма CheerpJ клона (CDN Leaning Technologies)
@@ -91,6 +94,8 @@ interface Network {
     customWithoutCors(): void;
     // хранилище треков (POST/GET /track/{key}) в памяти: ключ → тело
     storage: Map<string, string>;
+    // тела запросов к сервису высот (POST строк «lat lng»); ответ — elevationAt по широте
+    elevationRequests: string[];
     // ответ прокси клона на адрес (импорт по ссылке): файл фикстуры или статус
     proxyResponds(url: string, response: { path?: string; body?: string; status?: number }): void;
     // сколько раз запущен воркер движка с заглушкой CheerpJ (или отдана заглушка загрузчика главному потоку)
@@ -101,7 +106,7 @@ interface Network {
     attach(context: BrowserContext): Promise<void>;
 }
 
-// Сеть теста: localhost — как есть, хранилище треков — в памяти, прокси — заданные ответы, тайлы слоёв каталога и
+// Сеть теста: localhost — как есть, хранилище треков — в памяти, сервис высот — заглушка, прокси — заданные ответы, тайлы слоёв каталога и
 // своего слоя — фикстура с CORS (или ошибка), всё остальное обрывается и валит тест в конце. Так e2e не ходит к
 // провайдерам и сервисам и ловит лишние внешние запросы.
 // auto: фикстура Playwright ленивая, и тест, который не просит network в аргументах, иначе шёл бы без перехвата —
@@ -116,6 +121,7 @@ export const test = base.extend<{ network: Network }>({
                 engineLoads: 0,
                 cdnRequests: [],
                 storage: new Map(),
+                elevationRequests: [],
                 proxyResponds: (url, response) => {
                     proxied.set(CORS_PROXY_URL + url.replace(/^(https?):\/\//, '$1/'), response);
                 },
@@ -168,6 +174,17 @@ export const test = base.extend<{ network: Network }>({
                         return body === undefined
                             ? route.fulfill({ status: 404, body: 'not found', headers: cors })
                             : route.fulfill({ status: 200, body, contentType: 'text/plain', headers: cors });
+                    }
+                    if (url === ELEVATION_SERVER && route.request().method() === 'POST') {
+                        const body = route.request().postData() ?? '';
+                        network.elevationRequests.push(body);
+                        const rows = body.split('\n').map((row) => elevationAt(Number.parseFloat(row)).toFixed(2));
+                        return route.fulfill({
+                            status: 200,
+                            body: rows.join('\n'),
+                            contentType: 'text/plain',
+                            headers: cors,
+                        });
                     }
                     const proxiedResponse = proxied.get(url);
                     if (proxiedResponse) {
