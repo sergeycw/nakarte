@@ -97,8 +97,8 @@ describe('редактируемая линия', () => {
     test('ожидающий отрезок не рисуется, непроложенный помечен; начало и конец отмечены', () => {
         const sources = editSources(edit, '#77f', null);
         expect(data<LineString>(sources[EDIT_LEGS]).map((f) => f.properties)).toEqual([
-            { leg: 0, color: '#77f', unrouted: false },
-            { leg: 2, color: '#77f', unrouted: true },
+            { leg: 0, state: 'routed', color: '#77f', unrouted: false },
+            { leg: 2, state: 'failed', color: '#77f', unrouted: true },
         ]);
         expect(data<Point>(sources[EDIT_WAYPOINTS]).map((f) => f.properties?.role)).toEqual([
             'start',

@@ -152,6 +152,34 @@ describe('Срез участка', () => {
         expectSound(line);
     });
 
+    test('оба места на одном проложенном отрезке, в любом порядке', () => {
+        const R3 = P(41.697, 44.788);
+        // A ─(hiking: R1, R2, R3)─ B; первое место — на звене A–R1, второе — на звене R2–R3
+        const long: RouteLine = { waypoints: [A, B], legs: [hiking([R1, R2, R3])] };
+        const first = P(41.691, 44.7815);
+        const second = P(41.6965, 44.7875);
+        const line = shortcutLine(long, { leg: 0, latlng: first }, { leg: 0, latlng: second }) as RouteLine;
+        expect(shortcutLine(long, { leg: 0, latlng: second }, { leg: 0, latlng: first })).toEqual(line);
+        // A ─(маршрут)─ X ── прямая ── Y ─(маршрут через R3)─ B
+        expect(line.waypoints).toHaveLength(4);
+        expect(line.legs).toEqual([hiking([]), STRAIGHT, hiking([R3])]);
+        expect(shortcutRemoved(long, { leg: 0, latlng: first }, { leg: 0, latlng: second })?.slice(1, -1)).toEqual([
+            R1,
+            R2,
+        ]);
+        expectSound(line);
+    });
+
+    test('ожидающий отрезок делится на две копии с тем же запросом (новые запросы — дело редактора)', () => {
+        const waiting: RouteLine = { waypoints: [A, B], legs: [{ state: 'pending', activity: 'mtb', request: 7 }] };
+        const split = splitLeg(waiting, 0, P(41.695, 44.785))?.line as RouteLine;
+        expect(split.legs).toEqual([waiting.legs[0], waiting.legs[0]]);
+        const [first, second] = cutLine(waiting, { leg: 0, latlng: P(41.695, 44.785) }) as [RouteLine, RouteLine];
+        // в треке ожидающий отрезок без живого запроса пишется непроложенным (settledRoute в editing.ts)
+        expect(toSegment(first).route?.legs).toEqual([{ state: 'pending', activity: 'mtb' }]);
+        expect(second.legs).toEqual([waiting.legs[0]]);
+    });
+
     test('маршрут между соседними опорными точками заменяется прямой', () => {
         const line = shortcutLine(LINE, { waypoint: 0 }, { waypoint: 1 }) as RouteLine;
         expect(line.legs[0]).toEqual(STRAIGHT);

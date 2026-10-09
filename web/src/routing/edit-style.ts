@@ -44,7 +44,7 @@ export function editSources(
             }
             legs.push({
                 type: 'Feature',
-                properties: { leg: index, color, unrouted: leg.state === 'failed' },
+                properties: { leg: index, state: leg.state, color, unrouted: leg.state === 'failed' },
                 geometry: { type: 'LineString', coordinates: toCoordinates(legPath(line, index)) },
             });
         });

@@ -76,6 +76,8 @@ function rows() {
 }
 
 const unrouted = (map: MaplibreMap) => legs(map).map((leg) => leg.properties?.unrouted);
+// состояния отрезков редактируемой линии: проложенный, прямой, непроложенный (ожидающий не рисуется)
+const states = (map: MaplibreMap) => legs(map).map((leg) => leg.properties?.state);
 // номера отрезков треков вне редактирования (в слое треков редактируемого отрезка нет)
 const segmentsOnMap = (map: MaplibreMap) =>
     [
@@ -85,7 +87,7 @@ const segmentsOnMap = (map: MaplibreMap) =>
 // трек A–B–C с двумя проложенными отрезками «Hiking», редактирование продолжается, рисование закончено
 async function drawABC(map: MaplibreMap) {
     await newTrack(map, [A, B, C]);
-    await expect.poll(() => unrouted(map)).toEqual([false, false]);
+    await expect.poll(() => states(map)).toEqual(['routed', 'routed']);
     pressEscape();
     await expect.element(page.getByText('Drag points, click line end to continue')).toBeVisible();
 }
@@ -175,7 +177,7 @@ describe('Разрез отрезка', () => {
         // редактируется первая половина A–B, проложенная
         await expect.poll(() => waypoints(map)).toHaveLength(2);
         expect(near(waypoints(map)[1], B)).toBe(true);
-        expect(unrouted(map)).toEqual([false]);
+        expect(states(map)).toEqual(['routed']);
         await expect.element(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
         await page.getByRole('button', { name: 'Done' }).click();
         await expect.poll(() => segmentsOnMap(map)).toHaveLength(2);
@@ -190,7 +192,7 @@ describe('Разрез отрезка', () => {
         await chooseFromMenu('Cut');
         await expect.poll(() => waypoints(map)).toHaveLength(2);
         expect(near(waypoints(map)[0], A)).toBe(true);
-        expect(unrouted(map)).toEqual([false]);
+        expect(states(map)).toEqual(['routed']);
         expect(await lengthText()).toBe(before);
     });
 });
@@ -246,7 +248,53 @@ describe('Склейка отрезков', () => {
     });
 });
 
+describe('Склейка отрезков: отмена', () => {
+    test('клик мимо линий отменяет выбор', async () => {
+        const { map } = await render(`${VIEW}&nktk=${link('Zigzag', [Z])}/${link('Other', [OTHER])}`);
+        await click(map, Z[4]);
+        await rightClick(map, Z[4]);
+        await chooseFromMenu('Join');
+        await click(map, P(41.684, 44.79));
+        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        expect(waypoints(map)).toHaveLength(5);
+        await expect.element(rows()).toHaveLength(2);
+    });
+
+    test('склейка проложенных частей: отрезки маршрута остаются проложенными', async () => {
+        const { map } = await render();
+        await drawABC(map);
+        // второй отрезок того же трека: D–E, проложен
+        const D = P(41.686, 44.786);
+        const E = P(41.684, 44.79);
+        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Actions for New track' }).click();
+        await page.getByRole('menuitem', { name: 'Add segment' }).click();
+        await click(map, D);
+        await click(map, E);
+        await expect.poll(() => states(map)).toEqual(['routed']);
+        pressEscape();
+        pressEscape();
+        await click(map, A);
+        await rightClick(map, C);
+        await chooseFromMenu('Join');
+        await click(map, D);
+        await expect.poll(() => waypoints(map)).toHaveLength(5);
+        expect(states(map)).toEqual(['routed', 'routed', 'straight', 'routed']);
+    });
+});
+
 describe('Срез участка', () => {
+    test('Enter отменяет выбор', async () => {
+        const { map } = await render(`${VIEW}&nktk=${link('Zigzag', [Z])}`);
+        await click(map, Z[1]);
+        await rightClick(map, Z[1]);
+        await chooseFromMenu('Shortcut');
+        key({ key: 'Enter', code: 'Enter' });
+        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await click(map, Z[3]);
+        expect(waypoints(map)).toHaveLength(5);
+    });
+
     test('Срезать петлю', async () => {
         const { map } = await render(`${VIEW}&nktk=${link('Zigzag', [Z])}`);
         await click(map, Z[1]);
@@ -274,7 +322,7 @@ describe('Срез участка', () => {
         await click(map, C);
         await expect.poll(() => waypoints(map)).toHaveLength(3);
         // A — до точки начала проложен, от неё до C — прямая
-        expect(unrouted(map)).toEqual([false, false]);
+        expect(states(map)).toEqual(['routed', 'straight']);
         expect(near(waypoints(map)[1], corner)).toBe(true);
     });
 
@@ -311,7 +359,7 @@ describe('Разворот отрезка', () => {
         await rightClick(map, B);
         await chooseFromMenu('Reverse');
         await expect.poll(() => near(waypoints(map)[0], C)).toBe(true);
-        expect(unrouted(map)).toEqual([false, false]);
+        expect(states(map)).toEqual(['routed', 'routed']);
     });
 });
 
@@ -345,7 +393,7 @@ describe('Удаление и вынос отрезка', () => {
         const calls = router.calls.length;
         await click(map, A);
         await expect.poll(() => waypoints(map)).toHaveLength(3);
-        expect(unrouted(map)).toEqual([false, false]);
+        expect(states(map)).toEqual(['routed', 'routed']);
         await drag(map, A, P(41.6865, 44.779));
         await expect.poll(() => router.calls.length).toBe(calls + 1);
         expect(router.calls.at(-1)?.activity.id).toBe('hiking');
@@ -367,7 +415,7 @@ describe('Разметка маршрута после правки линии',
         for (const corner of [bend(A, B)[0], bend(B, C)[0]]) {
             await click(map, corner);
             await expect.poll(() => waypoints(map)).toHaveLength(2);
-            expect(unrouted(map)).toEqual([false]);
+            expect(states(map)).toEqual(['routed']);
             pressEscape();
             await expect.element(editPanel()).not.toBeInTheDocument();
         }

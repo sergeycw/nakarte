@@ -464,6 +464,21 @@ describe('инструменты линии', () => {
         expect(ctx.store.getState().lineTool).toBeNull();
     });
 
+    test('режим точек кончается, когда трек или переносимую точку удалили', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store
+            .getState()
+            .addTracks([geoData('One', { segments: [[A, B]], points: [{ ...C, name: '001' }] })]);
+        ctx.actions.startAddPoint(track);
+        ctx.actions.remove(track);
+        expect(ctx.store.getState().pointTool).toBeNull();
+        const [other] = ctx.store.getState().addTracks([geoData('Two', { points: [{ ...C, name: '001' }] })]);
+        const [point] = other.points;
+        ctx.actions.startMovePoint(other.id, point);
+        ctx.actions.removePoint(other.id, point);
+        expect(ctx.store.getState().pointTool).toBeNull();
+    });
+
     test('постановка точек трека заканчивает редактирование, редактирование — постановку', () => {
         const ctx = setup(null);
         const [track] = ctx.store.getState().addTracks([geoData('One', { segments: [[A, B]] })]);

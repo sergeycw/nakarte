@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -50,6 +50,7 @@ function useItems(menu: MapMenuState, edit: RouteEditState | null): { label?: st
                 { text: 'Cut', run: () => editing.cut(place) },
                 { text: 'Reverse', run: editing.reverse },
                 { text: 'Shortcut', run: () => editing.startShortcut(place) },
+                '-',
                 ...segment,
             ],
         };
@@ -82,7 +83,14 @@ function Menu({ menu }: { menu: MapMenuState }) {
         () => ({ getBoundingClientRect: () => DOMRect.fromRect({ x: menu.x, y: menu.y, width: 0, height: 0 }) }),
         [menu.x, menu.y],
     );
-    if (items.length === 0) {
+    // меню без пунктов (цели больше нет) закрывается, иначе невидимое меню держало бы клики по карте
+    const empty = items.length === 0;
+    useEffect(() => {
+        if (empty) {
+            editing.closeMenu();
+        }
+    }, [empty, editing]);
+    if (empty) {
         return null;
     }
     return (

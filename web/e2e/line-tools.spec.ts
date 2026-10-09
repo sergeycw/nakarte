@@ -219,6 +219,20 @@ test('Долгое нажатие', async ({ browser, network }) => {
         await expect(page.getByTestId('map-menu')).toHaveCount(0);
         // средняя точка удалена: линия — прямая между крайними
         await expect.poll(() => kilometers(page)).toBeLessThan(before);
+        // вне редактирования долгое нажатие на линию считает сам MapLibre (contextmenu карты): начинается
+        // редактирование, открывается меню линии
+        await page.getByRole('button', { name: 'Done' }).tap();
+        await expect(page.getByTestId('edit-panel')).toHaveCount(0);
+        const onLine = { x: 200, y: 520 };
+        // попадание по линии — по отрисованному кадру: после Done дать карте перерисоваться
+        await page.waitForTimeout(800);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [onLine] });
+        await expect(page.getByTestId('map-menu')).toBeVisible();
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await page.waitForTimeout(500);
+        await expect(page.getByTestId('map-menu')).toHaveCount(1);
+        await expect(page.getByRole('menuitem', { name: 'Cut', exact: true })).toBeVisible();
+        await expect(page.getByTestId('edit-panel')).toBeVisible();
     } finally {
         await phone.close();
     }

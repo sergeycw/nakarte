@@ -196,6 +196,16 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
 
     // Трек скрыли, удалили или изменили снаружи во время редактирования — редактирование заканчивается
     store.subscribe((next, prev) => {
+        // режим точек трека, чей трек или переносимую точку удалили, заканчивается: панели у него уже нет, а клики по
+        // карте он забирал бы молча (ревью диффа)
+        const tool = next.pointTool;
+        if (tool && next.tracks !== prev.tracks) {
+            const track = next.tracks.find((item) => item.id === tool.trackId);
+            if (!track || (tool.kind === 'move' && !track.points.includes(tool.point))) {
+                state().setPointTool(null);
+                return;
+            }
+        }
         if (current && next.pointTool && !prev.pointTool) {
             stop();
             return;

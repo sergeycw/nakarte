@@ -1,4 +1,5 @@
 import { useMap } from '@vis.gl/react-maplibre';
+import type { Point } from 'geojson';
 import type { GeoJSONSource, Map as MaplibreMap, MapMouseEvent, MapTouchEvent, PointLike } from 'maplibre-gl';
 import { useEffect } from 'react';
 import { useAppStoreApi } from '@/state/context';
@@ -41,6 +42,7 @@ const CLICK_AFTER_GESTURE_MS = 400;
 // «Меню на карте»: contextmenu на телефоне ненадёжен, iOS Safari его не шлёт)
 const LONG_PRESS_MS = 500;
 const DRAG_THRESHOLD = 3;
+const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
 export type EditorKey = 'undo' | 'redo' | 'backspace' | 'escape' | 'enter';
 
@@ -163,7 +165,11 @@ function trackPointAt(
     const found = store.getState().tracks.find((track) => track.id === trackId)?.points[
         feature.properties.index as number
     ];
-    return found ? { trackId, point: found } : null;
+    // кадр мог отстать от стора (точку только что удалили, номера сдвинулись): под номером должна быть та же точка
+    const [lng, lat] = (feature.geometry as Point).coordinates;
+    const same =
+        found && found.name === feature.properties.name && Math.abs(found.lat - lat) + Math.abs(found.lng - lng) < 1e-5;
+    return same ? { trackId, point: found } : null;
 }
 
 // Точка в той копии мира, что ближе к опорной (wrapLatLngToTarget старого клиента): MapLibre рисует копии мира, и
@@ -190,6 +196,9 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
     let lastTouch = Number.NEGATIVE_INFINITY;
     let touching = false;
     let dragging = false;
+    // на это касание редактор взвёл своё долгое нажатие (палец на опорной точке или на отрезке): contextmenu MapLibre
+    // на тот же жест не нужен — оба таймера по 500 мс. Сбрасывается с концом касания.
+    let ownLongPress = false;
 
     // место на редактируемой линии под точкой экрана: опорная точка или отрезок
     function placeAt(edit: RouteEditState, point: ScreenPoint, latlng: LatLng): LinePlace | null {
@@ -281,6 +290,9 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
         let moved = false;
         const canvas = map.getCanvasContainer();
         // палец на опорной точке без сдвига — меню точки, а не перетаскивание
+        if (touch && !inserted) {
+            ownLongPress = true;
+        }
         const longPress =
             touch && !inserted
                 ? window.setTimeout(() => {
@@ -358,20 +370,24 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
     function menuAfterLongPress(open: () => void) {
         setPreview(null);
         open();
-        window.addEventListener(
-            'touchend',
-            (event) => {
+        // жест может кончиться touchcancel: тогда слушатель touchend снимается, иначе он погасил бы следующий тап
+        const onEnd = (event: TouchEvent) => {
+            window.removeEventListener('touchend', onEnd);
+            window.removeEventListener('touchcancel', onEnd);
+            if (event.type === 'touchend') {
                 event.preventDefault();
                 suppressClickUntil = performance.now() + CLICK_AFTER_GESTURE_MS;
-            },
-            { once: true, passive: false },
-        );
+            }
+        };
+        window.addEventListener('touchend', onEnd, { passive: false });
+        window.addEventListener('touchcancel', onEnd);
     }
 
     // Касание отрезка: точка вставляется не сразу, а при сдвиге пальца (вставка и перетаскивание) или при отпускании до
     // LONG_PRESS_MS (тап — вставка, как мышью); долгое нажатие без сдвига — меню линии (design add-web-line-tools)
     function touchOnLeg(leg: number, latlng: LatLng, clientStart: ScreenPoint) {
         let done = false;
+        ownLongPress = true;
         const cleanup = () => {
             done = true;
             window.clearTimeout(timer);
@@ -447,7 +463,10 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
     }
 
     const onMouseDown = (event: MapMouseEvent) => {
-        if (event.originalEvent.button !== 0 || performance.now() - lastTouch < TOUCH_ECHO_MS) {
+        // Ctrl+клик на macOS — правый клик: mousedown приходит с button 0, и без этой проверки он вставил бы точку и
+        // начал перетаскивание, а contextmenu отбросился бы
+        const macContextClick = event.originalEvent.ctrlKey && MAC;
+        if (event.originalEvent.button !== 0 || macContextClick || performance.now() - lastTouch < TOUCH_ECHO_MS) {
             return;
         }
         onDown(event, { x: event.originalEvent.clientX, y: event.originalEvent.clientY }, false);
@@ -455,6 +474,7 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
     const onTouchStart = (event: MapTouchEvent) => {
         lastTouch = performance.now();
         touching = true;
+        ownLongPress = false;
         const t = event.originalEvent.touches[0];
         if (event.originalEvent.touches.length === 1 && t) {
             onDown(event, { x: t.clientX, y: t.clientY }, true);
@@ -464,20 +484,30 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
     const onTouchEnd = () => {
         lastTouch = performance.now();
         touching = false;
+        ownLongPress = false;
     };
 
     // Правый клик (contextmenu MapLibre): меню опорной точки, линии или точки трека; preventDefault у события браузера
-    // гасит его собственное меню. Во время касания и сразу после — эхо долгого нажатия (Chrome на Android шлёт
-    // contextmenu), меню там открывает сам редактор.
+    // гасит его собственное меню. Во время касания contextmenu карты — долгое нажатие самого MapLibre (родное событие
+    // браузера при касании MapLibre гасит, ui/handler/map_event.ts); сразу после касания — эхо.
     const onContextMenu = (event: MapMouseEvent) => {
-        if (touching || performance.now() - lastTouch < TOUCH_ECHO_MS || dragging) {
+        const client = { x: event.originalEvent.clientX, y: event.originalEvent.clientY };
+        if (touching) {
+            // долгое нажатие, которое посчитал сам MapLibre (палец на линии вне редактирования, на отрезке во время
+            // рисования): своего таймера у редактора на этот жест нет
+            event.originalEvent.preventDefault();
+            if (!ownLongPress && !dragging && !state().pointTool && !state().lineTool) {
+                menuAfterLongPress(() => openMenu(event.point, lngLat(event), client));
+            }
+            return;
+        }
+        if (performance.now() - lastTouch < TOUCH_ECHO_MS || dragging) {
             event.originalEvent.preventDefault();
             return;
         }
         if (state().pointTool) {
             return;
         }
-        const client = { x: event.originalEvent.clientX, y: event.originalEvent.clientY };
         if (openMenu(event.point, lngLat(event), client)) {
             event.originalEvent.preventDefault();
         }
