@@ -2,9 +2,9 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Что переносится — [ресёрч, п. 5](../../research/new-ui.md#5-инвентаризация-функций) (строки «Профиль высот» и «Экспорт … GPX с высотами»); API высот остаётся ради этих функций, тайлы высот выводятся в change переключения ([ресёрч, «Последствия удаления»](../../research/new-ui.md#последствия-удаления)). Контракт API — спека [elevation-api](../../specs/elevation-api/spec.md) и архив [add-elevation-api](../archive/2026-10-07-add-elevation-api/design.md); лимиты — спека [worker-limits](../../specs/worker-limits/spec.md) и [workers/elevation/wrangler.toml](../../../workers/elevation/wrangler.toml): 60 запросов API в минуту с IP, бюджет чтений R2 32 единицы по 64 чтения в минуту, до 10 000 точек и 250 000 байт на запрос. Модель трека и экспорт — [add-web-tracks](../archive/2026-10-08-add-web-tracks/design.md); разметка маршрута, ожидающие отрезки и связь редактора со стором — [add-web-route-editor](../archive/2026-10-09-add-web-route-editor/design.md); меню на карте — [add-web-line-tools](../archive/2026-10-09-add-web-line-tools/design.md#меню-на-карте).
+Зачем — [proposal](proposal.md). Что переносится — [ресёрч, п. 5](../../../research/new-ui.md#5-инвентаризация-функций) (строки «Профиль высот» и «Экспорт … GPX с высотами»); API высот остаётся ради этих функций, тайлы высот выводятся в change переключения ([ресёрч, «Последствия удаления»](../../../research/new-ui.md#последствия-удаления)). Контракт API — спека [elevation-api](../../../specs/elevation-api/spec.md) и архив [add-elevation-api](../2026-10-07-add-elevation-api/design.md); лимиты — спека [worker-limits](../../../specs/worker-limits/spec.md) и [workers/elevation/wrangler.toml](../../../../workers/elevation/wrangler.toml): 60 запросов API в минуту с IP, бюджет чтений R2 32 единицы по 64 чтения в минуту, до 10 000 точек и 250 000 байт на запрос. Модель трека и экспорт — [add-web-tracks](../2026-10-08-add-web-tracks/design.md); разметка маршрута, ожидающие отрезки и связь редактора со стором — [add-web-route-editor](../2026-10-09-add-web-route-editor/design.md); меню на карте — [add-web-line-tools](../2026-10-09-add-web-line-tools/design.md#меню-на-карте).
 
-Справочник старого клиента — [leaflet.control.elevation-profile](../../../src/lib/leaflet.control.elevation-profile/index.js) (`calcSamplingInterval`, `pathRegularSamples`, `calcProfileStats`, `filterElevations`, `calcGridValues`, курсор и выделение), [elevations](../../../src/lib/elevations/index.js) (`ElevationProvider`), [track-list.js](../../../src/lib/leaflet.control.track-list/track-list.js) (`showElevationProfileForTrack`, `showElevationProfileForSegment`, `exportTrackAsFile` с `addElevations`) и [geo_file_exporters.js](../../../src/lib/leaflet.control.track-list/lib/geo_file_exporters.js) (`saveGpx` с `withElevations`).
+Справочник старого клиента — [leaflet.control.elevation-profile](../../../../src/lib/leaflet.control.elevation-profile/index.js) (`calcSamplingInterval`, `pathRegularSamples`, `calcProfileStats`, `filterElevations`, `calcGridValues`, курсор и выделение), [elevations](../../../../src/lib/elevations/index.js) (`ElevationProvider`), [track-list.js](../../../../src/lib/leaflet.control.track-list/track-list.js) (`showElevationProfileForTrack`, `showElevationProfileForSegment`, `exportTrackAsFile` с `addElevations`) и [geo_file_exporters.js](../../../../src/lib/leaflet.control.track-list/lib/geo_file_exporters.js) (`saveGpx` с `withElevations`).
 
 Что выяснилось при чтении старого кода (2026-10-09, `master` `1f6d20f`):
 
@@ -27,7 +27,7 @@
 
 **Non-Goals:**
 - Зум профиля и выделение участка пальцем (на телефоне палец водит курсор) — пункт backlog; вид панели — `polish-web-ui`.
-- Высота под курсором карты, азимут и «Sightline» — удалены владельцем ([record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md#удаляемые-функции)).
+- Высота под курсором карты, азимут и «Sightline» — удалены владельцем ([record-ui-decisions](../2026-10-08-record-ui-decisions/design.md#удаляемые-функции)).
 - Контракт API (`v2` без `credentials`, двоичный формат) — аудит, P2; клиент ходит в нынешний.
 
 ## Decisions
@@ -38,7 +38,7 @@
 
 `web/src/elevation/`:
 
-- `api.ts` — `fetchElevations(points, { fetch, url })`: куски по 10 000 точек последовательно (`ElevationProvider`), тело `lat lng` с шестью знаками через `\n`, долгота вне ±180 приводится в пределы (как `wrapped` в `tracks/actions.ts`: в пределах — не трогается), ответ — по строке на точку, `NULL` → `null`. Ошибки — `ElevationError` с причиной: ошибка `fetch` → `network error`, `429` → `too many requests, try again in a minute`, `413` → `track covers too large an area` (больше 512 чтений хранилища — точки вразброс; по числу точек и байтам куски в лимит укладываются: 10 000 строк по ≤ 23 байта), прочий статус → `HTTP <код>`, число строк не совпало — `unexpected response`. Без `credentials` **[агент]**: Worker отражает `Origin` и без них ([elevation-api](../../specs/elevation-api/spec.md), «CORS»), cookies ему не нужны — то же решение, что у хранилища треков в add-web-tracks.
+- `api.ts` — `fetchElevations(points, { fetch, url })`: куски по 10 000 точек последовательно (`ElevationProvider`), тело `lat lng` с шестью знаками через `\n`, долгота вне ±180 приводится в пределы (как `wrapped` в `tracks/actions.ts`: в пределах — не трогается), ответ — по строке на точку, `NULL` → `null`. Ошибки — `ElevationError` с причиной: ошибка `fetch` → `network error`, `429` → `too many requests, try again in a minute`, `413` → `track covers too large an area` (больше 512 чтений хранилища — точки вразброс; по числу точек и байтам куски в лимит укладываются: 10 000 строк по ≤ 23 байта), прочий статус → `HTTP <код>`, число строк не совпало — `unexpected response`. Без `credentials` **[агент]**: Worker отражает `Origin` и без них ([elevation-api](../../../specs/elevation-api/spec.md), «CORS»), cookies ему не нужны — то же решение, что у хранилища треков в add-web-tracks.
 - `profile.ts` — выборка, сводка, шкала (ниже), без карты.
 - `controller.ts` — `createElevationProfile({ store, source: { fetch, url }, notify })` без React, как `createTrackActions`: следит за стором, строит выборку, запрашивает высоты, пишет результат в стор (ниже, «Профиль следует за треком»).
 - `ElevationProfile.tsx` — панель: сводка, график, курсор, выделение; `ProfileOnMap.tsx` — внутри карты (как `MapEditor`): метка курсора, подсветка выделения, наведение на линию.
@@ -142,6 +142,15 @@ SVG без библиотеки, как у старого клиента: лом
 | 100 000 | 10 000, 1 | 172–174 мс | 2.5–3.6 мс | нет |
 
 Выборка и путь SVG на 10 000 точек укладываются в кадр, проекция на движение мыши — единицы миллисекунд, сетка для поиска не нужна. GPX с высотами того же трека — 10 последовательных запросов по 10 000 точек (unit-тест `api.test.ts` «куски по 10 000»); время на живом API — на проде. Картина памяти не меняется, `phys_footprint` не мерили.
+
+### На проде
+
+После merge PR sergeycw/nakarte#113 прогон `deploy pages` выкатил Pages, jobs `pages`, `prune` и `smoke` зелёные. 2026-10-09, `https://nakarte-routing.pages.dev/next/`, Playwright 1.64, Chromium headless, живой API высот и настоящий движок в воркере, скрипт вне репозитория:
+
+- Профиль трека из ссылки `nktk` (Мтацминда, 0.65 km): один запрос на 66 точек, `200`; начало 492 m, конец 735 m (телебашня), набор 243 m. Наведение на график — метка на карте, «663 m, 0.32 km, ↑ 23°».
+- «Save as GPX with elevation» того же трека: `<ele>` у точки и обеих точек отрезка (733.3, 492.2, 735.3).
+- «Hiking», «New track», две точки: проложено за 5.2 с с холодным движком, 1.82 km. «Show elevation profile for segment» из меню опорной точки: набор 56 m, сброс 208 m, редактирование продолжается, панель редактора над профилем. Перетаскивание конца: маршрут перестроен (1.98 km), профиль — ровно один новый запрос после паузы.
+- GPX на 100 тыс. точек (случайное блуждание, после упрощения при импорте 68 336 точек, 724.6 km): профиль — один запрос на 9 999 точек, 1.5 с до сводки вместе с сетью; GPX с высотами — 7 запросов, все `200`, 0.8 с, `<ele>` у всех 68 336 `trkpt`. Ошибок на странице нет.
 
 ### Вид
 

@@ -240,12 +240,12 @@ Cmd/Ctrl+Z SHALL отменять, а Cmd/Ctrl+Shift+Z и Ctrl+Y SHALL повт�
 
 ### Requirement: Меню опорной точки и линии
 
-В новом приложении правый клик по опорной точке или по линии редактируемого отрезка, а на сенсорном экране долгое нажатие SHALL открывать меню в этом месте. Правый клик или долгое нажатие по линии видимого трека вне редактирования SHALL начинать редактирование отрезка и открывать меню. Меню точки: Cut (кроме крайних), Join (только крайние), Reverse, Shortcut, Delete point, Delete segment, New track from segment. Меню линии — то же без Join и Delete point.
+В новом приложении правый клик по опорной точке или по линии редактируемого отрезка, а на сенсорном экране долгое нажатие SHALL открывать меню в этом месте. Правый клик или долгое нажатие по линии видимого трека вне редактирования SHALL начинать редактирование отрезка и открывать меню. Меню точки: Cut (кроме крайних), Join (только крайние), Reverse, Shortcut, Delete point, Delete segment, New track from segment, Show elevation profile for segment. Меню линии — то же без Join и Delete point.
 
 #### Scenario: Меню средней точки
 
 - **WHEN** пользователь кликает правой кнопкой по средней опорной точке редактируемой линии
-- **THEN** открывается меню с пунктами Cut, Reverse, Shortcut, Delete point, Delete segment, New track from segment, без Join
+- **THEN** открывается меню с пунктами Cut, Reverse, Shortcut, Delete point, Delete segment, New track from segment, Show elevation profile for segment, без Join
 
 #### Scenario: Меню крайней точки
 
