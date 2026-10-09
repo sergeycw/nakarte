@@ -82,7 +82,7 @@ describe('Интерфейс поверх карты', () => {
 describe('Тост при ошибке тайлов', () => {
     test('Сервер тайлов недоступен', async () => {
         tiles.respond(/tile\.openstreetmap\.org/, UNAVAILABLE_URL);
-        const { map } = await renderApp();
+        const { map } = await renderApp('#l=O');
         await expect.element(page.getByText('Map tiles failed to load')).toBeVisible();
         await expect.element(page.getByText('OpenStreetMap', { exact: true })).toBeVisible();
 
@@ -100,5 +100,46 @@ describe('Тост при ошибке тайлов', () => {
         await expect.poll(() => map.loaded(), { timeout: 10_000 }).toBe(true);
         expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
         expect(map.getLayer('Wh')).toBeDefined();
+    });
+});
+
+describe('Подложка Tracestrack', () => {
+    const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo__\//;
+
+    test('Первый заход: тайлы Tracestrack через прокси без ключа, подпись Tracestrack', async () => {
+        await renderApp();
+        await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
+        expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(false);
+        expect(tiles.requested.some((url) => url.includes('key='))).toBe(false);
+        await expect.element(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
+        expect(location.hash).toContain('l=Tt');
+    });
+
+    test('Нет ключа или квоты: откат на OpenStreetMap с тостом вместо тоста ошибки', async () => {
+        tiles.respond(TRACESTRACK, UNAVAILABLE_URL);
+        const { map } = await renderApp('#m=8/41.7/44.8&l=Tt/Hs');
+        await expect.element(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+        await expect.element(page.getByText('Switched to OpenStreetMap')).toBeVisible();
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+        await expect.poll(() => map.getLayer('O')).toBeDefined();
+        expect(map.getLayer('Tt')).toBeUndefined();
+        expect(map.getLayer('Hs')).toBeDefined();
+        expect(location.hash).toContain('l=O/Hs');
+        // откат — не выбор: в localStorage осталась подложка Tracestrack
+        expect(JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '').selection).toEqual({
+            base: 'Tt',
+            overlays: ['Hs'],
+        });
+        await expect.poll(() => tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
+    });
+
+    test('Тайла нет: 404 Tracestrack не откатывает', async () => {
+        tiles.respond(TRACESTRACK, MISSING_URL);
+        const { map } = await renderApp();
+        await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
+        await expect.poll(() => map.loaded(), { timeout: 10_000 }).toBe(true);
+        expect(map.getLayer('Tt')).toBeDefined();
+        expect(page.getByText('Tracestrack Topo is unavailable').all()).toHaveLength(0);
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
     });
 });

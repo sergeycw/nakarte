@@ -2,8 +2,10 @@ import type { LayerDef } from './catalog';
 import { isCustomLayerCode, parseCustomLayerCode } from './custom';
 import { canonicalCustomCode, type Selection } from './settings';
 
-// Подложка по умолчанию — OpenStreetMap, как первый слой списка старого клиента (record-new-ui-decisions)
-export const DEFAULT_SELECTION: Selection = { base: 'O', overlays: [] };
+// Подложка по умолчанию — Tracestrack Topo (решение владельца, design add-outdoor-basemap); до этого был OpenStreetMap,
+// первый слой списка старого клиента. При ошибке её тайлов — откат на FALLBACK_BASE (App, стор basemapFallback)
+export const DEFAULT_SELECTION: Selection = { base: 'Tt', overlays: [] };
+export const FALLBACK_BASE = 'O';
 
 export interface ParsedLayers {
     selection: Selection;

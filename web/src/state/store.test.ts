@@ -2,16 +2,16 @@ import { describe, expect, test } from 'vitest';
 import { buildCatalog } from '@/layers/catalog';
 import type { CustomLayerFields } from '@/layers/custom';
 import { EMPTY_SETTINGS } from '@/layers/settings';
-import { createAppStore } from './store';
+import { createAppStore, savedSelection } from './store';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 
-function store() {
+function store(base = 'O') {
     return createAppStore({
         catalog,
         corsProxyUrl: 'https://proxy.test/',
         settings: EMPTY_SETTINGS,
-        selection: { base: 'O', overlays: [] },
+        selection: { base, overlays: [] },
         view: { lat: 0, lng: 0, zoom: 1 },
     });
 }
@@ -82,8 +82,48 @@ describe('свои слои', () => {
         const s = store();
         const code = s.getState().addCustomLayer({ ...OVERLAY, isOverlay: false });
         s.getState().removeCustomLayer(code);
-        expect(s.getState().selection).toEqual({ base: 'O', overlays: [] });
+        expect(s.getState().selection).toEqual({ base: 'Tt', overlays: [] });
         expect(s.getState().layers.has(code)).toBe(false);
+    });
+});
+
+describe('откат подложки', () => {
+    test('Нет ключа или квоты: подложка Tracestrack уступает OpenStreetMap, оверлеи остаются', () => {
+        const s = store('Tt');
+        s.getState().toggleOverlay('Hs');
+        expect(s.getState().fallBackBase('Tt')).toBe(true);
+        expect(s.getState().selection).toEqual({ base: 'O', overlays: ['Hs'] });
+        expect(s.getState().basemapFallback).toBe('Tt');
+        // сохраняется подложка, с которой откатились
+        expect(savedSelection(s.getState())).toEqual({ base: 'Tt', overlays: ['Hs'] });
+    });
+
+    test('ошибка тайлов прежней подложки после её смены не откатывает', () => {
+        const s = store('E');
+        expect(s.getState().fallBackBase('Tt')).toBe(false);
+        expect(s.getState().selection.base).toBe('E');
+        expect(s.getState().basemapFallback).toBeNull();
+    });
+
+    test('Выбор после отката: явная подложка и l= сбрасывают откат', () => {
+        const s = store('Tt');
+        s.getState().fallBackBase('Tt');
+        s.getState().selectBase('E');
+        expect(s.getState().basemapFallback).toBeNull();
+        expect(savedSelection(s.getState())).toEqual({ base: 'E', overlays: [] });
+
+        const t = store('Tt');
+        t.getState().fallBackBase('Tt');
+        t.getState().applyLayersParam({ selection: { base: 'O', overlays: [] }, custom: [] });
+        expect(t.getState().basemapFallback).toBeNull();
+        expect(savedSelection(t.getState())).toEqual({ base: 'O', overlays: [] });
+    });
+
+    test('после отката на другой подложке откат больше не при чём', () => {
+        const s = store('Tt');
+        s.getState().fallBackBase('Tt');
+        const code = s.getState().addCustomLayer({ ...OVERLAY, isOverlay: false });
+        expect(savedSelection(s.getState())).toEqual({ base: code, overlays: [] });
     });
 });
 

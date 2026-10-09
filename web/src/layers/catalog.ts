@@ -59,6 +59,7 @@ export const GROUPS = [
 // titlesByOrder старого клиента; места своих слоёв — CUSTOM_BOTTOM и CUSTOM_TOP. Отмывка рельефа — над непрозрачными
 // картами-оверлеями и под линейными, чтобы тени ложились на любую подложку и не закрывали тропы.
 const ORDER = [
+    'Tt',
     'O',
     'Co',
     'Otm',
@@ -98,6 +99,8 @@ export const CUSTOM_BOTTOM_ORDER = ORDER.indexOf('#custom-bottom') + 1;
 export const CUSTOM_TOP_ORDER = ORDER.indexOf('#custom-top') + 1;
 
 const OSM_ATTRIBUTION = '<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>';
+// «Maps © Tracestrack» — подпись из условий Tracestrack (ресёрч new-ui, 2026-10-08), данные — OSM
+const TRACESTRACK_ATTRIBUTION = `<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>, ${OSM_ATTRIBUTION}`;
 const STRAVA_ATTRIBUTION = '<a href="https://www.strava.com/heatmap">Strava Global Heatmap</a>';
 const KARTVERKET_ATTRIBUTION = '<a href="https://kartverket.no/til-lands/kart/turkart">Kartverket</a>';
 const GOOGLE_ATTRIBUTION = '<a href="https://www.google.com/maps">Google</a>';
@@ -148,6 +151,21 @@ function stravaLayer(code: string, kind: string, title: string, env: CatalogEnv)
 
 function definitions(env: CatalogEnv): Def[] {
     return [
+        {
+            code: 'Tt',
+            title: 'Tracestrack Topo',
+            group: 'Default layers',
+            isOverlay: false,
+            isDefault: true,
+            // подложка по умолчанию (design add-outdoor-basemap). Только через прокси: ключ API — секрет Worker'а прокси,
+            // в адресе клиента его нет (workers/cors-proxy/src/tracestrack.js). Адрес и maxZoom 19 — как у слоя
+            // openstreetmap.org; topo__ — без перевода подписей; {ratio} — @2x на экранах от 2x, тот же кредит квоты
+            source: raster(
+                [viaCorsProxy(env.corsProxyUrl, 'https://tile.tracestrack.com/topo__/{z}/{x}/{y}{ratio}.webp')],
+                TRACESTRACK_ATTRIBUTION,
+                { maxzoom: 19 },
+            ),
+        },
         {
             code: 'O',
             title: 'OpenStreetMap',

@@ -2,7 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { Elevation, ProfileSamples } from '@/elevation/profile';
 import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
-import { type ParsedLayers, validSelection } from '@/layers/selection';
+import { FALLBACK_BASE, type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
@@ -22,6 +22,9 @@ export interface AppState {
     layers: ReadonlyMap<string, LayerDef>;
     settings: LayerSettings;
     selection: Selection;
+    // с какой подложки карта откатилась на FALLBACK_BASE после ошибки её тайлов (design add-outdoor-basemap, «Откат на
+    // OpenStreetMap»): откат — не выбор пользователя, в localStorage уходит выбор с ней (savedSelection)
+    basemapFallback: string | null;
     // последний вид карты (пишет карта по moveend)
     view: View;
     // вид, на который карту надо перевести (пришёл из адреса); seq различает одинаковые запросы
@@ -64,6 +67,8 @@ export interface AppState {
     setView(view: View): void;
     requestView(view: View): void;
     selectBase(code: string): void;
+    // откатить подложку code на FALLBACK_BASE; false — code уже не подложка (ошибки тайлов приходят и после смены слоя)
+    fallBackBase(code: string): boolean;
     toggleOverlay(code: string): void;
     applyLayersParam(parsed: ParsedLayers): void;
     updateSettings(patch: Partial<Pick<LayerSettings, 'listed'>>): void;
@@ -214,6 +219,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
         return {
             catalog: init.catalog,
             ...initial,
+            basemapFallback: null,
             view: init.view,
             viewRequest: null,
             boundsRequest: null,
@@ -248,7 +254,16 @@ export function createAppStore(init: AppStoreInit): AppStore {
                 if (layers.get(code)?.isOverlay !== false || selection.base === code) {
                     return;
                 }
-                set({ selection: { ...selection, base: code } });
+                set({ selection: { ...selection, base: code }, basemapFallback: null });
+            },
+
+            fallBackBase: (code) => {
+                const { selection } = get();
+                if (selection.base !== code || code === FALLBACK_BASE) {
+                    return false;
+                }
+                set({ selection: { ...selection, base: FALLBACK_BASE }, basemapFallback: code });
+                return true;
             },
 
             toggleOverlay: (code) => {
@@ -271,7 +286,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
                     listed[code] = true;
                 }
                 const merged = [...settings.custom, ...custom.filter((code) => !settings.custom.includes(code))];
-                set(withCustom({ ...settings, listed, custom: merged }, selection));
+                set({ ...withCustom({ ...settings, listed, custom: merged }, selection), basemapFallback: null });
             },
 
             updateSettings: (patch) => set({ settings: { ...get().settings, ...patch } }),
@@ -405,4 +420,14 @@ export function createAppStore(init: AppStoreInit): AppStore {
             },
         };
     });
+}
+
+// Выбор для localStorage: пока карта стоит на подложке отката, сохраняется подложка, с которой откатились, — следующий
+// заход снова попробует её. Другая подложка (свой слой, удаление подложки) значит, что откат уже ни при чём
+export function savedSelection(state: Pick<AppState, 'selection' | 'basemapFallback'>): Selection {
+    const { selection, basemapFallback } = state;
+    if (!basemapFallback || selection.base !== FALLBACK_BASE) {
+        return selection;
+    }
+    return { ...selection, base: basemapFallback };
 }

@@ -12,7 +12,7 @@ import {
 } from '@/streetview/hash';
 import { isTrackParam, type TrackParam } from '@/tracks/links';
 import { formatHash, formatView, parseHash, parseView, type View, withParam } from './hash';
-import { type AppStore, createAppStore } from './store';
+import { type AppStore, createAppStore, savedSelection } from './store';
 
 // Связь стора с адресом и localStorage (design add-web-map-layers, «Адрес»). При старте: адрес → localStorage →
 // умолчания. Дальше стор пишет m= и панораму в n2= (не чаще раза в 300 мс: moveend и взгляд идут сериями), l=, r= метки
@@ -122,8 +122,8 @@ export function bindAppStore(
     }
 
     function persist() {
-        const { settings, selection } = store.getState();
-        saveSettings(storage, { ...settings, selection });
+        const state = store.getState();
+        saveSettings(storage, { ...state.settings, selection: savedSelection(state) });
     }
 
     function onHashChange() {

@@ -12,6 +12,7 @@ import { ElevationProfile, PROFILE_HEIGHT } from '@/elevation/ElevationProfile';
 import { getEngine } from '@/engine/engine';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
+import { DEFAULT_SELECTION, FALLBACK_BASE } from '@/layers/selection';
 import { EditPanel } from '@/routing/EditPanel';
 import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
@@ -220,6 +221,21 @@ export function App({
     function showTileError(code: string, status: number | undefined) {
         // 404 — «тайла нет» у региональных и разреженных слоёв (Slazav внутри района), это не ошибка
         if (status === 404) {
+            return;
+        }
+        // подложка по умолчанию (Tracestrack Topo) без ключа, квоты или при сбое оставила бы серый фон — вместо тоста
+        // ошибки откат на OpenStreetMap (спека map-layers, «Откат подложки Tracestrack на OpenStreetMap»). Ошибки её
+        // тайлов, пришедшие уже после смены подложки, молча отбрасываются
+        if (code === DEFAULT_SELECTION.base) {
+            if (store.getState().fallBackBase(code)) {
+                const { layers } = store.getState();
+                toast.add({
+                    id: `basemap-fallback:${code}`,
+                    title: `${layers.get(code)?.title ?? code} is unavailable`,
+                    description: `Switched to ${layers.get(FALLBACK_BASE)?.title ?? FALLBACK_BASE}`,
+                    type: 'error',
+                });
+            }
             return;
         }
         // постоянный id на слой: Base UI обновляет тост с тем же id на месте, серия ошибок даёт один тост

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 import { parseRedirects, resolveRedirect } from '../vite/redirects.ts';
-import { expect, test } from './fixtures.ts';
+import { CORS_PROXY_URL, expect, test } from './fixtures.ts';
 
 // Названия тестов — сценарии спеки web-client (openspec/specs/web-client/spec.md).
 
@@ -14,6 +14,9 @@ function tileOf(lat: number, lng: number, zoom: number) {
     const y = Math.floor(((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2) * n);
     return `${zoom}/${x}/${y}`;
 }
+
+// тайлы подложки по умолчанию — через прокси клона, без ключа (спека map-layers, «Слои через прокси»)
+const TRACESTRACK_TILES = `${CORS_PROXY_URL}https/tile.tracestrack.com/topo__/`;
 
 const canvas = '.maplibregl-canvas';
 
@@ -148,10 +151,10 @@ test('Набор реальных старых ссылок', async ({ page, net
 
 test('Первый заход', async ({ page, network }) => {
     await page.goto('./');
-    await expect(page.getByText('OpenStreetMap')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
     await expect
-        .poll(() => network.tilesOf('O'))
-        .toContain(`https://tile.openstreetmap.org/${tileOf(49.73868, 33.45886, 8)}.png`);
+        .poll(() => network.tilesOf('Tt'))
+        .toContain(`${TRACESTRACK_TILES}${tileOf(49.73868, 33.45886, 8)}.webp`);
     await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
     const box = await page.locator(canvas).boundingBox();
     const viewport = page.viewportSize();
@@ -186,7 +189,7 @@ test('Панель на карте', async ({ page }) => {
 
 test('Сервер тайлов недоступен', async ({ page, network }) => {
     network.failTiles('O');
-    await page.goto('./');
+    await page.goto('./#l=O');
     await expect(page.getByText('Map tiles failed to load')).toBeVisible();
     await expect(page.locator('[data-slot="toast-description"]')).toHaveText('OpenStreetMap');
     await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(1);
@@ -194,11 +197,20 @@ test('Сервер тайлов недоступен', async ({ page, network })
     await expect(page.locator(canvas)).toBeVisible();
 });
 
+test('Ошибка подложки Tracestrack', async ({ page, network }) => {
+    network.failTiles('Tt');
+    await page.goto('./');
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
+    await expect(page.locator(canvas)).toBeVisible();
+});
+
 test.describe('в тёмной теме системы', () => {
     test.use({ colorScheme: 'dark' });
 
     test('Тёмная тема системы', async ({ page, network }) => {
-        network.failTiles('O');
+        // тост отката подложки по умолчанию — любой тост годится для проверки темы
+        network.failTiles('Tt');
         await page.goto('./');
         const panel = page.getByTestId('info-panel');
         await expect(panel).toBeVisible();
@@ -224,18 +236,18 @@ test('Неверный вид в ссылке', async ({ page, network }) => {
     // второй адрес отличается только #: страница не перезагружается, приложение получает hashchange
     for (const hash of ['#m=99/49.44893/52.5547', '#m=11/49.44893/']) {
         await page.goto(`./${hash}`);
-        await expect.poll(() => new URL(page.url()).hash).toBe('#m=8/49.73868/33.45886&l=O');
+        await expect.poll(() => new URL(page.url()).hash).toBe('#m=8/49.73868/33.45886&l=Tt');
     }
     await expect
-        .poll(() => network.tilesOf('O'))
-        .toContain(`https://tile.openstreetmap.org/${tileOf(49.73868, 33.45886, 8)}.png`);
+        .poll(() => network.tilesOf('Tt'))
+        .toContain(`${TRACESTRACK_TILES}${tileOf(49.73868, 33.45886, 8)}.webp`);
 });
 
 test('Вид пишется в адрес', async ({ page, network }) => {
     await page.goto('./#m=10/41/44&p=1');
-    await expect.poll(() => new URL(page.url()).hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
+    await expect.poll(() => new URL(page.url()).hash).toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
     // тянуть карту можно, когда она загрузилась: первые тайлы запрошены
-    await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
     const box = await page.locator(canvas).boundingBox();
     if (!box) {
         throw new Error('нет холста карты');
@@ -245,6 +257,6 @@ test('Вид пишется в адрес', async ({ page, network }) => {
     await page.mouse.move(box.x + box.width / 2 - 200, box.y + box.height / 2 + 100, { steps: 10 });
     await page.mouse.up();
     // карта уехала на юго-запад — центр севернее и восточнее, зум и остальные параметры те же
-    await expect.poll(() => new URL(page.url()).hash).not.toBe('#m=10/41.00000/44.00000&p=1&l=O');
-    expect(new URL(page.url()).hash).toMatch(/^#m=10\/41\.\d{5}\/44\.\d{5}&p=1&l=O$/);
+    await expect.poll(() => new URL(page.url()).hash).not.toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
+    expect(new URL(page.url()).hash).toMatch(/^#m=10\/41\.\d{5}\/44\.\d{5}&p=1&l=Tt$/);
 });
