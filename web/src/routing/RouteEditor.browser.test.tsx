@@ -11,7 +11,7 @@ import type { LatLng } from '@/tracks/model';
 import { saveNktk } from '@/tracks/nktk';
 import { TRACK_LINES } from '@/tracks/style';
 import { RoutingError } from './brouter';
-import { EDIT_LEGS, EDIT_WAYPOINTS } from './edit-style';
+import { EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from './edit-style';
 
 // Редактор маршрута в App на настоящей карте MapLibre: тайлы — фикстура, роутер — поддельный (тест сам отвечает на
 // запросы). Мышь — синтетические события на холсте по map.project: так их получает и MapLibre, и обработчики
@@ -190,6 +190,15 @@ describe('Клик при рисовании', () => {
         router.live()[0].resolve([]);
         await expect.element(page.getByTestId('route-spinner')).not.toBeInTheDocument();
         await expect.poll(() => legs(map)).toHaveLength(1);
+    });
+
+    test('резинка от последней точки к курсору', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A]);
+        fire(map, 'mousemove', B);
+        await expect
+            .poll(() => features<LineString>(map, EDIT_PREVIEW).map((f) => f.geometry.type))
+            .toEqual(['LineString']);
     });
 
     test('Alt-клик', async () => {
