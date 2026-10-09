@@ -25,7 +25,9 @@ export function prepareImport(data: readonly GeoData[], allowEmpty = false): Imp
     for (const item of data) {
         const empty = isEmpty(item);
         if (!empty || allowEmpty) {
-            result.tracks.push({ ...item, segments: item.segments.map(normalizeLine) });
+            // линии упрощаются, поэтому номера опорных точек разметки (если она пришла) больше не верны
+            const { routes: _routes, ...rest } = item;
+            result.tracks.push({ ...rest, segments: item.segments.map(normalizeLine) });
         }
         let message: string | undefined;
         if (item.error) {

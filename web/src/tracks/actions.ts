@@ -1,3 +1,4 @@
+import { reverseRoute } from '@/routing/line';
 import type { AppStore } from '@/state/store';
 import type { TrackParams } from '@/state/sync';
 import { EmptyTrackError, exportTrack, exportZip, saveFile } from './export';
@@ -101,10 +102,12 @@ export function createTrackActions({
         }
     }
 
+    // копия трека с разметкой маршрута: номера опорных точек верны и для копии (линии не упрощаются)
     function copyOf(track: Track): GeoData {
         return geoData(track.name, {
             segments: track.segments.map((line) => line.map((p) => ({ ...p }))),
             points: track.points.map((p) => ({ ...p })),
+            routes: track.segments.map((_, i) => track.routes?.[i] ?? null),
         });
     }
 
@@ -136,6 +139,7 @@ export function createTrackActions({
                 geoData(visible[0].name, {
                     segments: copies.flatMap((copy) => copy.segments),
                     points: copies.flatMap((copy) => copy.points),
+                    routes: copies.flatMap((copy) => copy.routes ?? []),
                 }),
             ]);
         },
@@ -151,8 +155,13 @@ export function createTrackActions({
             }
         },
         duplicate: (track: Track) => state().addTracks([copyOf(track)]),
+        // разметка разворачивается вместе с отрезками: проложенный отрезок остаётся проложенным (спека tracks,
+        // «Развернуть проложенный трек»)
         reverse: (track: Track) =>
-            state().updateTrack(track.id, { segments: track.segments.map((line) => [...line].reverse()) }),
+            state().updateTrack(track.id, {
+                segments: track.segments.map((line) => [...line].reverse()),
+                routes: track.segments.map((line, i) => reverseRoute(track.routes?.[i], line.length)),
+            }),
         remove: (track: Track) => state().removeTracks([track.id]),
         removeAll: () => state().removeTracks(state().tracks.map((track) => track.id)),
         removeHidden: () =>

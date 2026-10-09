@@ -2,6 +2,8 @@
 // клиента (src/lib/leaflet.control.track-list/lib/parsers/): парсеры файлов, ссылки и импорт по ссылкам отдают
 // GeoData, список треков хранит Track.
 
+import type { SegmentRoute } from '@/routing/line';
+
 export interface LatLng {
     lat: number;
     lng: number;
@@ -20,6 +22,9 @@ export interface TrackData {
     hidden?: boolean;
     // отметки расстояния на линии; рисует их линейка (change 8), здесь флаг только переживает ссылки
     measureTicksShown?: boolean;
+    // разметка маршрута по отрезкам (routing/line.ts): routes[i] — для segments[i], null — обычная ломаная. Файлы и
+    // ссылки её пока не несут (change 6), поэтому из парсеров и ссылок трек приходит без неё.
+    routes?: readonly (SegmentRoute | null)[];
 }
 
 // Коды ошибок старого клиента; любая другая строка — готовый текст с подстановкой {name}

@@ -44,7 +44,12 @@ export interface AppState {
     requestBounds(bounds: Bounds): void;
     // данные уже подготовлены prepareImport (линии упрощены); возвращает добавленные треки
     addTracks(data: readonly GeoData[]): Track[];
-    updateTrack(id: string, patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points'>>): void;
+    // новые segments без routes сбрасывают разметку маршрута: правка, которая о ней не знает, не оставит номера опорных
+    // точек, указывающие не туда (design add-web-route-editor, «Разметка маршрута в треке»)
+    updateTrack(
+        id: string,
+        patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points' | 'routes'>>,
+    ): void;
     removeTracks(ids: readonly string[]): void;
     changeLoadingTracks(delta: number): void;
     setSharedLink(link: string | null): void;
@@ -204,14 +209,19 @@ export function createAppStore(init: AppStoreInit): AppStore {
                         color: color as number,
                         visible: !item.hidden,
                         measureTicksShown: item.measureTicksShown ?? false,
+                        ...(item.routes ? { routes: item.routes } : {}),
                     };
                 });
                 set({ tracks: [...get().tracks, ...added], nextColor });
                 return added;
             },
 
-            updateTrack: (id, patch) =>
-                set({ tracks: get().tracks.map((track) => (track.id === id ? { ...track, ...patch } : track)) }),
+            updateTrack: (id, patch) => {
+                const reset = 'segments' in patch && !('routes' in patch) ? { routes: undefined } : {};
+                set({
+                    tracks: get().tracks.map((track) => (track.id === id ? { ...track, ...reset, ...patch } : track)),
+                });
+            },
 
             removeTracks: (ids) => set({ tracks: get().tracks.filter((track) => !ids.includes(track.id)) }),
 
