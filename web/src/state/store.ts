@@ -1,4 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { Elevation, ProfileSamples } from '@/elevation/profile';
 import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
 import { type ParsedLayers, validSelection } from '@/layers/selection';
@@ -46,6 +47,12 @@ export interface AppState {
     mapMenu: MapMenu | null;
     pointTool: PointTool | null;
     pointDialog: PointDialog | null;
+    // профиль высот (design add-web-elevation-profile): что показано, выборка и высоты, курсор и выделение — дробные
+    // номера точек выборки; курсор и выделение делят панель и карта
+    profile: ProfileTarget | null;
+    profileData: ProfileData | null;
+    profileCursor: number | null;
+    profileSelection: readonly [number, number] | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -78,6 +85,25 @@ export interface AppState {
     setMapMenu(menu: MapMenu | null): void;
     setPointTool(tool: PointTool | null): void;
     setPointDialog(dialog: PointDialog | null): void;
+    setProfile(profile: ProfileTarget | null): void;
+    setProfileData(data: ProfileData | null): void;
+    setProfileCursor(cursor: number | null): void;
+    setProfileSelection(selection: readonly [number, number] | null): void;
+}
+
+// segment null — профиль всего трека
+export interface ProfileTarget {
+    trackId: string;
+    segment: number | null;
+}
+
+// values — высоты точек выборки (null — нет данных), пока высот нет — null. updating — идёт перестроение: виден
+// прежний профиль. error — причина ошибки API высот.
+export interface ProfileData {
+    samples: ProfileSamples;
+    values: readonly Elevation[] | null;
+    updating: boolean;
+    error: string | null;
 }
 
 // Выбор на карте: Join от конца редактируемой линии, Shortcut от места на ней
@@ -179,6 +205,10 @@ export function createAppStore(init: AppStoreInit): AppStore {
             mapMenu: null,
             pointTool: null,
             pointDialog: null,
+            profile: null,
+            profileData: null,
+            profileCursor: null,
+            profileSelection: null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -308,6 +338,10 @@ export function createAppStore(init: AppStoreInit): AppStore {
             setMapMenu: (mapMenu) => set({ mapMenu }),
             setPointTool: (pointTool) => set({ pointTool }),
             setPointDialog: (pointDialog) => set({ pointDialog }),
+            setProfile: (profile) => set({ profile, profileData: null, profileCursor: null, profileSelection: null }),
+            setProfileData: (profileData) => set({ profileData }),
+            setProfileCursor: (profileCursor) => set({ profileCursor }),
+            setProfileSelection: (profileSelection) => set({ profileSelection }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();
