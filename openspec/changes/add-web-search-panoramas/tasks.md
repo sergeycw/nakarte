@@ -30,7 +30,7 @@
 
 ## 6. e2e, замеры, вид
 
-- [ ] 6.1 `e2e/fixtures.ts`: ответы mapy.cz и photon, тайлы покрытия, заглушка Maps JavaScript API; e2e `search.spec.ts` и `street-view.spec.ts` (поиск и метка в адресе, `r=`, `n2=` и `n=`, панорама по клику, линейка); проверка: `npm run build && npm run e2e` зелёный, `check web` на PR зелёный
+- [x] 6.1 `e2e/fixtures.ts`: ответы mapy.cz и photon, тайлы покрытия, заглушка Maps JavaScript API; e2e `search.spec.ts` и `street-view.spec.ts` (поиск и метка в адресе, `r=`, `n2=` и `n=`, панорама по клику, линейка); проверка: `npm run build && npm run e2e` зелёный, `check web` на PR зелёный
 - [ ] 6.2 Замер `phys_footprint` с настоящим Maps JavaScript API (dev-сервер, без ключа): до режима, с открытой панорамой, после закрытия и после выключения режима; итог в design
 - [ ] 6.3 Скриншоты (компьютер и телефон 390 px: поиск с результатами, метка, панорама с профилем, линейка, меню внешних карт) владельцу через SendUserFile
 
