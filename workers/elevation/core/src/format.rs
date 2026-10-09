@@ -107,6 +107,7 @@ pub fn encode_degree(chunks: &[Option<Vec<i16>>], level: i32) -> Vec<u8> {
 
 /// Объект градуса из уже сжатых кусков (пустой — данных нет). Был публичным ради прореживания
 /// фикстур генератором тайлов высот (`elevation-tiles thin`), удалённым в change retire-old-client-services.
+#[cfg(feature = "encode")]
 fn assemble_degree(encoded: &[Vec<u8>]) -> Vec<u8> {
     assert_eq!(encoded.len(), CHUNKS);
     let mut object = Vec::with_capacity(HEADER_LEN + encoded.iter().map(Vec::len).sum::<usize>());

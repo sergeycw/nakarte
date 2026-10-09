@@ -9,8 +9,6 @@ publish.workspace = true
 encode = ["dep:zstd"]
 
 [dependencies]
-# чистый Rust (miniz_oxide): собирается под wasm32
-flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 ruzstd = "0.9"
 zstd = { version = "0.14", optional = true }
