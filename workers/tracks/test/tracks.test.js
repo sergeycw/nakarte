@@ -179,6 +179,17 @@ describe('CORS', () => {
         expect(await env.TRACKS.head(`tracks/${key}`)).toBeNull();
     });
 
+    // dev-сервер приложения web/ и vite preview разрешены, порты старого клиента — нет (change retire-old-client-services)
+    it.each(['http://localhost:8769', 'http://localhost:4173'])('reflects the local app origin %s', async (origin) => {
+        const response = await request(`/track/${clientKey('local')}`, {origin});
+        expect(response.status).toBe(404);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
+    });
+
+    it.each(['http://localhost:8765', 'http://localhost:8766'])('answers 403 to the old client origin %s', async (origin) => {
+        expect((await request(`/track/${clientKey('old')}`, {origin})).status).toBe(403);
+    });
+
     it('answers 403 without Origin', async () => {
         const response = await request(`/track/${clientKey('x')}`, {origin: null});
         expect(response.status).toBe(403);

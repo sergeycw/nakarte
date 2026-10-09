@@ -29,12 +29,20 @@ describe('origin check', () => {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
     });
 
-    // test_track_load.js апстрима ходит в живые сервисы через этот прокси со страницы karma
-    it('accepts the karma origin', async () => {
-        const response = await request('/https/example.com/', {origin: 'http://localhost:9876'});
+    // dev-сервер приложения web/ и vite preview ходят в живой прокси (спека cors-proxy, «Разрешённые origin клона»)
+    it.each(['http://localhost:8769', 'http://localhost:4173'])('accepts the local app origin %s', async (origin) => {
+        const response = await request('/https/example.com/', {origin});
         expect(response.status).toBe(200);
-        expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:9876');
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
     });
+
+    // dev-серверы старого клиента и karma ушли вместе с ним (change retire-old-client-services)
+    it.each(['http://localhost:9876', 'http://localhost:8765', 'http://localhost:8766'])(
+        'rejects the old client origin %s',
+        async (origin) => {
+            expect((await request('/https/example.com/', {origin})).status).toBe(403);
+        }
+    );
 
     it('answers preflight with 204, methods and requested headers', async () => {
         const response = await request('/https/example.com/', {

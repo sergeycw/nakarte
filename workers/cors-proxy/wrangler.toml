@@ -18,13 +18,13 @@ cpu_ms = 500
 subrequests = 50
 
 [vars]
-# 9876 — karma: апстримные тесты test_track_load.js ходят в живые сервисы через этот прокси.
-ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766,http://localhost:9876"
+# сайт клона, dev-сервер приложения web/ (8769) и vite preview (4173)
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8769,http://localhost:4173"
 
-# Частота с одного IP (CF-Connecting-IP) за 60 с. Через прокси идут тайловые слои (Strava,
-# Tsvetkov, swisstopo, wikimapia) и печать, поэтому лимит выше, чем у остальных Worker'ов.
+# Частота с одного IP (CF-Connecting-IP) за 60 с. Через прокси идут тайловые слои (Strava heatmap,
+# Tsvetkov), поэтому лимит выше, чем у остальных Worker'ов.
 # RATE_LIMITER — хосты слоёв (LAYER_HOSTS в src/index.js), OTHER_RATE_LIMITER — все остальные.
-# namespace_id — номер счётчика, уникальный в аккаунте: 1001–1007 заняты Worker'ами клона.
+# namespace_id — номер счётчика, уникальный в аккаунте: 1002–1008 заняты Worker'ами клона (1001 освобождён).
 [[ratelimits]]
 name = "RATE_LIMITER"
 namespace_id = "1004"

@@ -79,8 +79,8 @@ describe('POST /', () => {
 
 describe('CORS and methods', () => {
     it('reflects an allowed origin with credentials', async () => {
-        const response = await request({body: '43.35 42.44', origin: 'http://localhost:8766'});
-        expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:8766');
+        const response = await request({body: '43.35 42.44', origin: 'http://localhost:8769'});
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:8769');
         expect(response.headers.get('Access-Control-Allow-Credentials')).toBe('true');
         expect(response.headers.get('Vary')).toBe('Origin');
     });
