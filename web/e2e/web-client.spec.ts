@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 import { parseRedirects, resolveRedirect } from '../vite/redirects.ts';
 import { expect, test } from './fixtures.ts';
@@ -81,6 +82,21 @@ const REMOVED_FEATURE_LINKS = [
     '#m=12/41.69/44.78&l=O&sid=kq3f1x_abc123',
 ];
 const REMOVED_PARAMS = ['p', 'j', 'min', 'autoprofile', 'sid', 'q'];
+// saveNktk трека «Mtatsminda» (e2e/tracks.spec.ts): строкой, e2e собирается как Node-модуль и src/tracks/ не импортирует
+const MTATSMINDA = 'RAoCEAESNgoKTXRhdHNtaW5kYRIQCgbele0B0gMSBorn_gHzAhoWCICZ7QEQluT-ARoKGghUViB0b3dlcg==';
+// ключ nktl из фикстуры старых ссылок
+const STORED_KEY = 'KYOMJFo4WrootHEbXrMSTA';
+// ответ OSM на трек 3376100 (src/tracks/fixtures/README.md)
+const OSM_TRACE = fileURLToPath(new URL('../src/tracks/fixtures/services/osm-3376100.gpx', import.meta.url));
+const TRACK_LINKS: [hash: string, track: string][] = [
+    [`#m=12/41.7/44.8&l=O&nktk=${MTATSMINDA}`, 'Mtatsminda'],
+    [`#m=12/41.7/44.8&l=O&nktl=${STORED_KEY}`, 'Mtatsminda'],
+    [
+        `#m=12/41.7/44.8&l=O&nktu=${encodeURIComponent('https://www.openstreetmap.org/user/Wladich/traces/3376100')}`,
+        'Test - Тест - Zkouška',
+    ],
+    ['#m=12/41.7/44.8&l=O&nktp=41.7/44.8/Tbilisi', 'Tbilisi'],
+];
 
 test('Набор реальных старых ссылок', async ({ page, network }) => {
     test.slow();
@@ -112,6 +128,22 @@ test('Набор реальных старых ссылок', async ({ page, net
         expect(errors, hash).toEqual([]);
     }
     expect(OLD_LINKS.length).toBeGreaterThan(50);
+
+    // треки и панорама из параметров старых ссылок: хранилище и прокси отвечают заглушками фикстуры network
+    network.storage.set(STORED_KEY, MTATSMINDA);
+    network.proxyResponds('https://www.openstreetmap.org/trace/3376100/data', { path: OSM_TRACE });
+    for (const [hash, name] of TRACK_LINKS) {
+        await page.goto('about:blank');
+        await page.goto(`/${hash}`);
+        await expect(
+            page.getByRole('list', { name: 'Tracks' }).getByRole('button', { name, exact: true }).first(),
+            hash,
+        ).toBeVisible();
+    }
+    await page.goto('about:blank');
+    await page.goto('/#m=17/41.6935/44.781&l=O&n=41.693500/44.781000/45.0/0.0/1.0');
+    await expect.poll(() => new URL(page.url()).hash).toMatch(/[#&]n2=_g\/g\/41\.6935/);
+    expect(errors).toEqual([]);
 });
 
 test('Первый заход', async ({ page, network }) => {
