@@ -1,12 +1,29 @@
 import { expect, test } from 'vitest';
+import { PROFILE_SELECTION } from '@/elevation/style';
 import { EDIT_LAYERS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from '@/routing/edit-style';
 import { TRACK_LABELS, TRACK_LINES, TRACK_POINTS, TRACK_UNROUTED } from '@/tracks/style';
 import { buildCatalog, type LayerDef } from './catalog';
 import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, overlaySources } from './style';
 
 // слои треков и редактора над всеми слоями карты (есть всегда, пустые без треков)
-const TRACKS = [TRACK_LINES, TRACK_UNROUTED, TRACK_POINTS, TRACK_LABELS, ...EDIT_LAYERS.map((layer) => layer.id)];
-const OVERLAY_SOURCES = [TRACK_LINES, TRACK_UNROUTED, TRACK_POINTS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS];
+// выделенный участок профиля высот — под треками, треки — под редактируемой линией
+const TRACKS = [
+    PROFILE_SELECTION,
+    TRACK_LINES,
+    TRACK_UNROUTED,
+    TRACK_POINTS,
+    TRACK_LABELS,
+    ...EDIT_LAYERS.map((layer) => layer.id),
+];
+const OVERLAY_SOURCES = [
+    TRACK_LINES,
+    TRACK_UNROUTED,
+    TRACK_POINTS,
+    EDIT_LEGS,
+    EDIT_PREVIEW,
+    EDIT_WAYPOINTS,
+    PROFILE_SELECTION,
+];
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 

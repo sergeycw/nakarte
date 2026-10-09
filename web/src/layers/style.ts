@@ -1,4 +1,5 @@
 import type { GeoJSONSourceSpecification, LayerSpecification, StyleSpecification } from 'maplibre-gl';
+import { PROFILE_LAYERS, PROFILE_SOURCES } from '@/elevation/style';
 import { EDIT_LAYERS, editSources } from '@/routing/edit-style';
 import type { RouteEditState } from '@/state/store';
 import type { Track } from '@/tracks/model';
@@ -10,7 +11,7 @@ import type { LayerDef } from './catalog';
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
 // Под слоями — серый фон, как у старого клиента: пока тайлы грузятся или подложка сменилась, виден он, а не белая
 // страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts), над ними —
-// редактируемая линия (src/routing/edit-style.ts). Их источники (overlay) карта собирает сама и мемоизирует отдельно:
+// редактируемая линия (src/routing/edit-style.ts); выделенный участок профиля высот — под треками (src/elevation/style.ts). Их источники (overlay) карта собирает сама и мемоизирует отдельно:
 // diff стиля MapLibre сравнивает данные GeoJSON всех источников на каждое обновление.
 export function overlaySources(
     tracks: readonly Track[] = [],
@@ -20,6 +21,7 @@ export function overlaySources(
     return {
         ...trackSources(tracks, skip).sources,
         ...editSources(edit?.state ?? null, edit?.color ?? '', edit?.drag ?? null),
+        ...PROFILE_SOURCES,
     };
 }
 
@@ -37,7 +39,7 @@ export function buildStyle(
     return {
         version: 8,
         sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...overlay },
-        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...TRACK_LAYERS, ...EDIT_LAYERS],
+        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS],
     };
 }
 

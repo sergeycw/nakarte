@@ -2,6 +2,8 @@ import { Map as MapLibreMap, type MapRef, Marker, NavigationControl } from '@vis
 import { LoaderCircleIcon } from 'lucide-react';
 import type { RequestTransformFunction } from 'maplibre-gl';
 import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
+import { ProfileOnMap } from '@/elevation/ProfileOnMap';
+import { PROFILE_SOURCES } from '@/elevation/style';
 import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
@@ -70,7 +72,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
-        return buildStyle(defs, { ...trackData.sources, ...editData });
+        return buildStyle(defs, { ...trackData.sources, ...editData, ...PROFILE_SOURCES });
     }, [selection, layers, trackData, editData]);
 
     useEffect(() => {
@@ -102,9 +104,13 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     useEffect(fitRequestedBounds, [fitRequestedBounds]);
 
     return (
-        // кнопки зума MapLibre — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9). С !important: CSS
-        // MapLibre подключён вне @layer и без него перебивает утилиту Tailwind своим top: 0
-        <div className="absolute inset-0 isolate [&_.maplibregl-ctrl-top-right]:top-12!" data-testid="map">
+        // кнопки зума MapLibre — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9); атрибуция и прочие нижние
+        // контролы — над панелью профиля высот (--bottom-inset, App). С !important: CSS MapLibre подключён вне @layer и
+        // без него перебивает утилиту Tailwind своими top: 0 и bottom: 0
+        <div
+            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-(--bottom-inset)! [&_.maplibregl-ctrl-bottom-right]:bottom-(--bottom-inset)! [&_.maplibregl-ctrl-top-right]:top-12!"
+            data-testid="map"
+        >
             <MapLibreMap
                 ref={setMapRef}
                 mapLib={maplibre}
@@ -128,6 +134,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
             >
                 <NavigationControl position="top-right" />
                 <MapEditor />
+                <ProfileOnMap />
                 {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
                     единицы, а анимация CSS проще символьного слоя */}
                 {trackData.pending.map((point, i) => (

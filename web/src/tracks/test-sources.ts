@@ -4,6 +4,7 @@ import type { TrackSources } from './sources';
 
 export const TEST_PROXY = 'https://proxy.test/';
 export const TEST_STORAGE = 'https://tracks.test';
+export const TEST_ELEVATION = 'https://elevation.test/';
 
 export interface FakeResponse {
     status?: number;
@@ -15,6 +16,7 @@ export function fakeSources(responses: Record<string, FakeResponse> = {}) {
     const sources: TrackSources = {
         corsProxyUrl: TEST_PROXY,
         tracksStorageServer: TEST_STORAGE,
+        elevationsServer: TEST_ELEVATION,
         fetch: async (input) => {
             const url = String(input);
             requested.push(url);

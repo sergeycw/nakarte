@@ -129,7 +129,7 @@ function trackStore() {
     });
     const actions = createTrackActions({
         store,
-        sources: { fetch: globalThis.fetch, corsProxyUrl: '', tracksStorageServer: '' },
+        sources: { fetch: globalThis.fetch, corsProxyUrl: '', tracksStorageServer: '', elevationsServer: '' },
         notify: () => {},
         location: () => ({ origin: '', pathname: '', hash: '' }),
     });

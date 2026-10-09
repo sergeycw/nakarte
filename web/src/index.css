@@ -56,6 +56,8 @@
 /* только светлая тема (record-ui-decisions): блока .dark нет, браузер не красит контролы в тёмные */
 :root {
     color-scheme: light;
+    /* высота нижней панели (профиль высот): над ней встают панели редактора, атрибуция карты и тосты; ставит App */
+    --bottom-inset: 0px;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);

@@ -6,6 +6,8 @@ export interface TrackSources {
     fetch: typeof fetch;
     corsProxyUrl: string;
     tracksStorageServer: string;
+    // API высот (спека elevation-api): GPX с высотами и профиль
+    elevationsServer: string;
 }
 
 export function proxied(sources: TrackSources, url: string): string {

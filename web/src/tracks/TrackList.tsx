@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useElevationProfile } from '@/elevation/context';
 import { useRouteEditing } from '@/routing/editing-context';
 import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
@@ -71,6 +72,7 @@ function ColorPicker({ track }: { track: Track }) {
 function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) => void }) {
     const actions = useTrackActions();
     const editing = useRouteEditing();
+    const profile = useElevationProfile();
     const edited = useAppStore((state) => state.routeEdit?.trackId === track.id);
     return (
         // редактируемый трек подсвечен (класс edit строки старого клиента)
@@ -111,8 +113,12 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
                     <DropdownMenuItem onClick={() => actions.duplicate(track)}>Duplicate</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.reverse(track)}>Reverse</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.remove(track)}>Delete</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => profile.open(track.id)}>Show elevation profile</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => actions.saveTrackWithElevation(track)}>
+                        Save as GPX with elevation
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.saveTrack(track, 'kml')}>Save as KML</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.copyTrackLink(track)}>
                         Copy link for track

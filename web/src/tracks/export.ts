@@ -28,7 +28,22 @@ function escapeXml(text: string): string {
 
 const coord = (value: number) => value.toFixed(6);
 
-export function toGpx(name: string, segments: readonly (readonly LatLng[])[], points: readonly Waypoint[]): string {
+// Высоты GPX с высотами: по одной на точку трека и на точку отрезков, null — без <ele> (точка без данных у API высот)
+export interface GpxElevations {
+    points: readonly (number | null)[];
+    segments: readonly (readonly (number | null)[])[];
+}
+
+// <ele> с одним знаком, как saveGpx(…, withElevations) старого клиента
+const ele = (value: number | null | undefined) =>
+    value === null || value === undefined ? '' : `<ele>${value.toFixed(1)}</ele>`;
+
+export function toGpx(
+    name: string,
+    segments: readonly (readonly LatLng[])[],
+    points: readonly Waypoint[],
+    elevations?: GpxElevations,
+): string {
     // time у точек трека ничего не значит: без него Garmin Connect не принимал файл (комментарий старого клиента)
     const fakeTime = '1970-01-01T00:00:01.000Z';
     const gpx = [
@@ -40,23 +55,29 @@ export function toGpx(name: string, segments: readonly (readonly LatLng[])[], po
         `\t\t<time>${new Date().toISOString()}</time>`,
         '\t</metadata>',
     ];
-    for (const point of points) {
+    points.forEach((point, i) => {
         gpx.push(`\t<wpt lat="${coord(point.lat)}" lon="${coord(point.lng)}">`);
+        // порядок элементов wpt по схеме GPX 1.1: ele раньше name
+        const height = ele(elevations?.points[i]);
+        if (height) {
+            gpx.push(`\t\t${height}`);
+        }
         gpx.push(`\t\t<name>${escapeXml(point.name)}</name>`);
         gpx.push('\t</wpt>');
-    }
+    });
     if (segments.length) {
         gpx.push('\t<trk>');
         gpx.push(`\t\t<name>${escapeXml(name || 'Track')}</name>`);
-        for (const segment of segments) {
+        segments.forEach((segment, k) => {
             gpx.push('\t\t<trkseg>');
-            for (const point of segment) {
+            segment.forEach((point, i) => {
+                const height = ele(elevations?.segments[k]?.[i]);
                 gpx.push(
-                    `\t\t\t<trkpt lat="${coord(point.lat)}" lon="${coord(point.lng)}"><time>${fakeTime}</time></trkpt>`,
+                    `\t\t\t<trkpt lat="${coord(point.lat)}" lon="${coord(point.lng)}">${height}<time>${fakeTime}</time></trkpt>`,
                 );
-            }
+            });
             gpx.push('\t\t</trkseg>');
-        }
+        });
         gpx.push('\t</trk>');
     }
     gpx.push('</gpx>');
@@ -121,6 +142,34 @@ export function exportTrack(track: TrackData, format: Format, allowEmpty = false
     const name = fileBaseName(track.name);
     const { write, mimeType } = FORMATS[format];
     return { filename: `${name}.${format}`, content: write(name, segments, track.points), mimeType };
+}
+
+// GPX с высотами (exportTrackAsFile старого клиента с addElevations): высоты всех точек трека и отрезков — без выборки,
+// после деления у 180°, как в файле. elevations — запрос к API высот (elevation/api.ts); его ошибка уходит наверх, файла
+// нет (у старого после уведомления падал TypeError). Пустой трек — EmptyTrackError без запроса.
+export async function exportGpxWithElevations(
+    track: TrackData,
+    elevations: (points: readonly LatLng[]) => Promise<(number | null)[]>,
+): Promise<ExportedFile> {
+    const segments = splitLinesAt180(track.segments);
+    if (segments.length === 0 && track.points.length === 0) {
+        throw new EmptyTrackError();
+    }
+    const values = await elevations([...track.points, ...segments.flat()]);
+    let next = track.points.length;
+    const heights: GpxElevations = {
+        points: values.slice(0, next),
+        segments: segments.map((segment) => {
+            next += segment.length;
+            return values.slice(next - segment.length, next);
+        }),
+    };
+    const name = fileBaseName(track.name);
+    return {
+        filename: `${name}.gpx`,
+        content: toGpx(name, segments, track.points, heights),
+        mimeType: FORMATS.gpx.mimeType,
+    };
 }
 
 function uniqueName(name: string, seen: Set<string>): string {

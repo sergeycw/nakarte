@@ -1,0 +1,337 @@
+import type { Map as MaplibreMap } from 'maplibre-gl';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { page } from 'vitest/browser';
+import { cleanup } from 'vitest-browser-react';
+import '@/index.css';
+import { config } from '@/config';
+import { fakeRouter } from '@/test/fake-router';
+import {
+    chooseFromMenu,
+    drag,
+    editPanel,
+    features,
+    fire,
+    idle,
+    menuItems,
+    newTrack,
+    P,
+    rightClick,
+} from '@/test/map-events';
+import { renderApp } from '@/test/render-app';
+import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import type { LatLng, Waypoint } from '@/tracks/model';
+import { saveNktk } from '@/tracks/nktk';
+import { PROFILE_SELECTION } from './style';
+
+// Профиль высот в App на настоящей карте MapLibre (спеки tracks и route-editing; design add-web-elevation-profile,
+// «Тесты»): тайлы — фикстура, API высот — заглушка fetch (высота — функция широты), роутер — поддельный. Названия тестов
+// — сценарии спек.
+
+let tiles: FixtureTiles;
+
+beforeEach(() => {
+    localStorage.clear();
+    tiles = fixtureTiles();
+});
+
+afterEach(async () => {
+    await cleanup();
+    expect(tiles.external, 'запросы мимо localhost и тайлов').toEqual([]);
+});
+
+// Тбилиси, зум старого клиента 14: километр по меридиану ≈ 330 px
+const VIEW = '#m=14/41.695/44.785';
+// отрезки по меридиану по ≈ 1 км (0.009° широты), второй в ≈ 1.2 км севернее первого
+const SOUTH = [P(41.68, 44.78), P(41.689, 44.78)];
+const NORTH = [P(41.7, 44.79), P(41.709, 44.79)];
+
+// высота — (широта − 41.6) × 10 000: 41.68 → 800 м, 41.689 → 890 м; по меридиану подъём ровный
+const height = (lat: number) => Math.round((lat - 41.6) * 10000 * 100) / 100;
+
+interface Api {
+    fetch: typeof fetch;
+    // тела запросов к API высот
+    requests: string[];
+}
+
+// API высот в памяти; respond — свой ответ на тело запроса (ошибка, 429, NULL)
+function elevationApi(respond?: (body: string, attempt: number) => Response | null): Api {
+    const requests: string[] = [];
+    const api: Api = {
+        requests,
+        fetch: async (input, init) => {
+            if (String(input) !== config.elevationsServer) {
+                throw new TypeError(`no network in tests: ${String(input)}`);
+            }
+            const body = String(init?.body);
+            requests.push(body);
+            const custom = respond?.(body, requests.length);
+            if (custom) {
+                return custom;
+            }
+            const rows = body.split('\n').map((row) => height(Number.parseFloat(row)).toFixed(2));
+            return new Response(rows.join('\n'));
+        },
+    };
+    return api;
+}
+
+function trackLink(name: string, segments: LatLng[][], points: Waypoint[] = []) {
+    return `${VIEW}&nktk=${saveNktk({ name, segments, points })}`;
+}
+
+async function render(hash: string, api = elevationApi()) {
+    localStorage.setItem('nakarte-web:routing-activity', 'hiking');
+    const router = fakeRouter({ auto: true });
+    const app = await renderApp(tiles, hash, { fetch: api.fetch, router });
+    return { ...app, api, router };
+}
+
+const profilePanel = () => page.getByTestId('elevation-profile');
+const stat = (key: string) => profilePanel().element().querySelector(`[data-stat="${key}"]`)?.textContent ?? '';
+
+async function trackMenu(name: string, item: string) {
+    await page.getByRole('button', { name: `Actions for ${name}` }).click();
+    await page.getByRole('menuitem', { name: item, exact: true }).click();
+}
+
+async function openTrackProfile(name: string) {
+    await trackMenu(name, 'Show elevation profile');
+    await expect.poll(() => stat('distance')).not.toBe('');
+}
+
+// точка графика на доле ширины: экранные координаты для синтетических событий указателя
+function graphAt(fraction: number) {
+    const rect = page.getByTestId('profile-graph').element().getBoundingClientRect();
+    return { clientX: Math.round(rect.left + (rect.width - 1) * fraction), clientY: Math.round(rect.top + 20) };
+}
+
+function pointer(type: string, fraction: number, init: PointerEventInit = {}) {
+    page.getByTestId('profile-graph')
+        .element()
+        .dispatchEvent(
+            new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                pointerType: 'mouse',
+                pointerId: 1,
+                button: 0,
+                buttons: type === 'pointerup' ? 0 : 1,
+                ...graphAt(fraction),
+                ...init,
+            }),
+        );
+}
+
+const cursorLabel = () => page.getByTestId('profile-cursor-label').element().textContent ?? '';
+
+// центр метки курсора на карте — в координатах карты
+function markerAt(map: MaplibreMap) {
+    const rect = page.getByTestId('profile-marker').element().getBoundingClientRect();
+    const container = map.getCanvasContainer().getBoundingClientRect();
+    return map.unproject([rect.left + rect.width / 2 - container.left, rect.top + rect.height / 2 - container.top]);
+}
+
+describe('Профиль высот трека и отрезка', () => {
+    test('Профиль трека', async () => {
+        const { api } = await render(trackLink('Walk', [SOUTH, NORTH]));
+        await openTrackProfile('Walk');
+        // расстояние — сумма отрезков без промежутка между ними
+        expect(stat('distance')).toBe('2.00 km');
+        expect(api.requests).toHaveLength(1);
+        const link = profilePanel().getByRole('link', { name: /viewfinderpanoramas/ });
+        await expect.element(link).toHaveAttribute('href', config.elevationsAttribution.url);
+    });
+
+    test('Профиль отрезка', async () => {
+        const { map, api } = await render(trackLink('Walk', [SOUTH, NORTH]));
+        await rightClick(map, P(41.705, 44.79));
+        await chooseFromMenu('Show elevation profile for segment');
+        await expect.poll(() => stat('distance')).toBe('1.00 km');
+        await expect.element(profilePanel().getByText('Walk, segment 2')).toBeVisible();
+        expect(api.requests).toHaveLength(1);
+        // ссылка округляет координаты по сетке nktk (≈ 2.4 м)
+        const [lat, lng] = api.requests[0].split('\n')[0].split(' ').map(Number);
+        expect(lat).toBeCloseTo(41.7, 4);
+        expect(lng).toBeCloseTo(44.79, 4);
+        // редактирование продолжается, панель редактора — над профилем
+        await expect.element(editPanel()).toBeVisible();
+        const editBottom = editPanel().element().getBoundingClientRect().bottom;
+        expect(editBottom).toBeLessThanOrEqual(profilePanel().element().getBoundingClientRect().top);
+    });
+
+    test('Трек без линий', async () => {
+        const { api } = await render(trackLink('Points', [], [{ lat: 41.69, lng: 44.78, name: 'Camp' }]));
+        await trackMenu('Points', 'Show elevation profile');
+        await expect.element(page.getByText('Track is empty')).toBeVisible();
+        expect(profilePanel().query()).toBeNull();
+        expect(api.requests).toEqual([]);
+    });
+
+    test('закрыть профиль', async () => {
+        await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        await page.getByRole('button', { name: 'Close elevation profile' }).click();
+        await expect.poll(() => profilePanel().query()).toBeNull();
+    });
+});
+
+describe('Сводка профиля', () => {
+    test('Подъём и спуск: стык отрезков не считается подъёмом', async () => {
+        await render(trackLink('Walk', [SOUTH, NORTH]));
+        await openTrackProfile('Walk');
+        // 800 → 890 и 1000 → 1090: подъём 180 м, а не 290
+        expect(stat('ascent')).toBe('180 m');
+        expect(stat('descent')).toBe('0 m');
+        expect(stat('min')).toBe('800 m');
+        expect(stat('max')).toBe('1090 m');
+        expect(stat('start')).toBe('800 m');
+        expect(stat('finish')).toBe('1090 m');
+    });
+
+    test('Точки без данных', async () => {
+        const api = elevationApi((body) => {
+            const rows = body.split('\n').map((row) => {
+                const lat = Number.parseFloat(row);
+                return lat > 41.684 && lat < 41.686 ? 'NULL' : height(lat).toFixed(2);
+            });
+            return new Response(rows.join('\n'));
+        });
+        await render(trackLink('Walk', [SOUTH]), api);
+        await openTrackProfile('Walk');
+        await expect.element(page.getByTestId('profile-note')).toHaveTextContent('Some elevation data missing');
+        // график рвётся на точках без данных: два прогона ломаной
+        const d = page.getByTestId('profile-line').element().getAttribute('d') ?? '';
+        expect(d.match(/M/gu)).toHaveLength(2);
+        // точки без данных не уводят шкалу к нулю
+        expect(stat('min')).toBe('800 m');
+        expect(stat('ascent')).toBe('~90 m');
+    });
+});
+
+describe('Курсор профиля и карта', () => {
+    test('Курсор на графике', async () => {
+        const { map } = await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        pointer('pointermove', 0.5);
+        await expect.element(page.getByTestId('profile-marker')).toBeVisible();
+        expect(cursorLabel()).toContain('0.50 km');
+        expect(cursorLabel()).toContain('845 m');
+        const at = markerAt(map);
+        expect(at.lat).toBeCloseTo(41.6845, 3);
+        expect(at.lng).toBeCloseTo(44.78, 3);
+        // onPointerLeave React собирает из pointerout с relatedTarget снаружи
+        pointer('pointerout', 0.5, { relatedTarget: document.body });
+        await expect.poll(() => page.getByTestId('profile-marker').query()).toBeNull();
+    });
+
+    test('Курсор над линией', async () => {
+        const { map } = await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        await idle(map);
+        fire(map, 'mousemove', SOUTH[1]);
+        await expect.element(page.getByTestId('profile-cursor')).toBeVisible();
+        expect(cursorLabel()).toContain('1.00 km');
+        const graph = page.getByTestId('profile-graph').element().getBoundingClientRect();
+        const cursor = page.getByTestId('profile-cursor').element().getBoundingClientRect();
+        expect(graph.right - cursor.left).toBeLessThan(4);
+        // мышь ушла от линии — курсора нет
+        fire(map, 'mousemove', P(41.684, 44.79));
+        await expect.poll(() => page.getByTestId('profile-cursor').query()).toBeNull();
+        // линию скрытого трека не видно — наведение на её место курсор не ставит
+        await page.getByRole('checkbox', { name: 'Show Walk' }).click();
+        await idle(map);
+        fire(map, 'mousemove', SOUTH[1]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(page.getByTestId('profile-cursor').query()).toBeNull();
+    });
+
+    test('Выделение участка', async () => {
+        const { map } = await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        pointer('pointerdown', 0.25);
+        pointer('pointermove', 0.4);
+        pointer('pointermove', 0.5);
+        pointer('pointerup', 0.5);
+        await expect.element(profilePanel().getByText('Selection')).toBeVisible();
+        expect(stat('distance')).toBe('0.25 km');
+        // 0.25 км подъёма 90 м на 1 км: 22.5 м, точки выделения — ближайшие точки выборки
+        expect(stat('ascent')).toMatch(/^2[23] m$/);
+        await expect.poll(() => features(map, PROFILE_SELECTION).length).toBe(1);
+        // клик без сдвига снимает выделение
+        pointer('pointerdown', 0.7);
+        pointer('pointerup', 0.7);
+        await expect.poll(() => stat('distance')).toBe('1.00 km');
+        await expect.poll(() => features(map, PROFILE_SELECTION).length).toBe(0);
+    });
+
+    test('двойной клик переводит карту в точку графика', async () => {
+        const { map } = await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        const zoom = map.getZoom();
+        page.getByTestId('profile-graph')
+            .element()
+            .dispatchEvent(new MouseEvent('dblclick', { bubbles: true, ...graphAt(0) }));
+        await expect.poll(() => map.getCenter().lat).toBeCloseTo(41.68, 4);
+        expect(map.getCenter().lng).toBeCloseTo(44.78, 4);
+        expect(map.getZoom()).toBeCloseTo(zoom, 6);
+    });
+});
+
+describe('Профиль следует за треком', () => {
+    test('Правка во время профиля', async () => {
+        const { map, api, router } = await render(VIEW);
+        const a = P(41.69, 44.775);
+        const b = P(41.692, 44.785);
+        await newTrack(map, [a, b]);
+        await expect.poll(() => router.calls.length).toBe(1);
+        await rightClick(map, b);
+        expect(await menuItems()).toContain('Show elevation profile for segment');
+        await chooseFromMenu('Show elevation profile for segment');
+        await expect.poll(() => api.requests.length).toBe(1);
+        // перетаскивание точки: роутер прокладывает новый отрезок, профиль перестраивается одним запросом после паузы
+        await drag(map, b, P(41.695, 44.785));
+        await expect.poll(() => router.calls.length).toBe(2);
+        await expect.poll(() => api.requests.length, { timeout: 3000 }).toBe(2);
+        expect(api.requests[1]).toContain('41.695000');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        expect(api.requests).toHaveLength(2);
+    });
+
+    test('Удаление трека', async () => {
+        await render(trackLink('Walk', [SOUTH]));
+        await openTrackProfile('Walk');
+        await trackMenu('Walk', 'Delete');
+        await expect.poll(() => profilePanel().query()).toBeNull();
+    });
+});
+
+describe('Ошибка сервиса высот в профиле', () => {
+    test('Сервис недоступен', async () => {
+        const api = elevationApi((_, attempt) => {
+            if (attempt === 1) {
+                throw new TypeError('Failed to fetch');
+            }
+            return null;
+        });
+        await render(trackLink('Walk', [SOUTH]), api);
+        await trackMenu('Walk', 'Show elevation profile');
+        // toHaveTextContent со строкой сравнивает текст целиком, а в плашке ещё кнопка Retry
+        await expect.element(profilePanel().getByText('Failed to get elevation data: network error')).toBeVisible();
+        await profilePanel().getByRole('button', { name: 'Retry' }).click();
+        await expect.poll(() => stat('distance')).toBe('1.00 km');
+        expect(profilePanel().getByRole('alert').query()).toBeNull();
+        await expect.element(page.getByTestId('profile-line')).toBeInTheDocument();
+    });
+
+    test('Слишком частые запросы', async () => {
+        await render(
+            trackLink('Walk', [SOUTH]),
+            elevationApi(() => new Response('Too many requests\n', { status: 429 })),
+        );
+        await trackMenu('Walk', 'Show elevation profile');
+        await expect
+            .element(profilePanel().getByText('Failed to get elevation data: too many requests, try again in a minute'))
+            .toBeVisible();
+    });
+});

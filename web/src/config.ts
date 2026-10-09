@@ -13,6 +13,9 @@ export interface Config {
     defaultZoom: number;
     corsProxyUrl: string;
     elevationsServer: string;
+    // атрибуция данных сервиса высот: условия viewfinderpanoramas.org требуют ссылку на источник (elevationsAttribution
+    // старого клиента, src/config.js)
+    elevationsAttribution: { text: string; url: string };
     tracksStorageServer: string;
     routingEngine: RoutingEngine;
     routingEngineRuntimeUrl: string;
@@ -31,6 +34,10 @@ export function makeConfig(mode: string): Config {
         defaultZoom: 7,
         corsProxyUrl: CORS_PROXY_URL,
         elevationsServer: ELEVATION_SERVER_URL,
+        elevationsAttribution: {
+            text: 'viewfinderpanoramas.org (Jonathan de Ferranti)',
+            url: 'https://viewfinderpanoramas.org/dem3.html',
+        },
         tracksStorageServer: 'https://nakarte-tracks.nakarte-routing.workers.dev',
         routingEngine: clone ? 'browser' : 'server',
         // загрузчик CheerpJ той же версии, что у старого клиента: лицензия Community работает только с этим CDN

@@ -59,7 +59,7 @@ const C = P(41.693, 44.79);
 const Z = [P(41.686, 44.776), P(41.689, 44.779), P(41.686, 44.782), P(41.689, 44.785), P(41.686, 44.788)];
 const OTHER = [P(41.694, 44.775), P(41.696, 44.779), P(41.694, 44.783)];
 
-const SEGMENT_MENU = ['Delete segment', 'New track from segment'];
+const SEGMENT_MENU = ['Delete segment', 'New track from segment', 'Show elevation profile for segment'];
 
 function link(name: string, segments: LatLng[][]) {
     return saveNktk({ name, segments, points: [] });

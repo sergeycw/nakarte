@@ -5,6 +5,9 @@ import { type AutosaveStorage, startAutosave } from '@/autosave/autosave';
 import { indexedDbStorage } from '@/autosave/idb';
 import { Toaster, toast } from '@/components/ui/toast';
 import { config } from '@/config';
+import { ElevationProfileContext } from '@/elevation/context';
+import { createElevationProfile } from '@/elevation/controller';
+import { ElevationProfile, PROFILE_HEIGHT } from '@/elevation/ElevationProfile';
 import { getEngine } from '@/engine/engine';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
@@ -13,7 +16,7 @@ import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
-import { AppStoreContext } from '@/state/context';
+import { AppStoreContext, useAppStore } from '@/state/context';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
@@ -61,6 +64,20 @@ interface AppProps {
     autosave?: AutosaveStorage | null;
 }
 
+// Высота нижней панели (профиль высот) — CSS-переменная на <html>: над панелью встают панели редактора, атрибуция
+// карты и тосты, а тосты Base UI рендерятся в портал вне <main>
+function BottomInset() {
+    const open = useAppStore((state) => state.profile !== null);
+    useEffect(() => {
+        const root = document.documentElement;
+        root.style.setProperty('--bottom-inset', open ? `calc(${PROFILE_HEIGHT} + 0.75rem)` : '0px');
+        return () => {
+            root.style.removeProperty('--bottom-inset');
+        };
+    }, [open]);
+    return null;
+}
+
 function notify(title: string, type?: 'error' | 'success') {
     toast.add({ title, type });
 }
@@ -87,7 +104,12 @@ export function App({
     const [trackActions] = useState(() =>
         createTrackActions({
             store,
-            sources: { fetch, corsProxyUrl: config.corsProxyUrl, tracksStorageServer: config.tracksStorageServer },
+            sources: {
+                fetch,
+                corsProxyUrl: config.corsProxyUrl,
+                tracksStorageServer: config.tracksStorageServer,
+                elevationsServer: config.elevationsServer,
+            },
             notify,
             location: () => window.location,
             writeClipboard,
@@ -142,6 +164,10 @@ export function App({
             storage: localStorageOrNull(),
         }),
     );
+    const [elevationProfile] = useState(() =>
+        createElevationProfile({ store, source: { fetch, url: config.elevationsServer }, notify }),
+    );
+    useEffect(() => elevationProfile.start(), [elevationProfile]);
     useEffect(
         () => bindAppStore(store, window, localStorageOrNull(), trackActions.openTrackParams),
         [store, trackActions],
@@ -168,31 +194,35 @@ export function App({
         <AppStoreContext value={store}>
             <TrackActionsContext value={trackActions}>
                 <RouteEditingContext value={routeEditing}>
-                    <Toaster>
-                        <main
-                            className="fixed inset-0 overflow-hidden"
-                            // файлы треков можно бросить на карту (onFileDragDrop старого клиента)
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => {
-                                event.preventDefault();
-                                if (event.dataTransfer.files.length) {
-                                    trackActions.openFiles([...event.dataTransfer.files]);
-                                }
-                            }}
-                        >
-                            <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
-                            {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), клики между панелями уходят карте */}
-                            <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem)] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
-                                <InfoPanel />
-                                <TrackList />
-                            </div>
-                            <LayerSwitcher />
-                            <EditPanel />
-                            <PointPanel />
-                            <MapMenu />
-                            <PointNameDialog />
-                        </main>
-                    </Toaster>
+                    <ElevationProfileContext value={elevationProfile}>
+                        <BottomInset />
+                        <Toaster>
+                            <main
+                                className="fixed inset-0 overflow-hidden"
+                                // файлы треков можно бросить на карту (onFileDragDrop старого клиента)
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    if (event.dataTransfer.files.length) {
+                                        trackActions.openFiles([...event.dataTransfer.files]);
+                                    }
+                                }}
+                            >
+                                <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
+                                {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
+                                <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
+                                    <InfoPanel />
+                                    <TrackList />
+                                </div>
+                                <LayerSwitcher />
+                                <EditPanel />
+                                <PointPanel />
+                                <ElevationProfile />
+                                <MapMenu />
+                                <PointNameDialog />
+                            </main>
+                        </Toaster>
+                    </ElevationProfileContext>
                 </RouteEditingContext>
             </TrackActionsContext>
         </AppStoreContext>

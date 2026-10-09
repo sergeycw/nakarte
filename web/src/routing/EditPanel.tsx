@@ -27,7 +27,7 @@ export function EditPanel() {
     return (
         <Card
             size="sm"
-            className="pointer-events-auto absolute bottom-8 left-1/2 z-10 flex w-max max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-row items-center gap-2 px-3 py-2"
+            className="pointer-events-auto absolute bottom-[calc(var(--bottom-inset)+2rem)] left-1/2 z-10 flex w-max max-w-[calc(100vw-1.5rem)] -translate-x-1/2 flex-row items-center gap-2 px-3 py-2"
             data-testid="edit-panel"
         >
             <span

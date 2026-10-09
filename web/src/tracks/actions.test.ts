@@ -3,6 +3,7 @@ import { buildCatalog } from '@/layers/catalog';
 import { EMPTY_SETTINGS } from '@/layers/settings';
 import { createAppStore } from '@/state/store';
 import { createTrackActions, nextPointName, pointCoordinates } from './actions';
+import type { ExportedFile } from './export';
 import { geoData, type Waypoint } from './model';
 
 // Точки трека на действиях списка без карты (спека tracks, «Добавление точек трека», «Меню точки трека»)
@@ -18,7 +19,7 @@ function setup(writeClipboard: (text: Promise<string>) => Promise<void> = async 
     const messages: string[] = [];
     const actions = createTrackActions({
         store,
-        sources: { fetch: globalThis.fetch, corsProxyUrl: '', tracksStorageServer: '' },
+        sources: { fetch: globalThis.fetch, corsProxyUrl: '', tracksStorageServer: '', elevationsServer: '' },
         notify: (title) => messages.push(title),
         location: () => ({ origin: '', pathname: '', hash: '' }),
         writeClipboard,
@@ -111,5 +112,82 @@ describe('Меню точки трека', () => {
         const { store, actions } = setup(() => Promise.reject(new Error('denied')));
         await actions.copyPointCoordinates({ lat: -1.5, lng: -70.25 });
         expect(store.getState().copyFallback).toEqual({ title: 'Point coordinates', text: '-1.50000 -70.25000' });
+    });
+});
+
+// Спека track-files, «GPX с высотами»: запросы к API — подставной fetch, файл — подставная запись
+describe('GPX с высотами', () => {
+    function withElevation(fetch: typeof globalThis.fetch) {
+        const store = createAppStore({
+            catalog: buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' }),
+            corsProxyUrl: 'https://proxy.test/',
+            settings: EMPTY_SETTINGS,
+            selection: { base: 'O', overlays: [] },
+            view: { lat: 0, lng: 0, zoom: 1 },
+        });
+        const messages: string[] = [];
+        const saved: ExportedFile[] = [];
+        const actions = createTrackActions({
+            store,
+            sources: { fetch, corsProxyUrl: '', tracksStorageServer: '', elevationsServer: 'https://elevation.test/' },
+            notify: (title) => messages.push(title),
+            location: () => ({ origin: '', pathname: '', hash: '' }),
+            save: (file) => saved.push(file),
+        });
+        return { store, actions, messages, saved };
+    }
+    const walk = geoData('Walk', {
+        segments: [
+            [
+                { lat: 41.7, lng: 44.78 },
+                { lat: 41.71, lng: 44.79 },
+            ],
+        ],
+        points: [{ lat: 41.69, lng: 44.77, name: 'Camp' }],
+    });
+
+    test('Сохранить с высотами: запрос — точки трека и отрезков, индикатор загрузки на время запроса', async () => {
+        const bodies: string[] = [];
+        let loadingDuringRequest = 0;
+        const { store, actions, saved, messages } = withElevation(async (url, init) => {
+            expect(url).toBe('https://elevation.test/');
+            loadingDuringRequest = store.getState().loadingTracks;
+            bodies.push(String(init?.body));
+            return new Response('100.00\n200.00\nNULL');
+        });
+        const [track] = store.getState().addTracks([walk]);
+        await actions.saveTrackWithElevation(track);
+        expect(bodies).toEqual(['41.690000 44.770000\n41.700000 44.780000\n41.710000 44.790000']);
+        expect(loadingDuringRequest).toBe(1);
+        expect(store.getState().loadingTracks).toBe(0);
+        expect(messages).toEqual([]);
+        expect(saved[0].filename).toBe('Walk.gpx');
+        expect(saved[0].content).toContain('<ele>100.0</ele>');
+        expect(saved[0].content).toContain('<ele>200.0</ele><time>');
+        expect((saved[0].content as string).match(/<ele>/gu)).toHaveLength(2);
+    });
+
+    test('Сервис недоступен', async () => {
+        const { store, actions, saved, messages } = withElevation(async () => {
+            throw new TypeError('Failed to fetch');
+        });
+        const [track] = store.getState().addTracks([walk]);
+        await actions.saveTrackWithElevation(track);
+        expect(messages).toEqual(['Failed to get elevation data: network error']);
+        expect(saved).toEqual([]);
+        expect(store.getState().loadingTracks).toBe(0);
+    });
+
+    test('пустой трек — сообщение без запроса', async () => {
+        let requests = 0;
+        const { store, actions, saved, messages } = withElevation(async () => {
+            requests++;
+            return new Response('');
+        });
+        const [track] = store.getState().addTracks([geoData('Empty')]);
+        await actions.saveTrackWithElevation(track);
+        expect(messages).toEqual(['Track is empty, nothing to save']);
+        expect(requests).toBe(0);
+        expect(saved).toEqual([]);
     });
 });
