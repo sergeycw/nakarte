@@ -1,0 +1,277 @@
+import type { Point } from 'geojson';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
+import { cleanup } from 'vitest-browser-react';
+import '@/index.css';
+import { config } from '@/config';
+import { fakeRouter } from '@/test/fake-router';
+import { click, features, near, P, waypoints } from '@/test/map-events';
+import { renderApp } from '@/test/render-app';
+import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { TRACK_POINTS } from '@/tracks/style';
+import mapyczJson from './fixtures/mapycz-mtatsminda.json';
+import photonJson from './fixtures/photon-mtatsminda.json';
+
+// Поиск и метка в App на настоящей карте (спека map-search): сеть — заглушка fetch с сохранёнными ответами mapy.cz и
+// photon, в сеть тесты не ходят. Названия тестов — сценарии спеки.
+
+let tiles: FixtureTiles;
+
+beforeEach(() => {
+    localStorage.clear();
+    tiles = fixtureTiles();
+});
+
+afterEach(async () => {
+    await cleanup();
+    expect(tiles.external, 'запросы мимо localhost и тайлов').toEqual([]);
+});
+
+const VIEW = '#m=15/41.69/44.785&l=O';
+
+function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// сеть: mapy.cz через прокси и photon — заданными ответами, остальное — ошибка сети; запросы записываются
+function searchNetwork(responses: { mapy?: () => Response; photon?: () => Response; other?: typeof fetch } = {}) {
+    const requests: string[] = [];
+    const fetchFn: typeof fetch = async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url.startsWith(`${config.corsProxyUrl}https/pro.mapy.cz/`) && responses.mapy) {
+            return responses.mapy();
+        }
+        if (url.startsWith('https://photon.komoot.io/') && responses.photon) {
+            return responses.photon();
+        }
+        if (responses.other) {
+            return responses.other(input, init);
+        }
+        throw new TypeError('Failed to fetch');
+    };
+    return { requests, fetch: fetchFn };
+}
+
+const searchField = () => page.getByRole('combobox', { name: 'Search' });
+const options = () => page.getByRole('option');
+const optionTitles = () =>
+    options()
+        .elements()
+        .map((element) => element.querySelector('div')?.textContent ?? '');
+const placemark = () => page.getByTestId('placemark');
+
+async function render(hash = '', fetchFn?: typeof fetch) {
+    return renderApp(tiles, `${VIEW}${hash}`, { fetch: fetchFn, router: fakeRouter({ auto: true }) });
+}
+
+describe('Строка поиска', () => {
+    test('Короткий запрос', async () => {
+        const net = searchNetwork();
+        await render('', net.fetch);
+        await searchField().fill('ab');
+        await expect.element(page.getByText('Type at least 3 characters')).toBeVisible();
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        expect(net.requests).toEqual([]);
+    });
+
+    test('Горячая клавиша', async () => {
+        await render();
+        document.querySelector<HTMLElement>('.maplibregl-canvas')?.focus();
+        await userEvent.keyboard('{Alt>}l{/Alt}');
+        await expect.element(searchField()).toHaveFocus();
+    });
+});
+
+describe('Поиск по названию', () => {
+    test('Ответ mapy.cz', async () => {
+        const net = searchNetwork({ mapy: () => json(mapyczJson) });
+        await render('', net.fetch);
+        await searchField().fill('mtatsminda');
+        await expect.poll(optionTitles).toHaveLength(5);
+        expect(optionTitles()[0]).toBe('Mtatsminda Park');
+        await expect.element(page.getByText('Amusement park, Tbilisi, Georgia')).toBeVisible();
+        await expect.element(page.getByRole('link', { name: 'Mapy.com' })).toBeVisible();
+        // пауза ввода: одна строка — один запрос
+        expect(net.requests.filter((url) => url.includes('pro.mapy.cz'))).toHaveLength(1);
+        expect(net.requests[0]).toContain('phrase=mtatsminda');
+    });
+
+    test('mapy.cz недоступен', async () => {
+        const net = searchNetwork({ mapy: () => json({}, 502), photon: () => json(photonJson) });
+        await render('', net.fetch);
+        await searchField().fill('mtatsminda');
+        await expect.poll(optionTitles).toHaveLength(5);
+        await expect.element(page.getByRole('link', { name: 'Photon by Komoot' })).toBeVisible();
+    });
+
+    test('Ничего не найдено', async () => {
+        const net = searchNetwork({ mapy: () => json({ result: [] }) });
+        await render('', net.fetch);
+        await searchField().fill('qqqqqq');
+        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Nothing found');
+    });
+
+    test('Оба сервиса недоступны', async () => {
+        const net = searchNetwork({ mapy: () => json({}, 500), photon: () => json({}, 503) });
+        const { map } = await render('', net.fetch);
+        const center = map.getCenter();
+        await searchField().fill('mtatsminda');
+        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Search failed: HTTP 503');
+        expect(map.getCenter()).toEqual(center);
+    });
+});
+
+describe('Поиск по координатам и ссылкам', () => {
+    test('Координаты с полушариями', async () => {
+        const net = searchNetwork();
+        await render('', net.fetch);
+        await searchField().fill('55°52.981′S36°59.540′W');
+        await expect.poll(optionTitles).toEqual(['S 55°52.981′ W 36°59.54′']);
+        expect(net.requests).toEqual([]);
+    });
+
+    test('Неоднозначный порядок', async () => {
+        await render();
+        await searchField().fill('55.2 37.6');
+        await expect.poll(optionTitles).toEqual(['55.2° 37.6°', '37.6° 55.2°']);
+    });
+
+    test('Неверные координаты', async () => {
+        await render();
+        await searchField().fill('95 200');
+        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Invalid coordinates');
+    });
+
+    test('Ссылка Google с местом', async () => {
+        await render();
+        await searchField().fill(
+            'https://www.google.com/maps/place/Nerskoye+Ozero/@56.0836099,37.3849634,16z/data=!3m1!4b1!4m5!3m4!1s0x46b5178a0be6c5b1:0xb13c53547e1d966d!8m2!3d56.0826073!4d37.388256',
+        );
+        await expect.poll(optionTitles).toEqual(['Google map - Nerskoye Ozero', 'Google map view']);
+    });
+
+    test('Ссылка OpenStreetMap', async () => {
+        const { map } = await render();
+        await searchField().fill('https://www.openstreetmap.org/#map=14/49.2199/16.5486');
+        await expect.poll(optionTitles).toEqual(['OpenStreetMap view']);
+        await options().first().click();
+        await expect.poll(() => near(map.getCenter(), P(49.2199, 16.5486))).toBe(true);
+        expect(map.getZoom()).toBe(13);
+        await expect.poll(() => location.hash).toContain('m=14/49.21990/16.54860');
+    });
+
+    test('Неизвестная ссылка', async () => {
+        await render();
+        await searchField().fill('https://example.com/map');
+        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Unsupported link');
+    });
+});
+
+describe('Выбор результата поиска', () => {
+    test('Результат с границами', async () => {
+        const net = searchNetwork({ mapy: () => json(mapyczJson) });
+        const { map } = await render('', net.fetch);
+        await searchField().fill('mtatsminda');
+        await expect.poll(optionTitles).toHaveLength(5);
+        await options().first().click();
+        // границы Mtatsminda Park из ответа: 41.6902–41.6959, 44.7752–44.7872
+        await expect
+            .poll(
+                () => Math.abs(map.getCenter().lat - 41.69305) < 1e-3 && Math.abs(map.getCenter().lng - 44.7812) < 1e-3,
+            )
+            .toBe(true);
+        const bounds = map.getBounds();
+        expect(bounds.contains([44.7753, 41.6903]) && bounds.contains([44.7871, 41.6958])).toBe(true);
+        await expect.element(placemark()).toHaveTextContent('Mtatsminda Park');
+        expect(location.hash).toContain('&r=41.693040/44.779477/Mtatsminda%20Park');
+        // список закрылся, фокус ушёл на карту
+        await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    test('Выбор клавишами', async () => {
+        const net = searchNetwork({ mapy: () => json(mapyczJson) });
+        await render('', net.fetch);
+        await searchField().fill('mtatsminda');
+        await expect.poll(optionTitles).toHaveLength(5);
+        await userEvent.keyboard('{ArrowDown}{Enter}');
+        await expect.element(placemark()).toHaveTextContent('Mtatsminda, Sololaki');
+    });
+
+    test('Escape убирает результаты', async () => {
+        await render();
+        await searchField().fill('55.2 37.6');
+        await expect.poll(optionTitles).toHaveLength(2);
+        await userEvent.keyboard('{Escape}');
+        await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
+        await expect.element(searchField()).not.toHaveFocus();
+    });
+});
+
+const MARK = '&r=41.691000/44.783000/Mtatsminda';
+
+describe('Метка найденного места', () => {
+    test('Клик мимо метки', async () => {
+        const { map } = await render(MARK);
+        await expect.element(placemark()).toHaveTextContent('Mtatsminda');
+        await click(map, P(41.688, 44.789));
+        await expect.element(placemark()).not.toBeInTheDocument();
+    });
+
+    test('Точка трека на месте метки', async () => {
+        const { map } = await render(`${MARK}&nktp=41.689/44.784/Spring`);
+        await page.getByRole('button', { name: 'Actions for Spring' }).click();
+        await page.getByRole('menuitem', { name: 'Add point', exact: true }).click();
+        await placemark().click();
+        // окно названия новой точки — с названием метки
+        await expect.element(page.getByRole('textbox', { name: 'Point name' })).toHaveValue('Mtatsminda');
+        await page.getByRole('button', { name: 'Ok' }).click();
+        await expect
+            .poll(() =>
+                features<Point>(map, TRACK_POINTS).map((f) => [
+                    f.properties?.name,
+                    near(P(f.geometry.coordinates[1], f.geometry.coordinates[0]), P(41.691, 44.783)),
+                ]),
+            )
+            .toContainEqual(['Mtatsminda', true]);
+        await expect.element(placemark()).not.toBeInTheDocument();
+    });
+
+    test('Линия к метке', async () => {
+        const { map } = await render(MARK);
+        await page.getByRole('button', { name: 'New track' }).first().click();
+        await click(map, P(41.688, 44.789));
+        await placemark().click();
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
+        expect(near(waypoints(map)[1], P(41.691, 44.783))).toBe(true);
+    });
+});
+
+describe('Метка в адресе', () => {
+    test('Ссылка с меткой', async () => {
+        await render('&r=41.693040/44.779477/Mtatsminda%20Park');
+        await expect.element(placemark()).toHaveTextContent('Mtatsminda Park');
+    });
+
+    test('Метка убрана', async () => {
+        const { map } = await render(MARK);
+        await click(map, P(41.688, 44.789));
+        await expect.poll(() => location.hash).not.toContain('r=');
+    });
+
+    test('Copy link без метки', async () => {
+        const net = searchNetwork({ other: async () => new Response('', { status: 200 }) });
+        let copied: string | null = null;
+        await renderApp(tiles, `${VIEW}${MARK}&nktp=41.689/44.784/Spring`, {
+            fetch: net.fetch,
+            router: fakeRouter({ auto: true }),
+            writeClipboard: async (text) => {
+                copied = await text;
+            },
+        });
+        await page.getByRole('button', { name: 'Actions for Spring' }).click();
+        await page.getByRole('menuitem', { name: 'Copy link for track', exact: true }).click();
+        await expect.poll(() => copied).toContain('nktl=');
+        expect(copied).not.toContain('r=');
+    });
+});

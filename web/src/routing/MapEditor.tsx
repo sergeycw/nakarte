@@ -571,6 +571,11 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
         if (performance.now() < suppressClickUntil || state().mapMenu) {
             return;
         }
+        // клик по карте мимо метки поиска её снимает (onMapClick метки старого), но не клик рисования или постановки
+        // точек: к метке ведут линию (design add-web-search-panoramas, «Метка»); клик по самой метке сюда не доходит
+        if (state().placemark && !state().routeEdit?.drawing && !state().pointTool && !state().lineTool) {
+            state().setPlacemark(null);
+        }
         if (pointToolClick(lngLat(event))) {
             return;
         }

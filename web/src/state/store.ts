@@ -7,6 +7,7 @@ import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
 import type { LinePlace } from '@/routing/line-tools';
+import type { Placemark } from '@/search/placemark';
 import type { Bounds } from '@/tracks/geometry';
 import { type GeoData, type LatLng, TRACK_COLORS, type Track, type Waypoint } from '@/tracks/model';
 import type { View } from './hash';
@@ -53,6 +54,8 @@ export interface AppState {
     profileData: ProfileData | null;
     profileCursor: number | null;
     profileSelection: readonly [number, number] | null;
+    // метка найденного места (design add-web-search-panoramas, «Метка»): живёт в адресе r=
+    placemark: Placemark | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -89,6 +92,7 @@ export interface AppState {
     setProfileData(data: ProfileData | null): void;
     setProfileCursor(cursor: number | null): void;
     setProfileSelection(selection: readonly [number, number] | null): void;
+    setPlacemark(placemark: Placemark | null): void;
 }
 
 // segment null — профиль всего трека
@@ -154,6 +158,7 @@ export interface AppStoreInit {
     selection: Selection;
     view: View;
     routingActivity?: string | null;
+    placemark?: Placemark | null;
 }
 
 function layersMap(catalog: readonly LayerDef[], custom: readonly string[], corsProxyUrl: string) {
@@ -209,6 +214,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             profileData: null,
             profileCursor: null,
             profileSelection: null,
+            placemark: init.placemark ?? null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -342,6 +348,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             setProfileData: (profileData) => set({ profileData }),
             setProfileCursor: (profileCursor) => set({ profileCursor }),
             setProfileSelection: (profileSelection) => set({ profileSelection }),
+            setPlacemark: (placemark) => set({ placemark }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();

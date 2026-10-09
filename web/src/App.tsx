@@ -16,6 +16,7 @@ import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
+import { SearchBox } from '@/search/SearchBox';
 import { AppStoreContext, useAppStore } from '@/state/context';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
@@ -211,7 +212,9 @@ export function App({
                                 <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
                                 {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
                                 <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
-                                    <InfoPanel />
+                                    <InfoPanel>
+                                        <SearchBox sources={{ fetch, corsProxyUrl: config.corsProxyUrl }} />
+                                    </InfoPanel>
                                     <TrackList />
                                 </div>
                                 <LayerSwitcher />

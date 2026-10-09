@@ -182,3 +182,30 @@ describe('параметры треков', () => {
         expect(win.location.hash).toBe('#m=10/41.00000/44.00000&l=O');
     });
 });
+
+describe('метка поиска r=', () => {
+    test('Ссылка с меткой: метка в сторе, r= остаётся в адресе', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O&r=41.693040/44.779477/Mtatsminda%20Park');
+        expect(store.getState().placemark).toEqual({ lat: 41.69304, lng: 44.779477, title: 'Mtatsminda Park' });
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&r=41.693040/44.779477/Mtatsminda%20Park');
+    });
+
+    test('новая метка пишется в адрес сразу, снятая — уходит из адреса', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O');
+        store.getState().setPlacemark({ lat: 41.7, lng: 44.8, title: 'Камень' });
+        expect(win.location.hash).toBe(
+            '#m=13/41.69000/44.78000&l=O&r=41.700000/44.800000/%D0%9A%D0%B0%D0%BC%D0%B5%D0%BD%D1%8C',
+        );
+        store.getState().setPlacemark(null);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+
+    test('правка адреса меняет метку, неверная r= метку снимает', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O');
+        win.navigate('m=13/41.69/44.78&l=O&r=1/2/x');
+        expect(store.getState().placemark).toEqual({ lat: 1, lng: 2, title: 'x' });
+        win.navigate('m=13/41.69/44.78&l=O&r=99/2/x');
+        expect(store.getState().placemark).toBeNull();
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+});

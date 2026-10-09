@@ -7,8 +7,8 @@
 
 ## 2. Поиск и метка в приложении
 
-- [ ] 2.1 Стор `placemark`, `r=` в `sync.ts` (старт, `hashchange`, запись), разбор и запись `r=` (`search/placemark-hash.ts`); unit-тесты `sync.test.ts` и разбора; проверка: `npm test` зелёный
-- [ ] 2.2 `SearchBox.tsx` в `InfoPanel`: ввод с задержкой и отменой, результаты, клавиши, Alt+L, подпись сервиса, ошибки; `Placemark.tsx`: метка, клик по метке (точка трека с названием, опорная точка), снятие кликом по карте в `MapEditor`; `addPoint` с необязательным названием; browser-тест `Search.browser.test.tsx` — сценарии спеки `map-search`; проверка: `npm test` зелёный
+- [x] 2.1 Стор `placemark`, `r=` в `sync.ts` (старт, `hashchange`, запись), разбор и запись `r=` (`search/placemark-hash.ts`); unit-тесты `sync.test.ts` и разбора; проверка: `npm test` зелёный
+- [x] 2.2 `SearchBox.tsx` в `InfoPanel`: ввод с задержкой и отменой, результаты, клавиши, Alt+L, подпись сервиса, ошибки; `Placemark.tsx`: метка, клик по метке (точка трека с названием, опорная точка), снятие кликом по карте в `MapEditor`; `addPoint` с необязательным названием; browser-тест `Search.browser.test.tsx` — сценарии спеки `map-search`; проверка: `npm test` зелёный
 
 ## 3. Кнопки карты, внешние карты, геолокация, масштаб
 

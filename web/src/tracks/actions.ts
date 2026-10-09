@@ -171,14 +171,15 @@ export function createTrackActions({
         stopPointTool: () => state().setPointTool(null),
         // окно названия точки (Rename в меню точки)
         startRenamePoint: (trackId: string, point: Waypoint) => state().setPointDialog({ trackId, point }),
-        // новая точка с готовым номером; окно названия открывается сразу (createNewPoint старого клиента)
-        addPoint(trackId: string, latlng: LatLng): Waypoint | null {
+        // новая точка с готовым номером или названием метки поиска; окно названия открывается сразу (createNewPoint
+        // старого клиента)
+        addPoint(trackId: string, latlng: LatLng, name?: string): Waypoint | null {
             const track = state().tracks.find((item) => item.id === trackId);
             if (!track) {
                 return null;
             }
             const { lat, lng } = wrapped(latlng);
-            const point: Waypoint = { lat, lng, name: nextPointName(track.points) };
+            const point: Waypoint = { lat, lng, name: name ?? nextPointName(track.points) };
             state().updateTrack(trackId, { points: [...track.points, point] });
             state().setPointDialog({ trackId, point });
             return point;

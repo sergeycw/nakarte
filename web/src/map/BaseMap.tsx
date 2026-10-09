@@ -8,6 +8,7 @@ import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
 import { MapEditor } from '@/routing/MapEditor';
+import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
 import { TRACK_COLORS } from '@/tracks/model';
 import { trackSources } from '@/tracks/style';
@@ -135,6 +136,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 <NavigationControl position="top-right" />
                 <MapEditor />
                 <ProfileOnMap />
+                <PlacemarkOnMap />
                 {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
                     единицы, а анимация CSS проще символьного слоя */}
                 {trackData.pending.map((point, i) => (
