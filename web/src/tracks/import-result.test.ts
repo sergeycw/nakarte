@@ -14,6 +14,19 @@ test('данные без ошибки — трек, линии упрощены
     expect(tracks[0].segments).toEqual([[line[0], line[2]]]);
 });
 
+test('разметка маршрута из ссылки остаётся, опорные точки не упрощаются', () => {
+    const route = {
+        waypoints: [0, 1, 2],
+        legs: [
+            { state: 'routed', activity: 'hiking' },
+            { state: 'failed', activity: 'mtb' },
+        ],
+    } as const;
+    const { tracks } = prepareImport([geoData('nktk', { segments: [line, line], routes: [route, null] })]);
+    expect(tracks[0].segments).toEqual([line, [line[0], line[2]]]);
+    expect(tracks[0].routes).toEqual([route, null]);
+});
+
 test('Неизвестный формат', () => {
     expect(prepareImport([geoData('x.bin', { error: 'UNSUPPORTED' })])).toEqual({
         tracks: [],

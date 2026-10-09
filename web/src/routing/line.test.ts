@@ -4,7 +4,7 @@ import { EMPTY_SETTINGS } from '@/layers/settings';
 import { createAppStore } from '@/state/store';
 import { createTrackActions } from '@/tracks/actions';
 import { geoData } from '@/tracks/model';
-import { fromSegment, type RouteLine, reverseRoute, toSegment } from './line';
+import { fromSegment, type RouteLine, reverseRoute, simplifyRouted, toSegment } from './line';
 
 const A = { lat: 41.69, lng: 44.78 };
 const R1 = { lat: 41.692, lng: 44.782 };
@@ -41,6 +41,11 @@ describe('разметка маршрута в отрезке трека', () =>
         for (const waypoints of [[0, 1], [1, 2], [0, 2, 1], []]) {
             expect(fromSegment(points, { waypoints, legs: [{ state: 'straight' }] }).waypoints).toEqual(points);
         }
+        // разметка из одних прямых — та же ломаная
+        expect(
+            fromSegment(points, { waypoints: [0, 1, 2], legs: [{ state: 'straight' }, { state: 'straight' }] })
+                .waypoints,
+        ).toEqual(points);
         // прямой отрезок с промежуточными узлами
         expect(fromSegment(points, { waypoints: [0, 2], legs: [{ state: 'straight' }] }).waypoints).toEqual(points);
     });
@@ -70,6 +75,47 @@ describe('разметка маршрута в отрезке трека', () =>
             { state: 'straight' },
             { state: 'routed', activity: 'road-bike', points: [R2, R1] },
         ]);
+    });
+});
+
+describe('упрощение с опорными точками', () => {
+    // опорные точки на одной прямой: обычное упрощение выбросило бы среднюю
+    const W0 = { lat: 0, lng: 0 };
+    const W1 = { lat: 0, lng: 0.01 };
+    const W2 = { lat: 0, lng: 0.02 };
+    // точки маршрута между W0 и W1: средняя — на прямой между соседями, упрощение её убирает
+    const r = (lng: number, lat = 0.001) => ({ lat, lng });
+
+    test('опорные точки остаются, точки маршрута упрощаются, номера пересчитаны', () => {
+        const points = [W0, r(0.002), r(0.005), r(0.008), W1, W2];
+        const route = {
+            waypoints: [0, 4, 5],
+            legs: [{ state: 'routed', activity: 'hiking' } as const, { state: 'straight' } as const],
+        };
+        const result = simplifyRouted(points, route);
+        expect(result?.points).toEqual([W0, r(0.002), r(0.008), W1, W2]);
+        expect(result?.route).toEqual({ waypoints: [0, 3, 4], legs: route.legs });
+        expect(fromSegment(result?.points ?? [], result?.route).waypoints).toEqual([W0, W1, W2]);
+    });
+
+    test('ожидающий отрезок становится непроложенным', () => {
+        const result = simplifyRouted([W0, W1], { waypoints: [0, 1], legs: [{ state: 'pending', activity: 'mtb' }] });
+        expect(result?.route.legs).toEqual([{ state: 'failed', activity: 'mtb' }]);
+    });
+
+    test('линия через 180° разворачивается целиком', () => {
+        const points = [
+            { lat: 0, lng: 179.99 },
+            { lat: 0.001, lng: -179.995 },
+            { lat: 0, lng: -179.99 },
+        ];
+        const result = simplifyRouted(points, { waypoints: [0, 2], legs: [{ state: 'routed', activity: 'mtb' }] });
+        expect(result?.points.map((p) => p.lng)).toEqual([179.99, 180.005, 180.01]);
+    });
+
+    test('без разметки или с негодной — null', () => {
+        expect(simplifyRouted([W0, W1], null)).toBeNull();
+        expect(simplifyRouted([W0, W1, W2], { waypoints: [0, 1], legs: [{ state: 'straight' }] })).toBeNull();
     });
 });
 

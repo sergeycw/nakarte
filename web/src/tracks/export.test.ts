@@ -34,6 +34,15 @@ describe('экспорт → импорт', () => {
         expect(parsed.points).toEqual(track.points);
     });
 
+    test.each(['gpx', 'kml'] as const)('Экспорт в файл (%s): только геометрия, без разметки маршрута', (format) => {
+        const routed: TrackData = {
+            ...track,
+            routes: [{ waypoints: [0, 1], legs: [{ state: 'routed', activity: 'hiking' }] }, null],
+        };
+        expect(exportTrack(routed, format).content).toBe(exportTrack(track, format).content);
+        expect(reparse(exportTrack(routed, format).content, `t.${format}`)[0].routes).toBeUndefined();
+    });
+
     test('координаты — шесть знаков', () => {
         const file = exportTrack(
             {

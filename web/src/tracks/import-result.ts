@@ -1,3 +1,4 @@
+import { simplifyRouted } from '@/routing/line';
 import { normalizeLine } from './geometry';
 import { type GeoData, isEmpty } from './model';
 
@@ -25,9 +26,17 @@ export function prepareImport(data: readonly GeoData[], allowEmpty = false): Imp
     for (const item of data) {
         const empty = isEmpty(item);
         if (!empty || allowEmpty) {
-            // линии упрощаются, поэтому номера опорных точек разметки (если она пришла) больше не верны
-            const { routes: _routes, ...rest } = item;
-            result.tracks.push({ ...rest, segments: item.segments.map(normalizeLine) });
+            // линии упрощаются; отрезок с разметкой маршрута (ссылка nktk) — без опорных точек, и номера в разметке
+            // пересчитываются (design add-web-autosave, «Упрощение линии не трогает опорные точки»)
+            const { routes, ...rest } = item;
+            const lines = item.segments.map(
+                (line, i) => simplifyRouted(line, routes?.[i]) ?? { points: normalizeLine(line), route: null },
+            );
+            result.tracks.push({
+                ...rest,
+                segments: lines.map((line) => line.points),
+                ...(lines.some((line) => line.route) ? { routes: lines.map((line) => line.route) } : {}),
+            });
         }
         let message: string | undefined;
         if (item.error) {

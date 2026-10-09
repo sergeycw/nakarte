@@ -1,6 +1,8 @@
 import type { MapRef } from '@vis.gl/react-maplibre';
 import type { RequestTransformFunction } from 'maplibre-gl';
 import { type Ref, useEffect, useState } from 'react';
+import { type AutosaveStorage, startAutosave } from '@/autosave/autosave';
+import { indexedDbStorage } from '@/autosave/idb';
 import { Toaster, toast } from '@/components/ui/toast';
 import { config } from '@/config';
 import { getEngine } from '@/engine/engine';
@@ -51,14 +53,34 @@ interface AppProps {
     writeClipboard?: TrackActionsDeps['writeClipboard'];
     // роутер прокладки: browser-тесты подставляют поддельный, по умолчанию — движок или сервер из config
     router?: Router;
+    // хранилище автосохранения треков: по умолчанию IndexedDB nakarte-web, null — без сохранения; browser-тесты
+    // подставляют своё, чтобы рендеры App в одной странице не видели чужих треков
+    autosave?: AutosaveStorage | null;
 }
 
 function notify(title: string, type?: 'error' | 'success') {
     toast.add({ title, type });
 }
 
-export function App({ transformRequest, mapRef, fetch = window.fetch.bind(window), writeClipboard, router }: AppProps) {
+function deferred() {
+    let resolve!: () => void;
+    const promise = new Promise<void>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
+
+export function App({
+    transformRequest,
+    mapRef,
+    fetch = window.fetch.bind(window),
+    writeClipboard,
+    router,
+    autosave,
+}: AppProps) {
     const [store] = useState(startStore);
+    const [autosaveStorage] = useState(() => (autosave === undefined ? indexedDbStorage() : autosave));
+    const [restored] = useState(deferred);
     const [trackActions] = useState(() =>
         createTrackActions({
             store,
@@ -66,8 +88,41 @@ export function App({ transformRequest, mapRef, fetch = window.fetch.bind(window
             notify,
             location: () => window.location,
             writeClipboard,
+            restored: restored.promise,
         }),
     );
+    // Автосохранение — в эффекте, а не в инициализаторе: Strict Mode вызывает эффект дважды, и первый экземпляр
+    // останавливается до конца чтения, не добавив треков. restored отпускает треки из адреса только после чтения
+    // живого экземпляра (design add-web-autosave, «Восстановление и треки из адреса»).
+    useEffect(() => {
+        if (!autosaveStorage) {
+            restored.resolve();
+            return;
+        }
+        let active = true;
+        const saving = startAutosave(store, autosaveStorage);
+        saving.restored.finally(() => {
+            if (active) {
+                restored.resolve();
+            }
+        });
+        const flush = () => saving.flush();
+        const onHidden = () => {
+            if (document.visibilityState === 'hidden') {
+                saving.flush();
+            }
+        };
+        window.addEventListener('pagehide', flush);
+        document.addEventListener('visibilitychange', onHidden);
+        return () => {
+            active = false;
+            // размонтирование — как уход со страницы: несохранённое пишется (browser-тесты так «перезагружают» App)
+            saving.flush();
+            saving.stop();
+            window.removeEventListener('pagehide', flush);
+            document.removeEventListener('visibilitychange', onHidden);
+        };
+    }, [store, autosaveStorage, restored]);
     const [routeEditing] = useState(() =>
         createRouteEditing({
             store,

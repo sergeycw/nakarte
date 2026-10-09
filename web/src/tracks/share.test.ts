@@ -33,6 +33,36 @@ describe('тело и ключ', () => {
     });
 });
 
+describe('разметка маршрута в ссылке', () => {
+    // опорные точки на одной прямой и лишняя точка маршрута на прямой: упрощение ссылки убирает только её
+    const W0 = { lat: 0, lng: 0 };
+    const W1 = { lat: 0, lng: 0.01 };
+    const W2 = { lat: 0, lng: 0.02 };
+    const R = [
+        { lat: 0.001, lng: 0.002 },
+        { lat: 0.001, lng: 0.005 },
+        { lat: 0.001, lng: 0.008 },
+    ];
+
+    test('Открытие ссылки: опорные точки на прямой не пропадают, разметка — в теле', () => {
+        const routed = track({
+            segments: [[W0, ...R, W1, W2]],
+            routes: [{ waypoints: [0, 4, 5], legs: [{ state: 'routed', activity: 'hiking' }, { state: 'straight' }] }],
+        });
+        const [parsed] = parseNktk(shareBody([routed]));
+        expect(parsed.segments[0]).toHaveLength(5);
+        expect(parsed.routes).toEqual([
+            { waypoints: [0, 3, 4], legs: [{ state: 'routed', activity: 'hiking' }, { state: 'straight' }] },
+        ]);
+    });
+
+    test('ломаная без разметки упрощается как раньше', () => {
+        const [parsed] = parseNktk(shareBody([track({ segments: [[W0, W1, W2]] })]));
+        expect(parsed.segments[0]).toHaveLength(2);
+        expect(parsed.routes).toBeUndefined();
+    });
+});
+
 describe('адрес ссылки', () => {
     const location = { origin: 'https://nakarte-routing.pages.dev', pathname: '/next/' };
 

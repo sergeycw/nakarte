@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { test as base, expect } from '@playwright/test';
+import { type BrowserContext, test as base, expect } from '@playwright/test';
 import { makeConfig } from '../src/config.ts';
 import { buildCatalog } from '../src/layers/catalog.ts';
 
@@ -97,6 +97,8 @@ interface Network {
     engineLoads: number;
     // запросы к CDN CheerpJ, которые увидел браузер: с заглушкой их быть не должно
     cdnRequests: string[];
+    // та же сеть для другого контекста браузера (другой пользователь со своим IndexedDB, но общим хранилищем треков)
+    attach(context: BrowserContext): Promise<void>;
 }
 
 // Сеть теста: localhost — как есть, хранилище треков — в памяти, прокси — заданные ответы, тайлы слоёв каталога и
@@ -126,67 +128,79 @@ export const test = base.extend<{ network: Network }>({
                 customWithoutCors: () => {
                     customCors = false;
                 },
+                attach: async (other) => {
+                    await intercept(other);
+                },
             };
-            context.on('request', (request) => {
-                if (new URL(request.url()).hostname.endsWith('leaningtech.com')) {
-                    network.cdnRequests.push(request.url());
-                }
-            });
-            await context.route('**/*', async (route) => {
-                const url = route.request().url();
-                if (new URL(url).hostname === 'localhost') {
-                    if (ENGINE_WORKER.test(new URL(url).pathname)) {
+            async function intercept(target: BrowserContext) {
+                target.on('request', (request) => {
+                    if (new URL(request.url()).hostname.endsWith('leaningtech.com')) {
+                        network.cdnRequests.push(request.url());
+                    }
+                });
+                await target.route('**/*', async (route) => {
+                    const url = route.request().url();
+                    if (new URL(url).hostname === 'localhost') {
+                        if (ENGINE_WORKER.test(new URL(url).pathname)) {
+                            network.engineLoads += 1;
+                            const response = await route.fetch();
+                            return route.fulfill({ response, body: WORKER_PRELUDE + (await response.text()) });
+                        }
+                        return route.continue();
+                    }
+                    // CORS отражённым Origin, как у Worker'ов клона (route.fulfill браузер на CORS не проверяет, но пусть
+                    // ответ будет как настоящий)
+                    // загрузчик — до чтения заголовков: importScripts воркера идёт без CORS, а headerValue ждёт сырые заголовки
+                    if (url === CHEERPJ_LOADER) {
                         network.engineLoads += 1;
-                        const response = await route.fetch();
-                        return route.fulfill({ response, body: WORKER_PRELUDE + (await response.text()) });
+                        return route.fulfill({ status: 200, body: FAKE_CHEERPJ, contentType: 'text/javascript' });
                     }
-                    return route.continue();
-                }
-                // CORS отражённым Origin, как у Worker'ов клона (route.fulfill браузер на CORS не проверяет, но пусть
-                // ответ будет как настоящий)
-                // загрузчик — до чтения заголовков: importScripts воркера идёт без CORS, а headerValue ждёт сырые заголовки
-                if (url === CHEERPJ_LOADER) {
-                    network.engineLoads += 1;
-                    return route.fulfill({ status: 200, body: FAKE_CHEERPJ, contentType: 'text/javascript' });
-                }
-                const cors = { 'Access-Control-Allow-Origin': (await route.request().headerValue('origin')) ?? '*' };
-                if (url.startsWith(`${TRACKS_STORAGE}/track/`)) {
-                    const key = url.slice(`${TRACKS_STORAGE}/track/`.length);
-                    if (route.request().method() === 'POST') {
-                        network.storage.set(key, route.request().postData() ?? '');
-                        return route.fulfill({ status: 200, body: '', headers: cors });
+                    const cors = {
+                        'Access-Control-Allow-Origin': (await route.request().headerValue('origin')) ?? '*',
+                    };
+                    if (url.startsWith(`${TRACKS_STORAGE}/track/`)) {
+                        const key = url.slice(`${TRACKS_STORAGE}/track/`.length);
+                        if (route.request().method() === 'POST') {
+                            network.storage.set(key, route.request().postData() ?? '');
+                            return route.fulfill({ status: 200, body: '', headers: cors });
+                        }
+                        const body = network.storage.get(key);
+                        return body === undefined
+                            ? route.fulfill({ status: 404, body: 'not found', headers: cors })
+                            : route.fulfill({ status: 200, body, contentType: 'text/plain', headers: cors });
                     }
-                    const body = network.storage.get(key);
-                    return body === undefined
-                        ? route.fulfill({ status: 404, body: 'not found', headers: cors })
-                        : route.fulfill({ status: 200, body, contentType: 'text/plain', headers: cors });
-                }
-                const proxiedResponse = proxied.get(url);
-                if (proxiedResponse) {
-                    return route.fulfill({ status: proxiedResponse.status ?? 200, ...proxiedResponse, headers: cors });
-                }
-                const proxiedCustom = PROXIED_CUSTOM_TILE.test(url);
-                const custom = !proxiedCustom && CUSTOM_TILE.test(url);
-                const code =
-                    proxiedCustom || custom ? 'custom' : LAYER_TILES.find(([, pattern]) => pattern.test(url))?.[0];
-                if (!code) {
-                    network.external.push(url);
-                    return route.abort();
-                }
-                network.tiles.push({ code, url });
-                // Сервер без CORS: на ответ route.fulfill браузер CORS не проверяет, поэтому CORS-запрос (fetch с
-                // mode: 'cors', тайл MapLibre) обрывается — для страницы это та же TypeError, что и отказ CORS;
-                // no-cors запрос получает ответ. Отличаем по Origin: Chromium шлёт его только в CORS-запросе
-                // (Sec-Fetch-Mode перехват Playwright не показывает)
-                if (custom && !customCors && (await route.request().headerValue('origin'))) {
-                    return route.abort();
-                }
-                // WebGL берёт растр только с CORS: подменённый ответ несёт заголовок, как настоящие серверы слоёв
-                if (failing.has(code)) {
-                    return route.fulfill({ status: 503, body: 'unavailable', headers: cors });
-                }
-                return route.fulfill({ path: TILE_FIXTURE, contentType: 'image/png', headers: cors });
-            });
+                    const proxiedResponse = proxied.get(url);
+                    if (proxiedResponse) {
+                        return route.fulfill({
+                            status: proxiedResponse.status ?? 200,
+                            ...proxiedResponse,
+                            headers: cors,
+                        });
+                    }
+                    const proxiedCustom = PROXIED_CUSTOM_TILE.test(url);
+                    const custom = !proxiedCustom && CUSTOM_TILE.test(url);
+                    const code =
+                        proxiedCustom || custom ? 'custom' : LAYER_TILES.find(([, pattern]) => pattern.test(url))?.[0];
+                    if (!code) {
+                        network.external.push(url);
+                        return route.abort();
+                    }
+                    network.tiles.push({ code, url });
+                    // Сервер без CORS: на ответ route.fulfill браузер CORS не проверяет, поэтому CORS-запрос (fetch с
+                    // mode: 'cors', тайл MapLibre) обрывается — для страницы это та же TypeError, что и отказ CORS;
+                    // no-cors запрос получает ответ. Отличаем по Origin: Chromium шлёт его только в CORS-запросе
+                    // (Sec-Fetch-Mode перехват Playwright не показывает)
+                    if (custom && !customCors && (await route.request().headerValue('origin'))) {
+                        return route.abort();
+                    }
+                    // WebGL берёт растр только с CORS: подменённый ответ несёт заголовок, как настоящие серверы слоёв
+                    if (failing.has(code)) {
+                        return route.fulfill({ status: 503, body: 'unavailable', headers: cors });
+                    }
+                    return route.fulfill({ path: TILE_FIXTURE, contentType: 'image/png', headers: cors });
+                });
+            }
+            await intercept(context);
             await use(network);
             expect(network.external, 'запросы мимо localhost и подменённых тайлов').toEqual([]);
             expect(network.cdnRequests, 'запросы к CDN CheerpJ мимо заглушки').toEqual([]);

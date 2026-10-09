@@ -22,8 +22,8 @@ export interface TrackData {
     hidden?: boolean;
     // отметки расстояния на линии; рисует их линейка (change 8), здесь флаг только переживает ссылки
     measureTicksShown?: boolean;
-    // разметка маршрута по отрезкам (routing/line.ts): routes[i] — для segments[i], null — обычная ломаная. Файлы и
-    // ссылки её пока не несут (change 6), поэтому из парсеров и ссылок трек приходит без неё.
+    // разметка маршрута по отрезкам (routing/line.ts): routes[i] — для segments[i], null — обычная ломаная. Её несут
+    // ссылка nktk (поле route отрезка) и автосохранение, а файлы GPX/KML — нет (design add-web-autosave).
     routes?: readonly (SegmentRoute | null)[];
 }
 
