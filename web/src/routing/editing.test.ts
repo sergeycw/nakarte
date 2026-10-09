@@ -154,6 +154,20 @@ describe('Действия с треком', () => {
     });
 });
 
+describe('копии трека с ожидающим отрезком', () => {
+    test('разворот и дублирование во время запроса: отрезок непроложенный, а не вечный спиннер', () => {
+        const ctx = setup();
+        ctx.editing.newTrack('');
+        ctx.editing.click(A);
+        ctx.editing.click(B);
+        ctx.actions.duplicate(tracks(ctx)[0]);
+        ctx.actions.reverse(tracks(ctx)[0]);
+        for (const track of tracks(ctx)) {
+            expect(track.routes?.[0]?.legs).toEqual([{ state: 'failed', activity: 'hiking' }]);
+        }
+    });
+});
+
 describe('История переживает выход из редактирования', () => {
     test('Повторный вход', () => {
         const ctx = setup(null);

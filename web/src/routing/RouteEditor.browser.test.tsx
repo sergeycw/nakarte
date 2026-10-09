@@ -1,7 +1,7 @@
 import type { FeatureCollection, LineString, Point } from 'geojson';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { type FakeRouter, fakeRouter } from '@/test/fake-router';
@@ -318,6 +318,40 @@ describe('Продолжение линии с любого конца', () => {
         expect(near(waypoints(map)[0], D)).toBe(true);
         expect(router.calls[0].activity.id).toBe('gravel');
         expect(near(router.calls[0].from, D) && near(router.calls[0].to, A)).toBe(true);
+    });
+});
+
+describe('гонки и фокус', () => {
+    test('быстрый клик по только что поставленной точке заканчивает рисование, а не ставит дубль', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A]);
+        // без ожидания кадра: точка B ещё не дошла до отрисовки
+        for (let i = 0; i < 2; i++) {
+            for (const type of ['mousemove', 'mousedown', 'mouseup', 'click']) {
+                fire(map, type, B);
+            }
+        }
+        await expect.element(page.getByText('Drag points, click line end to continue')).toBeVisible();
+        expect(waypoints(map)).toHaveLength(2);
+    });
+
+    test('Enter на кнопке Undo в фокусе нажимает её, а не заканчивает рисование', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A, B]);
+        const undo = page.getByRole('button', { name: 'Undo' }).element() as HTMLButtonElement;
+        undo.focus();
+        key({ key: 'Enter', code: 'Enter' }, undo);
+        await expect.element(page.getByText('Click map to add points')).toBeVisible();
+    });
+
+    test('Escape, закрывающий меню прокладки, рисование не заканчивает', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A]);
+        await page.getByRole('button', { name: /^Routing/ }).click();
+        await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).toBeVisible();
+        await userEvent.keyboard('{Escape}');
+        await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).not.toBeInTheDocument();
+        await expect.element(page.getByText('Click map to add points')).toBeVisible();
     });
 });
 

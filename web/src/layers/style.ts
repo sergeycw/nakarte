@@ -1,6 +1,6 @@
 import type { GeoJSONSourceSpecification, LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import { EDIT_LAYERS, editSources } from '@/routing/edit-style';
-import type { RouteEditState, RoutePreview } from '@/state/store';
+import type { RouteEditState } from '@/state/store';
 import type { Track } from '@/tracks/model';
 import { TRACK_LAYERS, trackSources } from '@/tracks/style';
 import type { LayerDef } from './catalog';
@@ -14,12 +14,12 @@ import type { LayerDef } from './catalog';
 // diff стиля MapLibre сравнивает данные GeoJSON всех источников на каждое обновление.
 export function overlaySources(
     tracks: readonly Track[] = [],
-    edit: { state: RouteEditState | null; color: string; preview: RoutePreview | null } | null = null,
+    edit: { state: RouteEditState | null; color: string; drag: number | null } | null = null,
 ): Record<string, GeoJSONSourceSpecification> {
     const skip = edit?.state ? { trackId: edit.state.trackId, segment: edit.state.segment } : null;
     return {
         ...trackSources(tracks, skip).sources,
-        ...editSources(edit?.state ?? null, edit?.color ?? '', edit?.preview ?? null),
+        ...editSources(edit?.state ?? null, edit?.color ?? '', edit?.drag ?? null),
     };
 }
 

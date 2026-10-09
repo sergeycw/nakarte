@@ -184,7 +184,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | Список треков: новый трек, видимость, цвет, длина, отметки расстояния, переименовать, дублировать, развернуть, удалить, удалить все/скрытые, новый трек из видимых | `track-list` | переносим |
 | Правка линии: сегменты, точки, Cut, Join, Shortcut, удалить сегмент, новый трек из сегмента | `track-list`, `polyline-edit` | переносим: рисование, опорные точки, «Add segment» — change 5, остальное — change 6б |
 | Точки: переименовать, переместить, скопировать координаты, удалить | `track-list` | переносим, change 6б |
-| Прокладка, активности, редактор, undo/redo | `brouter`, `polyline-edit` | переносим; непроложенный отрезок + тост (решение владельца); кнопки undo/redo — backlog «Редактор и активности» |
+| Прокладка, активности, редактор, undo/redo | `brouter`, `polyline-edit` | переносим; непроложенный отрезок + тост (решение владельца); кнопки undo/redo — change 5 |
 | Импорт файлов: GPX, KML, KMZ, GeoJSON, Ozi (`plt`, `rte`, `wpt`), ZIP | `parsers/` | переносим, парсеры — чистые модули, тесты на фикстурах |
 | Импорт по ссылкам: Yandex, OSM, SportsTracker, Tracedetrail, ссылки nakarte | `services/` | переносим |
 | Импорт Strava, Garmin Connect, Wikiloc | `services/` | не работают (backlog, «Отложено») — **убираются** (решение владельца) |

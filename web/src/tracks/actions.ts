@@ -1,4 +1,4 @@
-import { reverseRoute } from '@/routing/line';
+import { reverseRoute, settledRoute } from '@/routing/line';
 import type { AppStore } from '@/state/store';
 import type { TrackParams } from '@/state/sync';
 import { EmptyTrackError, exportTrack, exportZip, saveFile } from './export';
@@ -107,7 +107,7 @@ export function createTrackActions({
         return geoData(track.name, {
             segments: track.segments.map((line) => line.map((p) => ({ ...p }))),
             points: track.points.map((p) => ({ ...p })),
-            routes: track.segments.map((_, i) => track.routes?.[i] ?? null),
+            routes: track.segments.map((_, i) => settledRoute(track.routes?.[i])),
         });
     }
 

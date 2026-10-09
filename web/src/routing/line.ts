@@ -100,14 +100,31 @@ export function toSegment(line: RouteLine): { points: LatLng[]; route: SegmentRo
     return { points, route: { waypoints, legs } };
 }
 
-// Разметка отрезка, развёрнутого задом наперёд (Reverse): номер i → n − 1 − i, отрезки в обратном порядке
-export function reverseRoute(route: SegmentRoute | null | undefined, length: number): SegmentRoute | null {
+// Разметка без живых запросов: ожидающий отрезок становится непроложенным. Копия трека и развёрнутый трек — новые
+// массивы отрезков, редактор их не узнаёт, и ответ на прежний запрос в них уже не придёт: без этого у копии навсегда
+// остались бы разрыв и спиннер.
+export function settledRoute(route: SegmentRoute | null | undefined): SegmentRoute | null {
     if (!route) {
         return null;
     }
+    if (!route.legs.some((leg) => leg.state === 'pending')) {
+        return route;
+    }
     return {
-        waypoints: route.waypoints.map((index) => length - 1 - index).reverse(),
-        legs: route.legs.slice().reverse(),
+        waypoints: route.waypoints,
+        legs: route.legs.map((leg) => (leg.state === 'pending' ? { state: 'failed', activity: leg.activity } : leg)),
+    };
+}
+
+// Разметка отрезка, развёрнутого задом наперёд (Reverse): номер i → n − 1 − i, отрезки в обратном порядке
+export function reverseRoute(route: SegmentRoute | null | undefined, length: number): SegmentRoute | null {
+    const settled = settledRoute(route);
+    if (!settled) {
+        return null;
+    }
+    return {
+        waypoints: settled.waypoints.map((index) => length - 1 - index).reverse(),
+        legs: settled.legs.slice().reverse(),
     };
 }
 

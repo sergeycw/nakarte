@@ -292,6 +292,13 @@ describe('Вставка опорной точки на линию', () => {
         expect(editor.line().waypoints).toEqual([A, B, C]);
     });
 
+    test('точка вставки встаёт на линию, а не туда, где нажали рядом с ней', () => {
+        const { editor } = setup(fromSegment([P(41.69, 44.78), P(41.69, 44.8)]));
+        editor.insertWaypoint(0, P(41.6901, 44.79));
+        expect(editor.line().waypoints[1].lat).toBeCloseTo(41.69, 10);
+        expect(editor.line().waypoints[1].lng).toBeCloseTo(44.79, 10);
+    });
+
     test('вставка на прямой отрезок даёт два прямых', () => {
         const { editor } = setup(fromSegment([A, B]));
         editor.insertWaypoint(0, P(41.695, 44.785));

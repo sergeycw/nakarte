@@ -30,7 +30,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     const boundsRequest = useAppStore((state) => state.boundsRequest);
     const tracks = useAppStore((state) => state.tracks);
     const routeEdit = useAppStore((state) => state.routeEdit);
-    const routePreview = useAppStore((state) => state.routePreview);
+    const routeDrag = useAppStore((state) => state.routeDrag);
     const setView = useAppStore((state) => state.setView);
     const mapRef = useRef<MapRef | null>(null);
     // react-maplibre отдаёт ссылку, когда карта создана (MapLibre грузится лениво), — после первого рендера,
@@ -63,8 +63,8 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     );
     const editColorIndex = tracks.find((track) => track.id === editTrackId)?.color ?? 0;
     const editData = useMemo(
-        () => editSources(routeEdit, TRACK_COLORS[editColorIndex], routePreview),
-        [routeEdit, editColorIndex, routePreview],
+        () => editSources(routeEdit, TRACK_COLORS[editColorIndex], routeDrag),
+        [routeEdit, editColorIndex, routeDrag],
     );
     const mapStyle = useMemo(() => {
         const defs = [selection.base, ...selection.overlays]

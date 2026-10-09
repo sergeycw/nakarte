@@ -6,7 +6,7 @@ import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
 import type { Bounds } from '@/tracks/geometry';
-import { type GeoData, type LatLng, TRACK_COLORS, type Track } from '@/tracks/model';
+import { type GeoData, TRACK_COLORS, type Track } from '@/tracks/model';
 import type { View } from './hash';
 
 // Состояние приложения, которое делят карта, переключатель слоёв и адрес. Стор создаётся на каждый экземпляр App
@@ -33,11 +33,12 @@ export interface AppState {
     // ссылка на треки, которую не удалось положить в буфер обмена: показывается окном
     sharedLink: string | null;
     // прокладка (design add-web-route-editor, «Связь со стором и картой»): выбранная активность или null («Off»),
-    // жив ли роутер (красная кнопка), редактируемая линия и превью перетаскивания и резинки — то, что рисует карта
+    // жив ли роутер (красная кнопка), редактируемая линия и номер перетаскиваемой опорной точки — то, что рисует
+    // карта. Само превью перетаскивания и резинку карта рисует в обход стора (routing/MapEditor.tsx).
     routingActivity: string | null;
     routerReachable: boolean;
     routeEdit: RouteEditState | null;
-    routePreview: RoutePreview | null;
+    routeDrag: number | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -64,7 +65,7 @@ export interface AppState {
     setRoutingActivity(id: string | null): void;
     setRouterReachable(reachable: boolean): void;
     setRouteEdit(edit: RouteEditState | null): void;
-    setRoutePreview(preview: RoutePreview | null): void;
+    setRouteDrag(index: number | null): void;
 }
 
 export interface RouteEditState {
@@ -75,14 +76,6 @@ export interface RouteEditState {
     drawing: End | null;
     canUndo: boolean;
     canRedo: boolean;
-}
-
-// Превью, которое не входит в линию: резинка от крайней точки к курсору при рисовании и перетаскиваемая опорная точка
-// с соседними прямыми до соседних опорных
-export interface RoutePreview {
-    lines: LatLng[][];
-    // перетаскиваемая точка: номер опорной и где она сейчас
-    drag?: { index: number; latlng: LatLng };
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -140,7 +133,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             routingActivity: init.routingActivity ?? null,
             routerReachable: true,
             routeEdit: null,
-            routePreview: null,
+            routeDrag: null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -265,7 +258,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             setRoutingActivity: (routingActivity) => set({ routingActivity }),
             setRouterReachable: (routerReachable) => set({ routerReachable }),
             setRouteEdit: (routeEdit) => set({ routeEdit }),
-            setRoutePreview: (routePreview) => set({ routePreview }),
+            setRouteDrag: (routeDrag) => set({ routeDrag }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();

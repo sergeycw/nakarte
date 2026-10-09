@@ -86,7 +86,7 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         if (session === current) {
             current = null;
             drawing = null;
-            state().setRoutePreview(null);
+            state().setRouteDrag(null);
             publish();
         }
     }
@@ -155,7 +155,7 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         const finished = current;
         current = null;
         drawing = null;
-        state().setRoutePreview(null);
+        state().setRouteDrag(null);
         publish();
         if (finished) {
             cleanUp(finished);
@@ -227,7 +227,7 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         },
         stopDrawing() {
             drawing = null;
-            state().setRoutePreview(null);
+            state().setRouteDrag(null);
             publish();
         },
         // клик по карте при рисовании; alt — прямой отрезок без роутера

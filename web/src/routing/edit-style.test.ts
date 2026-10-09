@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type { RouteEditState } from '@/state/store';
 import { TRACK_COLORS, type Track } from '@/tracks/model';
 import { segmentPieces, TRACK_LINES, TRACK_UNROUTED, trackSources } from '@/tracks/style';
-import { EDIT_LEGS, EDIT_WAYPOINTS, editSources } from './edit-style';
+import { EDIT_LEGS, EDIT_WAYPOINTS, editSources, previewData } from './edit-style';
 import { type RouteLine, toSegment } from './line';
 
 // Отрисовка разметки маршрута (спеки route-editing «Разрыв со спиннером на ожидающем отрезке» и routing «Ошибка
@@ -108,13 +108,12 @@ describe('редактируемая линия', () => {
         ]);
     });
 
-    test('перетаскивание: точка на месте курсора, её отрезки не рисуются', () => {
-        const sources = editSources(edit, '#77f', {
-            lines: [[A, P(2.2, 2.2), C]],
-            drag: { index: 1, latlng: P(2.2, 2.2) },
-        });
+    test('перетаскивание: точку и её отрезки рисует превью, а не источники линии', () => {
+        const sources = editSources(edit, '#77f', 1);
         expect(data<LineString>(sources[EDIT_LEGS]).map((f) => f.properties?.leg)).toEqual([2]);
-        expect(data<Point>(sources[EDIT_WAYPOINTS])[1].geometry.coordinates).toEqual([2.2, 2.2]);
+        expect(data<Point>(sources[EDIT_WAYPOINTS]).map((f) => f.properties?.index)).toEqual([0, 2, 3]);
+        const preview = previewData([[A, P(2.2, 2.2), C]], '#77f', { latlng: P(2.2, 2.2), role: 'middle' });
+        expect(preview.features.map((f) => f.geometry.type)).toEqual(['LineString', 'Point']);
     });
 
     test('без редактирования источники пустые', () => {

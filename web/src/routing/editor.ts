@@ -57,19 +57,17 @@ function rerouted(leg: Leg | undefined): Leg {
     return leg && hasActivity(leg) ? pendingLeg(leg.activity) : STRAIGHT;
 }
 
-// Квадрат расстояния от точки до звена a–b в градусах с поправкой долготы на широту: для выбора ближайшего звена
-// этого хватает, точность в метрах не нужна
-function sqDistToSegment(p: LatLng, a: LatLng, b: LatLng): number {
+// Ближайшая к p точка звена a–b и квадрат расстояния до неё — в градусах с поправкой долготы на широту: для выбора
+// звена и точки вставки этого хватает, точность в метрах не нужна
+function closestOnSegment(p: LatLng, a: LatLng, b: LatLng): { point: LatLng; sqDist: number } {
     const k = Math.cos((p.lat * Math.PI) / 180);
-    const ax = a.lng * k;
-    const bx = b.lng * k;
-    const px = p.lng * k;
-    const dx = bx - ax;
+    const dx = (b.lng - a.lng) * k;
     const dy = b.lat - a.lat;
     const dot = dx * dx + dy * dy;
-    let t = dot > 0 ? ((px - ax) * dx + (p.lat - a.lat) * dy) / dot : 0;
+    let t = dot > 0 ? ((p.lng - a.lng) * k * dx + (p.lat - a.lat) * dy) / dot : 0;
     t = Math.max(0, Math.min(1, t));
-    return (px - ax - dx * t) ** 2 + (p.lat - a.lat - dy * t) ** 2;
+    const point = { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t };
+    return { point, sqDist: ((p.lng - point.lng) * k) ** 2 + (p.lat - point.lat) ** 2 };
 }
 
 export function createRouteEditor(initial: RouteLine, options: RouteEditorOptions): RouteEditor {
@@ -241,20 +239,24 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
             if (!leg) {
                 return -1;
             }
+            // Новая точка встаёт на ближайшее к нажатию звено, а не туда, где нажали: попадание по линии засчитывается в
+            // нескольких пикселях от неё, и без проекции на линии появился бы излом. Геометрия не меняется, пока точку
+            // не сдвинули.
+            const path = legPath(line, legIndex);
+            let nearest = 0;
+            let best = Number.POSITIVE_INFINITY;
+            let at = latlng;
+            for (let k = 0; k < path.length - 1; k++) {
+                const { point, sqDist } = closestOnSegment(latlng, path[k], path[k + 1]);
+                if (sqDist < best) {
+                    best = sqDist;
+                    nearest = k;
+                    at = point;
+                }
+            }
             let left: Leg;
             let right: Leg;
             if (leg.state === 'routed') {
-                // точки маршрута делятся по ближайшему к нажатию звену: геометрия не меняется, пока точку не сдвинули
-                const path = legPath(line, legIndex);
-                let nearest = 0;
-                let best = Number.POSITIVE_INFINITY;
-                for (let k = 0; k < path.length - 1; k++) {
-                    const d = sqDistToSegment(latlng, path[k], path[k + 1]);
-                    if (d < best) {
-                        best = d;
-                        nearest = k;
-                    }
-                }
                 // звено path[nearest]–path[nearest + 1]; внутренние точки маршрута — path[1..n−2]
                 left = { state: 'routed', activity: leg.activity, points: path.slice(1, nearest + 1) };
                 right = { state: 'routed', activity: leg.activity, points: path.slice(nearest + 1, -1) };
@@ -267,7 +269,7 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
             }
             const index = legIndex + 1;
             edit({
-                waypoints: [...waypoints.slice(0, index), latlng, ...waypoints.slice(index)],
+                waypoints: [...waypoints.slice(0, index), at, ...waypoints.slice(index)],
                 legs: [...legs.slice(0, legIndex), left, right, ...legs.slice(legIndex + 1)],
             });
             justInserted = index;
