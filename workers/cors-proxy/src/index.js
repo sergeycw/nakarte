@@ -1,5 +1,5 @@
 import {anonymousTileUrl, heatmapCookie, isStravaHeatmap} from './strava';
-import {DEFAULT_CACHE_CONTROL, isTracestrackTile, TRACESTRACK_HOST, withKey, withoutKey} from './tracestrack';
+import {errorBody, isTracestrackTile, responseHeaders, TRACESTRACK_HOST, withKey, withoutKey} from './tracestrack';
 
 // user-agent: fetch из Worker'а своего не ставит, а часть сайтов без него отвечает 403 (так было у Wikimapia,
 // чей адрес /wikimapia/ ушёл вместе со старым клиентом, change retire-old-client-services).
@@ -152,7 +152,7 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
         await upstream.body?.cancel();
     }
 
-    const headers = new Headers(upstream.headers);
+    const headers = tracestrack ? responseHeaders(upstream) : new Headers(upstream.headers);
     for (const name of DROPPED_RESPONSE_HEADERS) {
         headers.delete(name);
     }
@@ -163,15 +163,18 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
     if (strava) {
         headers.set('X-Strava-Cookies', stravaSource);
     }
-    if (tracestrack && upstream.status === 200 && !headers.has('Cache-Control')) {
-        headers.set('Cache-Control', DEFAULT_CACHE_CONTROL);
-    }
     const location = upstream.headers.get('Location');
     if (location) {
         const absolute = new URL(location, target).href;
         headers.set('Location', proxiedUrl(proxyOrigin, tracestrack ? withoutKey(absolute) : absolute));
     }
-    return new Response(isHead ? null : upstream.body, {
+    let body = isHead ? null : upstream.body;
+    if (tracestrack && !upstream.ok && body) {
+        await upstream.body.cancel();
+        body = errorBody(upstream.status);
+        headers.set('Content-Type', 'text/plain;charset=UTF-8');
+    }
+    return new Response(body, {
         status: upstream.status,
         statusText: upstream.statusText,
         headers,

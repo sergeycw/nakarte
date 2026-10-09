@@ -91,8 +91,8 @@ function upstream(request) {
             {headers: {'X-Anonymous-Tile': 'yes'}}
         );
     }
-    // Tracestrack: тайл с x = 999 отвечает редиректом с ключом в Location, с y = 7 — своим Cache-Control; остальные —
-    // эхо запроса (по нему тест видит ключ)
+    // Tracestrack: тайл с x = 999 отвечает редиректом с ключом в Location, с x = 403 — отказом с ключом в теле и
+    // заголовке, с y = 7 — своим Cache-Control; остальные — эхо запроса (по нему тест видит ключ) с лишним заголовком
     if (url.host === 'tile.tracestrack.com') {
         tracestrackCalls += 1;
         const [, , z, x, y] = url.pathname.split('/');
@@ -102,8 +102,12 @@ function upstream(request) {
                 headers: {Location: `/topo__/${z}/1/${y}?key=${url.searchParams.get('key')}`},
             });
         }
+        const key = url.searchParams.get('key');
+        if (x === '403') {
+            return new Response(`key ${key} is blocked`, {status: 403, headers: {Link: `<${url.href}>`}});
+        }
         const cache = y.startsWith('7.') || y.startsWith('7@') ? {'Cache-Control': 'max-age=60'} : {};
-        return Response.json({url: request.url}, {headers: cache});
+        return Response.json({url: request.url}, {headers: {'X-Debug-Key': String(key), ...cache}});
     }
     if (url.host === 'evil.test') {
         offsiteCalls.push(request.url);
