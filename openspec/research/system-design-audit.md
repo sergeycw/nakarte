@@ -45,7 +45,7 @@
 
 ## 2. Контракты
 
-**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../specs/elevation-tiles/spec.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js), их можно менять без миграции данных.
+**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../changes/archive/2026-10-07-add-elevation-tiles/design.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js), их можно менять без миграции данных.
 
 | Контракт | Держится ради старого клиента | Можно поменять с новым UI | Менять нельзя |
 |---|---|---|---|
@@ -68,7 +68,7 @@
 
 | Бакет | Объектов | Объём | Ключи и формат | Как обновляется |
 |---|---|---|---|---|
-| `nakarte-elevation` | 26 158 | 16.9 ГБ | `dem3/N43E042` — заголовок `NKE1` ([format.rs](../../workers/elevation/core/src/format.rs)); `tiles/elevation-z0-9` — заголовок `NKT1`, плотный индекс ([archive.rs](../../workers/elevation/core/src/archive.rs)) | вручную, S3 API ([ci-cd.md](../../docs/architecture/ci-cd.md)) |
+| `nakarte-elevation` | 26 158 | 16.9 ГБ | `dem3/N43E042` — заголовок `NKE1` ([format.rs](../../workers/elevation/core/src/format.rs)); `tiles/elevation-z0-9` — заголовок `NKT1`, плотный индекс ([archive.rs](https://github.com/sergeycw/nakarte/blob/68ab4954/workers/elevation/core/src/archive.rs)) | вручную, S3 API ([ci-cd.md](../../docs/architecture/ci-cd.md)) |
 | `nakarte-tiles` | 1 143 | 10.0 ГБ | `<имя>.rd5` как у brouter.de, `manifest.json` (`lookupsSha256`, версия тайла = дата и размер из индекса brouter.de) | по понедельникам, `wrangler r2 object put` поверх старого ([brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs)) |
 | `nakarte-tracks` | 3 | 172 байта | `tracks/{key}`, тело — `nktk` (версия — первый байт строки) | запись из Worker'а, без метаданных |
 

@@ -29,12 +29,20 @@ describe('origin check', () => {
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
     });
 
-    // test_track_load.js апстрима ходит в живые сервисы через этот прокси со страницы karma
-    it('accepts the karma origin', async () => {
-        const response = await request('/https/example.com/', {origin: 'http://localhost:9876'});
+    // dev-сервер приложения web/ и vite preview ходят в живой прокси (спека cors-proxy, «Разрешённые origin клона»)
+    it.each(['http://localhost:8769', 'http://localhost:4173'])('accepts the local app origin %s', async (origin) => {
+        const response = await request('/https/example.com/', {origin});
         expect(response.status).toBe(200);
-        expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:9876');
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
     });
+
+    // dev-серверы старого клиента и karma ушли вместе с ним (change retire-old-client-services)
+    it.each(['http://localhost:9876', 'http://localhost:8765', 'http://localhost:8766'])(
+        'rejects the old client origin %s',
+        async (origin) => {
+            expect((await request('/https/example.com/', {origin})).status).toBe(403);
+        }
+    );
 
     it('answers preflight with 204, methods and requested headers', async () => {
         const response = await request('/https/example.com/', {
@@ -65,9 +73,8 @@ describe('proxying', () => {
         expect(echo.headers['x-custom']).toBeUndefined();
     });
 
-    it('maps /wikimapia/ to http://wikimapia.org/', async () => {
-        const echo = await (await request('/wikimapia/z1/itiles/0/1/2.xy?123')).json();
-        expect(echo.url).toBe('http://wikimapia.org/z1/itiles/0/1/2.xy?123');
+    it('answers 404 to the old /wikimapia/ alias', async () => {
+        expect((await request('/wikimapia/z1/itiles/0/1/2.xy?123')).status).toBe(404);
     });
 
     it('sends HEAD upstream as GET and returns no body', async () => {
@@ -79,7 +86,7 @@ describe('proxying', () => {
 
     it('forwards User-Agent', async () => {
         const echo = await (
-            await request('/wikimapia/z1/itiles/0/1/2.xy', {headers: {'User-Agent': 'Browser/1.0'}})
+            await request('/https/example.com/track.gpx', {headers: {'User-Agent': 'Browser/1.0'}})
         ).json();
         expect(echo.headers['user-agent']).toBe('Browser/1.0');
     });
@@ -141,7 +148,7 @@ describe('own hosts', () => {
 
 describe('rate limit', () => {
     // в vitest.config.js лимиты понижены: хосты слоёв — 3, остальные — 2 запроса за 60 с
-    const LAYER_TILE = '/https/slazav.xyz/tiles/hr/1-2-3.png';
+    const LAYER_TILE = '/https/maptiles.website.yandexcloud.net/12/2557/1514.png';
     function fromIp(ip, options = {}, path = LAYER_TILE) {
         return request(path, {...options, headers: {'CF-Connecting-IP': ip, ...options.headers}});
     }
@@ -154,7 +161,7 @@ describe('rate limit', () => {
         expect(limited.status).toBe(429);
         expect(limited.headers.get('Access-Control-Allow-Origin')).toBe(CLONE_ORIGIN);
         expect((await fromIp('192.0.2.4')).status).toBe(200);
-        expect((await fromIp('192.0.2.4', {}, '/wikimapia/z1/itiles/0/1/2.xy')).status).toBe(200);
+        expect((await fromIp('192.0.2.4')).status).toBe(200);
         const heatmap = '/https/content-b.strava.com/identified/globalheat/all/hot/1/0/0.png';
         expect((await fromIp('192.0.2.4', {}, heatmap)).status).toBe(200);
         expect((await fromIp('192.0.2.4')).status).toBe(429);

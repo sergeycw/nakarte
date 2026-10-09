@@ -87,8 +87,10 @@ async fn rejects_foreign_origin_and_wrong_method() {
     assert_eq!(body(&invalid), "Invalid request\n");
 }
 
+// Тайлов высот больше нет (change retire-old-client-services): `/tiles/…` без `Origin` — `403`, как любой
+// запрос API без разрешённого origin.
 #[tokio::test]
-async fn serves_tiles_without_origin() {
+async fn former_tiles_route_needs_origin() {
     let port = start().await;
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
         .await
@@ -101,14 +103,7 @@ async fn serves_tiles_without_origin() {
         .unwrap();
     let mut response = Vec::new();
     stream.read_to_end(&mut response).await.unwrap();
-    let split = response
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .unwrap();
-    let head = String::from_utf8_lossy(&response[..split]).to_ascii_lowercase();
-    assert!(head.starts_with("http/1.1 200"), "{head}");
-    assert!(head.contains("content-encoding: gzip"), "{head}");
-    assert!(head.contains("access-control-allow-origin: *"), "{head}");
-    // тело — gzip: magic 1f 8b
-    assert_eq!(&response[split + 4..split + 6], &[0x1f, 0x8b]);
+    let head = String::from_utf8_lossy(&response).to_ascii_lowercase();
+    assert!(head.starts_with("http/1.1 403"), "{head}");
+    assert!(!head.contains("access-control-allow-origin"), "{head}");
 }

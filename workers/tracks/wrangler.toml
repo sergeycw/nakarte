@@ -17,13 +17,14 @@ cpu_ms = 500
 subrequests = 10
 
 [vars]
-ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
+# сайт клона, dev-сервер приложения web/ (8769) и vite preview (4173)
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8769,http://localhost:4173"
 
 [[r2_buckets]]
 binding = "TRACKS"
 bucket_name = "nakarte-tracks"
 
-# Частота с одного IP (CF-Connecting-IP) за 60 с; namespace_id уникален в аккаунте (1001–1006 — клон).
+# Частота с одного IP (CF-Connecting-IP) за 60 с; namespace_id уникален в аккаунте (1002–1008 — клон, 1001 освобождён).
 [[ratelimits]]
 name = "RATE_LIMITER"
 namespace_id = "1003"

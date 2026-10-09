@@ -1,6 +1,6 @@
 #!/bin/sh
 # Синтетическая проверка своих сервисов клона на проде: приложение на /, редирект /next/, файлы движка, тайл BRouter,
-# API и тайлы высот, хранилище треков, CORS-прокси. Только чтение, без сети к чужим сайтам:
+# API высот, хранилище треков, CORS-прокси. Только чтение, без сети к чужим сайтам:
 # прокси проверяется preflight'ом, хранилище треков — чтением несуществующего ключа (404 из R2).
 # Запускают workflow «prod check» (раз в день и после деплоя) и человек: sh scripts/prod-check.sh
 set -u
@@ -9,10 +9,8 @@ SITE=${SITE:-https://nakarte-routing.pages.dev}
 ELEVATION=${ELEVATION:-https://nakarte-elevation.nakarte-routing.workers.dev}
 TRACKS=${TRACKS:-https://nakarte-tracks.nakarte-routing.workers.dev}
 PROXY=${PROXY:-https://nakarte-cors-proxy.nakarte-routing.workers.dev}
-# Тбилиси: тестовый район из AGENTS.md; тайлы высот z11 (на лету) и z5 (из архива) над ним
+# Тбилиси: тестовый район из AGENTS.md
 POINT='41.687 44.776'
-TILE_LIVE=11/1278/762
-TILE_ARCHIVE=5/19/11
 
 failed=0
 headers=$(mktemp)
@@ -71,15 +69,6 @@ if [ "$status" = 200 ] && grep -qE '^-?[0-9]+\.[0-9]{2}$' "$body"; then
 else
     report 'elevation api' "status $status, body $(head -c 80 "$body")"
 fi
-
-for tile in "$TILE_LIVE" "$TILE_ARCHIVE"; do
-    status=$(fetch "$ELEVATION/tiles/$tile")
-    if [ "$status" = 200 ] && [ "$(header content-type)" = application/octet-stream ]; then
-        report "elevation tile $tile" ok
-    else
-        report "elevation tile $tile" "status $status"
-    fi
-done
 
 status=$(fetch -H "Origin: $SITE" "$TRACKS/track/AAAAAAAAAAAAAAAAAAAAAA")
 if [ "$status" = 404 ] && grep -q 'Track not found' "$body"; then report 'tracks' ok; else report 'tracks' "status $status"; fi

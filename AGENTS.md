@@ -7,7 +7,7 @@
 - `web/` — приложение: исходники, тесты (Vitest и Playwright), сборка в корень `build/` вместе с файлами движка; раздел «Приложение».
 - `workers/<сервис>/` — Cloudflare Worker'ы: `cors-proxy`, `tracks`, `elevation` (Rust), `tiles` (тайлы BRouter из R2, работает как Pages Function `functions/tiles`; там же тесты обеих Pages Functions и их middleware), `guard` (счётчик частоты Pages Functions, закрыт снаружи, функции зовут его по service binding `GUARD`). Правила — раздел «Свои бэкенды».
 - `functions/` — Pages Functions клона: `tiles` и `brouter-wasm` (Range для файлов движка).
-- `scripts/` — тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, синтетика прода (`prod-check.sh`), данные высот (`elevation-*`), секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
+- `scripts/` — тайлы BRouter (`brouter-*`), проверка бандла на `*.nakarte.me`, синтетика прода (`prod-check.sh`), секреты Strava, которые заводит владелец (`strava-*-secret.mjs`).
 - `biome.json` и корневой `package.json` — только линт JS `workers/`, `functions/` и `scripts/` (Biome, без форматтера); у `web/` свой `biome.json`.
 - `experiments/wasm/` — сборка и стенд движка CheerpJ; `brouter/` — профили и тайлы локального BRouter (`docker-compose.yml`).
 - `docs/architecture/` — схема системы: контекст, контейнеры, диаграммы по областям, реестр решений.
@@ -68,7 +68,7 @@
 - Browser-тест рендерит `App` вместе с `index.css`: без стилей контейнер карты растёт бесконечно (`ResizeObserver loop`), и карта не загружается.
 - `shadcn add` берёт алиас `@/*` из корневого `tsconfig.json`; тема только светлая — блок `.dark` из `index.css` после `shadcn` удалять.
 - Провайдеры тайлов меняют адреса: `slazav.xyz` и `static.mapy.hiking.sk` отвечают редиректом без CORS-заголовка, а WebGL требует CORS на каждом ответе цепочки — в каталоге конечные адреса. Проверка — `curl -IL -H 'Origin: https://nakarte-routing.pages.dev'`.
-- `ALLOWED_ORIGINS` прокси, хранилища треков и сервиса высот не включают 8769 и 4173: Strava, `Mt`, свои слои и импорт треков по ссылке через прокси, «Copy link», `nktl=`, профиль высот и GPX с высотами локально не работают — тесты на заглушках (проп `fetch` у `App`, фикстура `network` в e2e), живьём проверять на проде; для скриншотов — `context.route` на адрес сервиса высот.
+- `ALLOWED_ORIGINS` прокси, хранилища треков и сервиса высот включают dev-сервер 8769 и `vite preview` 4173 (change `retire-old-client-services`): локально Strava, `Mt`, импорт по ссылке, «Copy link», `nktl=` и профиль высот ходят в боевые Worker'ы. Тесты от этого не зависят: сеть подменяют проп `fetch` у `App` и фикстура `network` в e2e.
 - CSS MapLibre вне `@layer` перебивает и утилиты Tailwind: свойства элементов MapLibre (`.maplibregl-ctrl-*`) задавать с `!` (`top-12!` в `BaseMap.tsx`).
 - `@custom-variant dark` в `index.css` нужен, хотя тёмной темы нет: без него классы `dark:` компонентов shadcn включаются темой системы.
 - Dev-сервер Vitest на любой несуществующий путь отвечает `200 text/html`: тайл с нужным статусом — `/__status__/<код>/…` (плагин в `vitest.config.ts`). MapLibre на `404` растра события `error` не шлёт.
@@ -122,7 +122,7 @@
 
 Ресурсы Cloudflare (своего домена нет; аккаунт `S.m.lukashev@gmail.com's Account`, id `1f81a3ec34abfc6581cdd0484bbf56a9`), все бакеты R2 — EEUR:
 - Pages-проект `nakarte-routing` (корневой `wrangler.toml`), production-ветка `master`. R2-бакет `nakarte-tiles`: тайлы `*.rd5` и `manifest.json` синхронизации.
-- Worker'ы на поддомене `nakarte-routing.workers.dev`, адреса — `web/src/config.ts`: `nakarte-cors-proxy`; `nakarte-tracks` (объекты `tracks/{key}` в бакете `nakarte-tracks`); `nakarte-elevation` (в бакете `nakarte-elevation` объекты градусов `dem3/N43E042`, 26 157 штук ≈ 13 ГБ, и архив тайлов z0–9 `tiles/elevation-z0-9`).
+- Worker'ы на поддомене `nakarte-routing.workers.dev`, адреса — `web/src/config.ts`: `nakarte-cors-proxy`; `nakarte-tracks` (объекты `tracks/{key}` в бакете `nakarte-tracks`); `nakarte-elevation` (в бакете `nakarte-elevation` объекты градусов `dem3/N43E042`, 26 157 штук ≈ 13 ГБ; архив тайлов высот `tiles/elevation-z0-9` ≈ 3.8 ГБ Worker с change `retire-old-client-services` не читает, удаление — решение владельца).
 - Нужен Workers Paid: на Free потолок CPU 10 мс на вызов. План включает и оплачивает владелец.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
 - Секреты GitHub `CLOUDFLARE_API_TOKEN` (Account API token «nakarte deploy»: Pages Write и Editor поштучно на Worker'ы клона, без R2) и `CLOUDFLARE_ACCOUNT_ID` нужны деплою. Editor не создаёт Worker'ы: первый деплой нового сервиса упадёт, пока владелец не добавит его в токен или не задеплоит сам. Секреты заводит владелец, агент токены не вводит.
@@ -162,22 +162,18 @@
 
 ### Сервис высот (`workers/elevation`)
 
-Контракт — спеки `elevation-api` и `elevation-tiles`, формат данных и решения — архив `add-elevation-api` и `add-elevation-tiles`. Данные и арифметика — как у автора: Go-сервер `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301) и GDAL-генератор тайлов `wladich/elevation_tiles_for_nakarte`.
+Контракт — спека `elevation-api`, формат данных и решения — архив `add-elevation-api`. Данные и арифметика — как у Go-сервера автора `wladich/elevation_server` (HGT 3″ viewfinderpanoramas, четверти градуса 301×301). Тайлы высот (`/tiles/`, архив `add-elevation-tiles`) выведены в change `retire-old-client-services`: `GET /tiles/…` теперь обычный запрос API (`403` без `Origin`).
 
-- Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы, в том числе расчёт тайлов), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса), `tiles` (`elevation-tiles`: архив тайлов z0–9 и прореживание фикстур). Версию Rust из `rust-toolchain.toml` rustup ставит сам; `worker-build` ставить той же версии, что в `check-elevation.yml`.
+- Rust-воркспейс: `core` (без ввода-вывода, вся логика и HTTP-ответы), `worker` (R2), `server` (`axum` + файлы, запасной путь для VPS), `repack` (HGT → объект градуса). Версию Rust из `rust-toolchain.toml` rustup ставит сам; `worker-build` ставить той же версии, что в `check-elevation.yml`.
 - Проверки — шаги `check-elevation.yml` из `workers/elevation`; `npm test` (собирает wasm и гоняет его в `workerd`) — с `PATH=/usr/local/bin:$PATH`.
-- Фикстуры: `fixtures/reference.txt` — ответы автора, `fixtures/tiles/{z}-{x}-{y}.gz` — тайлы автора как есть (gzip), `fixtures/dem3/*` — прореженные объекты (только нужные куски). Пересборка API — `fixtures/make_reference.py` (ходит к автору) и `elevation-repack --only ...` по списку, который он печатает; новый эталонный тайл — скачать с `tiles.nakarte.me/elevation` в `fixtures/tiles/` и `elevation-tiles thin --data <каталог с полными dem3> --fixtures fixtures Z/X/Y` (дописывает нужные куски, не трогая уже лежащие).
+- Фикстуры: `fixtures/reference.txt` — ответы автора, `fixtures/dem3/*` — прореженные объекты (только нужные куски; часть дописал удалённый генератор тайлов, лишние куски тестам не мешают). Пересборка — `fixtures/make_reference.py` (ходит к автору) и `elevation-repack --only ...` по списку, который он печатает.
 - Данные: `scripts/elevation-data.sh` (справка — без аргументов; по умолчанию пишет в локальный R2 для `wrangler dev`, `R2_MODE=--remote` — в Cloudflare через S3 API R2) или ручной workflow `elevation data` (весь мир ≈ 40 минут) с секретами `R2_ACCESS_KEY_ID` и `R2_SECRET_ACCESS_KEY` (Account API token R2 «nakarte-elevation data upload»: Bucket Item Write на `nakarte-elevation` и `nakarte-tiles`, заводит владелец; те же ключи у синхронизации тайлов). `wrangler r2 bulk put --remote` для массовой заливки не годится: ~0.4 объекта в секунду.
-- Тайлы: z10–11 Worker считает на лету из `dem3`, z0–9 читает из архива. Архив — `DATA=<каталог с dem3> [BBOX=W,S,E,N] scripts/elevation-tiles.sh` (локальный R2) или ручной workflow `elevation tiles` (весь мир через S3 API тем же токеном: ≈ 60 минут, архив ≈ 3.8 ГБ; поле `bbox` — для пробы на регионе). Регион Кавказ `40,41,47,45` локально — 4 секунды.
-- Локально: `nakarte-elevation-worker` в `../.claude/launch.json` — `wrangler dev` на 8789 поверх локального R2 (сначала залить градусы скриптом выше, для тайлов z0–9 — ещё архив). Приложение ходит в боевой Worker; для проверки с локальным временно поставить `ELEVATION_SERVER_URL` в `web/src/config.ts` на `http://localhost:8789/` и вернуть.
+- Локально: `nakarte-elevation-worker` в `../.claude/launch.json` — `wrangler dev` на 8789 поверх локального R2 (сначала залить градусы скриптом выше). Приложение ходит в боевой Worker; для проверки с локальным временно поставить `ELEVATION_SERVER_URL` в `web/src/config.ts` на `http://localhost:8789/` и вернуть.
 
 Подвохи:
 - В `workerd` нет файловой системы: тест Worker получает фикстуры привязками из `vitest.config.js`.
 - Будущее ядра не `Send` (трейт `Source` без `Send`-границ ради wasm), поэтому `server` крутит его через `spawn_blocking` + `block_on`.
 - `core` с фичей `encode` тянет C-шный `zstd`: под wasm32 не собирается, поэтому clippy под wasm — только `-p elevation-worker`.
-- Тайлы отдаются уже в gzip (`EncodeBody::Manual`); в тестах `workerd` тело такого ответа при чтении из JS приходит распакованным.
-- Узел на стыке градусов есть в двух HGT, и значения там расходятся: тайлы автора берут градус, последний по алфавиту имени, поэтому куски в `render` заполняют окно строго в порядке ключей (`buffered`, не `buffer_unordered`).
-- После перезаливки архива тайлов Worker передеплоить: кеш изолята держит страницы старого индекса.
 
 ## Апстрим
 

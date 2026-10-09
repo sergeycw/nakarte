@@ -12,14 +12,6 @@ const demObjects = Object.fromEntries(
     ])
 );
 
-// Эталонные тайлы автора (`fixtures/tiles/{z}-{x}-{y}.gz`, gzip как есть) — тоже base64.
-const authorTiles = Object.fromEntries(
-    readdirSync(new URL('tiles/', fixturesDir)).map((name) => [
-        name.replace(/\.gz$/u, ''),
-        readFileSync(new URL(`tiles/${name}`, fixturesDir)).toString('base64'),
-    ])
-);
-
 export default defineConfig({
     plugins: [
         cloudflareTest({
@@ -28,12 +20,10 @@ export default defineConfig({
                 bindings: {
                     FIXTURE_OBJECTS: demObjects,
                     FIXTURE_REFERENCE: readFileSync(new URL('reference.txt', fixturesDir), 'utf8'),
-                    FIXTURE_TILES: authorTiles,
                 },
                 // лимиты частоты понижены, чтобы `429` проверялся несколькими запросами;
                 // `namespace_id` — имя поля miniflare, camelCase тут не выбрать
                 ratelimits: {
-                    TILES_RATE_LIMITER: {namespace_id: '1001', simple: {limit: 3, period: 60}},
                     API_RATE_LIMITER: {namespace_id: '1002', simple: {limit: 2, period: 60}},
                     // 5 единиц по 64 чтения: запрос на 200 чтений (4 единицы) проходит один раз
                     API_READS_RATE_LIMITER: {namespace_id: '1005', simple: {limit: 5, period: 60}},

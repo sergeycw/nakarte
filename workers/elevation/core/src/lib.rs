@@ -2,14 +2,11 @@ use std::collections::BTreeMap;
 
 use futures::stream::{self, StreamExt, TryStreamExt};
 
-pub mod archive;
 pub mod format;
 pub mod grid;
 pub mod http;
-pub mod render;
 pub mod request;
 pub mod response;
-pub mod tile;
 
 use format::{HEADER_LEN, Header};
 use grid::Cell;

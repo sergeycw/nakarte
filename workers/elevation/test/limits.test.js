@@ -1,6 +1,6 @@
-// Частота запросов с одного IP в собранном wasm-Worker: привязки `[[ratelimits]]`, свои счётчики
-// у тайлов и API, бюджет чтений R2 у API, `429` с CORS. В vitest.config.js лимиты понижены: тайлы — 3,
-// API — 2 вызова и 5 единиц бюджета (по 64 чтения) за 60 с.
+// Частота запросов с одного IP в собранном wasm-Worker: привязки `[[ratelimits]]`, счётчик API, бюджет
+// чтений R2, `429` с CORS. В vitest.config.js лимиты понижены: API — 2 вызова и 5 единиц бюджета (по 64
+// чтения) за 60 с. Тайлов высот со своим счётчиком больше нет (change retire-old-client-services).
 import {exports as workerExports} from 'cloudflare:workers';
 import {describe, expect, it} from 'vitest';
 
@@ -14,29 +14,14 @@ function fromIp(ip, path, {method = 'GET', origin, body} = {}) {
     return workerExports.default.fetch(`https://elevation.test${path}`, {method, headers, body});
 }
 
-function tile(ip) {
-    return fromIp(ip, '/tiles/11/796/844');
-}
-
 function api(ip, origin = CLONE_ORIGIN) {
     return fromIp(ip, '/', {method: 'POST', origin, body: ''});
 }
 
 describe('rate limit', () => {
-    it('answers 429 to tiles after the limit, with CORS * and Retry-After', async () => {
-        for (let i = 0; i < 3; i++) {
-            expect((await tile('192.0.2.1')).status).toBe(404);
-        }
-        const limited = await tile('192.0.2.1');
-        expect(limited.status).toBe(429);
-        expect(limited.headers.get('Retry-After')).toBe('60');
-        expect(limited.headers.get('Access-Control-Allow-Origin')).toBe('*');
-        expect(await limited.text()).toBe('Too many requests\n');
-    });
-
-    it('keeps the API counter separate from tiles', async () => {
+    it('does not spend the API counter on the former tiles route', async () => {
         for (let i = 0; i < 4; i++) {
-            await tile('192.0.2.2');
+            expect((await fromIp('192.0.2.2', '/tiles/11/796/844')).status).toBe(403);
         }
         expect((await api('192.0.2.2')).status).toBe(200);
     });
@@ -56,8 +41,12 @@ describe('rate limit', () => {
 
     it('does not limit requests without CF-Connecting-IP', async () => {
         for (let i = 0; i < 5; i++) {
-            const response = await workerExports.default.fetch('https://elevation.test/tiles/11/796/844');
-            expect(response.status).toBe(404);
+            const response = await workerExports.default.fetch('https://elevation.test/', {
+                method: 'POST',
+                headers: {Origin: CLONE_ORIGIN},
+                body: '',
+            });
+            expect(response.status).toBe(200);
         }
     });
 });

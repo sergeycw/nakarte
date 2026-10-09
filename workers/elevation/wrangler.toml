@@ -13,7 +13,7 @@ enabled = true
 
 # Потолок на один вызов. CPU — с запасом от наблюдённого максимума 3.8 с (API на тысячах точек
 # вразброс). Чтения R2 через привязку — тоже подзапросы: запрос API читает не больше 512 раз
-# (MAX_READS в core/src/request.rs), тайл — единицы; 1100 — запас вместо платформенных 10 000.
+# (MAX_READS в core/src/request.rs); 1100 — запас вместо платформенных 10 000.
 [limits]
 cpu_ms = 10000
 subrequests = 1100
@@ -22,19 +22,15 @@ subrequests = 1100
 command = "worker-build --release worker"
 
 [vars]
-ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8765,http://localhost:8766"
+# сайт клона, dev-сервер приложения web/ (8769) и vite preview (4173)
+ALLOWED_ORIGINS = "https://nakarte-routing.pages.dev,http://localhost:8769,http://localhost:4173"
 
 [[r2_buckets]]
 binding = "DEM"
 bucket_name = "nakarte-elevation"
 
-# Частота с одного IP (CF-Connecting-IP) за 60 с, у тайлов и API свои счётчики;
-# namespace_id уникален в аккаунте (1001–1005 — Worker'ы клона).
-[[ratelimits]]
-name = "TILES_RATE_LIMITER"
-namespace_id = "1001"
-simple = { limit = 600, period = 60 }
-
+# Частота запросов API с одного IP (CF-Connecting-IP) за 60 с; namespace_id уникален в аккаунте
+# (1002–1008 — Worker'ы клона; 1001 был у тайлов высот, освобождён change retire-old-client-services).
 [[ratelimits]]
 name = "API_RATE_LIMITER"
 namespace_id = "1002"

@@ -2,7 +2,7 @@
 
 Схема приложения сверху вниз: сначала общая картина крупными блоками с ключевыми решениями, потом каждый блок отдельно. Документ показывает структуру и связи, а остальное — ссылкой туда, где оно записано (`AGENTS.md`, раздел «Где что записано»): поведение — `openspec/specs/`, причины решений — архив changes и [реестр решений](decisions.md), запуск и подвохи — `AGENTS.md`, риски — `openspec/backlog.md`.
 
-Диаграммы сверены с кодом на `master` 2026-10-09 (после change `switch-to-web-app`). Правишь связь в коде — правь стрелку здесь.
+Диаграммы сверены с кодом на `master` 2026-10-09 (после change `switch-to-web-app`), Worker'ы — с change `retire-old-client-services`. Правишь связь в коде — правь стрелку здесь.
 
 ## Общая схема
 
@@ -67,7 +67,7 @@ flowchart LR
 | ③ Pages + Functions | jar, профили и тайлы BRouter с origin клона по Range: CheerpJ читает только его | [routing.md](routing.md), [уровень 2](#публичный-клон) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ④ CORS-прокси | повторяет протокол авторского прокси; куки Strava heatmap прокси получает сам по сессии | [cors-proxy.md](cors-proxy.md) | [реестр: CORS-прокси и Strava](decisions.md#cors-прокси-и-strava) |
 | ⑤ Хранилище треков | ссылка `nktl=` — md5 треков, объект в R2 неизменяемый | [track-storage.md](track-storage.md) | [реестр: хранилище треков](decisions.md#хранилище-треков) |
-| ⑥ Сервис высот | данные и арифметика автора, Rust → wasm; тайлы z0–9 из архива, z10–11 на лету | [elevation.md](elevation.md) | [реестр: сервис высот](decisions.md#сервис-высот) |
+| ⑥ Сервис высот | данные и арифметика автора, Rust → wasm; только API высот, тайлы высот выведены | [elevation.md](elevation.md) | [реестр: сервис высот](decisions.md#сервис-высот) |
 | ⑦ GitHub Actions | прод = `master`; данные в R2 заливает CI, а не рантайм; деплой падает на адресах автора | [ci-cd.md](ci-cd.md), [protection.md](protection.md) | [реестр: деплой и защита](decisions.md#деплой-и-защита) |
 | ⑧ Локальный режим | то же приложение в режиме без `clone`: `routingEngine: 'server'` и BRouter в docker | [уровень 2](#локальный-режим), [routing.md](routing.md) | `AGENTS.md`, [«Запуск»](../../AGENTS.md#запуск) |
 | Cloudflare целиком | свои Worker'ы и R2 вместо `*.nakarte.me`, с лимитами на вызов и частоту | [protection.md](protection.md), [что заменено](#что-больше-не-используется-от-nakarteme) | [реестр: платформа и стек](decisions.md#платформа-и-стек) |
@@ -172,7 +172,7 @@ flowchart LR
 | `proxy.nakarte.me/mapy/` (слои mapy.cz) | удалены, не заменены | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md) |
 | `tracks.nakarte.me` | `nakarte-tracks` | [track-storage](../../openspec/specs/track-storage/spec.md) |
 | `elevation.nakarte.me` | `nakarte-elevation`, `POST /` | [elevation-api](../../openspec/specs/elevation-api/spec.md) |
-| `tiles.nakarte.me/elevation` | `nakarte-elevation`, `GET /tiles/{z}/{x}/{y}` | [elevation-tiles](../../openspec/specs/elevation-tiles/spec.md) |
+| `tiles.nakarte.me/elevation` | не заменён: свои тайлы высот выведены вместе со старым клиентом | [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md), [elevation.md](elevation.md#тайлы-высот-выведены) |
 | `{s}.tiles.nakarte.me`, `tiles.nakarte.me/topomapper` (сканы карт), `nakarte.me/westraPasses/`, `nakarte.me/geocachingSu/` | слои удалены | [drop-author-scan-layers](../../openspec/changes/archive/2026-10-08-drop-author-scan-layers/design.md) |
 | `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` (покрытие панорам) | провайдеры удалены, остался Street View | [remove-panorama-providers](../../openspec/changes/archive/2026-10-08-remove-panorama-providers/design.md) |
 | `nakarte.me/event`, Sentry | нет: журнала событий и Sentry в приложении нет | [config.ts](../../web/src/config.ts), [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md) |
@@ -194,10 +194,10 @@ flowchart LR
 | Worker `nakarte-guard` | счётчик частоты для Pages Functions, снаружи закрыт (`workers_dev = false`) | [workers/guard/wrangler.toml](../../workers/guard/wrangler.toml), [index.js](../../workers/guard/src/index.js), [client.js](../../workers/guard/src/client.js) |
 | Worker `nakarte-cors-proxy` | CORS-прокси, куки Strava heatmap | [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js), [strava.js](../../workers/cors-proxy/src/strava.js) |
 | Worker `nakarte-tracks` | хранилище треков для `nktl=` | [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
-| Worker `nakarte-elevation` | API высот и тайлы высот (у тайлов клиента больше нет — уходят в change `retire-old-client-services`), Rust → wasm | [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs) |
+| Worker `nakarte-elevation` | API высот (`POST /`), Rust → wasm; тайлов высот нет | [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs) |
 | R2 `nakarte-tiles` | тайлы BRouter `*.rd5`, `manifest.json` синхронизации | [wrangler.toml](../../wrangler.toml), [brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs) |
 | R2 `nakarte-tracks` | объекты `tracks/{key}` | [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml) |
-| R2 `nakarte-elevation` | градусы `dem3/N43E042`, архив `tiles/elevation-z0-9` | [grid.rs](../../workers/elevation/core/src/grid.rs), [archive.rs](../../workers/elevation/core/src/archive.rs) |
+| R2 `nakarte-elevation` | градусы `dem3/N43E042`; архив тайлов высот `tiles/elevation-z0-9` остаётся до решения владельца, Worker его не читает | [grid.rs](../../workers/elevation/core/src/grid.rs), [elevation.md](elevation.md#тайлы-высот-выведены) |
 | BRouter в docker | `ghcr.io/abrensch/brouter:nightly` на `127.0.0.1:17777` | [docker-compose.yml](../../docker-compose.yml) |
 | Dev-сервер | 8769 — `npm run dev` и `npm run dev:clone` из `web/`, `vite preview` — 4173 | [web/package.json](../../web/package.json), [vite.config.ts](../../web/vite.config.ts), `../.claude/launch.json` (вне репозитория) |
 | Движок в браузере | CheerpJ в Web Worker + `brouter.jar` + патчи + `WasmRouter` | [engine/](../../web/src/engine/), [build.sh](../../experiments/wasm/cheerpj/build.sh) |
@@ -217,7 +217,7 @@ flowchart LR
 | браузер → `nakarte-tracks` | `POST /track/{key}`, `GET /track/{key}` | [share.ts](../../web/src/tracks/share.ts), [links.ts](../../web/src/tracks/links.ts) |
 | `nakarte-tracks` → R2 `nakarte-tracks` | `head`/`put`/`get` `tracks/{key}` | [workers/tracks/src/index.js](../../workers/tracks/src/index.js) |
 | браузер → `nakarte-elevation` | `POST /` (точки построчно) | [api.ts](../../web/src/elevation/api.ts) |
-| `nakarte-elevation` → R2 `nakarte-elevation` | range-чтения `dem3/*` и `tiles/elevation-z0-9` | [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [archive.rs](../../workers/elevation/core/src/archive.rs) |
+| `nakarte-elevation` → R2 `nakarte-elevation` | range-чтения `dem3/*` | [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [grid.rs](../../workers/elevation/core/src/grid.rs) |
 | браузер → `nakarte-cors-proxy` | `GET`/`HEAD /{http,https}/{host}/{path}` | [catalog.ts](../../web/src/layers/catalog.ts), [sources.ts](../../web/src/tracks/sources.ts), [mapycz.ts](../../web/src/search/mapycz.ts), [links.ts](../../web/src/search/links.ts) |
 | `nakarte-cors-proxy` → внешние сайты | `fetch(target, {redirect: 'manual'})` | [cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js) (`proxy`) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
