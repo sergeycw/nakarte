@@ -26,7 +26,7 @@ import { StreetViewContext } from '@/streetview/context';
 import { createStreetView } from '@/streetview/controller';
 import { COVERAGE_CODE, COVERAGE_TITLE } from '@/streetview/coverage';
 import { googleStreetView } from '@/streetview/google';
-import { PANORAMA_HEIGHT, StreetViewPanel } from '@/streetview/StreetViewPanel';
+import { panoramaHeight, StreetViewPanel } from '@/streetview/StreetViewPanel';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
 import { isTrackParam } from '@/tracks/links';
@@ -92,7 +92,7 @@ function BottomInset() {
     useEffect(() => {
         const root = document.documentElement;
         const profileInset = profile ? `(${PROFILE_HEIGHT} + 0.75rem)` : '0px';
-        const panoramaInset = panorama ? `(${PANORAMA_HEIGHT} + 0.75rem)` : '0px';
+        const panoramaInset = panorama ? `(${panoramaHeight(profile)} + 0.75rem)` : '0px';
         root.style.setProperty('--profile-inset', profile ? `calc${profileInset}` : '0px');
         root.style.setProperty('--bottom-inset', `calc(${profileInset} + ${panoramaInset})`);
         return () => {

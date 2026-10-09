@@ -11,7 +11,11 @@ import { UNAVAILABLE_MESSAGE } from './controller';
 // (--profile-inset); панели редактора и точек, атрибуция и тосты — над ней по --bottom-inset (App). Окно создаётся при
 // первом открытии и живёт, пока включён режим: закрытие прячет панель, выключение режима снимает её вместе с окном.
 
-export const PANORAMA_HEIGHT = 'min(45dvh, 28rem)';
+// с профилем высот панорама ниже: обе панели на телефоне 390×844 в полный рост оставили бы карте ≈ 100 px (скриншоты
+// 2026-10-09)
+export function panoramaHeight(withProfile: boolean): string {
+    return withProfile ? 'min(30dvh, 20rem)' : 'min(45dvh, 28rem)';
+}
 
 function Viewer({ open }: { open: boolean }) {
     const store = useAppStoreApi();
@@ -101,6 +105,7 @@ function Viewer({ open }: { open: boolean }) {
 export function StreetViewPanel() {
     const enabled = useAppStore((state) => state.streetView.enabled);
     const open = useAppStore((state) => state.streetView.pano !== null);
+    const withProfile = useAppStore((state) => state.profile !== null);
     const streetView = useStreetView();
     if (!enabled) {
         return null;
@@ -111,7 +116,7 @@ export function StreetViewPanel() {
             aria-label="Street View"
             size="sm"
             className="pointer-events-auto absolute inset-x-3 z-10 flex flex-col gap-0 py-0 data-[open=false]:hidden"
-            style={{ height: PANORAMA_HEIGHT, bottom: 'calc(var(--profile-inset) + 0.75rem)' }}
+            style={{ height: panoramaHeight(withProfile), bottom: 'calc(var(--profile-inset) + 0.75rem)' }}
             data-open={open}
             data-testid="street-view-panel"
         >
