@@ -1,10 +1,13 @@
 import { PbfReader, PbfWriter } from 'pbf';
+import { type LegMark, routeFits, type SegmentRoute, settledRoute } from '@/routing/line';
 import { type GeoData, geoData, type LatLng, type TrackData, type Waypoint } from './model';
 
 // Строка трека nktk (parsers/nktk.js старого клиента): base64url от байтов «версия + данные». Версия — первое
 // упакованное число: 1–3 — свой формат упакованных чисел, 4 — protobuf (схема parsers/nktk.proto). Без версии
 // (version 0) — ссылки track://. Запись — только версия 4, как saveNktk. На этих строках держатся выданные ссылки
 // nktl= и объекты хранилища (аудит системного дизайна, п. 2), поэтому разбор всех версий остаётся навсегда.
+// Разметка маршрута — необязательное поле 3 в Segment версии 4 (схема — nktk.proto рядом, design add-web-autosave,
+// «Ссылка: необязательное поле разметки»): протобуф старого клиента незнакомое поле пропускает и открывает геометрию.
 
 // Сетка координат: 2^24 − 1 делений на 360°, ≈ 2.4 м
 export const ARC_UNIT = ((1 << 24) - 1) / 360;
@@ -181,6 +184,13 @@ interface ViewMessage {
 interface SegmentMessage {
     lats: number[];
     lons: number[];
+    route: RouteMessage | null;
+}
+// SegmentRoute из nktk.proto: шаги между номерами опорных точек, коды отрезков и таблица активностей отрезка
+interface RouteMessage {
+    gaps: number[];
+    legs: number[];
+    activities: string[];
 }
 interface WaypointMessage {
     lat: number;
@@ -202,9 +212,33 @@ function readMessage<T>(pbf: PbfReader, init: T, read: (tag: number, obj: T, pbf
     return pbf.readFields(read, init, pbf.readVarint() + pbf.pos);
 }
 
+function readRoute(tag: number, obj: RouteMessage, pbf: PbfReader) {
+    if (tag === 1) pbf.readPackedVarint(obj.gaps);
+    else if (tag === 2) pbf.readPackedVarint(obj.legs);
+    else if (tag === 3 && pbf.type === 2) obj.activities.push(pbf.readString());
+}
+
 function readSegment(tag: number, obj: SegmentMessage, pbf: PbfReader) {
     if (tag === 1) pbf.readPackedSVarint(obj.lats);
     else if (tag === 2) pbf.readPackedSVarint(obj.lons);
+    else if (tag === 3 && pbf.type === 2) obj.route = readRouteField(pbf);
+}
+
+// Поле разметки разбирается отдельно: битое внутри (не тот тип, оборванное число) — отрезок без разметки, а не весь трек
+// CORRUPT. Старый клиент такое поле пропускает по длине, и геометрия у него открывается.
+function readRouteField(pbf: PbfReader): RouteMessage | null {
+    const end = pbf.readVarint() + pbf.pos;
+    if (end > pbf.length) {
+        throw new Error('route field is out of bounds');
+    }
+    let route: RouteMessage | null;
+    try {
+        route = pbf.readFields(readRoute, { gaps: [], legs: [], activities: [] }, end);
+    } catch {
+        route = null;
+    }
+    pbf.pos = end;
+    return route;
 }
 
 function readWaypoint(tag: number, obj: WaypointMessage, pbf: PbfReader) {
@@ -221,7 +255,7 @@ function readWaypoints(tag: number, obj: WaypointsMessage, pbf: PbfReader) {
 
 function readTrack(tag: number, obj: TrackMessage, pbf: PbfReader) {
     if (tag === 1) obj.name = pbf.readString();
-    else if (tag === 2) obj.segments.push(readMessage(pbf, { lats: [], lons: [] }, readSegment));
+    else if (tag === 2) obj.segments.push(readMessage(pbf, { lats: [], lons: [], route: null }, readSegment));
     else if (tag === 3) obj.waypoints = readMessage(pbf, { midLat: 0, midLon: 0, waypoints: [] }, readWaypoints);
 }
 
@@ -241,6 +275,55 @@ function deltaDecode(lats: number[], lons: number[]): LatLng[] {
         points.push({ lat: lat / ARC_UNIT, lng: lng / ARC_UNIT });
     }
     return points;
+}
+
+// Код отрезка: 0 — прямой, 2k+1 — проложен активностью activities[k], 2k+2 — непроложенный с activities[k]
+function decodeLeg(code: number, activities: readonly string[]): LegMark | null {
+    if (code === 0) {
+        return { state: 'straight' };
+    }
+    const activity = activities[(code - 1) >> 1];
+    if (activity === undefined) {
+        return null;
+    }
+    return { state: code % 2 === 1 ? 'routed' : 'failed', activity };
+}
+
+// Негодная разметка (не сходится с точками отрезка, код вне таблицы) — null: отрезок открывается ломаной
+function decodeRoute(message: RouteMessage | null, points: readonly LatLng[]): SegmentRoute | null {
+    if (!message || message.gaps.length !== message.legs.length) {
+        return null;
+    }
+    const legs: LegMark[] = [];
+    for (const code of message.legs) {
+        const leg = decodeLeg(code, message.activities);
+        if (!leg) {
+            return null;
+        }
+        legs.push(leg);
+    }
+    const waypoints = [0];
+    for (const gap of message.gaps) {
+        waypoints.push(waypoints[waypoints.length - 1] + gap);
+    }
+    const route = { waypoints, legs };
+    return routeFits(points, route) ? route : null;
+}
+
+function encodeRoute(route: SegmentRoute): RouteMessage {
+    const activities: string[] = [];
+    const legs = route.legs.map((leg) => {
+        if (leg.state === 'straight') {
+            return 0;
+        }
+        let index = activities.indexOf(leg.activity);
+        if (index < 0) {
+            index = activities.push(leg.activity) - 1;
+        }
+        return 2 * index + (leg.state === 'routed' ? 1 : 2);
+    });
+    const gaps = route.waypoints.slice(1).map((index, i) => index - route.waypoints[i]);
+    return { gaps, legs, activities };
 }
 
 function parseProtobuf(bytes: Uint8Array): GeoData[] {
@@ -266,6 +349,10 @@ function parseProtobuf(bytes: Uint8Array): GeoData[] {
         measureTicksShown: v.ticksShown,
         segments: t.segments.map((segment) => deltaDecode(segment.lats, segment.lons)),
     });
+    const routes = t.segments.map((segment, i) => decodeRoute(segment.route, result.segments[i]));
+    if (routes.some(Boolean)) {
+        result.routes = routes;
+    }
     const waypoints = t.waypoints;
     if (waypoints) {
         result.points = waypoints.waypoints.map((point) => ({
@@ -352,7 +439,22 @@ function writeWaypoints(points: readonly Waypoint[], pbf: PbfWriter) {
     }
 }
 
-// saveNktk старого клиента: версия 4; пустые поля не пишутся, как в сгенерированном коде pbf
+function writeRoute({ gaps, legs, activities }: RouteMessage, pbf: PbfWriter) {
+    pbf.writePackedVarint(1, gaps);
+    pbf.writePackedVarint(2, legs);
+    for (const activity of activities) {
+        pbf.writeStringField(3, activity);
+    }
+}
+
+// Разметка, которую можно записать: ожидающий отрезок — непроложенный (ответ к ссылке не придёт), негодная — никакая
+function writableRoute(points: readonly LatLng[], route: SegmentRoute | null | undefined): RouteMessage | null {
+    const settled = settledRoute(route);
+    return settled && routeFits(points, settled) ? encodeRoute(settled) : null;
+}
+
+// saveNktk старого клиента: версия 4; пустые поля не пишутся, как в сгенерированном коде pbf. Трек без разметки даёт
+// строку старого клиента байт в байт: поле route пишется, только если у отрезка есть разметка.
 export function saveNktk(track: TrackData): string {
     const pbf = new PbfWriter();
     pbf.writeMessage(
@@ -368,16 +470,19 @@ export function saveNktk(track: TrackData): string {
         2,
         (_: null, out: PbfWriter) => {
             if (track.name) out.writeStringField(1, track.name);
-            for (const segment of track.segments) {
+            track.segments.forEach((segment, i) => {
                 out.writeMessage(
                     2,
-                    ({ lats, lons }: SegmentMessage, segmentOut: PbfWriter) => {
+                    ({ lats, lons, route }: SegmentMessage, segmentOut: PbfWriter) => {
                         segmentOut.writePackedSVarint(1, lats);
                         segmentOut.writePackedSVarint(2, lons);
+                        if (route) {
+                            segmentOut.writeMessage(3, writeRoute, route);
+                        }
                     },
-                    deltaEncode(segment),
+                    { ...deltaEncode(segment), route: writableRoute(segment, track.routes?.[i]) },
                 );
-            }
+            });
             if (track.points.length) {
                 out.writeMessage(3, writeWaypoints, track.points);
             }

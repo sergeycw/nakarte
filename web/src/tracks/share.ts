@@ -1,4 +1,5 @@
 import md5 from 'blueimp-md5';
+import { simplifyRouted } from '@/routing/line';
 import { formatHash, parseHash, withParam } from '@/state/hash';
 import { simplify } from './geometry';
 import { TRACK_PARAMS } from './links';
@@ -10,16 +11,21 @@ import type { TrackSources } from './sources';
 // nktk через `/`, ключ — base64url(md5(тело)) без `=`. Старый клиент отдавал ссылку до ответа хранилища; здесь —
 // только после 200 (аудит системного дизайна, п. 2; design add-web-tracks, «Ссылка — после ответа хранилища»).
 
-// forceVisible — видимость в ссылке: «Copy link for track» пишет трек видимым (trackToString(track, forceVisible))
+// forceVisible — видимость в ссылке: «Copy link for track» пишет трек видимым (trackToString(track, forceVisible)).
+// Отрезок с разметкой маршрута упрощается без опорных точек, и разметка уходит в ссылку (design add-web-autosave).
 export function shareBody(tracks: readonly Track[], forceVisible = false): string {
     return tracks
-        .map((track) =>
-            saveNktk({
+        .map((track) => {
+            const lines = track.segments.map(
+                (line, i) => simplifyRouted(line, track.routes?.[i]) ?? { points: simplify(line), route: null },
+            );
+            return saveNktk({
                 ...track,
-                segments: track.segments.map((line) => simplify(line)),
+                segments: lines.map((line) => line.points),
+                routes: lines.map((line) => line.route),
                 hidden: forceVisible ? false : !track.visible,
-            }),
-        )
+            });
+        })
         .join('/');
 }
 
