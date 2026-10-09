@@ -68,7 +68,7 @@
 
 ### Requirement: Свой сервис высот
 
-Клон SHALL получать высоты для профиля, экспорта и внешних карт от своего сервиса высот (capability `elevation-api`), а не от `elevation.nakarte.me`.
+Клон SHALL получать высоты для профиля и экспорта от своего сервиса высот (capability `elevation-api`), а не от `elevation.nakarte.me`.
 
 #### Scenario: Профиль высот в клоне
 
@@ -128,7 +128,7 @@
 
 ### Requirement: Без слоёв mapy.cz
 
-Приложение SHALL не содержать слоёв «mapy.cz tourist (Out of order)» (`Czt`) и «mapy.cz winter (Out of order)» (`Czw`): они шли через `proxy.nakarte.me/mapy/`, своего ключа mapy.cz нет. Поиск mapy.cz и ссылка на mapy.cz во внешних картах SHALL оставаться.
+Приложение SHALL не содержать слоёв «mapy.cz tourist (Out of order)» (`Czt`) и «mapy.cz winter (Out of order)» (`Czw`): они шли через `proxy.nakarte.me/mapy/`, своего ключа mapy.cz нет. Поиск mapy.cz SHALL оставаться.
 
 #### Scenario: Выбор слоёв
 

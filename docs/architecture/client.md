@@ -45,10 +45,10 @@ flowchart LR
 | `routing/` | серверный BRouter (`routingServer`) или `engine/` | [route-editor.md](route-editor.md), [routing.md](routing.md) |
 | `engine/` | рантайм CheerpJ с CDN Leaning Technologies, `/brouter-wasm/` и `routingTilesPath` того же origin | [routing.md](routing.md), спека [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md) |
 | `autosave/` | IndexedDB `nakarte-web`; один раз читает `sessions` старого клиента | архивы `add-web-autosave`, `switch-to-web-app` |
-| `elevation/` | `elevationsServer` (профиль, GPX с высотами, высота для Google Earth) | [elevation.md](elevation.md) |
+| `elevation/` | `elevationsServer` (профиль, GPX с высотами) | [elevation.md](elevation.md) |
 | `search/` | mapy.cz и короткие ссылки через `corsProxyUrl`, photon.komoot.io напрямую | спека [map-search](../../openspec/specs/map-search/spec.md) |
 | `streetview/` | Maps JavaScript API Google, тайлы покрытия | спека [street-view](../../openspec/specs/street-view/spec.md) |
-| `map/` | — (внешние карты открываются в новой вкладке) | спека [web-client](../../openspec/specs/web-client/spec.md) |
+| `map/` | — | спека [web-client](../../openspec/specs/web-client/spec.md) |
 
 Связь «клик по карте» общая для редактора, метки и Street View — `routing/MapEditor.tsx` (`onClick`); на телефоне долгое нажатие открывает меню на карте ([route-editor.md](route-editor.md)).
 
@@ -71,7 +71,7 @@ flowchart LR
 |---|---|---|
 | `corsProxyUrl` | `layers/`, `tracks/`, `search/` | `https://nakarte-cors-proxy.nakarte-routing.workers.dev/` |
 | `tracksStorageServer` | `tracks/` | `https://nakarte-tracks.nakarte-routing.workers.dev` |
-| `elevationsServer` | `elevation/`, `map/` (Google Earth) | `https://nakarte-elevation.nakarte-routing.workers.dev/` |
+| `elevationsServer` | `elevation/`, `tracks/` (GPX с высотами) | `https://nakarte-elevation.nakarte-routing.workers.dev/` |
 | `routingEngine` | `routing/`, `App.tsx` | `'browser'` (иначе `'server'`) |
 | `routingEngineRuntimeUrl` | `engine/` | загрузчик CheerpJ 4.3 с `cjrtnc.leaningtech.com` |
 | `routingServer` | `routing/` | `http://localhost:17777`, в клоне не используется |

@@ -7,7 +7,7 @@ import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import { POSITION_KEY } from './locate';
 
-// Кнопки карты в App (спека web-client: «Открыть место на другой карте», «Где я», «Последнее положение при заходе»,
+// Кнопки карты в App (спека web-client: «Где я», «Последнее положение при заходе»,
 // «Масштаб и зум на карте»). Геолокация браузера подменяется на время теста: настоящая в headless спросила бы разрешение.
 
 let tiles: FixtureTiles;
@@ -69,40 +69,6 @@ function fakeGeolocation(answer: FakeAnswer) {
 
 const near = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
     Math.abs(a.lat - b.lat) < 1e-3 && Math.abs(a.lng - b.lng) < 1e-3;
-
-describe('Открыть место на другой карте', () => {
-    test('Открыть в OpenStreetMap', async () => {
-        const open = vi.spyOn(window, 'open').mockReturnValue(null);
-        await renderApp(tiles, '#m=14/41.69/44.78&l=O');
-        await page.getByRole('button', { name: 'Open this place in another map' }).click();
-        await expect.element(page.getByText('Open this place in')).toBeVisible();
-        await page.getByRole('menuitem', { name: 'OpenStreetMap' }).click();
-        await expect
-            .poll(() => open.mock.calls[0])
-            .toEqual(['https://www.openstreetmap.org/#map=14/41.69/44.78', '_blank', 'noopener']);
-    });
-
-    test('Зум за пределами сервиса', async () => {
-        const open = vi.spyOn(window, 'open').mockReturnValue(null);
-        await renderApp(tiles, '#m=21/41.69/44.78&l=O');
-        await page.getByRole('button', { name: 'Open this place in another map' }).click();
-        await page.getByRole('menuitem', { name: 'OpenStreetMap' }).click();
-        await expect.poll(() => open.mock.calls[0]?.[0]).toBe('https://www.openstreetmap.org/#map=19/41.69/44.78');
-    });
-
-    test('меню — все карты старого клиента', async () => {
-        await renderApp(tiles, '#m=14/41.69/44.78&l=O');
-        await page.getByRole('button', { name: 'Open this place in another map' }).click();
-        await expect
-            .poll(() =>
-                page
-                    .getByRole('menuitem')
-                    .elements()
-                    .map((element) => element.textContent),
-            )
-            .toEqual(['Google', 'Yandex', 'OpenStreetMap', 'Google Earth 3D', 'Mapy.com', 'Wikimapia', 'Meteoblue']);
-    });
-});
 
 describe('Где я', () => {
     test('Положение получено', async () => {

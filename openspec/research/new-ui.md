@@ -194,7 +194,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | Линейка («Measure distance» — трек «Ruler» с отметками) | `control-ruler.js` | переносим как инструмент трека (решение владельца) |
 | Поиск: photon, mapy.cz, координаты, ссылки на карты; метка `r=` | `leaflet.control.search`, `leaflet.placemark` | переносим |
 | Street View | `leaflet.control.panoramas` | переносим: панорама — в своём `div` через Maps JS API, покрытие — растр с CORS |
-| Внешние карты (Google, Yandex, OSM, Google Earth, Mapy.cz, Wikimapia, Meteoblue) | `leaflet.control.external-maps` | переносим |
+| Внешние карты (Google, Yandex, OSM, Google Earth, Mapy.cz, Wikimapia, Meteoblue) | `leaflet.control.external-maps` | перенесён в change 8, **удалён** (решение владельца 2026-10-09, change `remove-external-maps`) |
 | Геолокация, масштаб, индикатор зума | `locate`, `zoom-display` | переносим |
 | Встраивание в iframe: `min=`, `autoprofile`, без сессий в iframe | `App.js` | **не переносим** (решение владельца), параметры игнорируются |
 | Журнал событий и Sentry | `logging` | не переносим: `eventsLogUrl` и `sentryDSN` пустые; ошибки клиента — отдельный P2 аудита |

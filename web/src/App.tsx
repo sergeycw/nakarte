@@ -271,7 +271,7 @@ export function App({
                                         transformRequest={transformRequest}
                                         ref={mapRef}
                                     >
-                                        <MapButtons notify={notify} storage={localStorageOrNull()} fetch={fetch} />
+                                        <MapButtons notify={notify} storage={localStorageOrNull()} />
                                     </BaseMap>
                                     {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
                                     <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
