@@ -10,6 +10,8 @@ import { editSources } from '@/routing/edit-style';
 import { MapEditor } from '@/routing/MapEditor';
 import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
+import { COVERAGE_LAYER } from '@/streetview/coverage';
+import { StreetViewOnMap } from '@/streetview/StreetViewOnMap';
 import { TRACK_COLORS } from '@/tracks/model';
 import { TRACK_TICKS, trackSources } from '@/tracks/style';
 import { ticksData } from '@/tracks/ticks';
@@ -38,6 +40,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     const routeEdit = useAppStore((state) => state.routeEdit);
     const routeDrag = useAppStore((state) => state.routeDrag);
     const setView = useAppStore((state) => state.setView);
+    const streetViewOn = useAppStore((state) => state.streetView.enabled);
     // отметки расстояния пересобираются на целом зуме (design add-web-search-panoramas, «Отметки расстояния и линейка»)
     const ticksZoom = useAppStore((state) => Math.round(state.view.zoom));
     const mapRef = useRef<MapRef | null>(null);
@@ -79,13 +82,17 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
+        // покрытие Street View — над слоями каталога, под профилем и треками (design add-web-search-panoramas)
+        if (streetViewOn) {
+            defs.push(COVERAGE_LAYER);
+        }
         return buildStyle(defs, {
             ...trackData.sources,
             [TRACK_TICKS]: { type: 'geojson', data: ticks },
             ...editData,
             ...PROFILE_SOURCES,
         });
-    }, [selection, layers, trackData, ticks, editData]);
+    }, [selection, layers, streetViewOn, trackData, ticks, editData]);
 
     useEffect(() => {
         if (viewRequest) {
@@ -149,6 +156,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 <MapEditor />
                 <ProfileOnMap />
                 <PlacemarkOnMap />
+                <StreetViewOnMap />
                 {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
                     единицы, а анимация CSS проще символьного слоя */}
                 {trackData.pending.map((point, i) => (

@@ -25,8 +25,8 @@
 
 - [x] 5.1 `streetview/hash.ts` (`n2=`, `n=`, удалённые провайдеры), стор `streetView`, `n2=`/`n=` в `sync.ts`; unit-тесты; проверка: `npm test` зелёный
 - [x] 5.2 `streetview/api.ts`, `google.ts` (загрузка по требованию с `callback`, свои типы, `keyless.css`, ключ `VITE_GOOGLE_MAPS_API_KEY` в `config.ts`), `controller.ts` (поиск по клику, устаревшие ответы, тост); unit-тест контроллера и загрузчика на поддельном `document`/`window`; проверка: `npm test` зелёный
-- [ ] 5.3 Покрытие в стиле, клик в `MapEditor`, `StreetViewPanel.tsx` (панель, закрытие, `--bottom-inset` с профилем), `StreetViewOnMap.tsx` (метка направления, сдвиг карты за край), Alt+P; проп `streetView` у `App`, `src/test/fake-street-view.ts`; browser-тест `StreetView.browser.test.tsx` — сценарии спеки `street-view`; проверка: `npm test` зелёный
-- [ ] 5.4 `deploy-pages.yml`: `VITE_GOOGLE_MAPS_API_KEY` из `GOOGLE_MAPS_API_KEY` только шагу `web build`; проверка: `actionlint` или разбор YAML, сборка без переменной зелёная
+- [x] 5.3 Покрытие в стиле, клик в `MapEditor`, `StreetViewPanel.tsx` (панель, закрытие, `--bottom-inset` с профилем), `StreetViewOnMap.tsx` (метка направления, сдвиг карты за край), Alt+P; проп `streetView` у `App`, `src/test/fake-street-view.ts`; browser-тест `StreetView.browser.test.tsx` — сценарии спеки `street-view`; проверка: `npm test` зелёный
+- [x] 5.4 `deploy-pages.yml`: `VITE_GOOGLE_MAPS_API_KEY` из `GOOGLE_MAPS_API_KEY` только шагу `web build`; проверка: `actionlint` или разбор YAML, сборка без переменной зелёная
 
 ## 6. e2e, замеры, вид
 

@@ -4,6 +4,8 @@ import type { GeoJSONSource, Map as MaplibreMap, MapMouseEvent, MapTouchEvent, P
 import { useEffect } from 'react';
 import { useAppStoreApi } from '@/state/context';
 import type { AppStore, MenuTarget, RouteEditState } from '@/state/store';
+import { useStreetView } from '@/streetview/context';
+import type { StreetView } from '@/streetview/controller';
 import type { TrackActions } from '@/tracks/actions';
 import { useTrackActions } from '@/tracks/actions-context';
 import { distance } from '@/tracks/geometry';
@@ -190,7 +192,16 @@ function editColor(store: AppStore): string {
     return TRACK_COLORS[tracks.find((track) => track.id === routeEdit?.trackId)?.color ?? 0];
 }
 
-function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions: TrackActions): () => void {
+// радиус поиска панорамы по клику — 24 px экрана в метрах (onMapClick контрола панорам старого клиента)
+const PANORAMA_SEARCH_PX = 24;
+
+function bind(
+    map: MaplibreMap,
+    store: AppStore,
+    editing: RouteEditing,
+    actions: TrackActions,
+    streetView: StreetView,
+): () => void {
     const state = () => store.getState();
     let suppressClickUntil = 0;
     let lastTouch = Number.NEGATIVE_INFINITY;
@@ -571,10 +582,19 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
         if (performance.now() < suppressClickUntil || state().mapMenu) {
             return;
         }
-        // клик по карте мимо метки поиска её снимает (onMapClick метки старого), но не клик рисования или постановки
-        // точек: к метке ведут линию (design add-web-search-panoramas, «Метка»); клик по самой метке сюда не доходит
-        if (state().placemark && !state().routeEdit?.drawing && !state().pointTool && !state().lineTool) {
+        // клик рисования, постановки точек и выбора Join/Shortcut занят редактором (design add-web-search-panoramas)
+        const busy = Boolean(state().routeEdit?.drawing || state().pointTool || state().lineTool);
+        // клик по карте мимо метки поиска её снимает (onMapClick метки старого), но не занятый клик: к метке ведут
+        // линию (design add-web-search-panoramas, «Метка»); клик по самой метке сюда не доходит
+        if (state().placemark && !busy) {
             state().setPlacemark(null);
+        }
+        // режим Street View: свободный клик ищет панораму, а редактор дальше работает как обычно — как два независимых
+        // обработчика клика старого клиента («Street View: режим, клик, окно»)
+        if (state().streetView.enabled && !busy) {
+            const at = lngLat(event);
+            const edge = map.unproject([event.point.x + PANORAMA_SEARCH_PX, event.point.y]);
+            void streetView.searchAt(at, distance(at, { lat: edge.lat, lng: edge.lng }));
         }
         if (pointToolClick(lngLat(event))) {
             return;
@@ -794,9 +814,10 @@ export function MapEditor() {
     const store = useAppStoreApi();
     const editing = useRouteEditing();
     const actions = useTrackActions();
+    const streetView = useStreetView();
     useEffect(() => {
         const map = current?.getMap();
-        return map ? bind(map, store, editing, actions) : undefined;
-    }, [current, store, editing, actions]);
+        return map ? bind(map, store, editing, actions, streetView) : undefined;
+    }, [current, store, editing, actions, streetView]);
     return null;
 }

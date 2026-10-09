@@ -6,6 +6,7 @@ import { App } from '@/App';
 import { PROFILE_LAYERS } from '@/elevation/style';
 import { EDIT_LAYERS } from '@/routing/edit-style';
 import { TRACK_LAYERS } from '@/tracks/style';
+import { fakeStreetView } from './fake-street-view';
 import { memoryAutosave } from './memory-autosave';
 import type { FixtureTiles } from './tiles';
 
@@ -21,6 +22,8 @@ interface RenderOptions {
     // хранилище автосохранения; по умолчанию — своё пустое в памяти на каждый рендер: рендеры App в одной странице
     // не видят треков друг друга, а общий IndexedDB страницы тестов не засоряется
     autosave?: ComponentProps<typeof App>['autosave'];
+    // Street View: по умолчанию поддельный без панорам — в Google тесты не ходят
+    streetView?: ComponentProps<typeof App>['streetView'];
 }
 
 // App с подменёнными тайлами и готовой картой. hash — адрес страницы до старта приложения (m=, l= …).
@@ -35,6 +38,7 @@ export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderO
             writeClipboard={options.writeClipboard}
             router={options.router}
             autosave={options.autosave === undefined ? memoryAutosave() : options.autosave}
+            streetView={options.streetView ?? fakeStreetView([]).api}
         />,
     );
     await expect.poll(() => mapRef.current?.getMap().loaded(), { timeout: 10_000 }).toBe(true);

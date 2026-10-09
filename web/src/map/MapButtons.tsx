@@ -1,5 +1,5 @@
 import { GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
-import { ExternalLinkIcon, RulerIcon } from 'lucide-react';
+import { BinocularsIcon, ExternalLinkIcon, RulerIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { config } from '@/config';
 import { useRouteEditing } from '@/routing/editing-context';
-import { useAppStoreApi } from '@/state/context';
+import { useAppStore, useAppStoreApi } from '@/state/context';
+import { useStreetView } from '@/streetview/context';
 import { EXTERNAL_MAPS, type ExternalMap, externalMapUrl } from './external';
 import { forgetPosition, savePosition } from './locate';
 
@@ -88,6 +89,34 @@ export interface MapButtonsProps {
     notify: (title: string) => void;
     storage: Storage | null;
     fetch: typeof window.fetch;
+}
+
+// Режим Street View (кнопка и Alt+P старого контрола панорам; code, а не key: на macOS Alt меняет символ)
+function StreetViewButton() {
+    const streetView = useStreetView();
+    const enabled = useAppStore((state) => state.streetView.enabled);
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.altKey && event.code === 'KeyP') {
+                event.preventDefault();
+                streetView.toggle();
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [streetView]);
+    return (
+        <button
+            type="button"
+            className={`flex! items-center justify-center ${enabled ? 'bg-amber-300! hover:bg-amber-400!' : ''}`}
+            aria-label="Street View"
+            aria-pressed={enabled}
+            title="Street View (Alt+P)"
+            onClick={() => streetView.toggle()}
+        >
+            <BinocularsIcon className="size-4" />
+        </button>
+    );
 }
 
 // «Measure distance»: трек Ruler с отметками расстояния и сразу рисование (control-ruler.js старого)
@@ -168,6 +197,7 @@ export function MapButtons({ notify, storage, fetch, children }: MapButtonsProps
             />
             <ControlPortal className="maplibregl-ctrl-group">
                 {children}
+                <StreetViewButton />
                 <RulerButton />
                 <ExternalMapsButton fetch={fetch} />
             </ControlPortal>
