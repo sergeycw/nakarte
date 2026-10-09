@@ -142,14 +142,14 @@ describe('Панель панорамы', () => {
         await expect.poll(() => panorama().element().dataset.view).toBe('41.69350,44.78100,0');
         const far = P(41.75, 44.9);
         street.walk(far);
-        await expect
-            .poll(
-                () => Math.abs(map.getCenter().lat - far.lat) < 1e-3 && Math.abs(map.getCenter().lng - far.lng) < 1e-3,
-                {
-                    timeout: 5000,
-                },
-            )
-            .toBe(true);
+        // карта встаёт так, что метка — посередине видимой части над панелью панорамы
+        const visibleMiddle = () => {
+            const canvas = map.getContainer().getBoundingClientRect();
+            const top = panel().element().getBoundingClientRect().top;
+            const point = map.project([far.lng, far.lat]);
+            return Math.abs(point.x - canvas.width / 2) < 2 && Math.abs(point.y - (top - canvas.top) / 2) < 2;
+        };
+        await expect.poll(visibleMiddle, { timeout: 5000 }).toBe(true);
     });
 
     test('Панорама и профиль высот', async () => {
