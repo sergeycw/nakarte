@@ -2,9 +2,9 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Решение владельца — [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md), «Сессии: только автосохранение»; что сессия старого клиента хранит — [ресёрч, п. 5](../../research/new-ui.md#последствия-удаления); формат ссылки выбирается здесь — [ресёрч, п. 6](../../research/new-ui.md#6-контракты-которые-новый-ui-держит). Модель разметки — [add-web-route-editor](../archive/2026-10-09-add-web-route-editor/design.md), «Разметка маршрута в треке»: `TrackData.routes[i]` — номера опорных точек в `segments[i]` и состояния отрезков между ними; `settledRoute` делает ожидающий отрезок без живого запроса непроложенным. Треки, `nktk` и ссылки — [add-web-tracks](../archive/2026-10-08-add-web-tracks/design.md).
+Зачем — [proposal](proposal.md). Решение владельца — [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md), «Сессии: только автосохранение»; что сессия старого клиента хранит — [ресёрч, п. 5](../../../research/new-ui.md#последствия-удаления); формат ссылки выбирается здесь — [ресёрч, п. 6](../../../research/new-ui.md#6-контракты-которые-новый-ui-держит). Модель разметки — [add-web-route-editor](../2026-10-09-add-web-route-editor/design.md), «Разметка маршрута в треке»: `TrackData.routes[i]` — номера опорных точек в `segments[i]` и состояния отрезков между ними; `settledRoute` делает ожидающий отрезок без живого запроса непроложенным. Треки, `nktk` и ссылки — [add-web-tracks](../2026-10-08-add-web-tracks/design.md).
 
-Справочник старого клиента: сессии — [leaflet.control.sessions](../../../src/lib/leaflet.control.sessions/index.js), разметка — `serializeRouteMarkup`/`applyRouteMarkup` и `simplifyKeepingWaypoints` в [track-list.js](../../../src/lib/leaflet.control.track-list/track-list.js), почему запись на `pagehide` ненадёжна — [fix-route-markup-after-reload](../archive/2026-10-07-fix-route-markup-after-reload/design.md).
+Справочник старого клиента: сессии — [leaflet.control.sessions](../../../../src/lib/leaflet.control.sessions/index.js), разметка — `serializeRouteMarkup`/`applyRouteMarkup` и `simplifyKeepingWaypoints` в [track-list.js](../../../../src/lib/leaflet.control.track-list/track-list.js), почему запись на `pagehide` ненадёжна — [fix-route-markup-after-reload](../2026-10-07-fix-route-markup-after-reload/design.md).
 
 Что выяснилось при чтении кода (2026-10-09, `master` `c1d535a`):
 
@@ -147,6 +147,15 @@ IndexedDB в Node нет (Node 22 и 24 его не реализуют), а `fak
 | разбор записи (`fromSaved`) | 0.4–2.6 мс | — |
 
 Запись и чтение большого набора укладываются в несколько миллисекунд и главный поток не подвешивают; кешировать упакованные отрезки между записями незачем. Память: запись живёт только до конца транзакции, постоянных копий нет, поэтому картина памяти вкладки не меняется, и `phys_footprint` не мерили.
+
+### На проде
+
+После merge PR sergeycw/nakarte#108 прогон `deploy pages` выкатил Pages, jobs `pages`, `prune` и `smoke` зелёные. 2026-10-09, `https://nakarte-routing.pages.dev/next/#m=13/41.715/44.79`, Playwright 1.64, Chromium headless, настоящий движок в воркере (CheerpJ с CDN, тайлы из `/tiles/`), скрипт вне репозитория:
+
+- «Hiking», «New track», три точки: два отрезка проложены за 7.8 с с холодным движком, 6.84 km, 149 точек. В базе `nakarte-web` — один трек, разметка `waypoints [0, 55, 148]`, оба отрезка `routed`/`hiking`.
+- Прокладка выключена («Off»), перезагрузка: трек на месте, 6.84 km. Клик по линии, перетаскивание последней опорной точки — отрезок перестроен движком за 5.5 с (28 запросов к `/tiles/` и `/brouter-wasm/`), 8.40 km, разметка в базе `[0, 55, 182]`.
+- «Copy link for all tracks» → `nktl=W8q5DTrp-HOTe4WVD_MN5w`. Новый контекст браузера (другой пользователь): один трек, 8.41 km, в его базе разметка `[0, 51, 170]` — ссылка упростила точки маршрута (183 → 171), опорные точки и отрезки на месте.
+- Тот же ключ в старом клиенте на `/#nktl=…`: трек `New track`, 8.41 km, ошибок на странице нет.
 
 ## Risks / Trade-offs
 
