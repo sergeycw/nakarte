@@ -45,7 +45,7 @@
 
 ## 2. Контракты
 
-**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../specs/elevation-tiles/spec.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js), их можно менять без миграции данных.
+**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../changes/archive/2026-10-07-add-elevation-tiles/design.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js), их можно менять без миграции данных.
 
 | Контракт | Держится ради старого клиента | Можно поменять с новым UI | Менять нельзя |
 |---|---|---|---|

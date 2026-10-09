@@ -16,8 +16,8 @@
 
 #### Scenario: Локальный dev-сервер приложения
 
-- **WHEN** запрос пришёл с `Origin: http://localhost:8769`
-- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `http://localhost:8769`
+- **WHEN** запрос пришёл с `Origin: http://localhost:8769` или `http://localhost:4173`
+- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен origin запроса
 
 #### Scenario: Порт старого клиента
 

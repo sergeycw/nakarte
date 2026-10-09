@@ -52,7 +52,7 @@ flowchart TD
     send --> resp
 ```
 
-Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET` и зачем пересылается `User-Agent` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md); `User-Agent` после ухода Wikimapia нужен коротким ссылкам mapy.com. Почему в `ALLOWED_ORIGINS` dev-сервер приложения (8769) и `vite preview` (4173) вместо origin старого клиента и karma — design [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md).
+Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET` и зачем пересылается `User-Agent` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md); `User-Agent` после ухода Wikimapia оставлен: часть сайтов без него отвечает `403`, а `fetch` из Worker'а своего не ставит; коротким ссылкам mapy.com нужен `GET` вместо `HEAD`. Почему в `ALLOWED_ORIGINS` dev-сервер приложения (8769) и `vite preview` (4173) вместо origin старого клиента и karma — design [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md).
 
 ## Куки Strava heatmap
 
