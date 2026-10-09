@@ -21,9 +21,12 @@ export interface Config {
     routingEngineRuntimeUrl: string;
     routingServer: string;
     routingTilesPath: string;
+    // ключ Maps JavaScript API для окна Street View; пустой — режим без ключа (design add-web-search-panoramas, «Maps
+    // JavaScript API и ключ»). В деплое — секрет GOOGLE_MAPS_API_KEY, тот же, что у старого клиента
+    googleMapsApiKey: string;
 }
 
-export function makeConfig(mode: string): Config {
+export function makeConfig(mode: string, googleMapsApiKey = ''): Config {
     const clone = mode === 'clone';
     return {
         repoUrl: 'https://github.com/sergeycw/nakarte',
@@ -45,8 +48,9 @@ export function makeConfig(mode: string): Config {
         routingServer: 'http://localhost:17777',
         // клон читает тайлы BRouter с того же origin (functions/tiles), локальный dev — со стенда движка
         routingTilesPath: clone ? '/tiles/' : '/brouter-wasm/segments4/',
+        googleMapsApiKey,
     };
 }
 
 // import.meta.env есть только в сборке Vite; e2e импортирует модуль в Node ради makeConfig, и без ?. импорт падал бы
-export const config = makeConfig(import.meta.env?.MODE ?? '');
+export const config = makeConfig(import.meta.env?.MODE ?? '', import.meta.env?.VITE_GOOGLE_MAPS_API_KEY ?? '');

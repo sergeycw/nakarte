@@ -8,6 +8,7 @@ import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
 import type { LinePlace } from '@/routing/line-tools';
 import type { Placemark } from '@/search/placemark';
+import type { PanoView } from '@/streetview/hash';
 import type { Bounds } from '@/tracks/geometry';
 import { type GeoData, type LatLng, TRACK_COLORS, type Track, type Waypoint } from '@/tracks/model';
 import type { View } from './hash';
@@ -56,6 +57,9 @@ export interface AppState {
     profileSelection: readonly [number, number] | null;
     // метка найденного места (design add-web-search-panoramas, «Метка»): живёт в адресе r=
     placemark: Placemark | null;
+    // Street View (design add-web-search-panoramas, «Street View: режим, клик, окно»): режим, показанная панорама (панель
+    // открыта, пока она есть; пишет окно панорамы) и запрос окну перейти к виду (клик по карте, адрес)
+    streetView: StreetViewState;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -95,6 +99,18 @@ export interface AppState {
     setProfileCursor(cursor: number | null): void;
     setProfileSelection(selection: readonly [number, number] | null): void;
     setPlacemark(placemark: Placemark | null): void;
+    // выключение режима закрывает панораму
+    setStreetViewEnabled(enabled: boolean): void;
+    // открыть панораму в этом виде (или перевести открытую)
+    requestPano(view: PanoView): void;
+    // окно панорамы сообщает текущий вид; null — панорама закрыта
+    setPano(view: PanoView | null): void;
+}
+
+export interface StreetViewState {
+    enabled: boolean;
+    pano: PanoView | null;
+    request: { view: PanoView; seq: number } | null;
 }
 
 // segment null — профиль всего трека
@@ -161,6 +177,7 @@ export interface AppStoreInit {
     view: View;
     routingActivity?: string | null;
     placemark?: Placemark | null;
+    streetView?: { enabled: boolean; pano: PanoView | null };
 }
 
 function layersMap(catalog: readonly LayerDef[], custom: readonly string[], corsProxyUrl: string) {
@@ -217,6 +234,11 @@ export function createAppStore(init: AppStoreInit): AppStore {
             profileCursor: null,
             profileSelection: null,
             placemark: init.placemark ?? null,
+            streetView: {
+                enabled: init.streetView?.enabled ?? false,
+                pano: init.streetView?.pano ?? null,
+                request: init.streetView?.pano ? { view: init.streetView.pano, seq: 1 } : null,
+            },
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -351,6 +373,30 @@ export function createAppStore(init: AppStoreInit): AppStore {
             setProfileCursor: (profileCursor) => set({ profileCursor }),
             setProfileSelection: (profileSelection) => set({ profileSelection }),
             setPlacemark: (placemark) => set({ placemark }),
+            setStreetViewEnabled: (enabled) => {
+                const { streetView } = get();
+                if (streetView.enabled === enabled) {
+                    return;
+                }
+                set({ streetView: enabled ? { ...streetView, enabled } : { enabled, pano: null, request: null } });
+            },
+            requestPano: (view) => {
+                const { streetView } = get();
+                set({
+                    streetView: {
+                        enabled: true,
+                        pano: view,
+                        request: { view, seq: (streetView.request?.seq ?? 0) + 1 },
+                    },
+                });
+            },
+            setPano: (pano) => {
+                const { streetView } = get();
+                if (!streetView.enabled) {
+                    return;
+                }
+                set({ streetView: { ...streetView, pano, request: pano ? streetView.request : null } });
+            },
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();

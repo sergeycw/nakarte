@@ -3,12 +3,20 @@ import { formatLayersParam, parseLayersParam } from '@/layers/selection';
 import { loadSettings, saveSettings } from '@/layers/settings';
 import { loadActivity } from '@/routing/activity';
 import { formatPlacemark, PLACEMARK_PARAM, type Placemark, parsePlacemark } from '@/search/placemark';
+import {
+    formatStreetView,
+    LEGACY_STREET_VIEW_PARAM,
+    parseStreetView,
+    STREET_VIEW_PARAM,
+    type StreetViewHash,
+} from '@/streetview/hash';
 import { isTrackParam, type TrackParam } from '@/tracks/links';
 import { formatHash, formatView, parseHash, parseView, type View, withParam } from './hash';
 import { type AppStore, createAppStore } from './store';
 
 // Связь стора с адресом и localStorage (design add-web-map-layers, «Адрес»). При старте: адрес → localStorage →
-// умолчания. Дальше стор пишет m= (не чаще раза в 300 мс: moveend идёт сериями), l= и r= метки поиска (сразу) через
+// умолчания. Дальше стор пишет m= и панораму в n2= (не чаще раза в 300 мс: moveend и взгляд идут сериями), l=, r= метки
+// поиска и режим Street View в n2= (сразу) через
 // history.replaceState — он не шлёт hashchange, поэтому петли нет; hashchange (пользователь правит адрес)
 // переводит карту и слои. Параметры треков (nktk, nktl, nktu, nktp, nktj) читаются при старте и на hashchange и сразу
 // стираются из адреса, как bindHashStateReadOnly старого клиента; загружает их App (design add-web-tracks, «Стор»).
@@ -40,6 +48,7 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
         view: parseView(params.get('m')) ?? defaultView,
         routingActivity: loadActivity(storage),
         placemark: parsePlacemark(params.get(PLACEMARK_PARAM)),
+        streetView: parseStreetView(params.get(STREET_VIEW_PARAM), params.get(LEGACY_STREET_VIEW_PARAM)),
     });
     const parsed = parseLayersParam(params.get('l'), new Map(catalog.map((layer) => [layer.code, layer])));
     if (parsed) {
@@ -49,6 +58,8 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
 }
 
 const VIEW_DEBOUNCE_MS = 300;
+
+const streetViewParam = (state: StreetViewHash) => formatStreetView(state)?.join('/') ?? null;
 
 // метки сравниваются по виду в адресе: та же метка из адреса не пересоздаётся
 function samePlacemark(a: Placemark | null, b: Placemark | null): boolean {
@@ -101,6 +112,9 @@ export function bindAppStore(
         params = withParam(params, 'l', layersParam());
         const { placemark } = store.getState();
         params = withParam(params, PLACEMARK_PARAM, placemark ? formatPlacemark(placemark) : null);
+        // старый n= после чтения заменяется на n2= (hashStateUpgrader старого клиента)
+        params = withParam(params, LEGACY_STREET_VIEW_PARAM, null);
+        params = withParam(params, STREET_VIEW_PARAM, formatStreetView(store.getState().streetView));
         const hash = formatHash(params);
         if (hash !== win.location.hash.replace(/^#/u, '')) {
             win.history.replaceState(null, '', `${win.location.pathname}${win.location.search}#${hash}`);
@@ -128,6 +142,15 @@ export function bindAppStore(
         if (!samePlacemark(placemark, state.placemark)) {
             state.setPlacemark(placemark);
         }
+        const streetView = parseStreetView(params.get(STREET_VIEW_PARAM), params.get(LEGACY_STREET_VIEW_PARAM));
+        if (streetViewParam(streetView) !== streetViewParam(state.streetView)) {
+            state.setStreetViewEnabled(streetView.enabled);
+            if (streetView.pano) {
+                state.requestPano(streetView.pano);
+            } else {
+                state.setPano(null);
+            }
+        }
         // адрес без m= или l= (или с негодными) — вернуть в него текущее состояние
         writeAddress();
         if (trackParams.length) {
@@ -142,8 +165,20 @@ export function bindAppStore(
         } else if (state.settings !== prev.settings) {
             persist();
         }
-        if (state.placemark !== prev.placemark) {
+        const sv = state.streetView;
+        const prevSv = prev.streetView;
+        // метка, режим, открытие и закрытие панорамы, переход по клику — сразу
+        if (
+            state.placemark !== prev.placemark ||
+            sv.enabled !== prevSv.enabled ||
+            (sv.pano === null) !== (prevSv.pano === null) ||
+            sv.request !== prevSv.request
+        ) {
             writeAddress();
+        }
+        // взгляд в панораме меняется сериями, как вид карты, — не чаще раза в 300 мс
+        if (sv.pano !== prevSv.pano && viewTimer === undefined) {
+            viewTimer = setTimeout(writeAddress, VIEW_DEBOUNCE_MS);
         }
         if (state.view !== prev.view && viewTimer === undefined) {
             viewTimer = setTimeout(writeAddress, VIEW_DEBOUNCE_MS);
