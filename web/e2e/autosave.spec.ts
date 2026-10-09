@@ -128,12 +128,11 @@ test('Ссылка при сохранённом списке', async ({ page, n
     await expect.poll(() => new URL(page.url()).hash).toMatch(/m=\d+(\.\d+)?\/41\.68\d+\/44\.80\d+/);
 });
 
-test('Сессия старого клиента', async ({ page }) => {
-    await page.goto(VIEW);
-    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
-    // база sessions — как SessionRepository старого клиента (src/lib/session-state): хранилище sessionData
-    await page.evaluate(
-        (tracks) =>
+// База sessions — как SessionRepository старого клиента (src/lib/session-state на коммите 015be893): хранилище
+// sessionData с keyPath sessionId и индексом mtime
+function writeLegacySessions(page: Page, sessions: { sessionId: string; mtime: number; tracks: string }[]) {
+    return page.evaluate(
+        (records) =>
             new Promise<void>((resolve, reject) => {
                 const request = indexedDB.open('sessions', 1);
                 request.onupgradeneeded = () => {
@@ -142,9 +141,9 @@ test('Сессия старого клиента', async ({ page }) => {
                 };
                 request.onsuccess = () => {
                     const transaction = request.result.transaction('sessionData', 'readwrite');
-                    transaction
-                        .objectStore('sessionData')
-                        .put({ sessionId: 'old', mtime: Date.now(), data: { tracks } });
+                    for (const { sessionId, mtime, tracks } of records) {
+                        transaction.objectStore('sessionData').put({ sessionId, mtime, data: { hash: '#', tracks } });
+                    }
                     transaction.oncomplete = () => {
                         request.result.close();
                         resolve();
@@ -153,31 +152,69 @@ test('Сессия старого клиента', async ({ page }) => {
                 };
                 request.onerror = () => reject(request.error);
             }),
-        MTATSMINDA,
+        sessions,
     );
+}
+
+function legacySessionIds(page: Page) {
+    return page.evaluate(
+        () =>
+            new Promise<unknown>((resolve, reject) => {
+                const request = indexedDB.open('sessions');
+                request.onsuccess = () => {
+                    const keys = request.result.transaction('sessionData').objectStore('sessionData').getAllKeys();
+                    keys.onsuccess = () => {
+                        request.result.close();
+                        resolve(keys.result);
+                    };
+                    keys.onerror = () => reject(keys.error);
+                };
+                request.onerror = () => reject(request.error);
+            }),
+    );
+}
+
+test('Сессия старого клиента', async ({ page }) => {
+    // первый заход без сессий: своей записи не появляется, база sessions не создаётся
+    await page.goto(VIEW);
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    await writeLegacySessions(page, [{ sessionId: 'old', mtime: Date.now(), tracks: MTATSMINDA }]);
     await page.reload();
+    await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toBeVisible();
+    await expect(trackNames(page)).toHaveCount(1);
+    // подхваченный список записан своей записью: следующий заход не подхватывает сессию второй раз
+    await expect.poll(() => savedTracks(page)).toBe(1);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toBeVisible();
+    await expect(trackNames(page)).toHaveCount(1);
+    expect(await legacySessionIds(page)).toEqual(['old']);
+});
+
+test('Свой список уже есть', async ({ page }) => {
+    await page.goto(VIEW);
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
     await page.getByRole('button', { name: 'New track' }).first().click();
     await clickMap(page, START);
     await clickMap(page, FINISH);
     await page.getByRole('button', { name: 'Done' }).click();
     await expect.poll(() => savedTracks(page)).toBe(1);
+    await writeLegacySessions(page, [{ sessionId: 'old', mtime: Date.now(), tracks: MTATSMINDA }]);
     await page.reload();
     await expect(trackNames(page)).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Mtatsminda' })).toHaveCount(0);
-    const session = await page.evaluate(
-        () =>
-            new Promise<unknown>((resolve, reject) => {
-                const request = indexedDB.open('sessions');
-                request.onsuccess = () => {
-                    const get = request.result.transaction('sessionData').objectStore('sessionData').get('old');
-                    get.onsuccess = () => resolve(get.result);
-                    get.onerror = () => reject(get.error);
-                };
-                request.onerror = () => reject(request.error);
-            }),
-    );
-    expect(session).toMatchObject({ sessionId: 'old', data: { tracks: MTATSMINDA } });
+    await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toHaveCount(0);
+    expect(await legacySessionIds(page)).toEqual(['old']);
+});
+
+test('Несколько сессий старого клиента', async ({ page }) => {
+    await page.goto(VIEW);
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    await writeLegacySessions(page, [
+        { sessionId: 'later', mtime: Date.now(), tracks: NARIKALA },
+        { sessionId: 'earlier', mtime: Date.now() - 60_000, tracks: MTATSMINDA },
+    ]);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Narikala', exact: true })).toBeVisible();
+    await expect(trackNames(page)).toHaveCount(1);
 });
 
 test('Открытие ссылки', async ({ page, context, browser, network }) => {

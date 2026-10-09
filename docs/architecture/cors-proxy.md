@@ -2,7 +2,7 @@
 
 Уровень выше: [общая схема](README.md#общая-схема), блок ④.
 
-Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`urlViaCorsProxy` в [CORSProxy](../../src/lib/CORSProxy/index.js)), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам, поиск mapy.cz и раскрытие коротких ссылок, слои Wikimapia, Tsvetkov, Strava heatmap и растеризация слоёв с `noCors` для печати.
+Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`viaCorsProxy` в [catalog.ts](../../web/src/layers/catalog.ts): `https://host/…` → `<прокси>https/host/…`), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам ([sources.ts](../../web/src/tracks/sources.ts), `proxied`), поиск mapy.cz ([mapycz.ts](../../web/src/search/mapycz.ts)) и раскрытие коротких ссылок ([links.ts](../../web/src/search/links.ts)), слои Tsvetkov (`Mt`) и Strava heatmap, свои слои с флагом прокси. Маршрут `/wikimapia/` и растеризацию слоёв для печати использовал старый клиент; в приложении `web/` их нет, `/wikimapia/` уходит в change `retire-old-client-services`.
 
 Поведение — спека [cors-proxy](../../openspec/specs/cors-proxy/spec.md); лимиты — [protection.md](protection.md).
 
@@ -111,4 +111,4 @@ flowchart LR
 
 ## Сверено по
 
-[workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/cors-proxy/src/strava.js](../../workers/cors-proxy/src/strava.js), [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [src/lib/CORSProxy/index.js](../../src/lib/CORSProxy/index.js), [src/layers.js](../../src/layers.js), [strava-heatmap-check.yml](../../.github/workflows/strava-heatmap-check.yml).
+[workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/cors-proxy/src/strava.js](../../workers/cors-proxy/src/strava.js), [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [web/src/layers/catalog.ts](../../web/src/layers/catalog.ts) (`viaCorsProxy`), [web/src/layers/custom.ts](../../web/src/layers/custom.ts), [web/src/tracks/sources.ts](../../web/src/tracks/sources.ts), [web/src/search/mapycz.ts](../../web/src/search/mapycz.ts), [web/src/search/links.ts](../../web/src/search/links.ts), [strava-heatmap-check.yml](../../.github/workflows/strava-heatmap-check.yml).

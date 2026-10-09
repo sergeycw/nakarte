@@ -153,7 +153,7 @@ async function main() {
     const pending = index
         .filter((tile) => !ONLY.length || ONLY.includes(tile.name.replace(/\.rd5$/u, '')))
         .filter((tile) => manifest.tiles[tile.name] !== tile.version);
-    console.log(`index: ${index.length} tiles, to sync: ${pending.length}`); // eslint-disable-line no-console
+    console.log(`index: ${index.length} tiles, to sync: ${pending.length}`);
 
     let done = 0;
     const failures = [];
@@ -163,7 +163,7 @@ async function main() {
                 await syncTile(tile, dir);
                 manifest.tiles[tile.name] = tile.version;
                 done += 1;
-                console.log(`synced ${tile.name} (${done})`); // eslint-disable-line no-console
+                console.log(`synced ${tile.name} (${done})`);
                 if (done % MANIFEST_SAVE_EVERY === 0) {
                     await writeManifest(manifest, dir);
                 }
@@ -182,6 +182,6 @@ async function main() {
 }
 
 main().catch((e) => {
-    console.error(e.message); // eslint-disable-line no-console
+    console.error(e.message);
     process.exit(1);
 });

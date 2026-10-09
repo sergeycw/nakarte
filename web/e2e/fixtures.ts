@@ -153,6 +153,9 @@ interface Network {
     tiles: { code: string; url: string }[];
     // запросы мимо localhost и подменённых тайлов: тест обязан закончиться с пустым списком
     external: string[];
+    // внешние запросы по-прежнему обрываются, но тест не валят: старые ссылки несут свои слои на чужих серверах
+    // и ссылки на файлы треков, ответы на которые тесту не нужны
+    allowExternal(): void;
     // адреса тайлов слоя
     tilesOf(code: string): string[];
     // ответить ошибкой 503 на тайлы слоя
@@ -188,6 +191,7 @@ export const test = base.extend<{ network: Network }>({
         async ({ context }, use) => {
             const failing = new Set<string>();
             let customCors = true;
+            let externalAllowed = false;
             const proxied = new Map<string, { path?: string; body?: string; status?: number }>();
             const searchStatus: Record<'mapycz' | 'photon', number> = { mapycz: 200, photon: 200 };
             const network: Network = {
@@ -211,6 +215,9 @@ export const test = base.extend<{ network: Network }>({
                 },
                 customWithoutCors: () => {
                     customCors = false;
+                },
+                allowExternal: () => {
+                    externalAllowed = true;
                 },
                 attach: async (other) => {
                     await intercept(other);
@@ -298,7 +305,9 @@ export const test = base.extend<{ network: Network }>({
                     const code =
                         proxiedCustom || custom ? 'custom' : LAYER_TILES.find(([, pattern]) => pattern.test(url))?.[0];
                     if (!code) {
-                        network.external.push(url);
+                        if (!externalAllowed) {
+                            network.external.push(url);
+                        }
                         return route.abort();
                     }
                     network.tiles.push({ code, url });

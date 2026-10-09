@@ -234,7 +234,7 @@ describe('Недоступный роутер', () => {
         // оба отрезка прямые и помечены, предупреждение одно, кнопка красная
         expect(edit(ctx)?.line.legs.map((leg) => leg.state)).toEqual(['failed', 'failed']);
         expect(ctx.messages).toEqual([
-            'BRouter is not running, start it with yarn local. Lines stay straight until then.',
+            'BRouter is not running, start it with docker compose up -d. Lines stay straight until then.',
         ]);
         expect(ctx.store.getState().routerReachable).toBe(false);
     });

@@ -2,7 +2,8 @@ import type { AutosaveStorage } from './autosave';
 import type { SavedSet } from './saved';
 
 // Хранилище автосохранения в IndexedDB (design add-web-autosave): своя база на общем со старым клиентом origin — его
-// база sessions не открывается и не трогается. Одна запись под ключом tracks в хранилище объектов autosave.
+// база sessions здесь не открывается: её один раз читает legacy-session.ts и не меняет (design switch-to-web-app).
+// Одна запись под ключом tracks в хранилище объектов autosave.
 
 export const AUTOSAVE_DB = 'nakarte-web';
 const STORE = 'autosave';

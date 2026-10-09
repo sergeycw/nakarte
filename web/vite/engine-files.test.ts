@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { engineFilesMiddleware, parseRange } from './engine-files.ts';
+import { copyEngineFiles, engineFilesMiddleware, parseRange } from './engine-files.ts';
 
 // CheerpJ узнаёт размер файла из Content-Range ответа на Range: bytes=0-0 и без 206 файла не видит,
 // поэтому dev-сервер обязан отвечать как functions/brouter-wasm на проде.
@@ -74,7 +74,7 @@ describe('Файлы движка в dev-сервере', () => {
     });
 
     test('Чужие пути — дальше по цепочке Vite', async () => {
-        expect((await fetch(`${base}/next/`)).status).toBe(418);
+        expect((await fetch(`${base}/`)).status).toBe(418);
     });
 });
 
@@ -87,5 +87,24 @@ describe('parseRange', () => {
         expect(parseRange('bytes=-100', 10)).toEqual({ start: 0, end: 9 });
         expect(parseRange('bytes=10-', 10)).toBe('unsatisfiable');
         expect(parseRange('items=0-1', 10)).toBeNull();
+    });
+});
+
+describe('Файлы движка в сборке', () => {
+    test('каталоги копируются под свои пути, отсутствующие возвращаются', () => {
+        const root = mkdtempSync(path.join(tmpdir(), 'engine-build-'));
+        try {
+            mkdirSync(path.join(root, 'lib', 'nested'), { recursive: true });
+            writeFileSync(path.join(root, 'lib', 'nested', 'brouter.jar'), 'jar');
+            const out = path.join(root, 'build');
+            const missing = copyEngineFiles(out, [
+                ['/brouter-wasm/lib/', path.join(root, 'lib')],
+                ['/brouter-wasm/profiles/', path.join(root, 'profiles')],
+            ]);
+            expect(readFileSync(path.join(out, 'brouter-wasm', 'lib', 'nested', 'brouter.jar'), 'utf8')).toBe('jar');
+            expect(missing).toEqual([path.join(root, 'profiles')]);
+        } finally {
+            rmSync(root, { recursive: true });
+        }
     });
 });

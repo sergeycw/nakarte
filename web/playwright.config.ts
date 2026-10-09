@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// e2e против собранного приложения (vite preview отдаёт build/next/ на /next/, как Pages на проде).
+// e2e против собранного приложения (vite preview отдаёт build/ от корня, как Pages на проде).
 // Сборка — до запуска: npm run build && npm run e2e. В сеть тесты не ходят — e2e/fixtures.ts.
-const BASE_URL = 'http://localhost:4173/next/';
+const BASE_URL = 'http://localhost:4173/';
 
 export default defineConfig({
     testDir: 'e2e',

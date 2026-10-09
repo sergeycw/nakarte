@@ -9,7 +9,7 @@ function guard(status) {
     const asked = [];
     return {
         asked,
-        fetch(url, init) {
+        fetch(_url, init) {
             asked.push(new Headers(init?.headers).get('X-Client-IP'));
             if (status === 'throw') {
                 return Promise.reject(new Error('guard down'));

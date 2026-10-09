@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from 'node:fs';
+import { cpSync, createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Connect, Plugin } from 'vite';
@@ -7,7 +7,7 @@ import type { Connect, Plugin } from 'vite';
 // origin (functions/brouter-wasm, functions/tiles), локально — этот middleware и прокси /tiles на
 // nakarte-tiles-worker (vite.config.ts). CheerpJ читает /app/ только Range-запросами и без 206 с
 // Content-Range не видит размер файла (AGENTS.md, «Движок в браузере (CheerpJ)»), поэтому статика Vite
-// (вне root и без гарантий Range) не годится. Раскладка — как у старого dev-сервера (webpack/webpack.config.js).
+// (вне root и без гарантий Range) не годится. Раскладка — как у functions/brouter-wasm и functions/tiles на проде.
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -20,6 +20,25 @@ const DEFAULT_MOUNTS: Mounts = [
     ['/brouter-wasm/profiles/', path.join(REPO, 'experiments/wasm/cheerpj/profiles')],
     ['/brouter-wasm/segments4/', path.join(REPO, 'brouter/segments4')],
 ];
+
+// Что уходит в сборку: код и профили движка. На проде их отдаёт с Range functions/brouter-wasm из статики Pages, а
+// тайлы — functions/tiles из R2, поэтому segments4 в сборку не кладётся.
+const BUILD_MOUNTS: Mounts = DEFAULT_MOUNTS.filter(([prefix]) => prefix !== '/brouter-wasm/segments4/');
+
+// Копирует каталоги движка в сборку (<outDir>/brouter-wasm/lib, …), как CopyWebpackPlugin старого клиента. Возвращает
+// каталоги, которых нет: без experiments/wasm/cheerpj/build.sh сборка проходит без движка (check-web.yml), а деплой
+// ловит это своей проверкой файлов в build/.
+export function copyEngineFiles(outDir: string, mounts: Mounts = BUILD_MOUNTS): string[] {
+    const missing: string[] = [];
+    for (const [prefix, dir] of mounts) {
+        if (!existsSync(dir)) {
+            missing.push(dir);
+            continue;
+        }
+        cpSync(dir, path.join(outDir, prefix), { recursive: true });
+    }
+    return missing;
+}
 
 // BRouter читает storageconfig.txt из каталога тайлов; functions/tiles отдаёт его пустым, как и старый dev-сервер.
 const EMPTY_FILES = new Set(['/brouter-wasm/segments4/storageconfig.txt']);
@@ -97,12 +116,20 @@ export function engineFiles(): Plugin {
     const middleware = engineFilesMiddleware();
     return {
         name: 'nakarte-engine-files',
-        // middleware до внутренних Vite: пути движка лежат вне base /next/
+        // middleware до внутренних Vite: Range и файлы вне root проекта статика Vite не отдаёт
         configureServer: (server) => {
             server.middlewares.use(middleware);
         },
         configurePreviewServer: (server) => {
             server.middlewares.use(middleware);
+        },
+        writeBundle(options) {
+            const missing = copyEngineFiles(options.dir ?? path.join(REPO, 'build'));
+            if (missing.length) {
+                this.warn(
+                    `engine files are not in the build, run experiments/wasm/cheerpj/build.sh: ${missing.join(', ')}`,
+                );
+            }
         },
     };
 }

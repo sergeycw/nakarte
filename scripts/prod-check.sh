@@ -1,5 +1,5 @@
 #!/bin/sh
-# Синтетическая проверка своих сервисов клона на проде: сайт, новое приложение /next/, файлы движка, тайл BRouter,
+# Синтетическая проверка своих сервисов клона на проде: приложение на /, редирект /next/, файлы движка, тайл BRouter,
 # API и тайлы высот, хранилище треков, CORS-прокси. Только чтение, без сети к чужим сайтам:
 # прокси проверяется preflight'ом, хранилище треков — чтением несуществующего ключа (404 из R2).
 # Запускают workflow «prod check» (раз в день и после деплоя) и человек: sh scripts/prod-check.sh
@@ -42,16 +42,22 @@ check_range() {
     if [ "$status" = 206 ] && [ -n "$(header content-range)" ]; then report "$1" ok; else report "$1" "status $status"; fi
 }
 
+# приложение web/ (openspec/specs/web-client): заголовок из web/index.html. Одного статуса мало — Pages отвечают 200 и
+# на пути без файла (корневым index.html)
 status=$(fetch "$SITE/")
-if [ "$status" = 200 ] && grep -q '<title>' "$body"; then report 'site' ok; else report 'site' "status $status"; fi
-
-# новое приложение web/ (openspec/specs/web-client): заголовок из web/index.html. Одного статуса мало —
-# без build/next/ Pages отвечают на /next/ корневым index.html старого клиента с кодом 200
-status=$(fetch "$SITE/next/")
 if [ "$status" = 200 ] && grep -q '<title>nakarte routing</title>' "$body"; then
-    report 'site next' ok
+    report 'site' ok
 else
-    report 'site next' "status $status, title $(grep -o '<title>[^<]*' "$body" | head -1 | cut -c8-)"
+    report 'site' "status $status, title $(grep -o '<title>[^<]*' "$body" | head -1 | cut -c8-)"
+fi
+
+# старый адрес приложения: /next/ — редирект на / (web/public/_redirects); curl без -L смотрит сам ответ
+status=$(fetch "$SITE/next/")
+location=$(header location)
+if [ "${status#3}" != "$status" ] && { [ "$location" = / ] || [ "$location" = "$SITE/" ]; }; then
+    report 'site next redirect' ok
+else
+    report 'site next redirect' "status $status, location ${location:-none}"
 fi
 
 check_range 'engine jar' "$SITE/brouter-wasm/lib/brouter.jar"

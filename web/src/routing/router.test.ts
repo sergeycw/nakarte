@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { type Engine, EngineStartError, type EngineStatus } from '@/engine/engine';
 import { type Activity, getActivity, RoutingError } from './brouter';
-import { createRouter } from './router';
+import { createRouter, routerDownHint } from './router';
 
 function activity(id: string): Activity {
     const found = getActivity(id);
@@ -184,5 +184,17 @@ describe('Отмена', () => {
         const result = router.route(FROM, TO, HIKING, controller.signal).catch((e: unknown) => e);
         controller.abort();
         expect(await result).toBe(controller.signal.reason);
+    });
+});
+
+// Спека routing, «Доступность и подсказка по движку»
+describe('Доступность и подсказка по движку', () => {
+    test('Серверный BRouter не запущен', () => {
+        expect(routerDownHint('server')).toBe('BRouter is not running, start it with docker compose up -d');
+    });
+
+    test('Движок в браузере не запустился', () => {
+        expect(routerDownHint('browser')).toBe('BRouter engine failed to load, reload the page to retry');
+        expect(routerDownHint('browser')).not.toContain('docker compose');
     });
 });
