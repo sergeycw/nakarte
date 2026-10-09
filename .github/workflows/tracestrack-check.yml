@@ -1,0 +1,47 @@
+name: tracestrack check
+
+# Раз в день проверяет, что прокси отдаёт тайл Tracestrack Topo — подложки по умолчанию приложения — с ключом из
+# секрета TRACESTRACK_KEY Worker'а nakarte-cors-proxy (design add-outdoor-basemap).
+# 503 — ключ ещё не заведён: предупреждение, прогон зелёный (шаг владельца: npx wrangler@4 secret put TRACESTRACK_KEY
+# из workers/cors-proxy). Остальное — красный прогон и письмо: 403 — ключ отклонён или кончилась бесплатная квота
+# (100 тыс. тайлов в месяц), 429 — лимит частоты. Пока ключ не работает, приложение показывает OpenStreetMap с тостом.
+# По расписанию Actions запускаются только из ветки по умолчанию; после 60 дней без коммитов GitHub
+# отключает расписание.
+
+on:
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    if: github.repository == 'sergeycw/nakarte'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tracestrack tile through the proxy
+        run: |
+          # тайл Тбилиси z12, один кредит квоты; Origin — клон, иначе прокси ответит 403
+          url="https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/tile.tracestrack.com/topo__/12/2557/1514.webp"
+          for _ in 1 2 3; do
+            if curl -sS --max-time 30 -o body.txt -D headers.txt -H 'Origin: https://nakarte-routing.pages.dev' "$url"; then
+              break
+            fi
+            sleep 10
+          done
+          if [ ! -s headers.txt ]; then
+            echo "::error::proxy did not answer"
+            exit 1
+          fi
+          status=$(head -1 headers.txt | tr -d '\r' | cut -d' ' -f2)
+          type=$(grep -i '^content-type:' headers.txt | tr -d '\r' | cut -d' ' -f2)
+          echo "status $status, $type"
+          if [ "$status" = 503 ] && grep -q 'Tracestrack key is not set' body.txt; then
+            echo "::warning::TRACESTRACK_KEY is not set: the app falls back to OpenStreetMap"
+            exit 0
+          fi
+          if [ "$status" != 200 ] || [[ "$type" != image/* ]]; then
+            # тело не печатается: лог Actions публичный, а в тексте ошибки мог бы оказаться ключ
+            echo "::error::proxy does not serve Tracestrack tiles (status $status, $type)"
+            exit 1
+          fi

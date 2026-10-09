@@ -12,7 +12,7 @@ import {
 } from '@/streetview/hash';
 import { isTrackParam, type TrackParam } from '@/tracks/links';
 import { formatHash, formatView, parseHash, parseView, type View, withParam } from './hash';
-import { type AppStore, createAppStore } from './store';
+import { type AppStore, createAppStore, savedSelection } from './store';
 
 // Связь стора с адресом и localStorage (design add-web-map-layers, «Адрес»). При старте: адрес → localStorage →
 // умолчания. Дальше стор пишет m= и панораму в n2= (не чаще раза в 300 мс: moveend и взгляд идут сериями), l=, r= метки
@@ -99,9 +99,11 @@ export function bindAppStore(
         return found;
     }
 
+    // в l= — выбор пользователя, а не подложка отката (design add-outdoor-basemap): перезагрузка снова пробует
+    // Tracestrack, а ссылка из адресной строки передаёт выбор, а не временную замену
     function layersParam() {
-        const { selection, layers } = store.getState();
-        return formatLayersParam(selection, layers);
+        const state = store.getState();
+        return formatLayersParam(savedSelection(state), state.layers);
     }
 
     function writeAddress() {
@@ -122,8 +124,8 @@ export function bindAppStore(
     }
 
     function persist() {
-        const { settings, selection } = store.getState();
-        saveSettings(storage, { ...settings, selection });
+        const state = store.getState();
+        saveSettings(storage, { ...state.settings, selection: savedSelection(state) });
     }
 
     function onHashChange() {
@@ -159,7 +161,11 @@ export function bindAppStore(
     }
 
     const unsubscribe = store.subscribe((state, prev) => {
-        if (state.selection !== prev.selection || state.layers !== prev.layers) {
+        if (
+            state.selection !== prev.selection ||
+            state.layers !== prev.layers ||
+            state.basemapFallback !== prev.basemapFallback
+        ) {
             writeAddress();
             persist();
         } else if (state.settings !== prev.settings) {

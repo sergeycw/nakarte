@@ -33,9 +33,51 @@ async function openSwitcher(page: import('@playwright/test').Page) {
 
 test('Первый заход без настроек', async ({ page, network }) => {
     await page.goto('./');
-    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=O');
+    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt');
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
+    expect(network.tiles.every((tile) => tile.code === 'Tt')).toBe(true);
+});
+
+test('Старая ссылка с OpenStreetMap', async ({ page, network }) => {
+    await page.goto('./#m=8/49.73868/33.45886&l=O');
     await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
-    expect(network.tiles.every((tile) => tile.code === 'O')).toBe(true);
+    expect(network.tilesOf('Tt')).toEqual([]);
+});
+
+test('Слой Tracestrack', async ({ page, network }) => {
+    await page.goto('./');
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
+    for (const url of network.tilesOf('Tt')) {
+        expect(url.startsWith(`${CORS_PROXY_URL}https/tile.tracestrack.com/topo__/`)).toBe(true);
+        expect(url).not.toContain('key=');
+    }
+    await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
+});
+
+test('Нет ключа или квоты', async ({ page, network }) => {
+    network.failTiles('Tt');
+    await page.goto('./#m=8/49.73868/33.45886&l=Tt/Hs');
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await expect(page.getByText('Switched to OpenStreetMap')).toBeVisible();
+    await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
+    // в адресе — выбор пользователя, OSM только показывается до перезагрузки
+    expect(hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt/Hs');
+    await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
+});
+
+test('Следующий заход после отката', async ({ page, network }) => {
+    network.failTiles('Tt');
+    await page.goto('./');
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await page.goto('about:blank');
+    const before = network.tiles.length;
+    await page.goto('./');
+    // сохранённый выбор — по-прежнему Tracestrack: и перезагрузка, и новый заход снова запрашивают его тайлы
+    await expect.poll(() => network.tiles.slice(before).some((tile) => tile.code === 'Tt')).toBe(true);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '{}'));
+    expect(saved.selection.base).toBe('Tt');
 });
 
 test('Список слоёв', async ({ page }) => {
@@ -43,7 +85,7 @@ test('Список слоёв', async ({ page }) => {
     const switcher = await openSwitcher(page);
     await switcher.getByText('Configure layers').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(31);
+    await expect(dialog.getByRole('checkbox')).toHaveCount(32);
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }
@@ -69,9 +111,9 @@ test('Ссылка с удалённым слоем', async ({ page, network }) 
 test('Ссылка только с удалённым слоем', async ({ page, network }) => {
     for (const layers of ['F', 'Y']) {
         await page.goto(`./#m=8/49.73868/33.45886&l=${layers}`);
-        await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=O');
+        await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt');
     }
-    await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
 });
 
 test('Ссылка со своим слоем', async ({ page, network }) => {

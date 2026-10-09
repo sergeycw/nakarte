@@ -52,10 +52,10 @@ afterEach(() => {
 });
 
 describe('старт', () => {
-    test('Первый заход без настроек: OSM и вид по умолчанию сразу в адресе', () => {
+    test('Первый заход без настроек: Tracestrack Topo и вид по умолчанию сразу в адресе', () => {
         const { win, store } = start('');
-        expect(store.getState().selection).toEqual({ base: 'O', overlays: [] });
-        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=O');
+        expect(store.getState().selection).toEqual({ base: 'Tt', overlays: [] });
+        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt');
     });
 
     test('Ссылка с видом и слоями: прочие параметры остаются на местах', () => {
@@ -78,6 +78,58 @@ describe('старт', () => {
         const second = start('', storage);
         expect(second.store.getState().selection).toEqual({ base: 'E', overlays: ['Hs'] });
         expect(second.win.location.hash).toBe('#m=8/49.73868/33.45886&l=E/Hs');
+    });
+
+    test('Старая ссылка с OpenStreetMap: l=O важнее подложки по умолчанию', () => {
+        const { store, win } = start('l=O');
+        expect(store.getState().selection).toEqual({ base: 'O', overlays: [] });
+        expect(win.location.hash).toBe('#l=O&m=8/49.73868/33.45886');
+    });
+
+    test('Следующий заход после отката', () => {
+        const storage = memoryStorage();
+        const first = start('', storage);
+        first.store.getState().toggleOverlay('Hs');
+        first.store.getState().fallBackBase('Tt');
+        // в адресе — выбор, а не подложка отката
+        expect(first.win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt/Hs');
+        first.unbind();
+        expect(start('', storage).store.getState().selection).toEqual({ base: 'Tt', overlays: ['Hs'] });
+    });
+
+    test('перезагрузка вкладки после отката снова пробует Tracestrack и не сохраняет OSM', () => {
+        const storage = memoryStorage();
+        const first = start('', storage);
+        first.store.getState().fallBackBase('Tt');
+        first.unbind();
+        const reload = start(first.win.location.hash.slice(1), storage);
+        expect(reload.store.getState().selection.base).toBe('Tt');
+        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '').selection.base).toBe('Tt');
+    });
+
+    test('l= из адреса после отката — выбор пользователя', () => {
+        const storage = memoryStorage();
+        const { store, win, unbind } = start('', storage);
+        store.getState().fallBackBase('Tt');
+        win.navigate('m=8/49.73868/33.45886&l=O');
+        expect(store.getState().basemapFallback).toBeNull();
+        unbind();
+        expect(start('', storage).store.getState().selection.base).toBe('O');
+    });
+
+    test('Сохранённый выбор OpenStreetMap', () => {
+        const storage = memoryStorage();
+        start('', storage).store.getState().selectBase('O');
+        expect(start('', storage).store.getState().selection).toEqual({ base: 'O', overlays: [] });
+    });
+
+    test('Выбор после отката сохраняется', () => {
+        const storage = memoryStorage();
+        const first = start('', storage);
+        first.store.getState().fallBackBase('Tt');
+        first.store.getState().selectBase('E');
+        first.unbind();
+        expect(start('', storage).store.getState().selection.base).toBe('E');
     });
 
     test('годный l= важнее сохранённого выбора и сам становится последним, негодный — нет', () => {
@@ -116,16 +168,16 @@ describe('запись в адрес', () => {
         const { win, store } = start('m=10/41/44&p=1');
         store.getState().setView({ lat: 41.5, lng: 44.5, zoom: 10 });
         store.getState().setView({ lat: 41.6, lng: 44.6, zoom: 10.5 });
-        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
         vi.advanceTimersByTime(300);
-        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&p=1&l=O');
+        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&p=1&l=Tt');
     });
 
     test('смена слоёв пишется сразу, оверлеи — по порядку наложения', () => {
         const { win, store } = start('');
         store.getState().toggleOverlay('Sa');
         store.getState().toggleOverlay('Nm');
-        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=O/Nm/Sa');
+        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt/Nm/Sa');
     });
 });
 
@@ -141,7 +193,7 @@ describe('адрес поменяли руками', () => {
         const { win, store } = start('');
         win.navigate('p=key');
         expect(store.getState().viewRequest).toBeNull();
-        expect(win.location.hash).toBe('#p=key&m=8/49.73868/33.45886&l=O');
+        expect(win.location.hash).toBe('#p=key&m=8/49.73868/33.45886&l=Tt');
     });
 });
 
@@ -163,7 +215,7 @@ describe('параметры треков', () => {
             ],
             false,
         );
-        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=O');
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
     });
 
     test('Ссылка вставлена в адрес: параметр с hashchange тоже грузится и стирается', () => {

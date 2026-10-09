@@ -1,4 +1,5 @@
 import {anonymousTileUrl, heatmapCookie, isStravaHeatmap} from './strava';
+import {errorBody, isTracestrackTile, responseHeaders, TRACESTRACK_HOST, withKey, withoutKey} from './tracestrack';
 
 // user-agent: fetch из Worker'а своего не ставит, а часть сайтов без него отвечает 403 (так было у Wikimapia,
 // чей адрес /wikimapia/ ушёл вместе со старым клиентом, change retire-old-client-services).
@@ -10,10 +11,10 @@ const EXPOSED_HEADERS = 'Content-Disposition';
 const ALLOWED_METHODS = 'GET, HEAD, OPTIONS';
 const READ_METHODS = ['GET', 'HEAD'];
 // Хосты тайловых слоёв клона, которые приложение шлёт через прокси (viaCorsProxy в web/src/layers/catalog.ts):
-// Strava heatmap и Tsvetkov. Они тратят RATE_LIMITER (1200 в минуту), все остальные хосты (импорт по ссылке,
+// Strava heatmap, Tsvetkov и Tracestrack Topo. Они тратят RATE_LIMITER (1200 в минуту), все остальные хосты (импорт по ссылке,
 // поиск, короткие ссылки, свои слои через прокси) — OTHER_RATE_LIMITER. Забытый здесь хост слоя не ломается, а
 // получает меньший лимит.
-const LAYER_HOSTS = [/^content-[a-z]\.strava\.com$/u, 'maptiles.website.yandexcloud.net'];
+const LAYER_HOSTS = [/^content-[a-z]\.strava\.com$/u, 'maptiles.website.yandexcloud.net', TRACESTRACK_HOST];
 // Свои адреса клона: Worker'ы аккаунта и так отвечают на подзапрос error 1042, а Pages — нет.
 const OWN_HOSTS = [/(^|\.)nakarte-routing\.workers\.dev$/u, /(^|\.)nakarte-routing\.pages\.dev$/u];
 // На эти ответы CloudFront на тайл с куками прокси пробует анонимный тайл: куки протухли или не приняты.
@@ -107,6 +108,12 @@ function preflight(request, origin) {
 }
 
 async function proxy(request, env, ctx, origin, target, proxyOrigin) {
+    // без ключа тайл Tracestrack не запрашивается вовсе: клиент получает ошибку и откатывается на OSM
+    const tracestrack = isTracestrackTile(target);
+    if (tracestrack && !env.TRACESTRACK_KEY) {
+        return new Response('Tracestrack key is not set\n', {status: 503, headers: corsHeaders(origin)});
+    }
+    const upstreamTarget = tracestrack ? withKey(target, env.TRACESTRACK_KEY) : target;
     const upstreamHeaders = new Headers();
     for (const name of FORWARDED_REQUEST_HEADERS) {
         const value = request.headers.get(name);
@@ -133,7 +140,7 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
         upstream = await send(anonymous);
         stravaSource = 'anonymous';
     } else {
-        upstream = await send(target);
+        upstream = await send(upstreamTarget);
     }
     if (anonymous && stravaSource !== 'anonymous' && STRAVA_REJECTED.includes(upstream.status)) {
         await upstream.body?.cancel();
@@ -145,7 +152,7 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
         await upstream.body?.cancel();
     }
 
-    const headers = new Headers(upstream.headers);
+    const headers = tracestrack ? responseHeaders(upstream) : new Headers(upstream.headers);
     for (const name of DROPPED_RESPONSE_HEADERS) {
         headers.delete(name);
     }
@@ -158,9 +165,16 @@ async function proxy(request, env, ctx, origin, target, proxyOrigin) {
     }
     const location = upstream.headers.get('Location');
     if (location) {
-        headers.set('Location', proxiedUrl(proxyOrigin, new URL(location, target).href));
+        const absolute = new URL(location, target).href;
+        headers.set('Location', proxiedUrl(proxyOrigin, tracestrack ? withoutKey(absolute) : absolute));
     }
-    return new Response(isHead ? null : upstream.body, {
+    let body = isHead ? null : upstream.body;
+    if (tracestrack && !upstream.ok && body) {
+        await upstream.body.cancel();
+        body = errorBody(upstream.status);
+        headers.set('Content-Type', 'text/plain;charset=UTF-8');
+    }
+    return new Response(body, {
         status: upstream.status,
         statusText: upstream.statusText,
         headers,

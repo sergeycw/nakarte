@@ -17,9 +17,11 @@ function cloudFrontPolicy(epoch) {
     return btoa(json).replace(/\+/gu, '-').replace(/[=]/gu, '_').replace(/\//gu, '~');
 }
 
-// Сколько раз заглушка Strava видела каждую сессию; тест читает это через https://stub.test/calls.
+// Сколько раз заглушка Strava видела каждую сессию и сколько запросов дошло до Tracestrack; тест читает это через
+// https://stub.test/calls.
 const stravaCalls = new Map();
 const offsiteCalls = [];
+let tracestrackCalls = 0;
 
 // Страница www.strava.com/maps/global-heatmap. Поведение задаёт значение `_strava4_session`
 // до первого `-`: ok, redirect, login, offsite, anon, partial, noexpiry, error; хвост делает сессию уникальной,
@@ -66,7 +68,11 @@ function upstream(request) {
     const url = new URL(request.url);
     if (url.host === 'stub.test' && url.pathname === '/calls') {
         const session = url.searchParams.get('session');
-        return Response.json({strava: stravaCalls.get(session) ?? 0, offsite: offsiteCalls.length});
+        return Response.json({
+            strava: stravaCalls.get(session) ?? 0,
+            offsite: offsiteCalls.length,
+            tracestrack: tracestrackCalls,
+        });
     }
     if (url.host === 'www.strava.com' && url.pathname === '/maps/global-heatmap') {
         return stravaPage(request);
@@ -85,6 +91,24 @@ function upstream(request) {
             {headers: {'X-Anonymous-Tile': 'yes'}}
         );
     }
+    // Tracestrack: тайл с x = 999 отвечает редиректом с ключом в Location, с x = 403 — отказом с ключом в теле и
+    // заголовке, с y = 7 — своим Cache-Control; остальные — эхо запроса (по нему тест видит ключ) с лишним заголовком
+    if (url.host === 'tile.tracestrack.com') {
+        tracestrackCalls += 1;
+        const [, , z, x, y] = url.pathname.split('/');
+        if (x === '999') {
+            return new Response(null, {
+                status: 302,
+                headers: {Location: `/topo__/${z}/1/${y}?key=${url.searchParams.get('key')}`},
+            });
+        }
+        const key = url.searchParams.get('key');
+        if (x === '403') {
+            return new Response(`key ${key} is blocked`, {status: 403, headers: {Link: `<${url.href}>`}});
+        }
+        const cache = y.startsWith('7.') || y.startsWith('7@') ? {'Cache-Control': 'max-age=60'} : {};
+        return Response.json({url: request.url}, {headers: {'X-Debug-Key': String(key), ...cache}});
+    }
     if (url.host === 'evil.test') {
         offsiteCalls.push(request.url);
     }
@@ -97,6 +121,8 @@ function upstream(request) {
     );
 }
 
+// то же значение — в test/tracestrack.test.js
+const TRACESTRACK_KEY = 'test-tracestrack-key';
 const STRAVA_COOKIES = 'CloudFront-Key-Pair-Id=k; CloudFront-Policy=p; CloudFront-Signature=s; _strava_idcf=j';
 
 export default defineConfig({
@@ -107,8 +133,8 @@ export default defineConfig({
             // `namespace_id` — имя поля miniflare, camelCase тут не выбрать
             miniflare: {
                 outboundService: upstream,
-                // секреты wrangler secret put STRAVA_SESSION / STRAVA_COOKIES; тут — заглушки
-                bindings: {STRAVA_SESSION: '_strava4_session=ok-worker', STRAVA_COOKIES},
+                // секреты wrangler secret put STRAVA_SESSION / STRAVA_COOKIES / TRACESTRACK_KEY; тут — заглушки
+                bindings: {STRAVA_SESSION: '_strava4_session=ok-worker', STRAVA_COOKIES, TRACESTRACK_KEY},
                 ratelimits: {
                     RATE_LIMITER: {namespace_id: '1004', simple: {limit: 3, period: 60}},
                     OTHER_RATE_LIMITER: {namespace_id: '1007', simple: {limit: 2, period: 60}},

@@ -13,7 +13,7 @@ test('Прокладка выключена', async ({ page, network }) => {
     });
     await page.goto('./');
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
-    await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
     expect(engineRequests).toEqual([]);
     expect(page.workers().map((worker) => worker.url())).not.toContainEqual(expect.stringContaining('engine.worker'));
 });

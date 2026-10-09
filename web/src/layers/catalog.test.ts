@@ -29,6 +29,7 @@ function tileUrl(layer: LayerDef, z: number, x: number, y: number, pixelRatio = 
 // Отличия от старого клиента намеренные: Google — z= вместо zoom=17-z (те же тайлы), Slazav и Slovakia — конечные
 // адреса после редиректа, swisstopo — без прокси, Bing — статичный адрес из стиля.
 const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
+    ['Tt', [8, 151, 87], 'https://proxy.test/https/tile.tracestrack.com/topo__/8/151/87.webp'],
     ['O', [8, 151, 87], 'https://tile.openstreetmap.org/8/151/87.png'],
     ['Co', [8, 151, 87], 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/8/151/87.png'],
     ['E', [8, 151, 87], 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/8/87/151'],
@@ -101,8 +102,9 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
 ];
 
 describe('Каталог слоёв', () => {
-    test('Список слоёв: 30 слоёв старого клиента и отмывка, без Яндекса, Wikimapia и сетки', () => {
-        expect(catalog).toHaveLength(31);
+    test('Список слоёв: 30 слоёв старого клиента, отмывка и Tracestrack, без Яндекса, Wikimapia и сетки', () => {
+        expect(catalog).toHaveLength(32);
+        expect([...catalog].sort((a, b) => a.order - b.order)[0].title).toBe('Tracestrack Topo');
         for (const code of ['Y', 'S', 'W', 'Ng']) {
             expect(byCode.has(code)).toBe(false);
         }
@@ -127,7 +129,7 @@ describe('Каталог слоёв', () => {
 
     test('подложки — как в старом клиенте, остальное — оверлеи', () => {
         const bases = catalog.filter((layer) => !layer.isOverlay).map((layer) => layer.code);
-        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P']);
+        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'Tt']);
     });
 
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
@@ -157,6 +159,10 @@ describe('Каталог слоёв', () => {
         expect(byCode.get('Sa')?.source.maxzoom).toBe(16);
         const ocm = retina.find((layer) => layer.code === 'Ocm') as LayerDef;
         expect(tileUrl(ocm, 8, 151, 87, 2)).toBe('https://b.tile.thunderforest.com/cycle/8/151/87@2x.png');
+        const tt = retina.find((layer) => layer.code === 'Tt') as LayerDef;
+        expect(tileUrl(tt, 8, 151, 87, 2)).toBe(
+            'https://proxy.test/https/tile.tracestrack.com/topo__/8/151/87@2x.webp',
+        );
     });
 
     test('язык подписей Google кодируется в адресе', () => {
@@ -166,7 +172,17 @@ describe('Каталог слоёв', () => {
 
     test('Слой Strava и Tsvetkov — через прокси, остальные напрямую', () => {
         const proxied = catalog.filter((layer) => layer.source.tiles?.[0].startsWith(PROXY)).map((l) => l.code);
-        expect(proxied.sort()).toEqual(['Mt', 'Sa', 'Sb', 'Sr', 'Sw']);
+        expect(proxied.sort()).toEqual(['Mt', 'Sa', 'Sb', 'Sr', 'Sw', 'Tt']);
+    });
+
+    test('Слой Tracestrack: через прокси без ключа, атрибуция Tracestrack и OSM', () => {
+        const tt = byCode.get('Tt') as LayerDef;
+        expect(tt.source.tiles).toEqual([
+            'https://proxy.test/https/tile.tracestrack.com/topo__/{z}/{x}/{y}{ratio}.webp',
+        ]);
+        expect(tt.source.maxzoom).toBe(19);
+        expect(tt.source.attribution).toContain('<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>');
+        expect(tt.source.attribution).toContain('OpenStreetMap contributors');
     });
 
     test('региональные слои: прямоугольник покрытия и минимальный зум', () => {

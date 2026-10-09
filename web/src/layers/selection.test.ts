@@ -94,9 +94,11 @@ describe('Слои в адресе', () => {
 
 describe('сохранённый выбор', () => {
     test('пропавшие слои отбрасываются, без подложки — по умолчанию', () => {
+        // подложка по умолчанию — Tracestrack Topo (спека map-layers, «Подложка по умолчанию»)
+        expect(DEFAULT_SELECTION).toEqual({ base: 'Tt', overlays: [] });
         expect(validSelection(null, byCode)).toEqual(DEFAULT_SELECTION);
         expect(validSelection({ base: 'Y', overlays: ['W', 'Hs', 'Hs', 'O'] }, byCode)).toEqual({
-            base: 'O',
+            base: 'Tt',
             overlays: ['Hs'],
         });
         expect(validSelection({ base: 'E', overlays: [] }, byCode)).toEqual({ base: 'E', overlays: [] });

@@ -67,8 +67,8 @@ describe('Подложка и оверлеи', () => {
         const switcher = await openSwitcher();
         await switcher.getByText('Strava heatmap (all)').click();
         await switcher.getByText('Norway topo').click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['O', 'Nm', 'Sa']);
-        expect(location.hash).toContain('l=O/Nm/Sa');
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Nm', 'Sa']);
+        expect(location.hash).toContain('l=Tt/Nm/Sa');
     });
 
     test('Включить отмывку', async () => {
@@ -164,7 +164,7 @@ describe('Свои слои по URL', () => {
         await expect
             .poll(() => tiles.requested.some((url) => url.startsWith('https://tiles.example.test/')))
             .toBe(true);
-        expect(location.hash).toMatch(/l=O\/-cs[A-Za-z0-9_=-]+/);
+        expect(location.hash).toMatch(/l=Tt\/-cs[A-Za-z0-9_=-]+/);
         const switcher = await openSwitcher();
         await expect.element(switcher.getByRole('checkbox', { name: /Custom layer/ })).toBeChecked();
     });

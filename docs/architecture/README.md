@@ -23,7 +23,7 @@ flowchart LR
         pages["③ Pages + Functions<br/>сайт; jar и тайлы BRouter<br/>по Range с того же origin"]
         elev["⑥ Сервис высот, Rust<br/>DEM 3″ как у автора"]
         tracks["⑤ Хранилище треков<br/>ссылка nktl= = md5 треков"]
-        proxy["④ CORS-прокси<br/>протокол авторского прокси;<br/>куки Strava держит прокси"]
+        proxy["④ CORS-прокси<br/>протокол авторского прокси;<br/>куки Strava и ключ Tracestrack держит прокси"]
     end
 
     r2[("R2<br/>тайлы BRouter · треки · DEM")]
@@ -37,7 +37,7 @@ flowchart LR
     subgraph ext["Чужие сервисы"]
         direction TB
         maps["Тайлы карт, Street View, поиск photon"]
-        sites["Strava, сайты треков, поиск mapy.cz"]
+        sites["Strava, Tracestrack, сайты треков, поиск mapy.cz"]
         cdn["CDN CheerpJ"]
     end
 
@@ -65,7 +65,7 @@ flowchart LR
 | ① Клиент | приложение `web/` на `/` (старый клиент автора удалён, `/next/` — редирект); адреса сервисов общие для всех режимов, режим `clone` отличается только движком ([switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md)) | [client.md](client.md), [route-editor.md](route-editor.md) | [реестр: платформа и стек](decisions.md#платформа-и-стек), [редактор](decisions.md#редактор) |
 | ② Прокладка в браузере | маршрут считает BRouter на CheerpJ в Web Worker страницы; сервер только раздаёт файлы | [routing.md](routing.md) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ③ Pages + Functions | jar, профили и тайлы BRouter с origin клона по Range: CheerpJ читает только его | [routing.md](routing.md), [уровень 2](#публичный-клон) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
-| ④ CORS-прокси | повторяет протокол авторского прокси; куки Strava heatmap прокси получает сам по сессии | [cors-proxy.md](cors-proxy.md) | [реестр: CORS-прокси и Strava](decisions.md#cors-прокси-и-strava) |
+| ④ CORS-прокси | повторяет протокол авторского прокси; куки Strava heatmap прокси получает сам по сессии, ключ Tracestrack подложки по умолчанию — из своего секрета | [cors-proxy.md](cors-proxy.md) | [реестр: CORS-прокси и Strava](decisions.md#cors-прокси-и-strava) |
 | ⑤ Хранилище треков | ссылка `nktl=` — md5 треков, объект в R2 неизменяемый | [track-storage.md](track-storage.md) | [реестр: хранилище треков](decisions.md#хранилище-треков) |
 | ⑥ Сервис высот | данные и арифметика автора, Rust → wasm; только API высот, тайлы высот выведены | [elevation.md](elevation.md) | [реестр: сервис высот](decisions.md#сервис-высот) |
 | ⑦ GitHub Actions | прод = `master`; данные в R2 заливает CI, а не рантайм; деплой падает на адресах автора | [ci-cd.md](ci-cd.md), [protection.md](protection.md) | [реестр: деплой и защита](decisions.md#деплой-и-защита) |
@@ -109,7 +109,7 @@ flowchart LR
     end
 
     cdn["CDN CheerpJ"]
-    ext["Внешние сайты и Strava"]
+    ext["Внешние сайты, Strava и Tracestrack"]
 
     spa -->|"GET /, /next/* → 302 на /*"| static
     spa --> engine
@@ -192,7 +192,7 @@ flowchart LR
 | Pages Function `tiles` | тайлы BRouter `/tiles/*` из R2 с Range; код — `workers/tiles` | [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/src/index.js](../../workers/tiles/src/index.js) |
 | Pages Function `brouter-wasm` | Range для файлов движка (jar, профили) поверх статики Pages | [functions/brouter-wasm](../../functions/brouter-wasm/[[path]].js) |
 | Worker `nakarte-guard` | счётчик частоты для Pages Functions, снаружи закрыт (`workers_dev = false`) | [workers/guard/wrangler.toml](../../workers/guard/wrangler.toml), [index.js](../../workers/guard/src/index.js), [client.js](../../workers/guard/src/client.js) |
-| Worker `nakarte-cors-proxy` | CORS-прокси, куки Strava heatmap | [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js), [strava.js](../../workers/cors-proxy/src/strava.js) |
+| Worker `nakarte-cors-proxy` | CORS-прокси, куки Strava heatmap, ключ Tracestrack (`TRACESTRACK_KEY`) | [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js), [strava.js](../../workers/cors-proxy/src/strava.js), [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
 | Worker `nakarte-tracks` | хранилище треков для `nktl=` | [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
 | Worker `nakarte-elevation` | API высот (`POST /`), Rust → wasm; тайлов высот нет | [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs) |
 | R2 `nakarte-tiles` | тайлы BRouter `*.rd5`, `manifest.json` синхронизации | [wrangler.toml](../../wrangler.toml), [brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs) |
@@ -220,6 +220,7 @@ flowchart LR
 | `nakarte-elevation` → R2 `nakarte-elevation` | range-чтения `dem3/*` | [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [grid.rs](../../workers/elevation/core/src/grid.rs) |
 | браузер → `nakarte-cors-proxy` | `GET`/`HEAD /{http,https}/{host}/{path}` | [catalog.ts](../../web/src/layers/catalog.ts), [sources.ts](../../web/src/tracks/sources.ts), [mapycz.ts](../../web/src/search/mapycz.ts), [links.ts](../../web/src/search/links.ts) |
 | `nakarte-cors-proxy` → внешние сайты | `fetch(target, {redirect: 'manual'})` | [cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js) (`proxy`) |
+| `nakarte-cors-proxy` → Tracestrack | тайлы `tile.tracestrack.com/topo__/…` с `key` из секрета `TRACESTRACK_KEY` | [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
 | браузер → тайловые провайдеры | `GET` тайлов напрямую (большинство слоёв) | [catalog.ts](../../web/src/layers/catalog.ts) |
 | браузер → photon.komoot.io | `GET /api/` поиска (запасной к mapy.cz) | [photon.ts](../../web/src/search/photon.ts) |
