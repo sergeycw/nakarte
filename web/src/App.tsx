@@ -87,7 +87,12 @@ export function App({
     const [trackActions] = useState(() =>
         createTrackActions({
             store,
-            sources: { fetch, corsProxyUrl: config.corsProxyUrl, tracksStorageServer: config.tracksStorageServer },
+            sources: {
+                fetch,
+                corsProxyUrl: config.corsProxyUrl,
+                tracksStorageServer: config.tracksStorageServer,
+                elevationsServer: config.elevationsServer,
+            },
             notify,
             location: () => window.location,
             writeClipboard,

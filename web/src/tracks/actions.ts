@@ -1,7 +1,8 @@
+import { ElevationError, errorReason, fetchElevations } from '@/elevation/api';
 import { reverseRoute, settledRoute } from '@/routing/line';
 import type { AppStore } from '@/state/store';
 import type { TrackParams } from '@/state/sync';
-import { EmptyTrackError, exportTrack, exportZip, saveFile } from './export';
+import { EmptyTrackError, exportGpxWithElevations, exportTrack, exportZip, saveFile } from './export';
 import { boundsOf, wrapLng } from './geometry';
 import { prepareImport } from './import-result';
 import { loadFromUrl } from './import-url';
@@ -25,6 +26,8 @@ export interface TrackActionsDeps {
     // конец восстановления автосохранения: треки из адреса и файлов встают после восстановленных (design
     // add-web-autosave, «Восстановление и треки из адреса»)
     restored?: Promise<unknown>;
+    // сохранение файла (по умолчанию ссылка download): unit-тесты подставляют свою запись
+    save?: typeof saveFile;
 }
 
 // ClipboardItem с промисом: Safari сохраняет жест пользователя на время запроса к хранилищу, Chromium ждёт промис
@@ -69,6 +72,7 @@ export function createTrackActions({
     location,
     writeClipboard = writeClipboardItem,
     restored = Promise.resolve(),
+    save: saveToDisk = saveFile,
 }: TrackActionsDeps) {
     const state = () => store.getState();
 
@@ -123,7 +127,7 @@ export function createTrackActions({
 
     function save(file: () => Parameters<typeof saveFile>[0]) {
         try {
-            saveFile(file());
+            saveToDisk(file());
         } catch (error) {
             if (!(error instanceof EmptyTrackError)) {
                 throw error;
@@ -273,6 +277,28 @@ export function createTrackActions({
         setColor: (track: Track, color: number) => state().updateTrack(track.id, { color }),
         saveTrack: (track: Track, format: 'gpx' | 'kml') => save(() => exportTrack(track, format)),
         saveAll: () => save(() => exportZip(state().tracks)),
+        // GPX с высотами (спека track-files, «GPX с высотами»): пока идут запросы к API высот, крутится индикатор загрузки
+        // в заголовке списка; ошибка API — сообщение без файла
+        async saveTrackWithElevation(track: Track) {
+            state().changeLoadingTracks(1);
+            try {
+                saveToDisk(
+                    await exportGpxWithElevations(track, (points) =>
+                        fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }),
+                    ),
+                );
+            } catch (error) {
+                if (error instanceof EmptyTrackError) {
+                    notify(error.message, 'error');
+                } else if (error instanceof ElevationError) {
+                    notify(`Failed to get elevation data: ${errorReason(error)}`, 'error');
+                } else {
+                    throw error;
+                }
+            } finally {
+                state().changeLoadingTracks(-1);
+            }
+        },
         copyTrackLink: (track: Track) => copyLink([track], true),
         copyAllLink: () => copyLink(state().tracks),
         copyVisibleLink: () => copyLink(state().tracks.filter((track) => track.visible)),
