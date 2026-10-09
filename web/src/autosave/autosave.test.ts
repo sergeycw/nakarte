@@ -261,6 +261,15 @@ describe('сессия старого клиента', () => {
         expect(saves).toHaveLength(0);
     });
 
+    test('пустой трек сессии остаётся, как у старого клиента', async () => {
+        const store = appStore();
+        const { storage, load } = manualStorage();
+        const autosave = startAutosave(store, { ...storage, legacy: async () => [geoData('New track')] });
+        load.resolve(undefined);
+        await autosave.restored;
+        expect(store.getState().tracks.map((track) => track.name)).toEqual(['New track']);
+    });
+
     test('источник упал — пустой список, предупреждение, сохранение работает', async () => {
         const store = appStore();
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

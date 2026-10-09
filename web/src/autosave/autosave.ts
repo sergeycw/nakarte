@@ -107,12 +107,13 @@ export function startAutosave(
             restore(() => fromSaved(value));
             return;
         }
-        // своей записи нет: список старого клиента проходит тот же путь, что ссылка (упрощение с опорными точками)
+        // своей записи нет: список старого клиента проходит тот же путь, что ссылка (упрощение с опорными точками), пустые
+        // треки остаются, как при восстановлении сессии старым клиентом (loadTracksFromString с allowEmpty)
         const legacy = await storage.legacy().catch((error: unknown) => {
             warn(error);
             return [];
         });
-        restore(() => prepareImport(legacy).tracks, true);
+        restore(() => prepareImport(legacy, true).tracks, true);
     }
 
     const tracksAtStart = store.getState().tracks;

@@ -113,6 +113,15 @@ function openExisting(factory: IDBFactory, name: string): Promise<IDBDatabase | 
     });
 }
 
+interface LegacyRecord {
+    mtime?: unknown;
+    data?: { tracks?: unknown };
+}
+
+function hasTracks(record: LegacyRecord | null | undefined): record is LegacyRecord & { data: { tracks: string } } {
+    return typeof record?.data?.tracks === 'string' && record.data.tracks !== '';
+}
+
 // data последней по mtime сессии с треками или undefined (базы, хранилища или сессий с треками нет). Старый клиент
 // стирал запись вкладки без треков (clearState), но пустая строка не помешает и здесь.
 export async function readLatestLegacySession(
@@ -128,14 +137,26 @@ export async function readLatestLegacySession(
             return undefined;
         }
         const store = db.transaction(STORE, 'readonly').objectStore(STORE);
-        const records = await requestResult(
-            store.indexNames.contains(MTIME_INDEX) ? store.index(MTIME_INDEX).getAll() : store.getAll(),
-        );
-        const withTracks = (records as { mtime?: unknown; data?: { tracks?: unknown } }[]).filter(
-            (record) => typeof record?.data?.tracks === 'string' && record.data.tracks !== '',
-        );
-        withTracks.sort((a, b) => Number(b.mtime) - Number(a.mtime));
-        return withTracks[0]?.data;
+        // от новых к старым по индексу mtime, до первой сессии с треками: не поднимать в память все 100 сессий
+        const source = store.indexNames.contains(MTIME_INDEX) ? store.index(MTIME_INDEX) : null;
+        if (!source) {
+            const records = (await requestResult(store.getAll())) as LegacyRecord[];
+            return records.filter(hasTracks).sort((a, b) => Number(b.mtime) - Number(a.mtime))[0]?.data;
+        }
+        return await new Promise((resolve, reject) => {
+            const request = source.openCursor(null, 'prev');
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor) {
+                    resolve(undefined);
+                } else if (hasTracks(cursor.value)) {
+                    resolve(cursor.value.data);
+                } else {
+                    cursor.continue();
+                }
+            };
+        });
     } finally {
         db.close();
     }
