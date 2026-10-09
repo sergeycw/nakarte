@@ -20,13 +20,15 @@ import {
     pressEscape,
     waypoints,
 } from '@/test/map-events';
+import { memoryAutosave } from '@/test/memory-autosave';
 import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import type { LatLng } from '@/tracks/model';
-import { saveNktk } from '@/tracks/nktk';
+import { ARC_UNIT, saveNktk } from '@/tracks/nktk';
 import { TRACK_LINES } from '@/tracks/style';
 import type { AutosaveStorage } from './autosave';
 import { indexedDbStorage } from './idb';
+import { legacySessionSource } from './legacy-session';
 
 // Автосохранение в App на настоящем IndexedDB Chromium. «Перезагрузка» — размонтировать App (он дописывает
 // несохранённое, как на pagehide) и отрендерить заново с новым подключением к той же базе. Настоящая перезагрузка
@@ -228,7 +230,7 @@ describe('Разметка маршрута переживает перезаг�
     });
 });
 
-describe('Ссылка несёт разметку маршрута, файлы — только геометрию', () => {
+describe('Разметка маршрута в ссылке, в файлах — только геометрия', () => {
     test('Открытие ссылки', async () => {
         const [corner] = bend(A, C);
         const route: SegmentRoute = { waypoints: [0, 2], legs: [{ state: 'routed', activity: 'hiking' }] };
@@ -300,5 +302,58 @@ describe('Треки переживают перезагрузку', () => {
         await renderApp(tiles, VIEW, { autosave: denied });
         await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
         vi.restoreAllMocks();
+    });
+});
+
+// Спека tracks, «Сохранённые сессии старого клиента не трогаются»: база sessions в схеме старого клиента
+// (src/lib/session-state на коммите 015be893), разметка — ключи сетки nktk (routeMarkupKey)
+describe('Сохранённые сессии старого клиента не трогаются', () => {
+    const markupKey = ({ lat, lng }: LatLng) => `${Math.round(lat * ARC_UNIT)},${Math.round(lng * ARC_UNIT)}`;
+
+    function writeLegacySession(name: string, data: unknown) {
+        databases.push(name);
+        return new Promise<void>((resolve, reject) => {
+            const request = indexedDB.open(name, 1);
+            request.onupgradeneeded = () => {
+                const store = request.result.createObjectStore('sessionData', { keyPath: 'sessionId' });
+                store.createIndex('mtime', 'mtime', { unique: false });
+            };
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const transaction = request.result.transaction('sessionData', 'readwrite');
+                transaction.objectStore('sessionData').put({ sessionId: 'old', mtime: Date.now(), data });
+                transaction.oncomplete = () => {
+                    request.result.close();
+                    resolve();
+                };
+                transaction.onabort = () => reject(transaction.error);
+            };
+        });
+    }
+
+    test('Сессия старого клиента', async () => {
+        const name = `sessions-test-${crypto.randomUUID()}`;
+        const [corner] = bend(A, C);
+        await writeLegacySession(name, {
+            hash: '#',
+            tracks: saveNktk({ name: 'Old session', segments: [[A, corner, C]], points: [] }),
+            trackNames: ['Old session'],
+            routeMarkup: { legs: [[markupKey(A), markupKey(C), 'hiking']] },
+        });
+        const router = fakeRouter({ auto: true });
+        localStorage.setItem('nakarte-web:routing-activity', 'mtb');
+        const { map } = await renderApp(tiles, VIEW, {
+            router,
+            autosave: { ...memoryAutosave(), legacy: legacySessionSource(() => indexedDB, name) },
+        });
+        await expect.element(rows()).toHaveLength(1);
+        await expect.element(page.getByRole('button', { name: 'Old session', exact: true })).toBeVisible();
+        // точка маршрута скрыта: опорные — только концы, отрезок проложен активностью сессии, а не выбранной
+        await click(map, A);
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
+        expect(unrouted(map)).toEqual([false]);
+        await drag(map, C, MOVED);
+        await expect.poll(() => router.calls.length).toBe(1);
+        expect(router.calls[0].activity.id).toBe('hiking');
     });
 });

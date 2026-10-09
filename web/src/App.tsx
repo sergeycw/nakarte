@@ -3,6 +3,7 @@ import type { RequestTransformFunction } from 'maplibre-gl';
 import { type Ref, useEffect, useState } from 'react';
 import { type AutosaveStorage, startAutosave } from '@/autosave/autosave';
 import { indexedDbStorage } from '@/autosave/idb';
+import { legacySessionSource } from '@/autosave/legacy-session';
 import { Toaster, toast } from '@/components/ui/toast';
 import { config } from '@/config';
 import { ElevationProfileContext } from '@/elevation/context';
@@ -77,8 +78,9 @@ interface AppProps {
     writeClipboard?: TrackActionsDeps['writeClipboard'];
     // роутер прокладки: browser-тесты подставляют поддельный, по умолчанию — движок или сервер из config
     router?: Router;
-    // хранилище автосохранения треков: по умолчанию IndexedDB nakarte-web, null — без сохранения; browser-тесты
-    // подставляют своё, чтобы рендеры App в одной странице не видели чужих треков
+    // хранилище автосохранения треков: по умолчанию IndexedDB nakarte-web с подхватом последней сессии старого клиента
+    // (база sessions), null — без сохранения; browser-тесты подставляют своё, чтобы рендеры App в одной странице не видели
+    // чужих треков
     autosave?: AutosaveStorage | null;
     // Street View: по умолчанию Maps JavaScript API Google; browser-тесты подставляют поддельное окно без сети
     streetView?: StreetViewApi;
@@ -133,7 +135,9 @@ export function App({
             );
         }
     }, [atPosition, store]);
-    const [autosaveStorage] = useState(() => (autosave === undefined ? indexedDbStorage() : autosave));
+    const [autosaveStorage] = useState(() =>
+        autosave === undefined ? { ...indexedDbStorage(), legacy: legacySessionSource() } : autosave,
+    );
     const [restored] = useState(deferred);
     const [trackActions] = useState(() =>
         createTrackActions({

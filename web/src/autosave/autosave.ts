@@ -1,4 +1,6 @@
 import type { AppStore } from '@/state/store';
+import { prepareImport } from '@/tracks/import-result';
+import type { GeoData } from '@/tracks/model';
 import { fromSaved, type SavedSet, toSaved } from './saved';
 
 // Автосохранение рабочего набора (design add-web-autosave): треки вкладки с разметкой маршрута пишутся в хранилище на
@@ -11,6 +13,10 @@ export interface AutosaveStorage {
     // запись как есть или undefined, если её нет; ошибка — хранилище недоступно
     load(): Promise<unknown>;
     save(record: SavedSet): Promise<void>;
+    // откуда взять список, если своей записи ещё нет: последняя сессия старого клиента (design switch-to-web-app,
+    // «Сессия старого клиента: последняя, один раз»). Подхваченный список сразу пишется своей записью, поэтому второй раз
+    // источник не спрашивается.
+    legacy?(): Promise<GeoData[]>;
 }
 
 export interface Autosave {
@@ -72,16 +78,18 @@ export function startAutosave(
         }
     });
 
-    function restore(value: unknown) {
+    // imported — треки не из своей записи (сессия старого клиента): их надо сразу записать своей записью
+    function restore(read: () => GeoData[] | null, imported = false) {
         if (stopped) {
             return;
         }
         // до конца чтения список успели изменить (New track) — после восстановления его надо записать
-        const changed = store.getState().tracks !== tracksAtStart;
+        let changed = store.getState().tracks !== tracksAtStart;
         try {
-            const saved = fromSaved(value);
+            const saved = read();
             if (saved?.length) {
                 store.getState().addTracks(saved, true);
+                changed ||= imported;
             }
         } catch (error) {
             // испорченная запись не должна ни ронять приложение, ни выключать сохранение: следующая запись её заменит
@@ -93,13 +101,27 @@ export function startAutosave(
         next();
     }
 
+    async function load() {
+        const value = await storage.load();
+        if (value !== undefined || !storage.legacy) {
+            restore(() => fromSaved(value));
+            return;
+        }
+        // своей записи нет: список старого клиента проходит тот же путь, что ссылка (упрощение с опорными точками)
+        const legacy = await storage.legacy().catch((error: unknown) => {
+            warn(error);
+            return [];
+        });
+        restore(() => prepareImport(legacy).tracks, true);
+    }
+
     const tracksAtStart = store.getState().tracks;
     let read: Promise<void>;
     if (restoredStores.has(store)) {
         enabled = true;
         read = Promise.resolve();
     } else {
-        read = storage.load().then(restore, warn);
+        read = load().catch(warn);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const restored = Promise.race([

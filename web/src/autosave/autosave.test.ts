@@ -233,3 +233,65 @@ describe('запись', () => {
         expect(saves).toHaveLength(0);
     });
 });
+
+// Спека tracks, «Сохранённые сессии старого клиента не трогаются»: источник legacy — последняя сессия старого клиента
+describe('сессия старого клиента', () => {
+    test('Сессия старого клиента: без своей записи треки сессии в списке и сразу пишутся своей записью', async () => {
+        const store = appStore();
+        const { storage, load, saves, names } = manualStorage();
+        const legacy = vi.fn(async () => [geoData('From old client', { segments: [LINE] })]);
+        const autosave = startAutosave(store, { ...storage, legacy });
+        load.resolve(undefined);
+        await autosave.restored;
+        expect(legacy).toHaveBeenCalledOnce();
+        expect(store.getState().tracks.map((track) => track.name)).toEqual(['From old client']);
+        expect(saves).toHaveLength(1);
+        expect(names(0)).toEqual(['From old client']);
+    });
+
+    test('Свой список уже есть: источник не спрашивается, даже если список пуст', async () => {
+        const store = appStore();
+        const { storage, load, saves } = manualStorage();
+        const legacy = vi.fn(async () => [geoData('From old client', { segments: [LINE] })]);
+        const autosave = startAutosave(store, { ...storage, legacy });
+        load.resolve(toSaved([]));
+        await autosave.restored;
+        expect(legacy).not.toHaveBeenCalled();
+        expect(store.getState().tracks).toEqual([]);
+        expect(saves).toHaveLength(0);
+    });
+
+    test('источник упал — пустой список, предупреждение, сохранение работает', async () => {
+        const store = appStore();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const { storage, load, saves, names } = manualStorage();
+        const autosave = startAutosave(store, { ...storage, legacy: () => Promise.reject(new Error('blocked')) });
+        load.resolve(undefined);
+        await autosave.restored;
+        expect(store.getState().tracks).toEqual([]);
+        expect(warn).toHaveBeenCalledOnce();
+        expect(saves).toHaveLength(0);
+        store.getState().addTracks([geoData('New track', { segments: [LINE] })]);
+        await tick();
+        expect(names(0)).toEqual(['New track']);
+    });
+
+    test('разметка сессии проходит упрощение ссылки: опорные точки на месте', async () => {
+        const store = appStore();
+        const { storage, load } = manualStorage();
+        const routed = [LINE[0], { lat: 41.695, lng: 44.785 }, { lat: 41.69501, lng: 44.78501 }, LINE[1]];
+        const legacy = async () => [
+            geoData('Routed', {
+                segments: [routed],
+                routes: [{ waypoints: [0, 3], legs: [{ state: 'routed' as const, activity: 'hiking' }] }],
+            }),
+        ];
+        const autosave = startAutosave(store, { ...storage, legacy });
+        load.resolve(undefined);
+        await autosave.restored;
+        const [track] = store.getState().tracks;
+        expect(track.segments[0][0]).toEqual(LINE[0]);
+        expect(track.segments[0].at(-1)).toEqual(LINE[1]);
+        expect(track.routes?.[0]?.legs).toEqual([{ state: 'routed', activity: 'hiking' }]);
+    });
+});
