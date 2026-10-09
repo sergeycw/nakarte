@@ -1,7 +1,8 @@
-// Ищет адреса инфраструктуры автора (nakarte.me и поддомены) в собранном бандле и падает, если нашёл
-// что-то кроме известных строк-метаданных. Запуск: node scripts/check-no-author-hosts.mjs [build].
-// Шаг деплоя в .github/workflows/deploy-pages.yml; решение и список метаданных —
-// openspec/changes/archive/*-drop-author-services/design.md.
+// Ищет адреса инфраструктуры автора (nakarte.me и поддомены) в собранном бандле и падает на любом буквальном
+// вхождении. Запуск: node scripts/check-no-author-hosts.mjs [build]. Шаги деплоя (.github/workflows/deploy-pages.yml)
+// и check-web.yml; решение — openspec/changes/archive/*-drop-author-services/design.md. Исключения для строк-метаданных
+// старого клиента (<title>, creator GPX, имя файла JNX, текст уведомления сессий) ушли вместе с ним (design
+// switch-to-web-app): в бандле приложения таких строк нет.
 import {readdir, readFile} from 'node:fs/promises';
 import {extname, join, relative} from 'node:path';
 
@@ -11,17 +12,6 @@ const ROOT = process.argv[2] ?? 'build';
 const TEXT_EXTENSIONS = new Set(['.js', '.html', '.css', '.json', '.txt', '.webmanifest', '.svg']);
 // Буквальный адрес: регулярные выражения разбора ссылок в бандле экранированы (nakarte\.me) и сюда не попадают.
 const AUTHOR_HOST = /(?:[a-z0-9-]+\.)*nakarte\.me/giu;
-// Строки nakarte.me, которые не являются запросами; переименование продукта — отдельная задача.
-const ALLOWED = [
-    // <title> в src/index.html
-    /<title>nakarte\.me<\/title>/gu,
-    // creator в GPX (geo_file_exporters.js); в бандле кавычки могут быть экранированы
-    /creator=\\?"http:\/\/nakarte\.me\\?"/gu,
-    // префикс имени файла JNX (leaflet.control.jnx)
-    /nakarte\.me_/gu,
-    // текст уведомления сессий (leaflet.control.sessions)
-    /[Ss]witch nakarte\.me window/gu,
-];
 const CONTEXT_CHARS = 60;
 
 async function* walk(dir) {
@@ -35,25 +25,11 @@ async function* walk(dir) {
     }
 }
 
-function allowedSpans(text) {
-    const spans = [];
-    for (const pattern of ALLOWED) {
-        for (const match of text.matchAll(pattern)) {
-            spans.push([match.index, match.index + match[0].length]);
-        }
-    }
-    return spans;
-}
-
 function findAuthorHosts(text) {
-    const spans = allowedSpans(text);
     const found = [];
     for (const match of text.matchAll(AUTHOR_HOST)) {
         const start = match.index;
         const end = start + match[0].length;
-        if (spans.some(([spanStart, spanEnd]) => start >= spanStart && end <= spanEnd)) {
-            continue;
-        }
         const context = text
             .slice(Math.max(0, start - CONTEXT_CHARS), end + CONTEXT_CHARS)
             .replace(/\s+/gu, ' ');

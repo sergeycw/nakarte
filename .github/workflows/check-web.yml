@@ -1,6 +1,6 @@
 name: check web
 
-# Новое приложение web/ (openspec/specs/web-client): линт, типы, Vitest (unit и browser mode),
+# Приложение web/ (openspec/specs/web-client): линт, типы, Vitest (unit и browser mode),
 # сборка, проверка бандла на адреса автора, Playwright e2e. В сеть тесты не ходят. Деплой гоняет
 # те же тесты перед публикацией Pages (deploy-pages.yml, job pages).
 
@@ -9,10 +9,12 @@ on:
     branches: [master]
     paths:
       - 'web/**'
+      - 'scripts/check-no-author-hosts.mjs'
       - '.github/workflows/check-web.yml'
   pull_request:
     paths:
       - 'web/**'
+      - 'scripts/check-no-author-hosts.mjs'
       - '.github/workflows/check-web.yml'
 
 jobs:
@@ -35,5 +37,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: node ../scripts/check-no-author-hosts.mjs ../build/next
+      - run: node ../scripts/check-no-author-hosts.mjs ../build
       - run: npm run e2e

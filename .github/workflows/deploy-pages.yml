@@ -60,9 +60,8 @@ jobs:
             echo "tracks=$(has '^workers/tracks/')"
             echo "elevation=$(has '^workers/elevation/')"
             echo "guard=$(has '^workers/guard/')"
-            # сборка клона: всё, кроме Worker'ов, документов, тестов karma и других workflow; новое
-            # приложение web/ сюда входит — оно публикуется тем же Pages-проектом в /next/
-            echo "pages=$(echo "$changed" | grep -vE '^(workers/(cors-proxy|tracks|elevation|guard)/|docs/|openspec/|test/|\.github/)|\.md$' | grep -q . && echo true || echo false)"
+            # сайт: всё, кроме Worker'ов, документов и других workflow — приложение web/, functions/, файлы движка
+            echo "pages=$(echo "$changed" | grep -vE '^(workers/(cors-proxy|tracks|elevation|guard)/|docs/|openspec/|\.github/)|\.md$' | grep -q . && echo true || echo false)"
           } | tee -a "$GITHUB_OUTPUT"
 
   cors-proxy:
@@ -180,31 +179,13 @@ jobs:
         run: |
           npm ci
           npm test
-      - run: cp src/secrets.js.template src/secrets.js
-      # Ключ Maps JavaScript API для окна Street View. Без секрета ключ пустой: API работает в режиме
-      # без ключа, как на nakarte.me (панорама открывается с водяным знаком «For development purposes
-      # only» и окном «This page can't load Google Maps correctly»). С секретом GOOGLE_MAPS_API_KEY
-      # (заводит владелец) — чистая панорама; ключ всё равно окажется в бандле, защищают его
-      # ограничения по referrer и API в Google Cloud.
-      - name: google maps key
-        run: |
-          sed -i "s/^    google: '[^']*',$/    google: '$GOOGLE_MAPS_API_KEY',/" src/secrets.js
-          grep -qF "google: '$GOOGLE_MAPS_API_KEY'," src/secrets.js
-        env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-      - run: yarnpkg
       - name: build brouter engine files
         run: |
           docker create --name brouter ghcr.io/abrensch/brouter:nightly
           BROUTER_CONTAINER=brouter sh experiments/wasm/cheerpj/build.sh
-      - run: npm run build
-        env:
-          NAKARTE_TARGET: clone
-      - name: check engine files are in the build
-        run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
-      # Новое приложение web/ — в build/next/ (openspec/specs/web-client), строго после старого клиента:
-      # его CleanWebpackPlugin чистит весь build/. Тесты те же, что в check-web.yml, e2e — по собранному
-      # build/next/; упали — Pages не публикуются. Адреса автора в build/next/ ловит общая проверка ниже.
+      # Приложение web/ — в корень build/ (openspec/specs/web-client, design switch-to-web-app); файлы движка из
+      # experiments/wasm/cheerpj/ туда же кладёт его сборка (плагин engineFiles). Vitest и e2e — как в check-web.yml (линт
+      # и типы там же, на PR), e2e — по той сборке, что публикуется; упали — Pages не публикуются.
       - name: web install
         working-directory: web
         run: |
@@ -213,20 +194,21 @@ jobs:
       - name: web test
         working-directory: web
         run: npm test
-      # Ключ Maps JavaScript API для окна Street View нового приложения — тот же секрет, что у старого клиента выше, и
-      # только этому шагу (установка зависимостей и тесты идут без него; design add-web-search-panoramas, спека
-      # clone-deploy). Без секрета — пустой ключ, режим без ключа.
+      # Ключ Maps JavaScript API для окна Street View — только этому шагу (установка зависимостей и тесты идут без него;
+      # спека clone-deploy, «Ключ Google только шагу сборки»). Без секрета — пустой ключ, режим без ключа; с секретом ключ
+      # окажется в бандле, защищают его ограничения по referrer и API в Google Cloud.
       - name: web build
         working-directory: web
         run: npm run build
         env:
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      - name: check engine files are in the build
+        run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
       - name: web e2e
         working-directory: web
         run: npm run e2e
       # Адрес *.nakarte.me в бандле — обращение к инфраструктуре автора: деплой стоп
-      # (требование «Бандл без адресов автора» в openspec/specs/clone-deploy). В PR то же проверяет
-      # check-clone.yml.
+      # (требование «Бандл без адресов автора» в openspec/specs/clone-deploy). В PR то же проверяет check-web.yml.
       - name: check no author hosts in the build
         run: node scripts/check-no-author-hosts.mjs build
       - run: npx --yes $WRANGLER pages deploy build --project-name nakarte-routing --branch master
