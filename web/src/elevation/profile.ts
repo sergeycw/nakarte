@@ -6,7 +6,8 @@ import type { LatLng } from '@/tracks/model';
 // Context design.
 
 // calcSamplingInterval старого клиента без изменений: 2 000 точек на обычный трек, шаг 10–50 м, но не больше 9 999
-// точек — один запрос к API высот (лимит 10 000 точек, спека elevation-api)
+// точек — один запрос к API высот (лимит 10 000 точек, спека elevation-api). Начала и концы отрезков добавляют точки
+// сверх шага — их учитывает sampleSegments.
 export function samplingInterval(length: number): number {
     const targetPoints = 2000;
     const maxPoints = 9999;
@@ -32,7 +33,7 @@ export interface ProfileSamples {
 export function sampleSegments(segments: readonly (readonly LatLng[])[], step?: number): ProfileSamples {
     const lengths = segments.map(segmentLength);
     const total = lengths.reduce((sum, value) => sum + value, 0);
-    const interval = step ?? samplingInterval(total);
+    const interval = step ?? fittingInterval(total, lengths.filter((length) => length > 0).length);
     const points: LatLng[] = [];
     const distances: number[] = [];
     const starts: number[] = [];
@@ -68,6 +69,16 @@ export function sampleSegments(segments: readonly (readonly LatLng[])[], step?: 
         offset += walked;
     });
     return { points, distances: Float64Array.from(distances), starts, length: offset };
+}
+
+// Шаг, при котором выборка влезает в один запрос: у отрезка не больше длина / шаг + 2 точек (начало и конец сверх
+// шага), так что при многих отрезках шаг растёт. Отрезков больше 4 999 — в запрос не влезть, его делит api.ts.
+const MAX_SAMPLES = 10000;
+
+function fittingInterval(total: number, segments: number): number {
+    const interval = samplingInterval(total);
+    const budget = MAX_SAMPLES - 2 * segments;
+    return budget > 0 && total / interval > budget ? total / budget : interval;
 }
 
 function segmentLength(line: readonly LatLng[]): number {
@@ -317,7 +328,7 @@ export function distanceAt(distances: Float64Array, index: number): number {
 }
 
 // Дробный номер точки по расстоянию от начала (курсор графика стоит по расстоянию, а точки выборки — неравномерно на
-// концах отрезков). На стыке отрезков расстояние двух точек одно — берётся первая.
+// концах отрезков). На стыке отрезков расстояние двух точек одно — берётся вторая, начало следующего отрезка.
 export function indexAtDistance(distances: Float64Array, at: number): number {
     const n = distances.length;
     if (n === 0 || at <= distances[0]) {

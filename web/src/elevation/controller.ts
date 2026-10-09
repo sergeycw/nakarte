@@ -27,6 +27,11 @@ function linesOf(track: Track, target: ProfileTarget): LatLng[][] | null {
     return line ? [line] : null;
 }
 
+function builtLines(track: Track, target: ProfileTarget) {
+    const lines = target.segment === null ? track.segments : track.segments[target.segment];
+    return { lines, count: track.segments.length };
+}
+
 function hasPending(track: Track, target: ProfileTarget): boolean {
     const indexes = target.segment === null ? track.segments.map((_, i) => i) : [target.segment];
     return indexes.some((i) => track.routes?.[i]?.legs.some((leg) => leg.state === 'pending'));
@@ -34,8 +39,10 @@ function hasPending(track: Track, target: ProfileTarget): boolean {
 
 export function createElevationProfile({ store, source, notify, delay = 1000 }: ElevationProfileDeps) {
     const state = () => store.getState();
-    // по каким отрезкам построен текущий профиль: его изменение — повод перестроить
-    let builtFrom: { segments: readonly (readonly LatLng[])[]; count: number } | null = null;
+    // по каким линиям построен текущий профиль: у профиля трека — массив отрезков, у профиля отрезка — сам отрезок
+    // (редактор пишет новый массив отрезков на любую правку, но сохраняет ссылки на нетронутые отрезки). Изменение —
+    // повод перестроить.
+    let builtFrom: { lines: readonly unknown[]; count: number } | null = null;
     let request: AbortController | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -66,7 +73,7 @@ export function createElevationProfile({ store, source, notify, delay = 1000 }: 
             return false;
         }
         cancel();
-        builtFrom = { segments: track.segments, count: track.segments.length };
+        builtFrom = builtLines(track, target);
         const previous = state().profileData;
         state().setProfileData({
             samples: previous?.values ? previous.samples : samples,
@@ -130,14 +137,20 @@ export function createElevationProfile({ store, source, notify, delay = 1000 }: 
             close();
             return;
         }
-        if (track.segments === builtFrom.segments) {
-            return;
-        }
         if (target.segment !== null && track.segments.length !== builtFrom.count) {
             close();
             return;
         }
-        builtFrom = { segments: track.segments, count: track.segments.length };
+        const lines = builtLines(track, target);
+        if (lines.lines === builtFrom.lines) {
+            return;
+        }
+        builtFrom = lines;
+        // прежний график с индикатором: перестроение ждёт паузы и ответа роутера
+        const data = state().profileData;
+        if (data && !data.updating) {
+            state().setProfileData({ ...data, updating: true });
+        }
         rebuildLater();
     }
 

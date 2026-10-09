@@ -19,6 +19,10 @@ export function ProfileOnMap() {
     const data = useAppStore((state) => state.profileData);
     const cursor = useAppStore((state) => state.profileCursor);
     const selection = useAppStore((state) => state.profileSelection);
+    // линию скрытого трека не видно — наведение на её место курсор не ставит
+    const visible = useAppStore(
+        (state) => state.tracks.find((track) => track.id === state.profile?.trackId)?.visible ?? false,
+    );
     const map = current?.getMap();
 
     // выделение — данные источника мимо стиля; пересборка стиля сбрасывает их — вернуть на styledata
@@ -43,7 +47,7 @@ export function ProfileOnMap() {
 
     // наведение мыши на линию профиля; проекция — раз в кадр
     useEffect(() => {
-        if (!map || !data?.values) {
+        if (!map || !data?.values || !visible) {
             return;
         }
         const { points, starts } = data.samples;
@@ -78,7 +82,7 @@ export function ProfileOnMap() {
             map.off('mousemove', onMove);
             map.off('mouseout', onOut);
         };
-    }, [map, data, store]);
+    }, [map, data, store, visible]);
 
     if (!data?.values || cursor === null) {
         return null;

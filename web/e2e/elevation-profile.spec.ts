@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
-import { ELEVATION_SERVER, elevationAt, expect, test } from './fixtures.ts';
+import { elevationAt, expect, test } from './fixtures.ts';
 
 // Профиль высот и GPX с высотами со сборкой клона: сервис высот — заглушка фикстуры network (высота — функция широты,
 // elevationAt), в сеть тесты не ходят. Названия тестов — сценарии спек tracks, track-files и route-editing (design
@@ -71,5 +71,4 @@ test('Сохранить с высотами', async ({ page, network }) => {
     // у точки трека и обеих точек отрезка — <ele> заглушки
     expect(content.match(/<ele>\d+\.\d<\/ele>/g)).toHaveLength(3);
     expect(content).toMatch(/<trkpt lat="41\.69\d{4}" lon="44\.7[89]\d{4}"><ele>9\d\d\.\d<\/ele><time>/);
-    expect(ELEVATION_SERVER).toMatch(/nakarte-routing\.workers\.dev/);
 });

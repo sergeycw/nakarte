@@ -200,6 +200,9 @@ describe('Сводка профиля', () => {
         await render(trackLink('Walk', [SOUTH]), api);
         await openTrackProfile('Walk');
         await expect.element(page.getByTestId('profile-note')).toHaveTextContent('Some elevation data missing');
+        // график рвётся на точках без данных: два прогона ломаной
+        const d = page.getByTestId('profile-line').element().getAttribute('d') ?? '';
+        expect(d.match(/M/gu)).toHaveLength(2);
         // точки без данных не уводят шкалу к нулю
         expect(stat('min')).toBe('800 m');
         expect(stat('ascent')).toBe('~90 m');
@@ -235,6 +238,12 @@ describe('Курсор профиля и карта', () => {
         // мышь ушла от линии — курсора нет
         fire(map, 'mousemove', P(41.684, 44.79));
         await expect.poll(() => page.getByTestId('profile-cursor').query()).toBeNull();
+        // линию скрытого трека не видно — наведение на её место курсор не ставит
+        await page.getByRole('checkbox', { name: 'Show Walk' }).click();
+        await idle(map);
+        fire(map, 'mousemove', SOUTH[1]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(page.getByTestId('profile-cursor').query()).toBeNull();
     });
 
     test('Выделение участка', async () => {

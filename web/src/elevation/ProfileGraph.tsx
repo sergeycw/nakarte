@@ -110,6 +110,8 @@ export function ProfileGraph({ data }: { data: ProfileData }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState(1);
+    // зум и прокрутка, которые ещё не дошли до DOM: два события колеса до рендера считаются от них, а не от старых
+    const zoomRef = useRef(1);
     // прокрутка после зума: точка под мышью остаётся на месте (onSvgMouseWheel старого клиента)
     const pendingScroll = useRef<number | null>(null);
     const drag = useRef<{ start: number; x: number; moved: boolean } | null>(null);
@@ -154,15 +156,17 @@ export function ProfileGraph({ data }: { data: ProfileData }) {
                 return;
             }
             event.preventDefault();
-            setZoom((old) => {
-                const next = Math.min(Math.max(old + (event.deltaY < 0 ? 1 : -1), 1), MAX_ZOOM);
-                if (next !== old) {
-                    const offset = event.clientX - scroller.getBoundingClientRect().left;
-                    const ratio = (scroller.scrollLeft + offset) / (scroller.clientWidth * old);
-                    pendingScroll.current = Math.max(ratio * scroller.clientWidth * next - offset, 0);
-                }
-                return next;
-            });
+            const old = zoomRef.current;
+            const next = Math.min(Math.max(old + (event.deltaY < 0 ? 1 : -1), 1), MAX_ZOOM);
+            if (next === old) {
+                return;
+            }
+            const offset = event.clientX - scroller.getBoundingClientRect().left;
+            const scrollLeft = pendingScroll.current ?? scroller.scrollLeft;
+            const ratio = (scrollLeft + offset) / (scroller.clientWidth * old);
+            pendingScroll.current = Math.max(ratio * scroller.clientWidth * next - offset, 0);
+            zoomRef.current = next;
+            setZoom(next);
         }
         scroller.addEventListener('wheel', onWheel, { passive: false });
         return () => scroller.removeEventListener('wheel', onWheel);

@@ -98,7 +98,9 @@ describe('Профиль следует за треком', () => {
         state().updateTrack(track.id, { segments: [line(41.5), line(41.75)] });
         await vi.advanceTimersByTimeAsync(900);
         expect(bodies).toHaveLength(1);
-        expect(state().profileData).toBe(before);
+        // прежний график с индикатором, пока идёт пауза
+        expect(state().profileData?.values).toBe(before?.values);
+        expect(state().profileData?.updating).toBe(true);
         // синхронно: асинхронный шаг дождался бы и ответа API
         vi.advanceTimersByTime(100);
         expect(state().profileData?.updating).toBe(true);
@@ -124,6 +126,18 @@ describe('Профиль следует за треком', () => {
         });
         await vi.runAllTimersAsync();
         expect(bodies).toHaveLength(2);
+    });
+
+    test('профиль отрезка не перестраивается от правки другого отрезка', async () => {
+        const { state, profile, track, bodies } = setup();
+        profile.open(track.id, 0);
+        await vi.runAllTimersAsync();
+        // так пишет редактор: новый массив отрезков, нетронутый отрезок — та же ссылка
+        const [first] = state().tracks[0].segments;
+        state().updateTrack(track.id, { segments: [first, line(41.8)] });
+        await vi.runAllTimersAsync();
+        expect(bodies).toHaveLength(1);
+        expect(state().profileData?.updating).toBe(false);
     });
 
     test('цвет, название, видимость — без перестроения', async () => {

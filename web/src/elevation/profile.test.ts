@@ -64,6 +64,17 @@ describe('sampleSegments', () => {
         expect(profile.points[0]).toEqual(line[0]);
     });
 
+    it('начала и концы отрезков не выводят выборку за 10 000 точек (один запрос)', () => {
+        // ≈ 600 км: шаг samplingInterval даёт 9 999 точек, а каждый отрезок добавляет ещё до двух
+        for (const count of [2, 10, 100]) {
+            const segments = Array.from({ length: count }, (_, k) => [
+                P(40 + k * 0.01, 40),
+                P(40 + k * 0.01 + 5.4 / count, 40),
+            ]);
+            expect(sampleSegments(segments).points.length).toBeLessThanOrEqual(10000);
+        }
+    });
+
     it('шаг по умолчанию — samplingInterval длины', () => {
         const profile = sampleSegments([line]);
         expect(profile.distances[1]).toBe(samplingInterval(length));

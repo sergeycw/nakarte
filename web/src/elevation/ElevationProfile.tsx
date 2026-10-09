@@ -65,22 +65,24 @@ function Stats({ data }: { data: ProfileData }) {
         note = 'Some elevation data missing';
     }
     return (
-        <dl className="flex min-w-0 flex-nowrap items-baseline gap-x-3 overflow-x-auto whitespace-nowrap text-xs">
+        <div className="flex min-w-0 flex-nowrap items-baseline gap-x-3 overflow-x-auto whitespace-nowrap text-xs">
             {selection && <span className="font-medium text-amber-700">Selection</span>}
-            {statItems(stats).map((item) => (
-                <div key={item.key} className="flex gap-1">
-                    <dt className="text-muted-foreground">{item.label}</dt>
-                    <dd className="font-medium tabular-nums" data-stat={item.key}>
-                        {item.value}
-                    </dd>
-                </div>
-            ))}
+            <dl className="flex items-baseline gap-x-3">
+                {statItems(stats).map((item) => (
+                    <div key={item.key} className="flex gap-1">
+                        <dt className="text-muted-foreground">{item.label}</dt>
+                        <dd className="font-medium tabular-nums" data-stat={item.key}>
+                            {item.value}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
             {note && (
                 <span className="text-amber-700" data-testid="profile-note">
                     {note}
                 </span>
             )}
-        </dl>
+        </div>
     );
 }
 
@@ -103,6 +105,7 @@ export function ElevationProfile() {
             className="pointer-events-auto absolute inset-x-3 bottom-3 z-10 gap-1 px-3 py-2"
             style={{ height: PROFILE_HEIGHT }}
             data-testid="elevation-profile"
+            role="region"
             aria-label="Elevation profile"
         >
             {/* на узком экране сводка — второй строкой под названием, на широком — в одной строке с ним */}
