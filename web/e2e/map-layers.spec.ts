@@ -59,20 +59,25 @@ test('Нет ключа или квоты', async ({ page, network }) => {
     await page.goto('./#m=8/49.73868/33.45886&l=Tt/Hs');
     await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
     await expect(page.getByText('Switched to OpenStreetMap')).toBeVisible();
-    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=O/Hs');
     await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
+    // в адресе — выбор пользователя, OSM только показывается до перезагрузки
+    expect(hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt/Hs');
     await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
 });
 
 test('Следующий заход после отката', async ({ page, network }) => {
     network.failTiles('Tt');
     await page.goto('./');
-    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=O');
-    const before = network.tilesOf('Tt').length;
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
     await page.goto('about:blank');
+    const before = network.tiles.length;
     await page.goto('./');
-    // сохранённый выбор — по-прежнему Tracestrack: новый заход снова запрашивает его тайлы
-    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(before);
+    // сохранённый выбор — по-прежнему Tracestrack: и перезагрузка, и новый заход снова запрашивают его тайлы
+    await expect.poll(() => network.tiles.slice(before).some((tile) => tile.code === 'Tt')).toBe(true);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '{}'));
+    expect(saved.selection.base).toBe('Tt');
 });
 
 test('Список слоёв', async ({ page }) => {

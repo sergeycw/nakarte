@@ -23,7 +23,7 @@ export interface AppState {
     settings: LayerSettings;
     selection: Selection;
     // с какой подложки карта откатилась на FALLBACK_BASE после ошибки её тайлов (design add-outdoor-basemap, «Откат на
-    // OpenStreetMap»): откат — не выбор пользователя, в localStorage уходит выбор с ней (savedSelection)
+    // OpenStreetMap»): откат — не выбор пользователя, в localStorage и l= уходит выбор с ней (savedSelection)
     basemapFallback: string | null;
     // последний вид карты (пишет карта по moveend)
     view: View;
@@ -251,7 +251,14 @@ export function createAppStore(init: AppStoreInit): AppStore {
 
             selectBase: (code) => {
                 const { selection, layers } = get();
-                if (layers.get(code)?.isOverlay !== false || selection.base === code) {
+                if (layers.get(code)?.isOverlay !== false) {
+                    return;
+                }
+                // явный выбор подложки отката — уже выбор пользователя: откат сбрасывается, хотя подложка та же
+                if (selection.base === code) {
+                    if (get().basemapFallback) {
+                        set({ basemapFallback: null });
+                    }
                     return;
                 }
                 set({ selection: { ...selection, base: code }, basemapFallback: null });
@@ -422,8 +429,8 @@ export function createAppStore(init: AppStoreInit): AppStore {
     });
 }
 
-// Выбор для localStorage: пока карта стоит на подложке отката, сохраняется подложка, с которой откатились, — следующий
-// заход снова попробует её. Другая подложка (свой слой, удаление подложки) значит, что откат уже ни при чём
+// Выбор для localStorage и l=: пока карта стоит на подложке отката, сохраняется подложка, с которой откатились, —
+// следующий заход и перезагрузка снова попробуют её. Другая подложка (свой слой, удаление подложки) значит, что откат уже ни при чём
 export function savedSelection(state: Pick<AppState, 'selection' | 'basemapFallback'>): Selection {
     const { selection, basemapFallback } = state;
     if (!basemapFallback || selection.base !== FALLBACK_BASE) {

@@ -112,6 +112,12 @@ describe('откат подложки', () => {
         expect(s.getState().basemapFallback).toBeNull();
         expect(savedSelection(s.getState())).toEqual({ base: 'E', overlays: [] });
 
+        const o = store('Tt');
+        o.getState().fallBackBase('Tt');
+        o.getState().selectBase('O');
+        expect(o.getState().basemapFallback).toBeNull();
+        expect(savedSelection(o.getState())).toEqual({ base: 'O', overlays: [] });
+
         const t = store('Tt');
         t.getState().fallBackBase('Tt');
         t.getState().applyLayersParam({ selection: { base: 'O', overlays: [] }, custom: [] });

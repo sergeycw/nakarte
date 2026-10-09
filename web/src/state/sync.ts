@@ -99,9 +99,11 @@ export function bindAppStore(
         return found;
     }
 
+    // в l= — выбор пользователя, а не подложка отката (design add-outdoor-basemap): перезагрузка снова пробует
+    // Tracestrack, а ссылка из адресной строки передаёт выбор, а не временную замену
     function layersParam() {
-        const { selection, layers } = store.getState();
-        return formatLayersParam(selection, layers);
+        const state = store.getState();
+        return formatLayersParam(savedSelection(state), state.layers);
     }
 
     function writeAddress() {
@@ -159,7 +161,11 @@ export function bindAppStore(
     }
 
     const unsubscribe = store.subscribe((state, prev) => {
-        if (state.selection !== prev.selection || state.layers !== prev.layers) {
+        if (
+            state.selection !== prev.selection ||
+            state.layers !== prev.layers ||
+            state.basemapFallback !== prev.basemapFallback
+        ) {
             writeAddress();
             persist();
         } else if (state.settings !== prev.settings) {

@@ -86,14 +86,41 @@ describe('старт', () => {
         expect(win.location.hash).toBe('#l=O&m=8/49.73868/33.45886');
     });
 
-    test('Следующий заход после отката: снова Tracestrack, в адресе после отката l=O', () => {
+    test('Следующий заход после отката', () => {
         const storage = memoryStorage();
         const first = start('', storage);
         first.store.getState().toggleOverlay('Hs');
         first.store.getState().fallBackBase('Tt');
-        expect(first.win.location.hash).toBe('#m=8/49.73868/33.45886&l=O/Hs');
+        // в адресе — выбор, а не подложка отката
+        expect(first.win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt/Hs');
         first.unbind();
         expect(start('', storage).store.getState().selection).toEqual({ base: 'Tt', overlays: ['Hs'] });
+    });
+
+    test('перезагрузка вкладки после отката снова пробует Tracestrack и не сохраняет OSM', () => {
+        const storage = memoryStorage();
+        const first = start('', storage);
+        first.store.getState().fallBackBase('Tt');
+        first.unbind();
+        const reload = start(first.win.location.hash.slice(1), storage);
+        expect(reload.store.getState().selection.base).toBe('Tt');
+        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '').selection.base).toBe('Tt');
+    });
+
+    test('l= из адреса после отката — выбор пользователя', () => {
+        const storage = memoryStorage();
+        const { store, win, unbind } = start('', storage);
+        store.getState().fallBackBase('Tt');
+        win.navigate('m=8/49.73868/33.45886&l=O');
+        expect(store.getState().basemapFallback).toBeNull();
+        unbind();
+        expect(start('', storage).store.getState().selection.base).toBe('O');
+    });
+
+    test('Сохранённый выбор OpenStreetMap', () => {
+        const storage = memoryStorage();
+        start('', storage).store.getState().selectBase('O');
+        expect(start('', storage).store.getState().selection).toEqual({ base: 'O', overlays: [] });
     });
 
     test('Выбор после отката сохраняется', () => {

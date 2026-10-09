@@ -106,7 +106,7 @@ describe('Тост при ошибке тайлов', () => {
 describe('Подложка Tracestrack', () => {
     const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo__\//;
 
-    test('Первый заход: тайлы Tracestrack через прокси без ключа, подпись Tracestrack', async () => {
+    test('Атрибуция Tracestrack', async () => {
         await renderApp();
         await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
         expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(false);
@@ -115,7 +115,7 @@ describe('Подложка Tracestrack', () => {
         expect(location.hash).toContain('l=Tt');
     });
 
-    test('Нет ключа или квоты: откат на OpenStreetMap с тостом вместо тоста ошибки', async () => {
+    test('Нет ключа или квоты', async () => {
         tiles.respond(TRACESTRACK, UNAVAILABLE_URL);
         const { map } = await renderApp('#m=8/41.7/44.8&l=Tt/Hs');
         await expect.element(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
@@ -124,8 +124,8 @@ describe('Подложка Tracestrack', () => {
         await expect.poll(() => map.getLayer('O')).toBeDefined();
         expect(map.getLayer('Tt')).toBeUndefined();
         expect(map.getLayer('Hs')).toBeDefined();
-        expect(location.hash).toContain('l=O/Hs');
-        // откат — не выбор: в localStorage осталась подложка Tracestrack
+        // откат — не выбор: в адресе и в localStorage осталась подложка Tracestrack
+        expect(location.hash).toContain('l=Tt/Hs');
         expect(JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '').selection).toEqual({
             base: 'Tt',
             overlays: ['Hs'],
@@ -133,7 +133,7 @@ describe('Подложка Tracestrack', () => {
         await expect.poll(() => tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
     });
 
-    test('Тайла нет: 404 Tracestrack не откатывает', async () => {
+    test('Тайла нет', async () => {
         tiles.respond(TRACESTRACK, MISSING_URL);
         const { map } = await renderApp();
         await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
