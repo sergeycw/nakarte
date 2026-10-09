@@ -16,9 +16,9 @@
 | Свой продукт на базе форка: в апстрим не мерджимся, неиспользуемый код удаляем | решение владельца 2026-10-08, цель — автономия от автора | `AGENTS.md`, [«Апстрим»](../../AGENTS.md#апстрим), backlog, «Глобальное направление» |
 | Монорепо: сервис в `workers/<сервис>/`, контракт и клиент одним PR, свой workflow `check-<сервис>.yml` | контракт сервиса и правка клиента одним PR, спеки рядом с кодом; каждый сервис деплоится отдельно | [record-platform-decisions](../../openspec/changes/archive/2026-10-08-record-platform-decisions/design.md); `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme) |
 | Приложение рядом со старым клиентом на `/next/` того же Pages-проекта до переноса всех функций | тот же origin: функции, `GUARD` и CORS Worker'ов без изменений, прод с первого change | [add-web-skeleton](../../openspec/changes/archive/2026-10-08-add-web-skeleton/design.md) |
-| Переключение: приложение на `/`, `/next/` — редирект `302`, старый клиент удалён целиком | функции перенесены; `302`, а не `301`: `/next/` можно снова занять | [switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md) |
+| Переключение: приложение на `/`, `/next/` — редирект `302`, старый клиент удалён целиком | функции перенесены; `302`, а не `301`: `/next/` можно снова занять | [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md) |
 | Адреса сервисов — одно место `web/src/config.ts`, режим Vite `clone` отличается только движком | свои адреса общие для всех режимов | [add-web-skeleton](../../openspec/changes/archive/2026-10-08-add-web-skeleton/design.md), [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Свои сервисы по умолчанию» |
-| Линт `workers/`, `functions/`, `scripts/` — Biome только линтером | eslint уходил со старым клиентом; формат Biome переформатировал бы нетронутые файлы | [switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md) |
+| Линт `workers/`, `functions/`, `scripts/` — Biome только линтером | eslint уходил со старым клиентом; формат Biome переформатировал бы нетронутые файлы | [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md) |
 
 ## Прокладка и движок в браузере
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | Модель линии — опорные точки и отрезки, неизменяемые данные; ответ роутера применяется, только если его запрос ещё в линии | устаревшие ответы отсекаются без флагов; модель тестируется без карты | [add-web-route-editor](../../openspec/changes/archive/2026-10-09-add-web-route-editor/design.md) |
 | Разметка маршрута — номера опорных точек рядом с геометрией: автосохранение в IndexedDB и необязательное поле `nktk` версии 4 | точные координаты без сетки; совместимость ссылок с nakarte.me не нужна | [add-web-autosave](../../openspec/changes/archive/2026-10-09-add-web-autosave/design.md); [record-ui-decisions](../../openspec/changes/archive/2026-10-08-record-ui-decisions/design.md) |
-| Сессия старого клиента подхватывается один раз — последняя, только без своей записи | треки не пропадают с переключением; меню сессий нет, все 100 сессий — свалка | [switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md) |
+| Сессия старого клиента подхватывается один раз — последняя, только без своей записи | треки не пропадают с переключением; меню сессий нет, все 100 сессий — свалка | [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md) |
 | Ключи разметки по координатам, `_drawingDirection` до `spliceLatLngs` | отменено вместе со старым редактором; ключи сетки читает только подхват сессии | [fix-route-markup-after-reload](../../openspec/changes/archive/2026-10-07-fix-route-markup-after-reload/design.md) |
 
 ## Хранилище треков

@@ -54,7 +54,7 @@ flowchart LR
     scan -->|"чисто"| deploy
 ```
 
-Скрипт ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) обходит текстовые файлы сборки без `.map` и падает на любом буквальном `*.nakarte.me`: исключения для строк-метаданных старого клиента (`<title>`, `creator` в GPX, имя файла JNX, текст уведомления сессий) ушли вместе с ним (design [switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md)). До merge ту же проверку делает `check web` ([ci-cd.md](ci-cd.md)). Почему проверка статическая — design [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла»; что заменило сервисы автора — [README.md](README.md#что-больше-не-используется-от-nakarteme).
+Скрипт ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) обходит текстовые файлы сборки без `.map` и падает на любом буквальном `*.nakarte.me`: исключения для строк-метаданных старого клиента (`<title>`, `creator` в GPX, имя файла JNX, текст уведомления сессий) ушли вместе с ним (design [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md)). До merge ту же проверку делает `check web` ([ci-cd.md](ci-cd.md)). Почему проверка статическая — design [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла»; что заменило сервисы автора — [README.md](README.md#что-больше-не-используется-от-nakarteme).
 
 ## Сверено по
 

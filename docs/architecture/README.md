@@ -62,7 +62,7 @@ flowchart LR
 
 | Блок | Ключевое решение | Вглубь | Почему так |
 |---|---|---|---|
-| ① Клиент | приложение `web/` на `/` (старый клиент автора удалён, `/next/` — редирект); адреса сервисов общие для всех режимов, режим `clone` отличается только движком ([switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md)) | [client.md](client.md), [route-editor.md](route-editor.md) | [реестр: платформа и стек](decisions.md#платформа-и-стек), [редактор](decisions.md#редактор) |
+| ① Клиент | приложение `web/` на `/` (старый клиент автора удалён, `/next/` — редирект); адреса сервисов общие для всех режимов, режим `clone` отличается только движком ([switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md)) | [client.md](client.md), [route-editor.md](route-editor.md) | [реестр: платформа и стек](decisions.md#платформа-и-стек), [редактор](decisions.md#редактор) |
 | ② Прокладка в браузере | маршрут считает BRouter на CheerpJ в Web Worker страницы; сервер только раздаёт файлы | [routing.md](routing.md) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ③ Pages + Functions | jar, профили и тайлы BRouter с origin клона по Range: CheerpJ читает только его | [routing.md](routing.md), [уровень 2](#публичный-клон) | [реестр: прокладка и движок](decisions.md#прокладка-и-движок-в-браузере) |
 | ④ CORS-прокси | повторяет протокол авторского прокси; куки Strava heatmap прокси получает сам по сессии | [cors-proxy.md](cors-proxy.md) | [реестр: CORS-прокси и Strava](decisions.md#cors-прокси-и-strava) |
