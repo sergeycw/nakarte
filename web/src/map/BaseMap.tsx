@@ -1,7 +1,7 @@
 import { Map as MapLibreMap, type MapRef, Marker, NavigationControl } from '@vis.gl/react-maplibre';
 import { LoaderCircleIcon } from 'lucide-react';
 import type { RequestTransformFunction } from 'maplibre-gl';
-import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
+import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
 import { ProfileOnMap } from '@/elevation/ProfileOnMap';
 import { PROFILE_SOURCES } from '@/elevation/style';
 import type { LayerDef } from '@/layers/catalog';
@@ -20,12 +20,14 @@ interface BaseMapProps {
     // тесты подменяют адреса тайлов фикстурой (в сеть тесты не ходят)
     transformRequest?: RequestTransformFunction;
     ref?: Ref<MapRef>;
+    // контролы и слои поверх карты из App (кнопки карты)
+    children?: ReactNode;
 }
 
 // Карта на весь контейнер. isolate: z-index контролов MapLibre (2) остаётся внутри контекста наложения
 // карты, и панели приложения лежат над ними без гонки z-index (design add-web-skeleton, «Проверки»).
 // Карта неуправляемая: вид пишется в стор по moveend, а запрос из адреса (viewRequest) переводит её jumpTo.
-export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
+export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMapProps) {
     const selection = useAppStore((state) => state.selection);
     const layers = useAppStore((state) => state.layers);
     const initialView = useAppStore((state) => state.view);
@@ -134,6 +136,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 }}
             >
                 <NavigationControl position="top-right" />
+                {children}
                 <MapEditor />
                 <ProfileOnMap />
                 <PlacemarkOnMap />

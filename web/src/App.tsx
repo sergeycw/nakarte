@@ -18,15 +18,19 @@ import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
 import { SearchBox } from '@/search/SearchBox';
 import { AppStoreContext, useAppStore } from '@/state/context';
+import { parseHash, parseView } from '@/state/hash';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
+import { isTrackParam } from '@/tracks/links';
 import { PointPanel } from '@/tracks/PointPanel';
 import { PointNameDialog } from '@/tracks/TrackDialogs';
 import { TrackList } from '@/tracks/TrackList';
 import { InfoPanel } from './InfoPanel';
 import { BaseMap } from './map/BaseMap';
+import { loadPosition, refreshPosition } from './map/locate';
+import { MapButtons } from './map/MapButtons';
 
 function localStorageOrNull(): Storage | null {
     try {
@@ -37,8 +41,15 @@ function localStorageOrNull(): Storage | null {
     }
 }
 
+// Заход без вида и без треков в адресе — на последнем положении пользователя (moveMapToCurrentLocation старого клиента)
+function startsAtPosition(hash: string): boolean {
+    const params = parseHash(hash);
+    return !parseView(params.get('m')) && ![...params.keys()].some(isTrackParam);
+}
+
 function startStore(): AppStore {
     const [lat, lng] = config.defaultLocation;
+    const position = startsAtPosition(window.location.hash) ? loadPosition(localStorageOrNull()) : null;
     return startAppStore({
         catalog: buildCatalog({
             pixelRatio: window.devicePixelRatio,
@@ -46,7 +57,7 @@ function startStore(): AppStore {
             corsProxyUrl: config.corsProxyUrl,
         }),
         corsProxyUrl: config.corsProxyUrl,
-        defaultView: { lat, lng, zoom: config.defaultZoom },
+        defaultView: { ...(position ?? { lat, lng }), zoom: config.defaultZoom },
         hash: window.location.hash,
         storage: localStorageOrNull(),
     });
@@ -100,6 +111,14 @@ export function App({
     autosave,
 }: AppProps) {
     const [store] = useState(startStore);
+    const [atPosition] = useState(() => startsAtPosition(window.location.hash));
+    useEffect(() => {
+        if (atPosition) {
+            refreshPosition(navigator.geolocation, localStorageOrNull(), (position) =>
+                store.getState().requestView({ ...position, zoom: config.defaultZoom }),
+            );
+        }
+    }, [atPosition, store]);
     const [autosaveStorage] = useState(() => (autosave === undefined ? indexedDbStorage() : autosave));
     const [restored] = useState(deferred);
     const [trackActions] = useState(() =>
@@ -209,7 +228,9 @@ export function App({
                                     }
                                 }}
                             >
-                                <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
+                                <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef}>
+                                    <MapButtons notify={notify} storage={localStorageOrNull()} fetch={fetch} />
+                                </BaseMap>
                                 {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
                                 <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
                                     <InfoPanel>
