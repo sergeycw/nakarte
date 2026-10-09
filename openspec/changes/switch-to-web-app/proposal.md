@@ -41,4 +41,4 @@
 - Удаление: `src/`, `test/`, `webpack/`, `public/`, `eslint_rules/`, `.eslintrc.js`, `.prettierrc`, `.stylelintrc`, `.stylelintignore`, `.browserslistrc`, `jsconfig.json`, `CONTRIBUTING.md` автора, `scripts/build.js`, `yarn.lock`; корневой `package.json` — только Biome (npm, `package-lock.json`, `.npmrc`).
 - CI: `deploy-pages.yml` (job `pages`, фильтр `changes`), `check-web.yml` (проверка адресов автора по `build/`), удаляются `main.yml` и `check-clone.yml`, новый `check-lint.yml`; `scripts/prod-check.sh`.
 - Документы: `AGENTS.md`, `README.md`, `docs/architecture/*`, `openspec/config.yaml`, `openspec/backlog.md`, `openspec/research/*.md`; вне репозитория — `../.claude/launch.json`.
-- Cloudflare: только новый деплой Pages; Worker'ы и R2 этот change не трогает. Откат — revert и push.
+- Cloudflare: новый деплой Pages; код Worker'ов и R2 не меняются, но правка `deploy-pages.yml` выкатывает всё, и Worker'ы передеплоятся с тем же кодом. Откат — revert и push.

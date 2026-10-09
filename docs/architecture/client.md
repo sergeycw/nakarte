@@ -40,7 +40,7 @@ flowchart LR
 | Каталог | Куда ходит | Подробности |
 |---|---|---|
 | `state/` | `location.hash`, `localStorage` | `hash.ts` — параметры адреса старого клиента (`m=`, `l=`, `r=`, `n2=` …), `sync.ts` — стор ↔ адрес ↔ `localStorage`; спека [web-client](../../openspec/specs/web-client/spec.md) |
-| `layers/` | тайловые провайдеры напрямую; Strava, Tsvetkov, swisstopo — через `corsProxyUrl` | спека [map-layers](../../openspec/specs/map-layers/spec.md), [cors-proxy.md](cors-proxy.md) |
+| `layers/` | тайловые провайдеры напрямую; Strava, Tsvetkov (`Mt`) и свои слои с флагом прокси — через `corsProxyUrl` | спека [map-layers](../../openspec/specs/map-layers/spec.md), [cors-proxy.md](cors-proxy.md) |
 | `tracks/` | `tracksStorageServer` (`nktl=`, «Copy link»), сайты треков через `corsProxyUrl` | [track-storage.md](track-storage.md), спеки [tracks](../../openspec/specs/tracks/spec.md), [track-files](../../openspec/specs/track-files/spec.md) |
 | `routing/` | серверный BRouter (`routingServer`) или `engine/` | [route-editor.md](route-editor.md), [routing.md](routing.md) |
 | `engine/` | рантайм CheerpJ с CDN Leaning Technologies, `/brouter-wasm/` и `routingTilesPath` того же origin | [routing.md](routing.md), спека [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md) |

@@ -1,7 +1,8 @@
 // Разбор public/_redirects по правилам Cloudflare Pages в той части, что нужна файлу: точный путь или путь со звёздочкой
 // на конце, `:splat` в назначении, первое подходящее правило выигрывает, код по умолчанию 302
 // (developers.cloudflare.com/pages/configuration/redirects). Им пользуются unit-тест правил и e2e, который отвечает
-// браузеру за Pages: vite preview файл _redirects не читает.
+// браузеру за Pages: vite preview файл _redirects не читает. Query string сюда не передаётся: Pages переносят его в
+// назначение сами (проверено wrangler pages dev), тестам он не нужен.
 
 export interface RedirectRule {
     source: string;

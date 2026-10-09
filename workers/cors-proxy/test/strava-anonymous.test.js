@@ -2,7 +2,6 @@
 // heatmap-external-*.strava.com. CloudFront и анонимный хост — заглушки из vitest.config.js.
 import {describe, expect, it} from 'vitest';
 
-// import/extensions требует `.js`, а no-useless-path-segments — `../src` без index.js: правила спорят
 import worker from '../src/index.js';
 import {anonymousTileUrl} from '../src/strava.js';
 

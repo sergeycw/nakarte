@@ -96,7 +96,7 @@ flowchart LR
 |---|---|---|---|
 | `check lint` | PR и push с изменениями в `workers/**/*.js`, `functions/`, `scripts/`, `biome.json`, корневых `package.json` и `package-lock.json` | `npm run lint` из корня: Biome по корневому `biome.json`, только линтер | — |
 | `check cors proxy`, `check tracks`, `check guard`, `check tiles` | PR и push с изменениями в каталоге сервиса (`check tiles` — ещё и в `functions/` и `workers/guard/src/`) | `vitest` в `workerd` | — |
-| `check web` | PR и push с изменениями в `web/` | `biome ci`, `tsc -b`, Vitest (unit в Node и browser mode в Chromium), сборка в `build/`, проверка `build/` на адреса автора, Playwright e2e против `vite preview` | — |
+| `check web` | PR и push с изменениями в `web/` и `scripts/check-no-author-hosts.mjs` | `biome ci`, `tsc -b`, Vitest (unit в Node и browser mode в Chromium), сборка в `build/`, проверка `build/` на адреса автора, Playwright e2e против `vite preview` | — |
 | `check elevation` | PR и push с изменениями в `workers/elevation/` | `cargo fmt`, `clippy` (и под wasm32), `cargo test`, `npm test` в `workerd` | — |
 | `deploy pages` | push в `master` (изменённые сервисы), вручную (всё) | тесты сервиса, сборка `web/` и деплой; после Pages — удаление старых деплоев Pages и `prod check` (job `smoke`) | Pages, Worker'ы |
 | `brouter tiles sync` | понедельник 04:00 UTC, вручную | инкрементальная синхронизация тайлов | R2 `nakarte-tiles` |
