@@ -399,3 +399,66 @@ describe('Ошибка прокладки', () => {
         expect(routed()).toBe(2);
     });
 });
+
+describe('Срез участка', () => {
+    test('срез — один шаг undo, redo возвращает его', async () => {
+        const { editor, router } = await routedLine();
+        expect(editor.shortcut({ waypoint: 0 }, { waypoint: 2 })).toBe(true);
+        expect(editor.line().waypoints).toEqual([A, C]);
+        expect(states(editor.line())).toEqual(['straight']);
+        // прямой стык прокладку не запускает
+        expect(router.live()).toHaveLength(0);
+        editor.undo();
+        expect(editor.line().waypoints).toEqual([A, B, C]);
+        expect(states(editor.line())).toEqual(['routed:hiking', 'routed:hiking']);
+        editor.redo();
+        expect(editor.line().waypoints).toEqual([A, C]);
+    });
+
+    test('удалять нечего — линия и история без изменений', () => {
+        const { editor } = setup(fromSegment([A, B, C]));
+        expect(editor.shortcut({ waypoint: 0 }, { waypoint: 1 })).toBe(false);
+        expect(editor.canUndo()).toBe(false);
+    });
+
+    test('ожидающий отрезок с новым концом запрашивается заново, со старыми концами — ждёт свой ответ', () => {
+        const { editor, router } = setup();
+        editor.addWaypoint('end', A, 'hiking');
+        editor.addWaypoint('end', B, 'hiking');
+        editor.addWaypoint('end', C, 'hiking');
+        editor.addWaypoint('end', D, 'hiking');
+        const [ab, bc, cd] = router.calls;
+        // срез от середины A–B до C: A–X — новый запрос, C–D ждёт свой
+        editor.shortcut({ leg: 0, latlng: P(41.695, 44.785) }, { waypoint: 2 });
+        expect(states(editor.line())).toEqual(['pending:hiking', 'straight', 'pending:hiking']);
+        expect(ab.signal.aborted).toBe(true);
+        expect(bc.signal.aborted).toBe(true);
+        expect(cd.signal.aborted).toBe(false);
+        expect(router.live()).toHaveLength(2);
+        expect(router.live()[1].to).toEqual(editor.line().waypoints[1]);
+    });
+});
+
+describe('Разворот отрезка', () => {
+    test('разворот — шаг undo, проложенные отрезки остаются проложенными', async () => {
+        const { editor } = await routedLine('road-bike');
+        const before = toSegment(editor.line()).points;
+        editor.reverse();
+        expect(editor.line().waypoints).toEqual([C, B, A]);
+        expect(states(editor.line())).toEqual(['routed:road-bike', 'routed:road-bike']);
+        expect(toSegment(editor.line()).points).toEqual([...before].reverse());
+        editor.undo();
+        expect(editor.line().waypoints).toEqual([A, B, C]);
+    });
+
+    test('ожидающий отрезок после разворота запрашивается заново в новом направлении', () => {
+        const { editor, router } = setup();
+        editor.addWaypoint('end', A, 'hiking');
+        editor.addWaypoint('end', B, 'hiking');
+        editor.reverse();
+        expect(router.calls[0].signal.aborted).toBe(true);
+        expect(router.live()).toHaveLength(1);
+        expect(router.live()[0].from).toEqual(B);
+        expect(router.live()[0].to).toEqual(A);
+    });
+});

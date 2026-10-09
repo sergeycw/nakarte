@@ -91,6 +91,27 @@ export function previewData(
     return { type: 'FeatureCollection', features };
 }
 
+// Выбор на карте для Join и Shortcut (design add-web-line-tools, «Выбор на карте»): линия от начала к курсору — зелёный
+// пунктир над допустимым местом, красный над недопустимым (lineCursorValidStyle/InvalidStyle старого клиента), участок,
+// который Shortcut удалит, — красная линия
+export const TOOL_VALID = '#16a34a';
+export const TOOL_INVALID = '#e11d48';
+
+export function toolPreviewData(band: readonly LatLng[], valid: boolean, removed: readonly LatLng[] | null = null) {
+    const lines = [{ path: band, color: valid ? TOOL_VALID : TOOL_INVALID }];
+    if (removed) {
+        lines.unshift({ path: removed, color: TOOL_INVALID });
+    }
+    return {
+        type: 'FeatureCollection' as const,
+        features: lines.map(({ path, color }) => ({
+            type: 'Feature' as const,
+            properties: { color },
+            geometry: { type: 'LineString' as const, coordinates: toCoordinates(path) },
+        })),
+    };
+}
+
 const WAYPOINT_PAINT = {
     'circle-radius': 6,
     'circle-color': ['match', ['get', 'role'], 'start', '#33bf33', 'end', '#e63333', '#fff'],

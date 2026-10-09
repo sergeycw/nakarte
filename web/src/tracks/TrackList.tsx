@@ -27,7 +27,7 @@ import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
 import { formatLength, tracksLength } from './geometry';
 import { TRACK_COLORS, type Track } from './model';
-import { RenameTrackDialog, SharedLinkDialog } from './TrackDialogs';
+import { CopyFallbackDialog, RenameTrackDialog } from './TrackDialogs';
 
 // Список треков слева под панелью с названием (design add-web-tracks, «Список треков»): строка ввода, меню списка,
 // строки треков с меню трека. Тексты меню — старого клиента. Действия — createTrackActions (actions.ts).
@@ -106,6 +106,7 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-auto">
                     <DropdownMenuItem onClick={() => editing.addSegment(track.id)}>Add segment</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => actions.startAddPoint(track)}>Add point</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onRename(track)}>Rename</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.duplicate(track)}>Duplicate</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.reverse(track)}>Reverse</DropdownMenuItem>
@@ -248,7 +249,7 @@ export function TrackList() {
                 </>
             )}
             {renaming && <RenameTrackDialog track={renaming} onClose={() => setRenaming(null)} />}
-            <SharedLinkDialog />
+            <CopyFallbackDialog />
         </Card>
     );
 }

@@ -2,11 +2,11 @@ import { reverseRoute, settledRoute } from '@/routing/line';
 import type { AppStore } from '@/state/store';
 import type { TrackParams } from '@/state/sync';
 import { EmptyTrackError, exportTrack, exportZip, saveFile } from './export';
-import { boundsOf } from './geometry';
+import { boundsOf, wrapLng } from './geometry';
 import { prepareImport } from './import-result';
 import { loadFromUrl } from './import-url';
 import { loadTrackParam } from './links';
-import { type GeoData, geoData, type Track } from './model';
+import { type GeoData, geoData, type LatLng, type Track, type Waypoint } from './model';
 import { parseGeoFile } from './parsers';
 import { ShareError, shareBody, shareLink, storeTracks } from './share';
 import type { TrackSources } from './sources';
@@ -31,6 +31,31 @@ export interface TrackActionsDeps {
 export function writeClipboardItem(text: Promise<string>): Promise<void> {
     const blob = text.then((value) => new Blob([value], { type: 'text/plain' }));
     return navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+}
+
+// Название новой точки трека — следующий трёхзначный номер после наибольшего среди названий вида «001…» (у
+// getNewPointName старого клиента — после последнего по порядку, и после переименований номер мог повториться); после
+// 999 — пустое, как у старого
+export function nextPointName(points: readonly Waypoint[]): string {
+    let max = 0;
+    for (const point of points) {
+        if (/^\d{3}([^\d.]|$)/u.test(point.name)) {
+            max = Math.max(max, Number.parseInt(point.name, 10));
+        }
+    }
+    return max >= 999 ? '' : String(max + 1).padStart(3, '0');
+}
+
+// Долгота клика в соседней копии мира MapLibre — в ±180 (latlng.wrap() старого клиента). Долгота в пределах не
+// трогается: арифметика wrapLng даёт ей шум в последнем знаке (44.8 → 44.799999999999955).
+function wrapped(latlng: LatLng): LatLng {
+    return latlng.lng >= -180 && latlng.lng <= 180 ? latlng : { lat: latlng.lat, lng: wrapLng(latlng.lng) };
+}
+
+// Copy coordinates старого клиента: SIGNED_DEGREES (toFixed(5)) от latlng.wrap()
+export function pointCoordinates(point: LatLng): string {
+    const { lat, lng } = wrapped(point);
+    return `${lat.toFixed(5)} ${lng.toFixed(5)}`;
 }
 
 function trackBounds(tracks: readonly Pick<GeoData, 'segments' | 'points'>[]) {
@@ -92,7 +117,7 @@ export function createTrackActions({
             notify('Link copied', 'success');
         } catch {
             // буфер не дался (нет разрешения, нет ClipboardItem) — ссылка окном
-            state().setSharedLink(text);
+            state().setCopyFallback({ title: 'Link to tracks', text });
         }
     }
 
@@ -116,7 +141,68 @@ export function createTrackActions({
         });
     }
 
+    // Точка трека правится по объекту, а не номеру: номер ищется в момент действия, пропавшая точка — ничего (design
+    // add-web-line-tools, «Точки трека»)
+    function updatePoint(trackId: string, point: Waypoint, change: (points: Waypoint[], index: number) => void) {
+        const track = state().tracks.find((item) => item.id === trackId);
+        const index = track?.points.indexOf(point) ?? -1;
+        if (!track || index < 0) {
+            return;
+        }
+        const points = track.points.slice();
+        change(points, index);
+        state().updateTrack(trackId, { points });
+    }
+
     return {
+        // Точки трека (спека tracks, «Добавление точек трека», «Меню точки трека»). Постановка — режим стора pointTool:
+        // клик по карте зовёт addPoint, окно названия — pointDialog.
+        startAddPoint(track: Track) {
+            if (!track.visible) {
+                state().updateTrack(track.id, { visible: true });
+            }
+            state().setPointTool({ kind: 'add', trackId: track.id });
+        },
+        startMovePoint: (trackId: string, point: Waypoint) => state().setPointTool({ kind: 'move', trackId, point }),
+        stopPointTool: () => state().setPointTool(null),
+        // окно названия точки (Rename в меню точки)
+        startRenamePoint: (trackId: string, point: Waypoint) => state().setPointDialog({ trackId, point }),
+        // новая точка с готовым номером; окно названия открывается сразу (createNewPoint старого клиента)
+        addPoint(trackId: string, latlng: LatLng): Waypoint | null {
+            const track = state().tracks.find((item) => item.id === trackId);
+            if (!track) {
+                return null;
+            }
+            const { lat, lng } = wrapped(latlng);
+            const point: Waypoint = { lat, lng, name: nextPointName(track.points) };
+            state().updateTrack(trackId, { points: [...track.points, point] });
+            state().setPointDialog({ trackId, point });
+            return point;
+        },
+        // пустое название допустимо, как у query старого клиента
+        renamePoint: (trackId: string, point: Waypoint, name: string) =>
+            updatePoint(trackId, point, (points, index) => {
+                points[index] = { ...point, name };
+            }),
+        movePoint(trackId: string, point: Waypoint, latlng: LatLng) {
+            updatePoint(trackId, point, (points, index) => {
+                points[index] = { ...point, ...wrapped(latlng) };
+            });
+            state().setPointTool(null);
+        },
+        removePoint: (trackId: string, point: Waypoint) =>
+            updatePoint(trackId, point, (points, index) => {
+                points.splice(index, 1);
+            }),
+        async copyPointCoordinates(point: LatLng) {
+            const text = pointCoordinates(point);
+            try {
+                await writeClipboard(Promise.resolve(text));
+                notify('Coordinates copied', 'success');
+            } catch {
+                state().setCopyFallback({ title: 'Point coordinates', text });
+            }
+        },
         openFiles: (files: readonly File[]) =>
             load(
                 Promise.all(

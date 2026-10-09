@@ -40,33 +40,86 @@ export function RenameTrackDialog({ track, onClose }: { track: Track; onClose: (
     );
 }
 
-// Ссылка, которую не удалось положить в буфер обмена (design add-web-tracks, «Ссылка — после ответа хранилища»)
-export function SharedLinkDialog() {
-    const link = useAppStore((state) => state.sharedLink);
-    const setSharedLink = useAppStore((state) => state.setSharedLink);
+// Название точки трека: после постановки и по Rename в меню точки (prompt «New point name» старого клиента). Cancel
+// оставляет прежнее название, пустое допустимо.
+export function PointNameDialog() {
+    const dialog = useAppStore((state) => state.pointDialog);
+    return dialog ? <PointNameForm key={`${dialog.trackId}:${dialog.point.name}`} /> : null;
+}
+
+function PointNameForm() {
+    const actions = useTrackActions();
+    const dialog = useAppStore((state) => state.pointDialog);
+    const setPointDialog = useAppStore((state) => state.setPointDialog);
+    const [name, setName] = useState(dialog?.point.name ?? '');
+    if (!dialog) {
+        return null;
+    }
+    const close = () => setPointDialog(null);
+    function submit() {
+        if (dialog) {
+            actions.renamePoint(dialog.trackId, dialog.point, name);
+        }
+        close();
+    }
+    return (
+        <Dialog open onOpenChange={(open) => !open && close()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Point name</DialogTitle>
+                </DialogHeader>
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        submit();
+                    }}
+                >
+                    <Input
+                        aria-label="Point name"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        onFocus={(event) => event.target.select()}
+                    />
+                </form>
+                <DialogFooter>
+                    <Button variant="outline" onClick={close}>
+                        Cancel
+                    </Button>
+                    <Button onClick={submit}>Ok</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// Текст, который не удалось положить в буфер обмена: ссылка на треки (design add-web-tracks, «Ссылка — после ответа
+// хранилища»), координаты точки (design add-web-line-tools, «Точки трека»)
+export function CopyFallbackDialog() {
+    const fallback = useAppStore((state) => state.copyFallback);
+    const setCopyFallback = useAppStore((state) => state.setCopyFallback);
     const [copied, setCopied] = useState(false);
 
     function close() {
-        setSharedLink(null);
+        setCopyFallback(null);
         setCopied(false);
     }
 
     return (
-        <Dialog open={link !== null} onOpenChange={(open) => !open && close()}>
+        <Dialog open={fallback !== null} onOpenChange={(open) => !open && close()}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Link to tracks</DialogTitle>
+                    <DialogTitle>{fallback?.title}</DialogTitle>
                 </DialogHeader>
                 <Input
                     readOnly
-                    aria-label="Link to tracks"
-                    value={link ?? ''}
+                    aria-label={fallback?.title}
+                    value={fallback?.text ?? ''}
                     onFocus={(event) => event.target.select()}
                 />
                 <DialogFooter>
                     <Button
                         onClick={() => {
-                            navigator.clipboard.writeText(link ?? '').then(
+                            navigator.clipboard.writeText(fallback?.text ?? '').then(
                                 () => setCopied(true),
                                 () => {},
                             );

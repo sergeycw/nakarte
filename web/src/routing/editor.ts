@@ -1,5 +1,6 @@
 import type { LatLng } from '@/tracks/model';
-import { hasActivity, type Leg, legPath, type RouteLine, STRAIGHT } from './line';
+import { hasActivity, type Leg, type RouteLine, STRAIGHT } from './line';
+import { type LinePlace, reverseLine, shortcutLine, splitLeg } from './line-tools';
 
 // Редактор одной линии без карты (design add-web-route-editor, «Редактор — модель с очередью и историей»; спека
 // route-editing). Правки ставят опорные точки сразу, а отрезки с активностью уходят в роутер асинхронно: отрезок ждёт
@@ -32,6 +33,10 @@ export interface RouteEditor {
     removeWaypoint(index: number): void;
     // нажатие на отрезок legIndex: возвращает номер новой опорной точки; перетаскивание сразу после — тот же шаг истории
     insertWaypoint(legIndex: number, latlng: LatLng): number;
+    // Shortcut (design add-web-line-tools): участок между местами — прямой отрезок; false — удалять нечего
+    shortcut(from: LinePlace, to: LinePlace): boolean;
+    // Reverse отрезка из меню: линия задом наперёд вместе с разметкой
+    reverse(): void;
     undo(): void;
     redo(): void;
     canUndo(): boolean;
@@ -57,17 +62,30 @@ function rerouted(leg: Leg | undefined): Leg {
     return leg && hasActivity(leg) ? pendingLeg(leg.activity) : STRAIGHT;
 }
 
-// Ближайшая к p точка звена a–b и квадрат расстояния до неё — в градусах с поправкой долготы на широту: для выбора
-// звена и точки вставки этого хватает, точность в метрах не нужна
-function closestOnSegment(p: LatLng, a: LatLng, b: LatLng): { point: LatLng; sqDist: number } {
-    const k = Math.cos((p.lat * Math.PI) / 180);
-    const dx = (b.lng - a.lng) * k;
-    const dy = b.lat - a.lat;
-    const dot = dx * dx + dy * dy;
-    let t = dot > 0 ? ((p.lng - a.lng) * k * dx + (p.lat - a.lat) * dy) / dot : 0;
-    t = Math.max(0, Math.min(1, t));
-    const point = { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t };
-    return { point, sqDist: ((p.lng - point.lng) * k) ** 2 + (p.lat - point.lat) ** 2 };
+// Ожидающие отрезки, у которых после правки другие концы (вставка точки, срез, разворот), — новые запросы: ответ на
+// прежний запрос считался между другими точками. Отрезок, чей запрос и концы те же, ждёт свой ответ дальше.
+function renewPending(prev: RouteLine, next: RouteLine): RouteLine {
+    const ends = new Map<number, [LatLng, LatLng]>();
+    prev.legs.forEach((leg, i) => {
+        if (leg.state === 'pending') {
+            ends.set(leg.request, [prev.waypoints[i], prev.waypoints[i + 1]]);
+        }
+    });
+    const kept = new Set<number>();
+    let changed = false;
+    const legs = next.legs.map((leg, i) => {
+        if (leg.state !== 'pending') {
+            return leg;
+        }
+        const old = ends.get(leg.request);
+        if (old && !kept.has(leg.request) && old[0] === next.waypoints[i] && old[1] === next.waypoints[i + 1]) {
+            kept.add(leg.request);
+            return leg;
+        }
+        changed = true;
+        return pendingLeg(leg.activity);
+    });
+    return changed ? { waypoints: next.waypoints, legs } : next;
 }
 
 export function createRouteEditor(initial: RouteLine, options: RouteEditorOptions): RouteEditor {
@@ -234,46 +252,32 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
         },
 
         insertWaypoint(legIndex, latlng) {
-            const { waypoints, legs } = line;
-            const leg = legs[legIndex];
-            if (!leg) {
-                return -1;
-            }
             // Новая точка встаёт на ближайшее к нажатию звено, а не туда, где нажали: попадание по линии засчитывается в
             // нескольких пикселях от неё, и без проекции на линии появился бы излом. Геометрия не меняется, пока точку
             // не сдвинули.
-            const path = legPath(line, legIndex);
-            let nearest = 0;
-            let best = Number.POSITIVE_INFINITY;
-            let at = latlng;
-            for (let k = 0; k < path.length - 1; k++) {
-                const { point, sqDist } = closestOnSegment(latlng, path[k], path[k + 1]);
-                if (sqDist < best) {
-                    best = sqDist;
-                    nearest = k;
-                    at = point;
-                }
+            const split = splitLeg(line, legIndex, latlng);
+            if (!split) {
+                return -1;
             }
-            let left: Leg;
-            let right: Leg;
-            if (leg.state === 'routed') {
-                // звено path[nearest]–path[nearest + 1]; внутренние точки маршрута — path[1..n−2]
-                left = { state: 'routed', activity: leg.activity, points: path.slice(1, nearest + 1) };
-                right = { state: 'routed', activity: leg.activity, points: path.slice(nearest + 1, -1) };
-            } else if (leg.state === 'pending') {
-                left = pendingLeg(leg.activity);
-                right = pendingLeg(leg.activity);
-            } else {
-                left = leg;
-                right = leg;
+            edit(renewPending(line, split.line));
+            justInserted = split.index;
+            return split.index;
+        },
+
+        shortcut(from, to) {
+            const next = shortcutLine(line, from, to);
+            if (!next) {
+                return false;
             }
-            const index = legIndex + 1;
-            edit({
-                waypoints: [...waypoints.slice(0, index), at, ...waypoints.slice(index)],
-                legs: [...legs.slice(0, legIndex), left, right, ...legs.slice(legIndex + 1)],
-            });
-            justInserted = index;
-            return index;
+            edit(renewPending(line, next));
+            return true;
+        },
+
+        reverse() {
+            if (line.waypoints.length < 2) {
+                return;
+            }
+            edit(renewPending(line, reverseLine(line)));
         },
 
         undo() {

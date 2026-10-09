@@ -1,11 +1,12 @@
 import type { RoutingEngine } from '@/config';
-import type { AppStore } from '@/state/store';
+import type { AppStore, MenuTarget } from '@/state/store';
 import { prepareImport } from '@/tracks/import-result';
 import { geoData, type LatLng, type Track } from '@/tracks/model';
 import { saveActivity } from './activity';
 import { getActivity, RoutingError } from './brouter';
 import { createRouteEditor, type End, type RouteEditor } from './editor';
-import { fromSegment, type SegmentRoute, toSegment } from './line';
+import { fromSegment, type RouteLine, type SegmentRoute, settledRoute, toSegment } from './line';
+import { cutLine, joinLines, type LinePlace } from './line-tools';
 import { type Router, routerDownHint } from './router';
 
 // Связь редактора со стором, без React — как createTrackActions (design add-web-route-editor, «Связь со стором и
@@ -87,7 +88,18 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
             current = null;
             drawing = null;
             state().setRouteDrag(null);
+            closeTools();
             publish();
+        }
+    }
+
+    // выбор на карте и меню относятся к редактируемой линии: без неё их нет
+    function closeTools() {
+        if (state().lineTool) {
+            state().setLineTool(null);
+        }
+        if (state().mapMenu?.target.kind !== 'point' && state().mapMenu) {
+            state().setMapMenu(null);
         }
     }
 
@@ -156,6 +168,7 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         current = null;
         drawing = null;
         state().setRouteDrag(null);
+        closeTools();
         publish();
         if (finished) {
             cleanUp(finished);
@@ -172,6 +185,10 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         if (current && current !== next) {
             stop();
         }
+        // редактирование линии и постановка точек трека взаимоисключающие (_beginPointEdit старого клиента)
+        if (state().pointTool) {
+            state().setPointTool(null);
+        }
         current = next;
         drawing = startDrawing;
         publish();
@@ -179,6 +196,10 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
 
     // Трек скрыли, удалили или изменили снаружи во время редактирования — редактирование заканчивается
     store.subscribe((next, prev) => {
+        if (current && next.pointTool && !prev.pointTool) {
+            stop();
+            return;
+        }
         if (!current || next.tracks === prev.tracks) {
             return;
         }
@@ -191,6 +212,55 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
     });
 
     const editor = () => current?.editor ?? null;
+
+    // Отрезок трека из линии операции списка: ожидающие отрезки — непроложенные, их новый массив не знает ни один
+    // редактор, и ответа не будет (design add-web-line-tools, «Операции — функции над линией редактора»)
+    function segmentOf(line: RouteLine) {
+        const { points, route } = toSegment(line);
+        return { points, route: settledRoute(route) };
+    }
+
+    // Операция списка над редактируемым отрезком: index отрезка заменяется частями parts, а remove — ещё один отрезок
+    // того же трека (Join). Редактор прежнего отрезка выбрасывается (подписка на стор: его массива больше нет в треке),
+    // edit — номер части, которую редактировать дальше; без него редактирование заканчивается.
+    function replaceEdited(parts: RouteLine[], options: { remove?: number; edit?: number } = {}) {
+        const located = current && findSegment(current);
+        if (!current || !located) {
+            return;
+        }
+        const { track, index } = located;
+        const built = parts.map(segmentOf);
+        const segments: LatLng[][] = [];
+        const routes: (SegmentRoute | null)[] = [];
+        let editIndex = -1;
+        track.segments.forEach((points, i) => {
+            if (i === options.remove) {
+                return;
+            }
+            if (i !== index) {
+                segments.push(points);
+                routes.push(track.routes?.[i] ?? null);
+                return;
+            }
+            built.forEach((part, k) => {
+                if (k === options.edit) {
+                    editIndex = segments.length;
+                }
+                segments.push(part.points);
+                routes.push(part.route);
+            });
+        });
+        state().updateTrack(track.id, { segments, routes });
+        if (editIndex >= 0) {
+            start(track.id, editIndex);
+        } else {
+            stop();
+        }
+    }
+
+    function line(): RouteLine | null {
+        return current?.editor.line() ?? null;
+    }
 
     function addSegment(trackId: string) {
         const track = state().tracks.find((item) => item.id === trackId);
@@ -243,6 +313,78 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         },
         moveWaypoint: (index: number, latlng: LatLng) => editor()?.moveWaypoint(index, latlng),
         removeWaypoint: (index: number) => editor()?.removeWaypoint(index),
+
+        // Инструменты линии (спека route-editing; design add-web-line-tools, «Undo»): Cut, Join, удаление и вынос
+        // отрезка — операции списка без undo, Shortcut и Reverse — правки редактора с undo.
+        cut(place: LinePlace) {
+            const edited = line();
+            const parts = edited && cutLine(edited, place);
+            if (parts) {
+                replaceEdited(parts, { edit: 0 });
+            }
+        },
+        reverse: () => editor()?.reverse(),
+        deleteSegment: () => replaceEdited([]),
+        newTrackFromSegment() {
+            const edited = line();
+            if (!edited) {
+                return;
+            }
+            const { points, route } = segmentOf(edited);
+            state().addTracks([geoData('New track', { segments: [points], routes: [route] })]);
+        },
+        startJoin(end: End) {
+            if (current) {
+                drawing = null;
+                publish();
+                state().setLineTool({ kind: 'join', end });
+            }
+        },
+        // клик по отрезку segment трека trackId при выборе Join: тот приклеивается ближним концом otherEnd
+        join(trackId: string, segment: number, otherEnd: End) {
+            const tool = state().lineTool;
+            const located = current && findSegment(current);
+            const edited = line();
+            const other = state().tracks.find((track) => track.id === trackId);
+            const points = other?.segments[segment];
+            if (tool?.kind !== 'join' || !located || !edited || !other || !points) {
+                return;
+            }
+            const sameTrack = other.id === located.track.id;
+            if (sameTrack && segment === located.index) {
+                return;
+            }
+            const joined = joinLines(edited, tool.end, fromSegment(points, other.routes?.[segment]), otherEnd);
+            replaceEdited([joined], { edit: 0, remove: sameTrack ? segment : undefined });
+        },
+        startShortcut(from: LinePlace) {
+            if (current) {
+                drawing = null;
+                publish();
+                state().setLineTool({ kind: 'shortcut', from });
+            }
+        },
+        // клик по месту to при выборе Shortcut; false — удалять нечего, выбор продолжается (getShortCutNodes)
+        shortcut(to: LinePlace) {
+            const tool = state().lineTool;
+            if (tool?.kind !== 'shortcut' || !editor()?.shortcut(tool.from, to)) {
+                return false;
+            }
+            state().setLineTool(null);
+            return true;
+        },
+        cancelTool: () => state().setLineTool(null),
+        // меню в экранной точке x, y; рисование заканчивается (contextmenu старого редактора — stopDrawingLine)
+        openMenu(x: number, y: number, target: MenuTarget) {
+            if (target.kind !== 'point' && drawing) {
+                drawing = null;
+                state().setRouteDrag(null);
+                publish();
+            }
+            state().setLineTool(null);
+            state().setMapMenu({ x, y, target });
+        },
+        closeMenu: () => state().setMapMenu(null),
         insertWaypoint: (leg: number, latlng: LatLng) => editor()?.insertWaypoint(leg, latlng) ?? -1,
         undo: () => editor()?.undo(),
         redo: () => editor()?.redo(),
