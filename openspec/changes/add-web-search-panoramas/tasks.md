@@ -2,8 +2,8 @@
 
 ## 1. Поиск без карты
 
-- [ ] 1.1 `web/src/search/coordinates.ts` и `links.ts` (порт старого, зум MapLibre, короткие ссылки через `fetch` и прокси, капча Google по `continue`); unit-тесты `coordinates.test.ts`, `links.test.ts` со всеми случаями karma-тестов старого; проверка: `npm test` зелёный
-- [ ] 1.2 `mapycz.ts`, `photon.ts` (адрес запроса, разбор ответа, языки), `search.ts` (ссылка → координаты → mapy.cz → photon, ошибки); фикстуры ответов в `src/search/fixtures/`; unit-тесты; проверка: `npm test` зелёный
+- [x] 1.1 `web/src/search/coordinates.ts` и `links.ts` (порт старого, зум MapLibre, короткие ссылки через `fetch` и прокси, капча Google по `continue`); unit-тесты `coordinates.test.ts`, `links.test.ts` со всеми случаями karma-тестов старого; проверка: `npm test` зелёный
+- [x] 1.2 `mapycz.ts`, `photon.ts` (адрес запроса, разбор ответа, языки), `search.ts` (ссылка → координаты → mapy.cz → photon, ошибки); фикстуры ответов в `src/search/fixtures/`; unit-тесты; проверка: `npm test` зелёный
 
 ## 2. Поиск и метка в приложении
 
