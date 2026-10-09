@@ -19,7 +19,7 @@
 
 ## 4. e2e
 
-- [ ] 4.1 `web/e2e/fixtures.ts`: заглушка загрузчика CheerpJ по адресу `routingEngineRuntimeUrl` (маршрут по запросу или ошибка); проверить, что перехват Playwright видит `importScripts` воркера, а не только запасной путь на главном потоке (`page.workers()`), итог в design; e2e `route-editing.spec.ts`/`routing.spec.ts`: «Новый трек» с прокладкой в воркере, «Нет маршрута», «Отмена клика», «Перезагрузка страницы»; «Прокладка выключена» зелёный; проверка: `npm run build && npm run e2e` зелёный, `check web` на PR зелёный
+- [x] 4.1 `web/e2e/fixtures.ts`: заглушка загрузчика CheerpJ по адресу `routingEngineRuntimeUrl` (маршрут по запросу или ошибка); проверить, что перехват Playwright видит `importScripts` воркера, а не только запасной путь на главном потоке (`page.workers()`), итог в design; e2e `route-editing.spec.ts`/`routing.spec.ts`: «Новый трек» с прокладкой в воркере, «Нет маршрута», «Отмена клика», «Перезагрузка страницы»; «Прокладка выключена» зелёный; проверка: `npm run build && npm run e2e` зелёный, `check web` на PR зелёный
 
 ## 5. Документы
 
