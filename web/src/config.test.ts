@@ -32,4 +32,9 @@ describe('Адреса сервисов клона', () => {
             expect(JSON.stringify(makeConfig(mode))).not.toMatch(/nakarte\.me/);
         }
     });
+
+    test('Сборка без ключа и с ключом Google', () => {
+        expect(makeConfig('clone').googleMapsApiKey).toBe('');
+        expect(makeConfig('clone', 'AIza-test').googleMapsApiKey).toBe('AIza-test');
+    });
 });

@@ -4,6 +4,8 @@ import type { GeoJSONSource, Map as MaplibreMap, MapMouseEvent, MapTouchEvent, P
 import { useEffect } from 'react';
 import { useAppStoreApi } from '@/state/context';
 import type { AppStore, MenuTarget, RouteEditState } from '@/state/store';
+import { useStreetView } from '@/streetview/context';
+import type { StreetView } from '@/streetview/controller';
 import type { TrackActions } from '@/tracks/actions';
 import { useTrackActions } from '@/tracks/actions-context';
 import { distance } from '@/tracks/geometry';
@@ -174,7 +176,7 @@ function trackPointAt(
 
 // Точка в той копии мира, что ближе к опорной (wrapLatLngToTarget старого клиента): MapLibre рисует копии мира, и
 // клик по соседней копии иначе дал бы скачок линии через весь мир
-function nearTo(latlng: LatLng, reference: LatLng | undefined): LatLng {
+export function nearTo(latlng: LatLng, reference: LatLng | undefined): LatLng {
     if (!reference) {
         return latlng;
     }
@@ -190,7 +192,16 @@ function editColor(store: AppStore): string {
     return TRACK_COLORS[tracks.find((track) => track.id === routeEdit?.trackId)?.color ?? 0];
 }
 
-function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions: TrackActions): () => void {
+// радиус поиска панорамы по клику — 24 px экрана в метрах (onMapClick контрола панорам старого клиента)
+const PANORAMA_SEARCH_PX = 24;
+
+function bind(
+    map: MaplibreMap,
+    store: AppStore,
+    editing: RouteEditing,
+    actions: TrackActions,
+    streetView: StreetView,
+): () => void {
     const state = () => store.getState();
     let suppressClickUntil = 0;
     let lastTouch = Number.NEGATIVE_INFINITY;
@@ -571,6 +582,24 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions:
         if (performance.now() < suppressClickUntil || state().mapMenu) {
             return;
         }
+        // клик рисования, постановки точек и выбора Join/Shortcut занят редактором (design add-web-search-panoramas)
+        const busy = Boolean(state().routeEdit?.drawing || state().pointTool || state().lineTool);
+        // клик по карте мимо метки поиска её снимает (onMapClick метки старого), но не занятый клик: к метке ведут
+        // линию (design add-web-search-panoramas, «Метка»); клик по самой метке сюда не доходит
+        if (state().placemark && !busy) {
+            state().setPlacemark(null);
+        }
+        // режим Street View: свободный клик ищет панораму, а редактор дальше работает как обычно — как два независимых
+        // обработчика клика старого клиента («Street View: режим, клик, окно»)
+        // клик по точке трека (меню) или опорной точке занят ими
+        const onPoint =
+            trackPointAt(map, store, event.point) !== null ||
+            (state().routeEdit !== null && waypointAt(map, state().routeEdit as RouteEditState, event.point) !== null);
+        if (state().streetView.enabled && !busy && !onPoint) {
+            const at = lngLat(event);
+            const edge = map.unproject([event.point.x + PANORAMA_SEARCH_PX, event.point.y]);
+            void streetView.searchAt(at, distance(at, { lat: edge.lat, lng: edge.lng }));
+        }
         if (pointToolClick(lngLat(event))) {
             return;
         }
@@ -789,9 +818,10 @@ export function MapEditor() {
     const store = useAppStoreApi();
     const editing = useRouteEditing();
     const actions = useTrackActions();
+    const streetView = useStreetView();
     useEffect(() => {
         const map = current?.getMap();
-        return map ? bind(map, store, editing, actions) : undefined;
-    }, [current, store, editing, actions]);
+        return map ? bind(map, store, editing, actions, streetView) : undefined;
+    }, [current, store, editing, actions, streetView]);
     return null;
 }

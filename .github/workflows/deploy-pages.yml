@@ -213,9 +213,14 @@ jobs:
       - name: web test
         working-directory: web
         run: npm test
+      # Ключ Maps JavaScript API для окна Street View нового приложения — тот же секрет, что у старого клиента выше, и
+      # только этому шагу (установка зависимостей и тесты идут без него; design add-web-search-panoramas, спека
+      # clone-deploy). Без секрета — пустой ключ, режим без ключа.
       - name: web build
         working-directory: web
         run: npm run build
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
       - name: web e2e
         working-directory: web
         run: npm run e2e

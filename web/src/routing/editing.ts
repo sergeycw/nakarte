@@ -1,7 +1,7 @@
 import type { RoutingEngine } from '@/config';
 import type { AppStore, MenuTarget } from '@/state/store';
 import { prepareImport } from '@/tracks/import-result';
-import { geoData, type LatLng, type Track } from '@/tracks/model';
+import { type GeoData, geoData, type LatLng, type Track } from '@/tracks/model';
 import { saveActivity } from './activity';
 import { getActivity, RoutingError } from './brouter';
 import { createRouteEditor, type End, type RouteEditor } from './editor';
@@ -292,9 +292,9 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
         start,
         stop,
         addSegment,
-        // «New track»: трек и сразу рисование (addTrackAndEdit старого клиента)
-        newTrack(name: string) {
-            const [track] = state().addTracks(prepareImport([geoData(name || 'New track')], true).tracks);
+        // «New track»: трек и сразу рисование (addTrackAndEdit старого клиента); линейка — с отметками расстояния
+        newTrack(name: string, fields: Partial<GeoData> = {}) {
+            const [track] = state().addTracks(prepareImport([geoData(name || 'New track', fields)], true).tracks);
             addSegment(track.id);
         },
         isEditing: (trackId?: string) => current !== null && (trackId === undefined || current.trackId === trackId),

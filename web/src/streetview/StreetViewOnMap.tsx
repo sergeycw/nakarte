@@ -1,0 +1,51 @@
+import { Marker, useMap } from '@vis.gl/react-maplibre';
+import { Navigation2Icon } from 'lucide-react';
+import { useEffect } from 'react';
+import { useAppStore } from '@/state/context';
+
+// Метка панорамы на карте (PanoMarker старого клиента): позиция окна, повёрнутая по направлению взгляда. Окно перешло
+// за край видимой части (5 % от края, bounds.pad(-0.05) старого; видимая — над нижними панелями) — карта сдвигается к
+// нему.
+export function StreetViewOnMap() {
+    const { current } = useMap();
+    const map = current?.getMap();
+    const pano = useAppStore((state) => state.streetView.pano);
+    const lat = pano?.lat;
+    const lng = pano?.lng;
+
+    useEffect(() => {
+        if (!map || lat === undefined || lng === undefined) {
+            return;
+        }
+        // видимая часть — над нижними панелями (панорама, профиль высот): карта под ними есть, но её не видно
+        const canvas = map.getContainer().getBoundingClientRect();
+        const panels = ['street-view-panel', 'elevation-profile']
+            .map((id) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect())
+            .filter((rect): rect is DOMRect => Boolean(rect?.height));
+        const bottom = Math.min(canvas.bottom, ...panels.map((rect) => rect.top)) - canvas.top;
+        const point = map.project([lng, lat]);
+        const padX = canvas.width * 0.05;
+        const padY = bottom * 0.05;
+        const inside = point.x > padX && point.x < canvas.width - padX && point.y > padY && point.y < bottom - padY;
+        if (!inside) {
+            // центр видимой части, а не всей карты: смещение вниз на половину закрытой панелями полосы
+            map.easeTo({ center: [lng, lat], offset: [0, (bottom - canvas.height) / 2] });
+        }
+    }, [map, lat, lng]);
+
+    if (!pano) {
+        return null;
+    }
+    return (
+        <Marker longitude={pano.lng} latitude={pano.lat} rotation={pano.heading} rotationAlignment="map">
+            <div
+                className="flex size-7 items-center justify-center rounded-full bg-amber-400 shadow ring-2 ring-white"
+                data-testid="panorama-marker"
+                data-heading={Math.round(pano.heading)}
+                style={{ pointerEvents: 'none' }}
+            >
+                <Navigation2Icon className="size-4 fill-white text-white" />
+            </div>
+        </Marker>
+    );
+}

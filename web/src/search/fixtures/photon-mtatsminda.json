@@ -1,0 +1,117 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "R",
+                "osm_id": 2073140,
+                "osm_key": "place",
+                "osm_value": "neighbourhood",
+                "type": "locality",
+                "name": "Mtatsminda",
+                "district": "Mtatsminda District",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "postcode": "0108",
+                "countrycode": "GE",
+                "extent": [44.7893988, 41.7020007, 44.7974689, 41.6942535]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [44.7938539, 41.6963552]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "N",
+                "osm_id": 4431740449,
+                "osm_key": "aerialway",
+                "osm_value": "station",
+                "type": "house",
+                "name": "Mtatsminda",
+                "street": "Bombora Street",
+                "locality": "Mtatsminda, Sololaki",
+                "district": "Mtatsminda District",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "postcode": "0179",
+                "countrycode": "GE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [44.7863865, 41.6957268]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "R",
+                "osm_id": 9841336,
+                "osm_key": "tourism",
+                "osm_value": "attraction",
+                "type": "house",
+                "name": "Mtatsminda Pantheon",
+                "street": "Mama Daviti Rise",
+                "locality": "Mtatsminda, Sololaki",
+                "district": "Mtatsminda District",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "postcode": "0179",
+                "countrycode": "GE",
+                "extent": [44.7885259, 41.6962147, 44.7893649, 41.6955381]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [44.7890024, 41.6958865]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "R",
+                "osm_id": 13438811,
+                "osm_key": "place",
+                "osm_value": "suburb",
+                "type": "district",
+                "name": "Mtatsminda District",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "postcode": "0108",
+                "countrycode": "GE",
+                "extra": {
+                    "admin_level": "10"
+                },
+                "extent": [44.6229662, 41.7169047, 44.8089793, 41.6248905]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [44.7552107, 41.6715015]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "osm_type": "R",
+                "osm_id": 13443464,
+                "osm_key": "tourism",
+                "osm_value": "theme_park",
+                "type": "house",
+                "name": "Mtatsminda Park",
+                "street": "Bombora Street",
+                "locality": "Mtatsminda, Sololaki",
+                "district": "Mtatsminda District",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "postcode": "0179",
+                "countrycode": "GE",
+                "extent": [44.7752337, 41.6959456, 44.7871708, 41.6901511]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [44.7794766, 41.6930402]
+            }
+        }
+    ]
+}

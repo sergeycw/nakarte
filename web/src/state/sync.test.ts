@@ -182,3 +182,80 @@ describe('параметры треков', () => {
         expect(win.location.hash).toBe('#m=10/41.00000/44.00000&l=O');
     });
 });
+
+describe('метка поиска r=', () => {
+    test('Ссылка с меткой: метка в сторе, r= остаётся в адресе', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O&r=41.693040/44.779477/Mtatsminda%20Park');
+        expect(store.getState().placemark).toEqual({ lat: 41.69304, lng: 44.779477, title: 'Mtatsminda Park' });
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&r=41.693040/44.779477/Mtatsminda%20Park');
+    });
+
+    test('новая метка пишется в адрес сразу, снятая — уходит из адреса', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O');
+        store.getState().setPlacemark({ lat: 41.7, lng: 44.8, title: 'Камень' });
+        expect(win.location.hash).toBe(
+            '#m=13/41.69000/44.78000&l=O&r=41.700000/44.800000/%D0%9A%D0%B0%D0%BC%D0%B5%D0%BD%D1%8C',
+        );
+        store.getState().setPlacemark(null);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+
+    test('правка адреса меняет метку, неверная r= метку снимает', () => {
+        const { win, store } = start('m=13/41.69/44.78&l=O');
+        win.navigate('m=13/41.69/44.78&l=O&r=1/2/x');
+        expect(store.getState().placemark).toEqual({ lat: 1, lng: 2, title: 'x' });
+        win.navigate('m=13/41.69/44.78&l=O&r=99/2/x');
+        expect(store.getState().placemark).toBeNull();
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+});
+
+describe('Street View n2= и n=', () => {
+    const PANO = { lat: 41.693, lng: 44.78, heading: 90, pitch: 0, zoom: 1 };
+
+    test('Ссылка с панорамой: режим и запрос окну', () => {
+        const { store, win } = start('m=13/41.69/44.78&l=O&n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+        expect(store.getState().streetView).toEqual({ enabled: true, pano: PANO, request: { view: PANO, seq: 1 } });
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+    });
+
+    test('Старая ссылка n=: в адресе вместо неё n2=', () => {
+        const { store, win } = start('m=13/41.69/44.78&n=41.693000/44.780000/90.0/0.0/1.0&l=O');
+        expect(store.getState().streetView.pano).toEqual(PANO);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+    });
+
+    test('Удалённый провайдер: режим выключен, параметр уходит', () => {
+        const { store, win } = start('m=13/41.69/44.78&l=O&n2=wmc');
+        expect(store.getState().streetView.enabled).toBe(false);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+
+    test('режим пишется сразу, взгляд — не чаще раза в 300 мс, выключение стирает n2=', () => {
+        const { store, win } = start('m=13/41.69/44.78&l=O');
+        store.getState().setStreetViewEnabled(true);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&n2=_g');
+        store.getState().requestPano(PANO);
+        expect(win.location.hash).toContain('n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+        store.getState().setPano({ ...PANO, heading: 120 });
+        store.getState().setPano({ ...PANO, heading: 130 });
+        expect(win.location.hash).toContain('/90.0/');
+        vi.advanceTimersByTime(300);
+        expect(win.location.hash).toContain('n2=_g/g/41.693000/44.780000/130.0/0.0/1.0');
+        store.getState().setPano(null);
+        vi.advanceTimersByTime(300);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O&n2=_g');
+        store.getState().setStreetViewEnabled(false);
+        expect(win.location.hash).toBe('#m=13/41.69000/44.78000&l=O');
+    });
+
+    test('правка адреса открывает и закрывает панораму', () => {
+        const { store, win } = start('m=13/41.69/44.78&l=O');
+        win.navigate('m=13/41.69/44.78&l=O&n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+        expect(store.getState().streetView.request?.view).toEqual(PANO);
+        win.navigate('m=13/41.69/44.78&l=O&n2=_g');
+        expect(store.getState().streetView).toMatchObject({ enabled: true, pano: null });
+        win.navigate('m=13/41.69/44.78&l=O');
+        expect(store.getState().streetView.enabled).toBe(false);
+    });
+});

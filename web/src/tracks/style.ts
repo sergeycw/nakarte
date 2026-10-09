@@ -17,6 +17,8 @@ export const TRACK_LINES = 'tracks';
 export const TRACK_UNROUTED = 'tracks-unrouted';
 export const TRACK_POINTS = 'track-points';
 export const TRACK_LABELS = 'track-labels';
+// отметки расстояния (tracks/ticks.ts): источник собирает карта на целом зуме
+export const TRACK_TICKS = 'track-ticks';
 
 // пометка непроложенного отрезка (решение владельца 2026-10-09: красный пунктир всегда, и вне редактирования)
 export const UNROUTED_COLOR = '#e11d48';
@@ -119,6 +121,8 @@ export function trackSources(
             [TRACK_LINES]: { type: 'geojson', data: { type: 'FeatureCollection', features: lines } },
             [TRACK_UNROUTED]: { type: 'geojson', data: { type: 'FeatureCollection', features: unrouted } },
             [TRACK_POINTS]: { type: 'geojson', data: { type: 'FeatureCollection', features: points } },
+            // данные отметок зависят от зума — их ставит карта (BaseMap); здесь источник пустой, чтобы слой был всегда
+            [TRACK_TICKS]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
         },
         pending,
     };
@@ -144,6 +148,25 @@ export const TRACK_LAYERS: LayerSpecification[] = [
         type: 'line',
         source: TRACK_UNROUTED,
         paint: UNROUTED_PAINT,
+    },
+    // Подпись поперёк линии с отступом от неё (.measure-tick-icon-text старого: padding-left 0.7em, жирный 10 px, белый
+    // ореол); поверх всех подписей и не вытесняет их — отметки разнесены шагом не меньше 15 мм
+    {
+        id: TRACK_TICKS,
+        type: 'symbol',
+        source: TRACK_TICKS,
+        layout: {
+            'text-field': ['get', 'label'],
+            'text-font': ['sans-serif'],
+            'text-size': 11,
+            'text-anchor': 'left',
+            'text-offset': [0.7, 0],
+            'text-rotate': ['get', 'rotate'],
+            'text-rotation-alignment': 'map',
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+        },
+        paint: { 'text-color': '#000', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
     },
     {
         id: TRACK_POINTS,

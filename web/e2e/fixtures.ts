@@ -2,8 +2,12 @@ import { fileURLToPath } from 'node:url';
 import { type BrowserContext, test as base, expect } from '@playwright/test';
 import { makeConfig } from '../src/config.ts';
 import { buildCatalog } from '../src/layers/catalog.ts';
+import { COVERAGE_CODE, COVERAGE_TILES } from '../src/streetview/coverage.ts';
 
 const TILE_FIXTURE = fileURLToPath(new URL('../src/test/tile.png', import.meta.url));
+// сохранённые ответы поисковиков (src/search/fixtures/, 2026-10-09)
+const MAPYCZ_FIXTURE = fileURLToPath(new URL('../src/search/fixtures/mapycz-mtatsminda.json', import.meta.url));
+const PHOTON_FIXTURE = fileURLToPath(new URL('../src/search/fixtures/photon-mtatsminda.json', import.meta.url));
 // адреса прокси и хранилища треков клона — те же, что в сборке (vite build --mode clone)
 export const CORS_PROXY_URL = makeConfig('clone').corsProxyUrl;
 export const TRACKS_STORAGE = makeConfig('clone').tracksStorageServer;
@@ -57,6 +61,68 @@ const WORKER_PRELUDE = `
 `;
 const ENGINE_WORKER = /\/assets\/engine\.worker-[^/]+\.js$/;
 
+// Заглушка Maps JavaScript API (design add-web-search-panoramas, «Тесты»): те же глобальные google.maps, что зовёт
+// src/streetview/google.ts, без сети. Панорамы — в точках STREET_VIEW_PANORAMAS, ближайшая в радиусе; окно — div
+// google-panorama с видом в data-view. Колбэк загрузки — из параметра callback адреса скрипта.
+export const GOOGLE_MAPS_API = 'https://maps.googleapis.com/maps/api/js';
+export const STREET_VIEW_PANORAMAS = [
+    { lat: 41.693, lng: 44.78 },
+    { lat: 41.6935, lng: 44.781 },
+];
+const FAKE_GOOGLE_MAPS = `
+(() => {
+    const panoramas = ${JSON.stringify(STREET_VIEW_PANORAMAS)};
+    class LatLng {
+        constructor(lat, lng) { this.a = lat; this.b = lng; }
+        lat() { return this.a; }
+        lng() { return this.b; }
+    }
+    class StreetViewPanorama {
+        constructor(container) {
+            this.listeners = {};
+            this.position = null;
+            this.pov = { heading: 0, pitch: 0 };
+            this.zoom = 1;
+            this.element = document.createElement('div');
+            this.element.dataset.testid = 'google-panorama';
+            container.append(this.element);
+            window.__panorama = this;
+        }
+        addListener(event, handler) { (this.listeners[event] ||= []).push(handler); }
+        fire(event) { for (const handler of this.listeners[event] || []) handler(); }
+        render() {
+            const p = this.position;
+            this.element.dataset.view = p ? p.lat.toFixed(5) + ',' + p.lng.toFixed(5) + ',' + this.pov.heading : '';
+        }
+        getPosition() { return this.position && new LatLng(this.position.lat, this.position.lng); }
+        setPosition(position) { this.position = position; this.render(); this.fire('position_changed'); }
+        getPov() { return this.pov; }
+        setPov(pov) { this.pov = pov; this.render(); this.fire('pov_changed'); }
+        getZoom() { return this.zoom; }
+        setZoom(zoom) { this.zoom = zoom; }
+        setVisible() {}
+    }
+    class StreetViewService {
+        getPanorama(request, callback) {
+            const { lat, lng } = request.location;
+            const meters = (p) => Math.hypot(p.lat - lat, (p.lng - lng) * Math.cos((lat * Math.PI) / 180)) * 111320;
+            const nearest = panoramas.slice().sort((a, b) => meters(a) - meters(b))[0];
+            const found = nearest && meters(nearest) <= request.radius;
+            setTimeout(() => callback(found ? { location: { latLng: new LatLng(nearest.lat, nearest.lng) } } : null, found ? 'OK' : 'ZERO_RESULTS'));
+        }
+    }
+    window.google = { maps: {
+        StreetViewPanorama,
+        StreetViewService,
+        StreetViewPreference: { NEAREST: 'nearest' },
+        StreetViewStatus: { OK: 'OK' },
+        event: { trigger() {}, clearInstanceListeners() {} },
+    } };
+    const callback = new URL(document.currentScript.src).searchParams.get('callback');
+    window[callback]();
+})();
+`;
+
 function escapeRegExp(text: string) {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -78,6 +144,7 @@ const LAYER_TILES: [code: string, pattern: RegExp][] = [1, 2].flatMap((pixelRati
         (layer.source.tiles ?? []).map((template): [string, RegExp] => [layer.code, templateToRegExp(template)]),
     ),
 );
+LAYER_TILES.push([COVERAGE_CODE, templateToRegExp(COVERAGE_TILES)]);
 const CUSTOM_TILE = new RegExp(`^https://${escapeRegExp(CUSTOM_TILE_HOST)}/`);
 const PROXIED_CUSTOM_TILE = new RegExp(`^${escapeRegExp(CORS_PROXY_URL)}https/${escapeRegExp(CUSTOM_TILE_HOST)}/`);
 
@@ -104,6 +171,11 @@ interface Network {
     cdnRequests: string[];
     // та же сеть для другого контекста браузера (другой пользователь со своим IndexedDB, но общим хранилищем треков)
     attach(context: BrowserContext): Promise<void>;
+    // запросы поиска: mapy.cz через прокси и photon — сохранёнными ответами или заданным статусом
+    searchRequests: string[];
+    searchResponds(service: 'mapycz' | 'photon', response: { status: number }): void;
+    // адреса загрузки Maps JavaScript API (заглушка FAKE_GOOGLE_MAPS)
+    googleApiLoads: string[];
 }
 
 // Сеть теста: localhost — как есть, хранилище треков — в памяти, сервис высот — заглушка, прокси — заданные ответы, тайлы слоёв каталога и
@@ -117,7 +189,13 @@ export const test = base.extend<{ network: Network }>({
             const failing = new Set<string>();
             let customCors = true;
             const proxied = new Map<string, { path?: string; body?: string; status?: number }>();
+            const searchStatus: Record<'mapycz' | 'photon', number> = { mapycz: 200, photon: 200 };
             const network: Network = {
+                searchRequests: [],
+                searchResponds: (service, response) => {
+                    searchStatus[service] = response.status;
+                },
+                googleApiLoads: [],
                 engineLoads: 0,
                 cdnRequests: [],
                 storage: new Map(),
@@ -164,6 +242,27 @@ export const test = base.extend<{ network: Network }>({
                     const cors = {
                         'Access-Control-Allow-Origin': (await route.request().headerValue('origin')) ?? '*',
                     };
+                    if (url.startsWith(GOOGLE_MAPS_API)) {
+                        network.googleApiLoads.push(url);
+                        return route.fulfill({ status: 200, body: FAKE_GOOGLE_MAPS, contentType: 'text/javascript' });
+                    }
+                    const searchService = url.startsWith(`${CORS_PROXY_URL}https/pro.mapy.cz/suggest/`)
+                        ? 'mapycz'
+                        : url.startsWith('https://photon.komoot.io/api/')
+                          ? 'photon'
+                          : null;
+                    if (searchService) {
+                        network.searchRequests.push(url);
+                        const status = searchStatus[searchService];
+                        return status === 200
+                            ? route.fulfill({
+                                  status,
+                                  path: searchService === 'mapycz' ? MAPYCZ_FIXTURE : PHOTON_FIXTURE,
+                                  contentType: 'application/json',
+                                  headers: cors,
+                              })
+                            : route.fulfill({ status, body: 'error', headers: cors });
+                    }
                     if (url.startsWith(`${TRACKS_STORAGE}/track/`)) {
                         const key = url.slice(`${TRACKS_STORAGE}/track/`.length);
                         if (route.request().method() === 'POST') {

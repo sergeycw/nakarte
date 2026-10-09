@@ -16,16 +16,27 @@ import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
+import { SearchBox } from '@/search/SearchBox';
 import { AppStoreContext, useAppStore } from '@/state/context';
+import { parseHash, parseView } from '@/state/hash';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
+import type { StreetViewApi } from '@/streetview/api';
+import { StreetViewContext } from '@/streetview/context';
+import { createStreetView } from '@/streetview/controller';
+import { COVERAGE_CODE, COVERAGE_TITLE } from '@/streetview/coverage';
+import { googleStreetView } from '@/streetview/google';
+import { panoramaHeight, StreetViewPanel } from '@/streetview/StreetViewPanel';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
+import { isTrackParam } from '@/tracks/links';
 import { PointPanel } from '@/tracks/PointPanel';
 import { PointNameDialog } from '@/tracks/TrackDialogs';
 import { TrackList } from '@/tracks/TrackList';
 import { InfoPanel } from './InfoPanel';
 import { BaseMap } from './map/BaseMap';
+import { loadPosition, refreshPosition } from './map/locate';
+import { MapButtons } from './map/MapButtons';
 
 function localStorageOrNull(): Storage | null {
     try {
@@ -36,8 +47,15 @@ function localStorageOrNull(): Storage | null {
     }
 }
 
+// Заход без вида и без треков в адресе — на последнем положении пользователя (moveMapToCurrentLocation старого клиента)
+function startsAtPosition(hash: string): boolean {
+    const params = parseHash(hash);
+    return !parseView(params.get('m')) && ![...params.keys()].some(isTrackParam);
+}
+
 function startStore(): AppStore {
     const [lat, lng] = config.defaultLocation;
+    const position = startsAtPosition(window.location.hash) ? loadPosition(localStorageOrNull()) : null;
     return startAppStore({
         catalog: buildCatalog({
             pixelRatio: window.devicePixelRatio,
@@ -45,7 +63,7 @@ function startStore(): AppStore {
             corsProxyUrl: config.corsProxyUrl,
         }),
         corsProxyUrl: config.corsProxyUrl,
-        defaultView: { lat, lng, zoom: config.defaultZoom },
+        defaultView: { ...(position ?? { lat, lng }), zoom: config.defaultZoom },
         hash: window.location.hash,
         storage: localStorageOrNull(),
     });
@@ -62,19 +80,26 @@ interface AppProps {
     // хранилище автосохранения треков: по умолчанию IndexedDB nakarte-web, null — без сохранения; browser-тесты
     // подставляют своё, чтобы рендеры App в одной странице не видели чужих треков
     autosave?: AutosaveStorage | null;
+    // Street View: по умолчанию Maps JavaScript API Google; browser-тесты подставляют поддельное окно без сети
+    streetView?: StreetViewApi;
 }
 
-// Высота нижней панели (профиль высот) — CSS-переменная на <html>: над панелью встают панели редактора, атрибуция
-// карты и тосты, а тосты Base UI рендерятся в портал вне <main>
+// Высота нижних панелей — CSS-переменные на <html>: над профилем высот встаёт панорама (--profile-inset), над обеими —
+// панели редактора, атрибуция карты и тосты (--bottom-inset), а тосты Base UI рендерятся в портал вне <main>
 function BottomInset() {
-    const open = useAppStore((state) => state.profile !== null);
+    const profile = useAppStore((state) => state.profile !== null);
+    const panorama = useAppStore((state) => state.streetView.enabled && state.streetView.pano !== null);
     useEffect(() => {
         const root = document.documentElement;
-        root.style.setProperty('--bottom-inset', open ? `calc(${PROFILE_HEIGHT} + 0.75rem)` : '0px');
+        const profileInset = profile ? `(${PROFILE_HEIGHT} + 0.75rem)` : '0px';
+        const panoramaInset = panorama ? `(${panoramaHeight(profile)} + 0.75rem)` : '0px';
+        root.style.setProperty('--profile-inset', profile ? `calc${profileInset}` : '0px');
+        root.style.setProperty('--bottom-inset', `calc(${profileInset} + ${panoramaInset})`);
         return () => {
+            root.style.removeProperty('--profile-inset');
             root.style.removeProperty('--bottom-inset');
         };
-    }, [open]);
+    }, [profile, panorama]);
     return null;
 }
 
@@ -97,8 +122,17 @@ export function App({
     writeClipboard,
     router,
     autosave,
+    streetView,
 }: AppProps) {
     const [store] = useState(startStore);
+    const [atPosition] = useState(() => startsAtPosition(window.location.hash));
+    useEffect(() => {
+        if (atPosition) {
+            refreshPosition(navigator.geolocation, localStorageOrNull(), (position) =>
+                store.getState().requestView({ ...position, zoom: config.defaultZoom }),
+            );
+        }
+    }, [atPosition, store]);
     const [autosaveStorage] = useState(() => (autosave === undefined ? indexedDbStorage() : autosave));
     const [restored] = useState(deferred);
     const [trackActions] = useState(() =>
@@ -164,6 +198,9 @@ export function App({
             storage: localStorageOrNull(),
         }),
     );
+    const [streetViewMode] = useState(() =>
+        createStreetView({ store, api: streetView ?? googleStreetView(config.googleMapsApiKey), notify }),
+    );
     const [elevationProfile] = useState(() =>
         createElevationProfile({ store, source: { fetch, url: config.elevationsServer }, notify }),
     );
@@ -185,7 +222,7 @@ export function App({
         toast.add({
             id: `tile-error:${code}`,
             title: 'Map tiles failed to load',
-            description: store.getState().layers.get(code)?.title ?? code,
+            description: code === COVERAGE_CODE ? COVERAGE_TITLE : (store.getState().layers.get(code)?.title ?? code),
             type: 'error',
         });
     }
@@ -195,33 +232,44 @@ export function App({
             <TrackActionsContext value={trackActions}>
                 <RouteEditingContext value={routeEditing}>
                     <ElevationProfileContext value={elevationProfile}>
-                        <BottomInset />
-                        <Toaster>
-                            <main
-                                className="fixed inset-0 overflow-hidden"
-                                // файлы треков можно бросить на карту (onFileDragDrop старого клиента)
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                    event.preventDefault();
-                                    if (event.dataTransfer.files.length) {
-                                        trackActions.openFiles([...event.dataTransfer.files]);
-                                    }
-                                }}
-                            >
-                                <BaseMap onTileError={showTileError} transformRequest={transformRequest} ref={mapRef} />
-                                {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
-                                <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
-                                    <InfoPanel />
-                                    <TrackList />
-                                </div>
-                                <LayerSwitcher />
-                                <EditPanel />
-                                <PointPanel />
-                                <ElevationProfile />
-                                <MapMenu />
-                                <PointNameDialog />
-                            </main>
-                        </Toaster>
+                        <StreetViewContext value={streetViewMode}>
+                            <BottomInset />
+                            <Toaster>
+                                <main
+                                    className="fixed inset-0 overflow-hidden"
+                                    // файлы треков можно бросить на карту (onFileDragDrop старого клиента)
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        if (event.dataTransfer.files.length) {
+                                            trackActions.openFiles([...event.dataTransfer.files]);
+                                        }
+                                    }}
+                                >
+                                    <BaseMap
+                                        onTileError={showTileError}
+                                        transformRequest={transformRequest}
+                                        ref={mapRef}
+                                    >
+                                        <MapButtons notify={notify} storage={localStorageOrNull()} fetch={fetch} />
+                                    </BaseMap>
+                                    {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
+                                    <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
+                                        <InfoPanel>
+                                            <SearchBox sources={{ fetch, corsProxyUrl: config.corsProxyUrl }} />
+                                        </InfoPanel>
+                                        <TrackList />
+                                    </div>
+                                    <LayerSwitcher />
+                                    <EditPanel />
+                                    <PointPanel />
+                                    <ElevationProfile />
+                                    <StreetViewPanel />
+                                    <MapMenu />
+                                    <PointNameDialog />
+                                </main>
+                            </Toaster>
+                        </StreetViewContext>
                     </ElevationProfileContext>
                 </RouteEditingContext>
             </TrackActionsContext>

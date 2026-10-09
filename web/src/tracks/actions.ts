@@ -171,14 +171,15 @@ export function createTrackActions({
         stopPointTool: () => state().setPointTool(null),
         // окно названия точки (Rename в меню точки)
         startRenamePoint: (trackId: string, point: Waypoint) => state().setPointDialog({ trackId, point }),
-        // новая точка с готовым номером; окно названия открывается сразу (createNewPoint старого клиента)
-        addPoint(trackId: string, latlng: LatLng): Waypoint | null {
+        // новая точка с готовым номером или названием метки поиска; окно названия открывается сразу (createNewPoint
+        // старого клиента)
+        addPoint(trackId: string, latlng: LatLng, name?: string): Waypoint | null {
             const track = state().tracks.find((item) => item.id === trackId);
             if (!track) {
                 return null;
             }
             const { lat, lng } = wrapped(latlng);
-            const point: Waypoint = { lat, lng, name: nextPointName(track.points) };
+            const point: Waypoint = { lat, lng, name: name ?? nextPointName(track.points) };
             state().updateTrack(trackId, { points: [...track.points, point] });
             state().setPointDialog({ trackId, point });
             return point;
@@ -275,6 +276,9 @@ export function createTrackActions({
             }
         },
         setColor: (track: Track, color: number) => state().updateTrack(track.id, { color }),
+        // отметки расстояния (switchMeasureTicksVisibility старого)
+        setMeasureTicks: (track: Track, measureTicksShown: boolean) =>
+            state().updateTrack(track.id, { measureTicksShown }),
         saveTrack: (track: Track, format: 'gpx' | 'kml') => save(() => exportTrack(track, format)),
         saveAll: () => save(() => exportZip(state().tracks)),
         // GPX с высотами (спека track-files, «GPX с высотами»): пока идут запросы к API высот, крутится индикатор загрузки
