@@ -11,7 +11,8 @@ import { MapEditor } from '@/routing/MapEditor';
 import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
 import { TRACK_COLORS } from '@/tracks/model';
-import { trackSources } from '@/tracks/style';
+import { TRACK_TICKS, trackSources } from '@/tracks/style';
+import { ticksData } from '@/tracks/ticks';
 import { maplibre } from './maplibre';
 
 interface BaseMapProps {
@@ -37,6 +38,8 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     const routeEdit = useAppStore((state) => state.routeEdit);
     const routeDrag = useAppStore((state) => state.routeDrag);
     const setView = useAppStore((state) => state.setView);
+    // отметки расстояния пересобираются на целом зуме (design add-web-search-panoramas, «Отметки расстояния и линейка»)
+    const ticksZoom = useAppStore((state) => Math.round(state.view.zoom));
     const mapRef = useRef<MapRef | null>(null);
     // react-maplibre отдаёт ссылку, когда карта создана (MapLibre грузится лениво), — после первого рендера,
     // поэтому ссылка наружу — callback-ref, а не useImperativeHandle
@@ -71,12 +74,18 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
         () => editSources(routeEdit, TRACK_COLORS[editColorIndex], routeDrag),
         [routeEdit, editColorIndex, routeDrag],
     );
+    const ticks = useMemo(() => ticksData(tracks, ticksZoom), [tracks, ticksZoom]);
     const mapStyle = useMemo(() => {
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
-        return buildStyle(defs, { ...trackData.sources, ...editData, ...PROFILE_SOURCES });
-    }, [selection, layers, trackData, editData]);
+        return buildStyle(defs, {
+            ...trackData.sources,
+            [TRACK_TICKS]: { type: 'geojson', data: ticks },
+            ...editData,
+            ...PROFILE_SOURCES,
+        });
+    }, [selection, layers, trackData, ticks, editData]);
 
     useEffect(() => {
         if (viewRequest) {

@@ -18,8 +18,8 @@
 
 ## 4. Отметки расстояния и линейка
 
-- [ ] 4.1 `tracks/ticks.ts` (шаг, отметки отрезка, угол); unit-тест `ticks.test.ts` по сценариям спеки; проверка: `npm test` зелёный
-- [ ] 4.2 Источник и слой `track-ticks`, флажок «Show distance marks» в меню трека, «Measure distance» (`newTrack('Ruler')` с отметками); browser-тест — сценарии «Отметки расстояния» и «Линейка»; проверка: `npm test` зелёный
+- [x] 4.1 `tracks/ticks.ts` (шаг, отметки отрезка, угол); unit-тест `ticks.test.ts` по сценариям спеки; проверка: `npm test` зелёный
+- [x] 4.2 Источник и слой `track-ticks`, флажок «Show distance marks» в меню трека, «Measure distance» (`newTrack('Ruler')` с отметками); browser-тест — сценарии «Отметки расстояния» и «Линейка»; проверка: `npm test` зелёный
 
 ## 5. Street View
 

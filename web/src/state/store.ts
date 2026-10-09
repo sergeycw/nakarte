@@ -75,7 +75,9 @@ export interface AppState {
     // точек, указывающие не туда (design add-web-route-editor, «Разметка маршрута в треке»)
     updateTrack(
         id: string,
-        patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points' | 'routes'>>,
+        patch: Partial<
+            Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points' | 'routes' | 'measureTicksShown'>
+        >,
     ): void;
     removeTracks(ids: readonly string[]): void;
     changeLoadingTracks(delta: number): void;

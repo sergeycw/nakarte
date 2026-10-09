@@ -1,5 +1,5 @@
 import { GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
-import { ExternalLinkIcon } from 'lucide-react';
+import { ExternalLinkIcon, RulerIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { config } from '@/config';
+import { useRouteEditing } from '@/routing/editing-context';
 import { useAppStoreApi } from '@/state/context';
 import { EXTERNAL_MAPS, type ExternalMap, externalMapUrl } from './external';
 import { forgetPosition, savePosition } from './locate';
@@ -89,6 +90,22 @@ export interface MapButtonsProps {
     fetch: typeof window.fetch;
 }
 
+// «Measure distance»: трек Ruler с отметками расстояния и сразу рисование (control-ruler.js старого)
+function RulerButton() {
+    const editing = useRouteEditing();
+    return (
+        <button
+            type="button"
+            className="flex! items-center justify-center"
+            aria-label="Measure distance"
+            title="Measure distance"
+            onClick={() => editing.newTrack('Ruler', { measureTicksShown: true })}
+        >
+            <RulerIcon className="size-4" />
+        </button>
+    );
+}
+
 function ExternalMapsButton({ fetch }: { fetch: typeof window.fetch }) {
     const store = useAppStoreApi();
     async function open(map: ExternalMap) {
@@ -151,6 +168,7 @@ export function MapButtons({ notify, storage, fetch, children }: MapButtonsProps
             />
             <ControlPortal className="maplibregl-ctrl-group">
                 {children}
+                <RulerButton />
                 <ExternalMapsButton fetch={fetch} />
             </ControlPortal>
             <ScaleControl position="bottom-left" unit="metric" />

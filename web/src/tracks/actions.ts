@@ -276,6 +276,9 @@ export function createTrackActions({
             }
         },
         setColor: (track: Track, color: number) => state().updateTrack(track.id, { color }),
+        // отметки расстояния (switchMeasureTicksVisibility старого)
+        setMeasureTicks: (track: Track, measureTicksShown: boolean) =>
+            state().updateTrack(track.id, { measureTicksShown }),
         saveTrack: (track: Track, format: 'gpx' | 'kml') => save(() => exportTrack(track, format)),
         saveAll: () => save(() => exportZip(state().tracks)),
         // GPX с высотами (спека track-files, «GPX с высотами»): пока идут запросы к API высот, крутится индикатор загрузки

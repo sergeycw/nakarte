@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     DropdownMenu,
+    DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
@@ -114,6 +115,14 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
                     <DropdownMenuItem onClick={() => actions.reverse(track)}>Reverse</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.remove(track)}>Delete</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => profile.open(track.id)}>Show elevation profile</DropdownMenuItem>
+                    {/* checkbox-пункт Base UI сам меню не закрывает (как RadioItem) */}
+                    <DropdownMenuCheckboxItem
+                        closeOnClick
+                        checked={track.measureTicksShown}
+                        onCheckedChange={(checked) => actions.setMeasureTicks(track, checked)}
+                    >
+                        Show distance marks
+                    </DropdownMenuCheckboxItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.saveTrackWithElevation(track)}>
