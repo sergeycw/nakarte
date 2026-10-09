@@ -22,11 +22,13 @@ test('Панорама найдена', async ({ page, network }) => {
     const panorama = page.getByTestId('google-panorama');
     await expect(panorama).toHaveAttribute('data-view', '41.69300,44.78000,0');
     await expect(page.getByTestId('panorama-marker')).toBeVisible();
-    // пустой ключ сборки — правила режима без ключа на контейнере окна
-    await expect(page.locator('.google-street-view-keyless')).toHaveCount(1);
-    expect(network.googleApiLoads).toEqual([
-        'https://maps.googleapis.com/maps/api/js?v=3&key=&callback=__nakarteGoogleMapsReady',
-    ]);
+    // деплой собирает с ключом из секрета GOOGLE_MAPS_API_KEY и гоняет e2e по этой же сборке: ключ берётся из адреса
+    // загрузки, правила режима без ключа ждутся только при пустом
+    expect(network.googleApiLoads).toHaveLength(1);
+    const api = new URL(network.googleApiLoads[0]);
+    expect(`${api.origin}${api.pathname}`).toBe('https://maps.googleapis.com/maps/api/js');
+    expect(api.searchParams.get('callback')).toBe('__nakarteGoogleMapsReady');
+    await expect(page.locator('.google-street-view-keyless')).toHaveCount(api.searchParams.get('key') ? 0 : 1);
     await expect.poll(() => page.evaluate(() => location.hash)).toContain('n2=_g/g/41.693000/44.780000/0.0/0.0/1.0');
     // взгляд в окне поворачивает метку на карте
     await page.evaluate(() => {

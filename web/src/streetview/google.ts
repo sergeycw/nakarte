@@ -52,6 +52,10 @@ export function googleMapsUrl(key: string): string {
 export class StreetViewUnavailable extends Error {}
 
 let loading: Promise<GMaps> | null = null;
+// скрипт, который не загрузился и не упал за это время, считается упавшим: иначе тоста не будет никогда
+const LOAD_TIMEOUT_MS = 20_000;
+// поиск панорамы без ответа — ошибка API, а не «панорамы нет»
+const SEARCH_TIMEOUT_MS = 10_000;
 
 // Скрипт API один на страницу. Ошибка загрузки сбрасывает промис: следующий клик пробует снова.
 export function loadGoogleMaps(key: string, doc?: Document, win?: GoogleWindow): Promise<GMaps> {
@@ -63,7 +67,9 @@ export function loadGoogleMaps(key: string, doc?: Document, win?: GoogleWindow):
     if (!loading) {
         loading = new Promise<GMaps>((resolve, reject) => {
             const script = d.createElement('script');
+            const timer = setTimeout(() => fail(), LOAD_TIMEOUT_MS);
             const fail = () => {
+                clearTimeout(timer);
                 loading = null;
                 script.remove();
                 reject(new StreetViewUnavailable('Maps JavaScript API failed to load'));
@@ -71,6 +77,7 @@ export function loadGoogleMaps(key: string, doc?: Document, win?: GoogleWindow):
             w[CALLBACK] = () => {
                 const maps = w.google?.maps;
                 if (maps?.StreetViewPanorama) {
+                    clearTimeout(timer);
                     resolve(maps);
                 } else {
                     fail();
@@ -85,9 +92,22 @@ export function loadGoogleMaps(key: string, doc?: Document, win?: GoogleWindow):
     return loading;
 }
 
-// для тестов загрузчика: забыть загруженный скрипт
+// Окно Google одно на страницу (как у старого клиента): уничтожить StreetViewPanorama API не даёт, а новое окно на
+// каждое включение режима копило бы WebGL-сцены (лимит контекстов браузера общий с картой). Окно живёт в своём div,
+// который переходит в контейнер очередной панели; owner — чья панель сейчас владеет окном.
+interface SharedViewer {
+    element: HTMLElement;
+    panorama: GPanorama;
+    owner: object | null;
+    report: (() => void) | null;
+}
+
+let shared: SharedViewer | null = null;
+
+// для тестов загрузчика: забыть загруженный скрипт и окно
 export function resetGoogleMapsLoader() {
     loading = null;
+    shared = null;
 }
 
 function currentView(panorama: GPanorama): PanoView | null {
@@ -111,11 +131,17 @@ export function googleStreetView(key: string): StreetViewApi {
         async findPanorama(at, radius) {
             const maps = await load();
             const service = new maps.StreetViewService();
-            return new Promise((resolve) => {
-                // форма с колбэком: она отдаёт статус явно, а что делает промис на ZERO_RESULTS, справка не говорит
-                service.getPanorama(
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(
+                    () => reject(new StreetViewUnavailable('Street View search timed out')),
+                    SEARCH_TIMEOUT_MS,
+                );
+                // форма с колбэком: она отдаёт статус явно, а что делает промис на ZERO_RESULTS, справка не говорит;
+                // его отказ гасится, чтобы не было «Uncaught (in promise)»
+                const returned = service.getPanorama(
                     { location: at, radius, preference: maps.StreetViewPreference.NEAREST },
                     (data, status) => {
+                        clearTimeout(timer);
                         const latLng = data?.location?.latLng;
                         resolve(
                             status === maps.StreetViewStatus.OK && latLng
@@ -124,42 +150,67 @@ export function googleStreetView(key: string): StreetViewApi {
                         );
                     },
                 );
+                (returned as Promise<unknown> | undefined)?.catch?.(() => {});
             });
         },
 
         async createViewer(container: HTMLElement, { onChange }: StreetViewHandlers): Promise<StreetViewViewer> {
             const maps = await load();
-            // правила режима без ключа — только с пустым ключом (markKeylessContainer старого)
-            container.classList.toggle('google-street-view-keyless', !key);
-            const panorama = new maps.StreetViewPanorama(container, {
-                enableCloseButton: false,
-                imageDateControl: true,
-                motionTracking: false,
-                motionTrackingControl: false,
-                fullscreenControl: false,
-            });
-            let destroyed = false;
-            const report = () => {
-                const view = currentView(panorama);
-                if (view && !destroyed) {
+            if (!shared) {
+                const element = document.createElement('div');
+                element.style.position = 'absolute';
+                element.style.inset = '0';
+                const panorama = new maps.StreetViewPanorama(element, {
+                    enableCloseButton: false,
+                    imageDateControl: true,
+                    motionTracking: false,
+                    motionTrackingControl: false,
+                    fullscreenControl: false,
+                });
+                const viewer: SharedViewer = { element, panorama, owner: null, report: null };
+                for (const event of ['position_changed', 'pov_changed', 'zoom_changed']) {
+                    panorama.addListener(event, () => viewer.report?.());
+                }
+                shared = viewer;
+            }
+            const viewer = shared;
+            const owner = {};
+            viewer.owner = owner;
+            // правила режима без ключа — только с пустым ключом (markKeylessContainer старого); класс — на прямом
+            // родителе .gm-style, как у старого
+            viewer.element.classList.toggle('google-street-view-keyless', !key);
+            container.append(viewer.element);
+            viewer.report = () => {
+                const view = currentView(viewer.panorama);
+                if (view) {
                     onChange(view);
                 }
             };
-            for (const event of ['position_changed', 'pov_changed', 'zoom_changed']) {
-                panorama.addListener(event, report);
-            }
+            const mine = () => viewer.owner === owner;
             return {
                 show(view) {
-                    panorama.setPosition({ lat: view.lat, lng: view.lng });
-                    panorama.setPov({ heading: view.heading, pitch: view.pitch });
-                    panorama.setZoom(view.zoom);
-                    panorama.setVisible(true);
+                    if (!mine()) {
+                        return;
+                    }
+                    viewer.panorama.setPosition({ lat: view.lat, lng: view.lng });
+                    viewer.panorama.setPov({ heading: view.heading, pitch: view.pitch });
+                    viewer.panorama.setZoom(view.zoom);
+                    viewer.panorama.setVisible(true);
                 },
-                resize: () => maps.event.trigger(panorama, 'resize'),
+                resize: () => {
+                    if (mine()) {
+                        maps.event.trigger(viewer.panorama, 'resize');
+                    }
+                },
+                // окно остаётся для следующей панели: спрятано, без слушателя, вне документа
                 destroy() {
-                    destroyed = true;
-                    maps.event.clearInstanceListeners(panorama);
-                    panorama.setVisible(false);
+                    if (!mine()) {
+                        return;
+                    }
+                    viewer.owner = null;
+                    viewer.report = null;
+                    viewer.panorama.setVisible(false);
+                    viewer.element.remove();
                 },
             };
         },

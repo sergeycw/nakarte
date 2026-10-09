@@ -42,7 +42,8 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     const setView = useAppStore((state) => state.setView);
     const streetViewOn = useAppStore((state) => state.streetView.enabled);
     // отметки расстояния пересобираются на целом зуме (design add-web-search-panoramas, «Отметки расстояния и линейка»)
-    const ticksZoom = useAppStore((state) => Math.round(state.view.zoom));
+    // floor, а не round: на дробном зуме шаг считается по меньшему масштабу, отметки не ближе 15 мм
+    const ticksZoom = useAppStore((state) => Math.floor(state.view.zoom));
     const mapRef = useRef<MapRef | null>(null);
     // react-maplibre отдаёт ссылку, когда карта создана (MapLibre грузится лениво), — после первого рендера,
     // поэтому ссылка наружу — callback-ref, а не useImperativeHandle

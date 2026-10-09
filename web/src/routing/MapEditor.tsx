@@ -176,7 +176,7 @@ function trackPointAt(
 
 // Точка в той копии мира, что ближе к опорной (wrapLatLngToTarget старого клиента): MapLibre рисует копии мира, и
 // клик по соседней копии иначе дал бы скачок линии через весь мир
-function nearTo(latlng: LatLng, reference: LatLng | undefined): LatLng {
+export function nearTo(latlng: LatLng, reference: LatLng | undefined): LatLng {
     if (!reference) {
         return latlng;
     }
@@ -591,7 +591,11 @@ function bind(
         }
         // режим Street View: свободный клик ищет панораму, а редактор дальше работает как обычно — как два независимых
         // обработчика клика старого клиента («Street View: режим, клик, окно»)
-        if (state().streetView.enabled && !busy) {
+        // клик по точке трека (меню) или опорной точке занят ими
+        const onPoint =
+            trackPointAt(map, store, event.point) !== null ||
+            (state().routeEdit !== null && waypointAt(map, state().routeEdit as RouteEditState, event.point) !== null);
+        if (state().streetView.enabled && !busy && !onPoint) {
             const at = lngLat(event);
             const edge = map.unproject([event.point.x + PANORAMA_SEARCH_PX, event.point.y]);
             void streetView.searchAt(at, distance(at, { lat: edge.lat, lng: edge.lng }));

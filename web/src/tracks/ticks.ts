@@ -106,8 +106,14 @@ function middleLat(points: readonly LatLng[]): number {
     return (min + max) / 2;
 }
 
-// Отметки видимых треков с measureTicksShown на целом зуме MapLibre; масштаб — по середине границ отрезка
+const NO_TICKS: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
+
+// Отметки видимых треков с measureTicksShown на целом зуме MapLibre; масштаб — по середине границ отрезка. Без отметок —
+// один и тот же пустой объект: стиль карты не пересобирается на каждом шаге зума
 export function ticksData(tracks: readonly Track[], zoom: number): FeatureCollection<Point> {
+    if (!tracks.some((track) => track.visible && track.measureTicksShown)) {
+        return NO_TICKS;
+    }
     const features: Feature<Point>[] = [];
     for (const track of tracks) {
         if (!track.visible || !track.measureTicksShown) {
@@ -126,5 +132,5 @@ export function ticksData(tracks: readonly Track[], zoom: number): FeatureCollec
             }
         }
     }
-    return { type: 'FeatureCollection', features };
+    return features.length ? { type: 'FeatureCollection', features } : NO_TICKS;
 }

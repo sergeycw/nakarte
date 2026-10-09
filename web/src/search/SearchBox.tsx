@@ -49,6 +49,8 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
             return;
         }
         const seq = request.current.seq;
+        // прежние результаты сразу убираются: иначе Enter в паузе ввода выбрал бы ответ на старый запрос
+        setShown({ kind: 'loading' });
         const run = async () => {
             const abort = new AbortController();
             request.current.abort = abort;

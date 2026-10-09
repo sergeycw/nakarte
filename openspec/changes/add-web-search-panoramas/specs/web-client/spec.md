@@ -18,7 +18,7 @@
 
 ### Requirement: Где я
 
-Кнопка геолокации SHALL запрашивать положение у браузера, показывать на карте точку с кругом точности, переводить к ней карту и следовать за положением, пока пользователь не сдвинет карту; повторное нажатие возвращает к положению, следующее — выключает. Ошибка SHALL давать тост: `Your browser does not support geolocation.`, `Geolocation is blocked for this site. Please, enable in browser setting.`, `Failed to acquire position for unknown reason.` или `Geolocation error: <текст>`.
+Кнопка геолокации SHALL запрашивать положение у браузера, показывать на карте точку с кругом точности, переводить к ней карту и следовать за положением, пока пользователь не сдвинет карту; повторное нажатие возвращает к положению, следующее — выключает. Ошибка запроса SHALL давать тост: `Geolocation is blocked for this site. Please, enable in browser setting.`, `Failed to acquire position for unknown reason.` или `Geolocation error: <текст>`.
 
 #### Scenario: Положение получено
 
@@ -29,6 +29,15 @@
 
 - **WHEN** пользователь нажимает кнопку, а браузер отказал в доступе
 - **THEN** появляется тост `Geolocation is blocked for this site. Please, enable in browser setting.`
+
+### Requirement: Геолокация недоступна
+
+Если в браузере нет геолокации или доступ к ней для сайта уже запрещён, кнопка геолокации SHALL быть неактивной с подсказкой `Location not available`.
+
+#### Scenario: Доступ запрещён раньше
+
+- **WHEN** доступ к геолокации для сайта уже запрещён, и пользователь открывает приложение
+- **THEN** кнопка геолокации неактивна, при наведении — `Location not available`
 
 ### Requirement: Последнее положение при заходе
 

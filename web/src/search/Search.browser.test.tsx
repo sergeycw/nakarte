@@ -122,6 +122,55 @@ describe('Поиск по названию', () => {
     });
 });
 
+describe('Устаревшие ответы', () => {
+    test('Ответ на устаревший запрос отбрасывается', async () => {
+        // первый запрос отвечает позже второго
+        let releaseFirst!: () => void;
+        const firstAnswered = new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+        });
+        const requests: string[] = [];
+        const fetchFn: typeof fetch = async (input) => {
+            const url = String(input);
+            requests.push(url);
+            if (url.includes('phrase=mtatsminda')) {
+                await firstAnswered;
+                return json(mapyczJson);
+            }
+            return json({
+                result: [
+                    {
+                        userData: {
+                            suggestFirstRow: 'Rustaveli',
+                            suggestSecondRow: 'Avenue',
+                            latitude: 41.7,
+                            longitude: 44.79,
+                        },
+                    },
+                ],
+            });
+        };
+        await render('', fetchFn);
+        await searchField().fill('mtatsminda');
+        await expect.poll(() => requests).toHaveLength(1);
+        await searchField().fill('rustaveli');
+        await expect.poll(optionTitles).toEqual(['Rustaveli']);
+        releaseFirst();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        expect(optionTitles()).toEqual(['Rustaveli']);
+    });
+
+    test('Enter в паузе ввода не выбирает результат прежнего запроса', async () => {
+        const net = searchNetwork({ mapy: () => json(mapyczJson) });
+        await render('', net.fetch);
+        await searchField().fill('mtatsminda');
+        await expect.poll(optionTitles).toHaveLength(5);
+        await searchField().fill('mtatsminda park');
+        await userEvent.keyboard('{Enter}');
+        await expect.element(placemark()).not.toBeInTheDocument();
+    });
+});
+
 describe('Поиск по координатам и ссылкам', () => {
     test('Координаты с полушариями', async () => {
         const net = searchNetwork();
@@ -204,7 +253,8 @@ describe('Выбор результата поиска', () => {
         await expect.poll(optionTitles).toHaveLength(2);
         await userEvent.keyboard('{Escape}');
         await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
-        await expect.element(searchField()).not.toHaveFocus();
+        // фокус — карте (escapePressed → setFocusToMap старого)
+        await expect.poll(() => document.activeElement?.classList.contains('maplibregl-canvas')).toBe(true);
     });
 });
 
@@ -244,6 +294,15 @@ describe('Метка найденного места', () => {
         await placemark().click();
         await expect.poll(() => waypoints(map)).toHaveLength(2);
         expect(near(waypoints(map)[1], P(41.691, 44.783))).toBe(true);
+        await expect.element(placemark()).not.toBeInTheDocument();
+    });
+});
+
+describe('Клик по метке вне постановки точек и рисования', () => {
+    test('уходит карте: метка снимается, как клик мимо неё у старого клиента', async () => {
+        await render(MARK);
+        await placemark().click();
+        await expect.element(placemark()).not.toBeInTheDocument();
     });
 });
 

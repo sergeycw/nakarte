@@ -2,13 +2,14 @@ import { Marker } from '@vis.gl/react-maplibre';
 import { MapPinIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { useRouteEditing } from '@/routing/editing-context';
+import { nearTo } from '@/routing/MapEditor';
 import { useAppStore, useAppStoreApi } from '@/state/context';
 import { useTrackActions } from '@/tracks/actions-context';
 
 // Метка найденного места на карте (design add-web-search-panoramas, «Метка»): булавка и название. Клик по карте мимо
-// метки её снимает (MapEditor.onClick). Клик по метке до карты не доходит: родные события элемента гасятся здесь —
-// обработчик React опоздал бы, React слушает корень приложения, а карта — свой контейнер внутри него. Клик при постановке
-// точки трека ставит точку с названием метки (suggestedPoint старого клиента), при рисовании — опорную точку.
+// метки её снимает (MapEditor.onClick). Клик по метке при постановке точки трека ставит точку с названием метки
+// (suggestedPoint старого клиента), при рисовании — опорную точку; тогда родные события элемента гасятся здесь, до
+// карты (обработчик React опоздал бы: React слушает корень приложения, а карта — свой контейнер внутри него).
 export function PlacemarkOnMap() {
     const placemark = useAppStore((state) => state.placemark);
     const store = useAppStoreApi();
@@ -20,21 +21,32 @@ export function PlacemarkOnMap() {
             if (!node) {
                 return;
             }
-            const stop = (event: Event) => event.stopPropagation();
+            // метка обслуживает только постановку точки трека и рисование; в остальных режимах клик уходит карте, как
+            // у старого клиента (клик по метке — клик карты): снимает метку, ищет панораму, переносит точку
+            const ours = () => {
+                const state = store.getState();
+                return state.pointTool?.kind === 'add' || Boolean(state.routeEdit?.drawing);
+            };
+            const stop = (event: Event) => {
+                if (ours()) {
+                    event.stopPropagation();
+                }
+            };
             const onClick = (event: Event) => {
-                event.stopPropagation();
                 const state = store.getState();
                 const mark = state.placemark;
-                if (!mark) {
+                if (!mark || !ours()) {
                     return;
                 }
+                event.stopPropagation();
                 const latlng = { lat: mark.lat, lng: mark.lng };
+                const edit = state.routeEdit;
                 if (state.pointTool?.kind === 'add') {
                     actions.addPoint(state.pointTool.trackId, latlng, mark.title);
-                } else if (state.routeEdit?.drawing) {
-                    editing.click(latlng);
-                } else {
-                    return;
+                } else if (edit?.drawing) {
+                    // ближняя к линии копия мира, как у клика по карте
+                    const anchor = edit.drawing === 'end' ? edit.line.waypoints.at(-1) : edit.line.waypoints[0];
+                    editing.click(nearTo(latlng, anchor));
                 }
                 state.setPlacemark(null);
             };

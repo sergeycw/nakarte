@@ -218,6 +218,31 @@ describe('Street View в адресе', () => {
     });
 });
 
+describe('Street View в ссылке', () => {
+    test('Copy link сохраняет n2=', async () => {
+        let copied: string | null = null;
+        const nktk = saveNktk({ name: 'Walk', segments: [[P(41.69, 44.776), P(41.692, 44.784)]], points: [] });
+        await render(`&nktk=${nktk}&n2=_g/g/41.693000/44.780000/90.0/0.0/1.0`, {
+            fetch: async () => new Response('', { status: 200 }),
+            writeClipboard: async (text) => {
+                copied = await text;
+            },
+        });
+        await expect.element(panorama()).toBeVisible();
+        await page.getByRole('button', { name: 'Actions for Walk' }).click();
+        await page.getByRole('menuitem', { name: 'Copy link for track', exact: true }).click();
+        await expect.poll(() => copied).toContain('n2=_g/g/41.693000/44.780000/90.0/0.0/1.0');
+    });
+
+    test('клик по точке трека открывает её меню и панораму не ищет', async () => {
+        const { map } = await render('&nktp=41.6925/44.7795/Spring');
+        await button().click();
+        await click(map, P(41.6925, 44.7795));
+        await expect.element(page.getByTestId('map-menu')).toBeVisible();
+        expect(street.searches).toEqual([]);
+    });
+});
+
 describe('Maps JavaScript API по требованию', () => {
     test('Режим без панорамы', async () => {
         await render();

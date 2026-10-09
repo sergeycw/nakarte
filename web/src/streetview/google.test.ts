@@ -30,6 +30,7 @@ class FakePanorama {
     listeners = new Map<string, () => void>();
     options: Record<string, unknown>;
     constructor(_container: unknown, options: Record<string, unknown>) {
+        FakePanorama.created += 1;
         this.options = options;
         FakePanorama.last = this;
     }
@@ -53,6 +54,7 @@ class FakePanorama {
     }
     setZoom(zoom: number) {
         this.zoom = zoom;
+        this.listeners.get('zoom_changed')?.();
     }
     setVisible(visible: boolean) {
         this.visible = visible;
@@ -60,6 +62,7 @@ class FakePanorama {
     addListener(event: string, handler: () => void) {
         this.listeners.set(event, handler);
     }
+    static created = 0;
 }
 
 function fakeMaps(found: { lat: number; lng: number } | null) {
@@ -105,6 +108,16 @@ describe('загрузка Maps JavaScript API', () => {
         expect(await second).toBe(await first);
     });
 
+    it('скрипт не ответил за 20 с — ошибка', async () => {
+        vi.useFakeTimers();
+        const { doc } = fakeDocument();
+        const loading = loadGoogleMaps('', doc, {} as never);
+        const result = expect(loading).rejects.toThrow('failed to load');
+        await vi.advanceTimersByTimeAsync(20_000);
+        await result;
+        vi.useRealTimers();
+    });
+
     it('ошибка загрузки — исключение, следующая попытка — новый скрипт', async () => {
         const { doc, scripts } = fakeDocument();
         const win = {} as Record<string, unknown>;
@@ -142,25 +155,68 @@ describe('Street View на Google', () => {
     it('окно: класс режима без ключа, вид, события, destroy', async () => {
         const fake = fakeMaps(null);
         vi.stubGlobal('window', { google: { maps: fake.maps } });
-        const classes = new Set<string>();
-        const container = {
-            classList: { toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)) },
-        } as unknown as HTMLElement;
+        vi.stubGlobal('document', { createElement: () => fakeElement() });
+        const container = { append: vi.fn() } as unknown as HTMLElement;
         const changes: unknown[] = [];
         const viewer = await googleStreetView('').createViewer(container, { onChange: (view) => changes.push(view) });
-        expect(classes.has('google-street-view-keyless')).toBe(true);
+        const element = (container.append as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(element.classList.contains('google-street-view-keyless')).toBe(true);
         expect(FakePanorama.last.options).toMatchObject({ imageDateControl: true, motionTracking: false });
         viewer.show({ lat: 41.693, lng: 44.78, heading: 90, pitch: 5, zoom: 2 });
-        expect(FakePanorama.last.zoom).toBe(2);
-        expect(changes.at(-1)).toEqual({ lat: 41.693, lng: 44.78, heading: 90, pitch: 5, zoom: 1 });
+        expect(changes.at(-1)).toEqual({ lat: 41.693, lng: 44.78, heading: 90, pitch: 5, zoom: 2 });
         viewer.destroy();
+        expect(element.remove).toHaveBeenCalled();
         FakePanorama.last.setPov({ heading: 10, pitch: 0 });
         expect(changes.at(-1)).toMatchObject({ heading: 90 });
-        expect(fake.maps.event.clearInstanceListeners).toHaveBeenCalled();
         expect(FakePanorama.last.visible).toBe(false);
+    });
 
-        const keyed = await googleStreetView('AIza').createViewer(container, { onChange: () => {} });
-        expect(classes.has('google-street-view-keyless')).toBe(false);
-        keyed.destroy();
+    it('окно одно на страницу: новое включение режима берёт прежнее, старый владелец его не трогает', async () => {
+        vi.stubGlobal('window', { google: { maps: fakeMaps(null).maps } });
+        vi.stubGlobal('document', { createElement: () => fakeElement() });
+        const created = FakePanorama.created;
+        const api = googleStreetView('AIza');
+        const first = await api.createViewer({ append: vi.fn() } as unknown as HTMLElement, { onChange: () => {} });
+        const secondChanges: unknown[] = [];
+        const secondContainer = { append: vi.fn() } as unknown as HTMLElement;
+        const second = await api.createViewer(secondContainer, { onChange: (view) => secondChanges.push(view) });
+        expect(FakePanorama.created - created).toBe(1);
+        const element = (secondContainer.append as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(element.classList.contains('google-street-view-keyless')).toBe(false);
+        // устаревший владелец (StrictMode, выключенный режим) окно не прячет и не двигает
+        first.destroy();
+        first.show({ lat: 1, lng: 1, heading: 0, pitch: 0, zoom: 1 });
+        expect(element.remove).not.toHaveBeenCalled();
+        second.show({ lat: 2, lng: 2, heading: 0, pitch: 0, zoom: 1 });
+        expect(secondChanges.at(-1)).toMatchObject({ lat: 2, lng: 2 });
+    });
+
+    it('поиск без ответа — ошибка по таймауту', async () => {
+        vi.useFakeTimers();
+        const maps = {
+            ...fakeMaps(null).maps,
+            StreetViewService: class {
+                getPanorama() {}
+            },
+        };
+        vi.stubGlobal('window', { google: { maps } });
+        const search = googleStreetView('').findPanorama({ lat: 1, lng: 1 }, 30);
+        const result = expect(search).rejects.toThrow('timed out');
+        await vi.advanceTimersByTimeAsync(10_000);
+        await result;
+        vi.useRealTimers();
     });
 });
+
+// div окна: только то, что трогает google.ts
+function fakeElement() {
+    const classes = new Set<string>();
+    return {
+        style: {},
+        remove: vi.fn(),
+        classList: {
+            toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)),
+            contains: (name: string) => classes.has(name),
+        },
+    };
+}
