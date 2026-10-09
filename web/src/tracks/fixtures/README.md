@@ -13,4 +13,4 @@
 
 ## `services/` — ответы сервисов импорта
 
-Записаны `curl` 2026-10-08 на ссылки из `test/track_load_data/testcases/` (копия ожиданий — `services/expected/`): `osm-{id}.gpx` — `openstreetmap.org/trace/{id}/data` после редиректа (у `3376095`, `3376097`, `33761000` — `404`), `sportstracker-{id}-{data,combined}.json` — `api.sports-tracker.com/apiserver/v1/workouts/{id}/…`, `tracedetrail-*.html` — страница трека, урезанная до строк, которые читает импорт (`<title>`, `geometry:`, тексты удалённого и приватного трека).
+Записаны `curl` 2026-10-08 на ссылки из `test/track_load_data/testcases/` (копия ожиданий — `services/expected/`; случаи tracedetrail из старого клиента удалены 2026-10-09, копия здесь — единственная): `osm-{id}.gpx` — `openstreetmap.org/trace/{id}/data` после редиректа (у `3376095`, `3376097`, `33761000` — `404`), `sportstracker-{id}-{data,combined}.json` — `api.sports-tracker.com/apiserver/v1/workouts/{id}/…`, `tracedetrail-*.html` — страница трека, урезанная до строк, которые читает импорт (`<title>`, `geometry:`, тексты удалённого и приватного трека).
