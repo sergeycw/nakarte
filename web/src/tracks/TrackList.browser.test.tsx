@@ -1,4 +1,4 @@
-import type { FeatureCollection, MultiLineString } from 'geojson';
+import type { FeatureCollection, LineString } from 'geojson';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
@@ -64,8 +64,9 @@ function sourceData<T extends FeatureCollection>(map: MaplibreMap, id: string): 
     return (source.serialize() as { data: T }).data.features;
 }
 
+// фичи линий треков: по одной на отрезок трека (без разметки маршрута)
 function lines(map: MaplibreMap) {
-    return sourceData<FeatureCollection<MultiLineString>>(map, TRACK_LINES);
+    return sourceData<FeatureCollection<LineString>>(map, TRACK_LINES);
 }
 
 function points(map: MaplibreMap) {
@@ -94,7 +95,8 @@ describe('Список треков поверх карты', () => {
         await expect.element(row.getByRole('button', { name: 'Equator' })).toBeVisible();
         await expect.element(row.getByTestId('track-length')).toHaveTextContent('12.3 km');
         await expect.element(row.getByRole('checkbox', { name: 'Show Equator' })).toBeChecked();
-        await expect.poll(() => lines(map)).toHaveLength(1);
+        // по фиче на отрезок
+        await expect.poll(() => lines(map)).toHaveLength(2);
     });
 
     test('Показать трек целиком', async () => {
@@ -167,11 +169,11 @@ describe('Действия с треком', () => {
     test('Развернуть', async () => {
         const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
         await expect.poll(() => lines(map)).toHaveLength(1);
-        const before = lines(map)[0].geometry.coordinates[0];
+        const before = lines(map)[0].geometry.coordinates;
         const length = rows().first().getByTestId('track-length');
         const lengthBefore = length.element().textContent;
         await trackMenu('A', 'Reverse');
-        await expect.poll(() => lines(map)[0].geometry.coordinates[0]).toEqual([...before].reverse());
+        await expect.poll(() => lines(map)[0].geometry.coordinates).toEqual([...before].reverse());
         expect(length.element().textContent).toBe(lengthBefore);
     });
 
@@ -209,7 +211,8 @@ describe('Действия со списком', () => {
         );
         await listMenu('Create new track from all visible tracks');
         await expect.element(rows()).toHaveLength(4);
-        await expect.poll(() => lines(map).at(-1)?.geometry.coordinates).toHaveLength(2);
+        // A, B и два отрезка нового трека
+        await expect.poll(() => lines(map)).toHaveLength(4);
         await expect.poll(() => points(map)).toHaveLength(2);
     });
 
@@ -221,6 +224,9 @@ describe('Действия со списком', () => {
         await page.getByRole('button', { name: 'New track' }).first().click();
         await expect.element(page.getByRole('button', { name: 'Plan' })).toBeVisible();
         await expect.element(page.getByRole('textbox', { name: 'Track URL' })).toHaveValue('');
+        // прежний новый трек без точек ушёл, когда началось рисование следующего (спека route-editing,
+        // «Пустой новый трек»)
+        await expect.element(rows()).toHaveLength(1);
     });
 });
 

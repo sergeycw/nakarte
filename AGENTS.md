@@ -52,6 +52,8 @@
 
 Треки — `web/src/tracks/` (решения и замеры — архив change `add-web-tracks`, поведение — спеки `tracks` и `track-files`): парсеры файлов — чистые функции от байтов в `parsers/`, строки `nktk` — `nktk.ts`, параметры адреса `nktk`/`nktl`/`nktu`/`nktp`/`nktj` — `links.ts`, импорт по ссылке — `import-url.ts`, ссылка `nktl` — `share.ts`, действия списка без React — `actions.ts`, слои треков на карте — `style.ts`. Откуда фикстуры и эталоны старого клиента — `src/tracks/fixtures/README.md`.
 
+Редактор маршрута — `web/src/routing/` (решения и замеры — архив change `add-web-route-editor`, поведение — спеки `routing` и `route-editing`): запрос и ответ BRouter — `brouter.ts`, движок или сервер за одним интерфейсом — `router.ts`, выбор активности — `activity.ts`, модель линии и разметка в треке (`TrackData.routes`, номера опорных точек) — `line.ts`, правки, запросы и история без карты — `editor.ts`, связь со стором — `editing.ts`, слои редактора — `edit-style.ts`, события карты — `MapEditor.tsx`. Cut, Join, Shortcut и точки трека — change `add-web-line-tools`.
+
 Тесты: unit (`*.test.ts`, Node) и browser mode (`*.browser.test.ts[x]`, Chromium) — `npm test`; e2e — `npm run build && npm run e2e` против `vite preview`. Тайлы любых слоёв — фикстура `src/test/tile.png`: в browser mode через проп `transformRequest` у `App` (`src/test/tiles.ts`), в e2e — по регуляркам из того же каталога (`e2e/fixtures.ts`); запрос мимо `localhost` и подменённых тайлов валит тест. Названия тестов совпадают со сценариями спеки.
 
 Подвохи:
@@ -75,6 +77,10 @@
 - Параметры треков стираются из адреса сразу после чтения (`src/state/sync.ts`): в тестах «прочие параметры остаются на местах» брать `p=`, а не `nktl=`.
 - e2e собирается как Node-модуль (`nodenext`) и не импортирует `src/tracks/*` (относительные импорты без расширений): готовые строки `nktk` — константой в тесте.
 - «Copy link» в browser-тестах — через проп `writeClipboard` у `App`; в e2e буфер обмена работает после `context.grantPermissions(['clipboard-read', 'clipboard-write'])`.
+- Фикстура `network` в `e2e/fixtures.ts` — `auto: true`: фикстура Playwright ленивая, и тест без `network` в аргументах шёл бы без перехвата, в настоящую сеть.
+- `importScripts` воркера движка `context.route` перехватывает не всегда: воркер успевает загрузить настоящий CheerpJ с CDN. В e2e заглушка CheerpJ встаёт в сам скрипт воркера (`engine.worker-*.js` запрашивает страница); запрос к CDN валит тест.
+- Пункт `RadioItem` меню Base UI по умолчанию не закрывает меню — `closeOnClick`.
+- Мышь в browser-тестах редактора — синтетические события на холсте по `map.project` (`clientX`/`clientY` целые, сравнение с допуском), перед кликом — `idle` карты: иначе `queryRenderedFeatures` не видит только что добавленные точки. Ломаная из ссылки или файла упрощается, точка на прямой между соседями пропадает — в фикстурах линии с изломом.
 - Воркер движка классический (загрузчик CheerpJ — только `importScripts`), а Vite в dev отдаёт воркер без сборки: любой `import` в нём падает, после `import type` Vite оставляет `export {}`. Поэтому в `engine.worker.ts` импортов нет, типы сообщений — глобальные (`src/engine/protocol.d.ts`), обвязка CheerpJ повторена в `cheerpj-router.ts`: правка одной — правка обеих.
 
 ## Где код роутинга

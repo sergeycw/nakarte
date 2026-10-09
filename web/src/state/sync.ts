@@ -1,6 +1,7 @@
 import type { LayerDef } from '@/layers/catalog';
 import { formatLayersParam, parseLayersParam } from '@/layers/selection';
 import { loadSettings, saveSettings } from '@/layers/settings';
+import { loadActivity } from '@/routing/activity';
 import { isTrackParam, type TrackParam } from '@/tracks/links';
 import { formatHash, formatView, parseHash, parseView, type View, withParam } from './hash';
 import { type AppStore, createAppStore } from './store';
@@ -36,6 +37,7 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
         // последний выбор — только если адрес не задаёт годный l= (ниже)
         selection: settings.selection ?? { base: '', overlays: [] },
         view: parseView(params.get('m')) ?? defaultView,
+        routingActivity: loadActivity(storage),
     });
     const parsed = parseLayersParam(params.get('l'), new Map(catalog.map((layer) => [layer.code, layer])));
     if (parsed) {

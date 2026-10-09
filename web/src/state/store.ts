@@ -3,6 +3,8 @@ import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
 import { type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
+import type { End } from '@/routing/editor';
+import type { RouteLine } from '@/routing/line';
 import type { Bounds } from '@/tracks/geometry';
 import { type GeoData, TRACK_COLORS, type Track } from '@/tracks/model';
 import type { View } from './hash';
@@ -30,6 +32,13 @@ export interface AppState {
     loadingTracks: number;
     // ссылка на треки, которую не удалось положить в буфер обмена: показывается окном
     sharedLink: string | null;
+    // прокладка (design add-web-route-editor, «Связь со стором и картой»): выбранная активность или null («Off»),
+    // жив ли роутер (красная кнопка), редактируемая линия и номер перетаскиваемой опорной точки — то, что рисует
+    // карта. Само превью перетаскивания и резинку карта рисует в обход стора (routing/MapEditor.tsx).
+    routingActivity: string | null;
+    routerReachable: boolean;
+    routeEdit: RouteEditState | null;
+    routeDrag: number | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -44,10 +53,29 @@ export interface AppState {
     requestBounds(bounds: Bounds): void;
     // данные уже подготовлены prepareImport (линии упрощены); возвращает добавленные треки
     addTracks(data: readonly GeoData[]): Track[];
-    updateTrack(id: string, patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points'>>): void;
+    // новые segments без routes сбрасывают разметку маршрута: правка, которая о ней не знает, не оставит номера опорных
+    // точек, указывающие не туда (design add-web-route-editor, «Разметка маршрута в треке»)
+    updateTrack(
+        id: string,
+        patch: Partial<Pick<Track, 'name' | 'color' | 'visible' | 'segments' | 'points' | 'routes'>>,
+    ): void;
     removeTracks(ids: readonly string[]): void;
     changeLoadingTracks(delta: number): void;
     setSharedLink(link: string | null): void;
+    setRoutingActivity(id: string | null): void;
+    setRouterReachable(reachable: boolean): void;
+    setRouteEdit(edit: RouteEditState | null): void;
+    setRouteDrag(index: number | null): void;
+}
+
+export interface RouteEditState {
+    trackId: string;
+    segment: number;
+    line: RouteLine;
+    // рисование: новые точки ставятся кликом к этому концу линии
+    drawing: End | null;
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -58,6 +86,7 @@ export interface AppStoreInit {
     settings: LayerSettings;
     selection: Selection;
     view: View;
+    routingActivity?: string | null;
 }
 
 function layersMap(catalog: readonly LayerDef[], custom: readonly string[], corsProxyUrl: string) {
@@ -101,6 +130,10 @@ export function createAppStore(init: AppStoreInit): AppStore {
             nextColor: 0,
             loadingTracks: 0,
             sharedLink: null,
+            routingActivity: init.routingActivity ?? null,
+            routerReachable: true,
+            routeEdit: null,
+            routeDrag: null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -204,19 +237,28 @@ export function createAppStore(init: AppStoreInit): AppStore {
                         color: color as number,
                         visible: !item.hidden,
                         measureTicksShown: item.measureTicksShown ?? false,
+                        ...(item.routes ? { routes: item.routes } : {}),
                     };
                 });
                 set({ tracks: [...get().tracks, ...added], nextColor });
                 return added;
             },
 
-            updateTrack: (id, patch) =>
-                set({ tracks: get().tracks.map((track) => (track.id === id ? { ...track, ...patch } : track)) }),
+            updateTrack: (id, patch) => {
+                const reset = 'segments' in patch && !('routes' in patch) ? { routes: undefined } : {};
+                set({
+                    tracks: get().tracks.map((track) => (track.id === id ? { ...track, ...reset, ...patch } : track)),
+                });
+            },
 
             removeTracks: (ids) => set({ tracks: get().tracks.filter((track) => !ids.includes(track.id)) }),
 
             changeLoadingTracks: (delta) => set({ loadingTracks: get().loadingTracks + delta }),
             setSharedLink: (sharedLink) => set({ sharedLink }),
+            setRoutingActivity: (routingActivity) => set({ routingActivity }),
+            setRouterReachable: (routerReachable) => set({ routerReachable }),
+            setRouteEdit: (routeEdit) => set({ routeEdit }),
+            setRouteDrag: (routeDrag) => set({ routeDrag }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();
