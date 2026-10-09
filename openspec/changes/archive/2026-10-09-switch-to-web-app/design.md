@@ -2,7 +2,7 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md), поведение — спеки change. План перехода и что удаляется — [ресёрч, п. 5–7](../../research/new-ui.md#последствия-удаления); решения владельца — архивы [record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md) («Переключение без новой подложки», «Сессии: только автосохранение», «Тени рельефа из AWS Terrain Tiles, тайлы высот выводятся»). Сборка нового приложения на `/next/` — [add-web-skeleton](../archive/2026-10-08-add-web-skeleton/design.md#сборка-base-next-outdir-buildnext), ключи и базы нового приложения — [add-web-autosave](../archive/2026-10-09-add-web-autosave/design.md#автосохранение-структура-в-indexeddb-а-не-строка-nktk-агент), ключ Google — [add-web-search-panoramas](../archive/2026-10-09-add-web-search-panoramas/design.md#maps-javascript-api-и-ключ).
+Зачем — [proposal](proposal.md), поведение — спеки change. План перехода и что удаляется — [ресёрч, п. 5–7](../../../research/new-ui.md#последствия-удаления); решения владельца — архивы [record-ui-decisions](../2026-10-08-record-ui-decisions/design.md) и [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md) («Переключение без новой подложки», «Сессии: только автосохранение», «Тени рельефа из AWS Terrain Tiles, тайлы высот выводятся»). Сборка нового приложения на `/next/` — [add-web-skeleton](../2026-10-08-add-web-skeleton/design.md#сборка-base-next-outdir-buildnext), ключи и базы нового приложения — [add-web-autosave](../2026-10-09-add-web-autosave/design.md#автосохранение-структура-в-indexeddb-а-не-строка-nktk-агент), ключ Google — [add-web-search-panoramas](../2026-10-09-add-web-search-panoramas/design.md#maps-javascript-api-и-ключ).
 
 Что выяснилось при чтении кода (`master` `015be89`, 2026-10-09):
 
@@ -123,3 +123,13 @@
 4. Следом — change `retire-old-client-services`.
 
 ## Проверки
+
+Прод после merge sergeycw/nakarte#117 (`fca9888`), 2026-10-09; Playwright 1.64, Chromium headless, `https://nakarte-routing.pages.dev`.
+
+- `deploy pages` выкатил всё (менялся сам workflow): Worker'ы, Pages, `prune` — зелёные. Job `smoke` первым прогоном упал на `site` (`title nakarte.me`) и `site next redirect` (`200`): он стартует через секунды после публикации и попал на прежнюю версию сайта; через минуту прод отвечал новой, перезапуск упавшего job'а — 10/10 `ok`. Гонка видна только на переключении: заголовок `/` дальше не меняется. Подвох — в `AGENTS.md`.
+- `/` — заголовок `nakarte routing`; `/next/` — `302` с `Location: https://nakarte-routing.pages.dev/`; `/next/#m=13/42.68490/47.07008&l=O` в браузере → `/#m=13/42.68490/47.07008&l=O`; `/next/engine-bench.html` → `/engine-bench` (Pages убирают `.html` редиректом `308`), заголовок `engine bench`.
+- Старые ссылки фикстуры `old-links.txt` — 60 из 60 открываются на `/`, исключений страницы нет.
+- Сессия старого клиента: в чистом контексте запись в базу `sessions` (схема старого клиента) до первого захода приложения → на `/` трек сессии в списке.
+- Движок на `/`: «Hiking», две опорные точки в Тбилиси — отрезок проложен по тропам за ≈ 10 с с холодного старта (1.68 км против ≈ 0.9 км прямой), 11 Range-запросов к `/tiles/*.rd5`, тостов и исключений нет.
+- Скриншоты `/` на компьютере (1440×900) и Pixel 7 — `vite preview` сборки клона с настоящими тайлами OSM; отправлены владельцу.
+

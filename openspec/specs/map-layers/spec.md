@@ -72,7 +72,7 @@
 
 #### Scenario: Перезагрузка без l=
 
-- **WHEN** пользователь включил подложку «ESRI Satellite» и оверлей «Relief shading», затем открыл `/next/` без параметров
+- **WHEN** пользователь включил подложку «ESRI Satellite» и оверлей «Relief shading», затем открыл `/` без параметров
 - **THEN** включены ESRI Satellite и Relief shading
 
 ### Requirement: Настройки старого клиента
