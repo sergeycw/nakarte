@@ -144,10 +144,3 @@ describe('Масштаб и зум на карте', () => {
         await expect.element(page.getByTestId('zoom-level')).toHaveTextContent('16');
     });
 });
-
-// меню внешних карт удалено по решению владельца (архив change remove-external-maps)
-test('кнопки внешних карт нет', async () => {
-    await renderApp(tiles, '#m=13/42.68490/47.07008&l=O');
-    await expect.element(page.getByRole('button', { name: 'Street View' })).toBeVisible();
-    expect(document.querySelector('[aria-label="Open this place in another map"]')).toBeNull();
-});

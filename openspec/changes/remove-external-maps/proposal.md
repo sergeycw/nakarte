@@ -19,7 +19,7 @@
 ### Modified Capabilities
 
 - `web-client`: удалено «Открыть место на другой карте».
-- `clone-hosting`: «Свой сервис высот» — без внешних карт.
+- `clone-hosting`: «Свой сервис высот» и «Без слоёв mapy.cz» — без внешних карт.
 
 ## Impact
 
