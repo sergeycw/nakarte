@@ -1,4 +1,3 @@
-/* eslint camelcase: ["error", {"allow": ["namespace_id"]}] */
 import {cloudflareTest} from '@cloudflare/vitest-pool-workers';
 import {readFileSync, readdirSync} from 'node:fs';
 import {defineConfig} from 'vitest/config';

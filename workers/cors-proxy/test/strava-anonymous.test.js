@@ -3,7 +3,6 @@
 import {describe, expect, it} from 'vitest';
 
 // import/extensions требует `.js`, а no-useless-path-segments — `../src` без index.js: правила спорят
-// eslint-disable-next-line import/no-useless-path-segments
 import worker from '../src/index.js';
 import {anonymousTileUrl} from '../src/strava.js';
 
