@@ -40,7 +40,7 @@
 - Изменения в `track-list.js` и том, что он импортирует, HMR не подхватывает: после правки нужна полная перезагрузка страницы.
 - Линт `npm run lint:code` проверяет и `workers/`, и `functions/`: для них в `.eslintrc.js` отдельный override (ES-модули, глобалы рантайма Workers).
 - Corepack при запуске `yarn` дописывает в `package.json` поле `packageManager`. Его нужно откатывать: случайная правка, не относящаяся к задаче.
-- Тесты karma `test_track_load.js` ходят в живые сервисы через свой прокси (`config.CORSProxyUrl`), поэтому `http://localhost:9876` есть в `ALLOWED_ORIGINS` прокси. Strava, Garmin Connect и Wikiloc из них убраны: сервисы режут запросы не из браузера (backlog, «Отложено»). Один файл: `NODE_ENV=testing npx karma start --single-run --browsers ChromeHeadless test/karma.conf.js --glob ./test/test_track_load.js`.
+- Тесты karma `test_track_load.js` ходят в живые сервисы через свой прокси (`config.CORSProxyUrl`), поэтому `http://localhost:9876` есть в `ALLOWED_ORIGINS` прокси. Strava, Garmin Connect и Wikiloc из них убраны: сервисы режут запросы не из браузера (backlog, «Отложено»). Tracedetrail убран 2026-10-09: через прокси он пускает ≈ 3 запроса подряд, потом ≈ 30 с отвечает `429`, а 5 его случаев с повторами без паузы в ChromeHeadless так не проходили; сценарии остались в тестах нового приложения на фикстурах (`web/src/tracks/fixtures/services/`). Один файл: `NODE_ENV=testing npx karma start --single-run --browsers ChromeHeadless test/karma.conf.js --glob ./test/test_track_load.js`.
 
 ## Новое приложение (`web/`)
 
