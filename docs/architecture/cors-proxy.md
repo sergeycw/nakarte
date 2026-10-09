@@ -2,7 +2,7 @@
 
 Уровень выше: [общая схема](README.md#общая-схема), блок ④.
 
-Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`viaCorsProxy` в [catalog.ts](../../web/src/layers/catalog.ts): `https://host/…` → `<прокси>https/host/…`), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам ([sources.ts](../../web/src/tracks/sources.ts), `proxied`), поиск mapy.cz ([mapycz.ts](../../web/src/search/mapycz.ts)) и раскрытие коротких ссылок ([links.ts](../../web/src/search/links.ts)), слои Tsvetkov (`Mt`) и Strava heatmap, свои слои с флагом прокси. Маршрут `/wikimapia/` и растеризацию слоёв для печати использовал старый клиент; в приложении `web/` их нет, `/wikimapia/` уходит в change `retire-old-client-services`.
+Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`viaCorsProxy` в [catalog.ts](../../web/src/layers/catalog.ts): `https://host/…` → `<прокси>https/host/…`), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам ([sources.ts](../../web/src/tracks/sources.ts), `proxied`), поиск mapy.cz ([mapycz.ts](../../web/src/search/mapycz.ts)) и раскрытие коротких ссылок ([links.ts](../../web/src/search/links.ts)), слои Tsvetkov (`Mt`) и Strava heatmap, свои слои с флагом прокси. В общий лимит слоёв (`LAYER_HOSTS`, 1200 в минуту) попадают только хосты слоёв, которые приложение шлёт через прокси: Strava heatmap `content-*.strava.com` и Tsvetkov `maptiles.website.yandexcloud.net`. Маршрут `/wikimapia/` старого клиента убран change [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md) и отвечает `404`, как любой путь не по формату.
 
 Поведение — спека [cors-proxy](../../openspec/specs/cors-proxy/spec.md); лимиты — [protection.md](protection.md).
 
@@ -10,9 +10,9 @@ Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) п
 
 ```mermaid
 flowchart TD
-    req["Запрос /{https|http}/{host}/{path}<br/>или /wikimapia/…"]
+    req["Запрос /{https|http}/{host}/{path}"]
     origin{"Origin или Referer<br/>в ALLOWED_ORIGINS?"}
-    role{"хост цели в LAYER_HOSTS<br/>(или цель не разобралась)?"}
+    role{"хост цели в LAYER_HOSTS: Strava heatmap, Tsvetkov<br/>(или цель не разобралась)?"}
     rate{"RATE_LIMITER (1200)<br/>по CF-Connecting-IP"}
     other{"OTHER_RATE_LIMITER (300)<br/>по CF-Connecting-IP"}
     options{"OPTIONS?"}
@@ -52,7 +52,7 @@ flowchart TD
     send --> resp
 ```
 
-Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET`, зачем пересылается `User-Agent` и откуда origin karma `localhost:9876` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md).
+Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET` и зачем пересылается `User-Agent` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md); `User-Agent` после ухода Wikimapia нужен коротким ссылкам mapy.com. Почему в `ALLOWED_ORIGINS` dev-сервер приложения (8769) и `vite preview` (4173) вместо origin старого клиента и karma — design [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md).
 
 ## Куки Strava heatmap
 

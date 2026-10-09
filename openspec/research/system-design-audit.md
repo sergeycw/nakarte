@@ -68,7 +68,7 @@
 
 | Бакет | Объектов | Объём | Ключи и формат | Как обновляется |
 |---|---|---|---|---|
-| `nakarte-elevation` | 26 158 | 16.9 ГБ | `dem3/N43E042` — заголовок `NKE1` ([format.rs](../../workers/elevation/core/src/format.rs)); `tiles/elevation-z0-9` — заголовок `NKT1`, плотный индекс ([archive.rs](../../workers/elevation/core/src/archive.rs)) | вручную, S3 API ([ci-cd.md](../../docs/architecture/ci-cd.md)) |
+| `nakarte-elevation` | 26 158 | 16.9 ГБ | `dem3/N43E042` — заголовок `NKE1` ([format.rs](../../workers/elevation/core/src/format.rs)); `tiles/elevation-z0-9` — заголовок `NKT1`, плотный индекс ([archive.rs](https://github.com/sergeycw/nakarte/blob/68ab4954/workers/elevation/core/src/archive.rs)) | вручную, S3 API ([ci-cd.md](../../docs/architecture/ci-cd.md)) |
 | `nakarte-tiles` | 1 143 | 10.0 ГБ | `<имя>.rd5` как у brouter.de, `manifest.json` (`lookupsSha256`, версия тайла = дата и размер из индекса brouter.de) | по понедельникам, `wrangler r2 object put` поверх старого ([brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs)) |
 | `nakarte-tracks` | 3 | 172 байта | `tracks/{key}`, тело — `nktk` (версия — первый байт строки) | запись из Worker'а, без метаданных |
 

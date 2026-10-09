@@ -124,7 +124,7 @@
 |---|---|---|---|---|
 | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), Terrarium | до z15 | $0, AWS Open Data | `*` | атрибуция по [списку](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) |
 | [Mapterhorn](https://mapterhorn.com/data-access), Terrarium WebP 512 px | z12 планета, z13–17 регионами | $0 | `*` | условия хостинга не опубликованы |
-| Наши тайлы высот ([elevation-tiles](../specs/elevation-tiles/spec.md)) | z11, 3″ | $0 сверху, но формат не картинка: перекодировать в Terrarium (`addProtocol` или новый путь Worker'а) | свой | мыльно на крупных масштабах; z10–11 считаются на лету без бюджета чтений R2 (P2 в backlog) |
+| Наши тайлы высот ([add-elevation-tiles](../changes/archive/2026-10-07-add-elevation-tiles/design.md), выведены в `retire-old-client-services`) | z11, 3″ | $0 сверху, но формат не картинка: перекодировать в Terrarium (`addProtocol` или новый путь Worker'а) | свой | мыльно на крупных масштабах; z10–11 считаются на лету без бюджета чтений R2 (P2 в backlog) |
 
 Сейчас подложка по умолчанию — первый слой списка, растровый OpenStreetMap `tile.openstreetmap.org` (выбор первого базового слоя — [layers.configure](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.control.layers.configure/index.js)); на момент переключения она такой и останется (решение владельца).
 
@@ -263,6 +263,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | 7 | [`add-web-elevation-profile`](../changes/archive/2026-10-09-add-web-elevation-profile/design.md) — сделан | профиль высот, GPX с высотами | 1–2 |
 | 8 | [`add-web-search-panoramas`](../changes/archive/2026-10-09-add-web-search-panoramas/design.md) — сделан | поиск, метка `r=`, Street View, внешние карты, геолокация, линейка | 2–3 |
 | 9 | [`switch-to-web-app`](../changes/archive/2026-10-09-switch-to-web-app/design.md) — сделан | после changes 1–8 и 6б: новое приложение на `/` с OSM по умолчанию, удаление старого клиента, karma, webpack, `main.yml`; спеки и `docs/architecture`; вывод тайлов высот | 1–2 |
+| 9б | `retire-old-client-services` | вторая половина change 9: тайлы высот Worker'а высот, маршрут прокси `/wikimapia/`, порты старого клиента и karma в `ALLOWED_ORIGINS` (вместо них 8769 и 4173) | 0.5 |
 | 10 | `add-outdoor-basemap` | туристическая подложка по умолчанию: Tracestrack Topo через прокси или свой стиль на OpenFreeMap (по ответу владельца); закрывает пункт backlog про слой как у MapMagic | 1–5 |
 | 11 | `polish-web-ui` | полировка интерфейса после всех фронтовых changes (просьба владельца 2026-10-08): агент собирает промпт для Claude Design — экраны, компоненты shadcn, тема, ограничения (только светлая тема, телефон 390×844, карта под панелями) и скриншоты текущего вида; по ответу — правки вёрстки | 1–2 |
 

@@ -59,7 +59,6 @@ flowchart LR
 
     sync["brouter tiles sync<br/>brouter-tiles-sync.mjs"]
     edata["elevation data<br/>elevation-data.sh"]
-    etiles["elevation tiles<br/>elevation-tiles.sh"]
     scheck["strava heatmap check"]
     pcheck["prod check<br/>scripts/prod-check.sh"]
     cron4(["cron 05:40 UTC ежедневно,<br/>после деплоя"])
@@ -75,20 +74,17 @@ flowchart LR
     cron2 --> sync
     manual -->|"only = тайлы"| sync
     manual -->|"zips"| edata
-    manual -->|"bbox"| etiles
     cron3 --> scheck
     manual --> scheck
     brouterde -->|"индекс, *.rd5"| sync
     sync -->|"S3 API: *.rd5, manifest.json"| r2tiles
     vfp -->|"zip HGT"| edata
     edata -->|"S3 API: dem3/*"| r2elev
-    r2elev -->|"S3 API: dem3/*"| etiles
-    etiles -->|"S3 API: tiles/elevation-z0-9"| r2elev
     scheck -->|"GET тайла heatmap,<br/>X-Strava-Cookies = session?"| proxy
     scheck -.-> mail
     cron4 --> pcheck
     manual --> pcheck
-    pcheck -->|"только чтение: / с заголовком приложения,<br/>/next/ — 3xx на /, Range, точка высоты,<br/>тайлы высот, 404 трека, preflight прокси"| own
+    pcheck -->|"только чтение: / с заголовком приложения,<br/>/next/ — 3xx на /, Range, точка высоты,<br/>404 трека, preflight прокси"| own
     pcheck -.-> mail
 ```
 
@@ -101,11 +97,10 @@ flowchart LR
 | `deploy pages` | push в `master` (изменённые сервисы), вручную (всё) | тесты сервиса, сборка `web/` и деплой; после Pages — удаление старых деплоев Pages и `prod check` (job `smoke`) | Pages, Worker'ы |
 | `brouter tiles sync` | понедельник 04:00 UTC, вручную | инкрементальная синхронизация тайлов | R2 `nakarte-tiles` |
 | `elevation data` | вручную | перепаковка HGT в `dem3/*` | R2 `nakarte-elevation` |
-| `elevation tiles` | вручную, после обновления `dem3/` | архив тайлов z0–9 | R2 `nakarte-elevation` |
 | `strava heatmap check` | ежедневно 05:17 UTC, вручную | тайл heatmap через прокси, падает без `session` | — |
 | `prod check` | ежедневно 05:40 UTC, после деплоя (job `smoke`), вручную | `scripts/prod-check.sh`: приложение на `/`, редирект `/next/` на `/`, свои сервисы клона отвечают; только чтение | — |
 
-Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены форком условием `github.repository == 'sergeycw/nakarte'`.
+Workflow `elevation tiles` (архив тайлов высот z0–9) удалён вместе с тайлами высот — [elevation.md](elevation.md#тайлы-высот-выведены). Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены форком условием `github.repository == 'sergeycw/nakarte'`.
 
 ## Секреты
 
@@ -114,11 +109,11 @@ flowchart LR
 | `CLOUDFLARE_API_TOKEN` | GitHub | шаги `wrangler` и `prune` в `deploy pages` | Account API token «nakarte deploy»: Pages Write, Editor на `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard`; без R2 |
 | `CLOUDFLARE_ACCOUNT_ID` | GitHub | шаги `wrangler` и `prune` в `deploy pages` | — |
 | `GOOGLE_MAPS_API_KEY` | GitHub, необязательный | шаг `web build` в `deploy pages`, переменная `VITE_GOOGLE_MAPS_API_KEY`; без секрета — пустой ключ, режим без ключа | ограничения ключа в Google Cloud (ключ попадает в бандл) |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | GitHub | `elevation data`, `elevation tiles`, `brouter tiles sync` (S3 API R2) | Bucket Item Write на `nakarte-elevation` и `nakarte-tiles` |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | GitHub | `elevation data`, `brouter tiles sync` (S3 API R2) | Bucket Item Write на `nakarte-elevation` и `nakarte-tiles` |
 | `STRAVA_SESSION`, `STRAVA_COOKIES` | секреты Worker'а `nakarte-cors-proxy` | прокси ([cors-proxy.md](cors-proxy.md)) | — |
 
 Секреты передаются только шагам, которые их используют (`env` шага, а не job'а): установка зависимостей, тесты и сборка идут без них. Во всех workflow действия закреплены полным SHA, `wrangler` в шагах с токеном — точной версией из переменной `WRANGLER` (requirement «Секреты только у шагов публикации», [clone-deploy](../../openspec/specs/clone-deploy/spec.md)). Все секреты заводит владелец, агент токены не вводит. Права токенов и порядок заведения — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare) и [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation); утечка и сужение прав — [security-аудит](../../openspec/research/security-audit.md), п. 5 и «Шаги владельца».
 
 ## Сверено по
 
-[.github/workflows/](../../.github/workflows/) (все тринадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [scripts/prod-check.sh](../../scripts/prod-check.sh), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [web/vite/engine-files.ts](../../web/vite/engine-files.ts), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+[.github/workflows/](../../.github/workflows/) (все двенадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [scripts/prod-check.sh](../../scripts/prod-check.sh), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [web/vite/engine-files.ts](../../web/vite/engine-files.ts), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
