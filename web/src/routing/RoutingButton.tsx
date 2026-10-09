@@ -30,7 +30,8 @@ export function RoutingButton() {
     const engineStatus = useSyncExternalStore(editing.subscribeEngine, editing.engineStatus);
     const activity = getActivity(activityId);
     const loading = activity !== null && engineStatus === 'loading';
-    const down = activity !== null && !reachable;
+    // движок, упавший на прогреве, — тоже «роутер недоступен», не дожидаясь первого маршрута
+    const down = activity !== null && (!reachable || engineStatus === 'failed');
 
     let title = 'Routing is off: lines are straight';
     if (activity && down) {

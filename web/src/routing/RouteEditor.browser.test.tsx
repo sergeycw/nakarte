@@ -361,7 +361,12 @@ describe('Меню активностей', () => {
     test('Движок в браузере не запустился', async () => {
         const router = fakeRouter({ status: 'failed' });
         await render(VIEW, router, 'hiking');
+        // кнопка красная сразу, без маршрута и без открытия меню
+        await expect.element(page.getByRole('button', { name: /^Routing/ })).toHaveAttribute('data-state', 'down');
         await page.getByRole('button', { name: /^Routing/ }).click();
+        await expect
+            .element(page.getByRole('menuitem', { name: 'BRouter is not running, start it with yarn local' }))
+            .toBeVisible();
         // открытие меню перепроверяет живость: кнопка красная, подсказка говорит, что делать
         await expect
             .element(page.getByRole('button', { name: /^Routing: Hiking\. BRouter/ }))
