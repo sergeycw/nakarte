@@ -56,22 +56,22 @@
 
 ### Requirement: Откат подложки Tracestrack на OpenStreetMap
 
-Если тайл подложки Tracestrack Topo не загрузился с любым ответом, кроме `404`, или без ответа, приложение SHALL переключить подложку на OpenStreetMap, оставить оверлеи и показать один тост `Tracestrack Topo is unavailable` с пояснением `Switched to OpenStreetMap` вместо тоста ошибки тайлов. Откат SHALL NOT менять сохранённый выбор: следующий заход без `l=` снова начинается с Tracestrack Topo.
+Если тайл подложки Tracestrack Topo не загрузился с любым ответом, кроме `404`, или без ответа, приложение SHALL показать вместо неё OpenStreetMap, оставить оверлеи и показать один тост `Tracestrack Topo is unavailable` с пояснением `Switched to OpenStreetMap` вместо тоста ошибки тайлов. Откат SHALL NOT менять выбор: в `l=` и в сохранённом выборе остаётся Tracestrack Topo, перезагрузка и следующий заход снова пробуют её.
 
 #### Scenario: Нет ключа или квоты
 
 - **WHEN** открыта подложка Tracestrack Topo, а прокси отвечает на её тайлы `503` или `403`
-- **THEN** карта показывает OpenStreetMap с прежними оверлеями, в адресе `l=O`, виден тост `Tracestrack Topo is unavailable`, тоста `Map tiles failed to load` нет
+- **THEN** карта показывает OpenStreetMap с прежними оверлеями, в адресе остаётся `l=Tt` с оверлеями, виден тост `Tracestrack Topo is unavailable`, тоста `Map tiles failed to load` нет
 
 #### Scenario: Следующий заход после отката
 
-- **WHEN** после отката пользователь открывает `/` без параметров
-- **THEN** включена подложка Tracestrack Topo
+- **WHEN** после отката пользователь перезагружает вкладку или открывает `/` без параметров
+- **THEN** приложение снова запрашивает тайлы Tracestrack Topo
 
 #### Scenario: Выбор после отката
 
-- **WHEN** после отката пользователь сам выбирает подложку «ESRI Satellite» и открывает `/` без параметров
-- **THEN** включена ESRI Satellite
+- **WHEN** после отката пользователь сам выбирает подложку «ESRI Satellite» (или «OpenStreetMap», или открывает ссылку с `l=O`) и открывает `/` без параметров
+- **THEN** включена выбранная подложка
 
 #### Scenario: Тайла нет
 

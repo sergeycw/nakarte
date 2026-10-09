@@ -26,7 +26,7 @@ flowchart TD
     strava{"тайл heatmap<br/>content-*.strava.com/identified/globalheat/?"}
     cookies["heatmapCookie: куки и их источник"]
     send["fetch(target) методом GET, без тела, redirect manual<br/>заголовки: accept, accept-language,<br/>content-type, range, user-agent (+ cookie)"]
-    resp["Ответ клиенту: без set-cookie,<br/>с CORS, Location переписан на прокси,<br/>X-Strava-Cookies для тайлов heatmap,<br/>у тайлов Tracestrack — Location без key,<br/>Cache-Control сутки, если своего нет,<br/>на HEAD — без тела"]
+    resp["Ответ клиенту: без set-cookie,<br/>с CORS, Location переписан на прокси,<br/>X-Strava-Cookies для тайлов heatmap,<br/>у тайлов Tracestrack — заголовки по белому списку,<br/>Location без key, своё тело ошибки,<br/>Cache-Control сутки, если своего нет,<br/>на HEAD — без тела"]
     r403["403 Forbidden"]
     r429["429, Retry-After: 60"]
     r204["204 preflight<br/>GET, HEAD, OPTIONS"]
@@ -64,7 +64,7 @@ flowchart TD
 
 ## Ключ Tracestrack
 
-Подложка по умолчанию приложения — растр Tracestrack Topo, тайлы которого отдаются только по ключу API. Ключ — секрет `TRACESTRACK_KEY` Worker'а, клиент его не знает: адрес слоя в [catalog.ts](../../web/src/layers/catalog.ts) — без `key`, прокси подставляет его только в растровые тайлы `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)), чтобы с поддельным `Origin` через прокси нельзя было тратить квоту на векторные тайлы и API по 6 кредитов. Без секрета прокси отвечает `503`, приложение откатывается на OpenStreetMap с тостом; так же — на `403` и `429` Tracestrack (ключ отклонён, квота, лимит). Проверка ключа — ежедневный workflow `tracestrack check` ([ci-cd.md](ci-cd.md)). Решения и шаги владельца — design [add-outdoor-basemap](../../openspec/changes/add-outdoor-basemap/design.md); поведение — спеки [cors-proxy](../../openspec/specs/cors-proxy/spec.md) («Ключ Tracestrack») и [map-layers](../../openspec/specs/map-layers/spec.md) («Откат подложки Tracestrack на OpenStreetMap»).
+Подложка по умолчанию приложения — растр Tracestrack Topo, тайлы которого отдаются только по ключу API. Ключ — секрет `TRACESTRACK_KEY` Worker'а, клиент его не знает: адрес слоя в [catalog.ts](../../web/src/layers/catalog.ts) — без `key`, прокси подставляет его только в растровые тайлы `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)), чтобы с поддельным `Origin` через прокси нельзя было тратить квоту на векторные тайлы и API по 6 кредитов. В ответ клиенту ключ не попадает: заголовки тайла — по белому списку, `Location` — без `key`, тело ошибки Tracestrack заменяется своим. Без секрета прокси отвечает `503`, приложение откатывается на OpenStreetMap с тостом; так же — на `403` и `429` Tracestrack (ключ отклонён, квота, лимит). Проверка ключа — ежедневный workflow `tracestrack check` ([ci-cd.md](ci-cd.md)). Решения и шаги владельца — design [add-outdoor-basemap](../../openspec/changes/add-outdoor-basemap/design.md); поведение — спеки [cors-proxy](../../openspec/specs/cors-proxy/spec.md) («Ключ Tracestrack») и [map-layers](../../openspec/specs/map-layers/spec.md) («Откат подложки Tracestrack на OpenStreetMap»).
 
 ## Куки Strava heatmap
 
