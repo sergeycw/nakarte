@@ -2,7 +2,7 @@
 
 ## Why
 
-Владелец 2026-10-09 (по скриншоту меню в сессии change `polish-web-ui`): меню «Open this place in» с семью сторонними картами — лишняя функция. Её перенёс change 8 ([add-web-search-panoramas](../archive/2026-10-09-add-web-search-panoramas/design.md#внешние-карты)) как функцию старого клиента; неиспользуемый код в форке удаляется, а не прячется (`AGENTS.md`, «Апстрим»).
+Владелец 2026-10-09 (по скриншоту меню в сессии change `polish-web-ui`): меню «Open this place in» с семью сторонними картами — лишняя функция. Её перенёс change 8 ([add-web-search-panoramas](../2026-10-09-add-web-search-panoramas/design.md#внешние-карты)) как функцию старого клиента; неиспользуемый код в форке удаляется, а не прячется (`AGENTS.md`, «Апстрим»).
 
 ## What Changes
 
