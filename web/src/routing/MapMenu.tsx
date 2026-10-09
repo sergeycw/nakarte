@@ -7,6 +7,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { useElevationProfile } from '@/elevation/context';
 import { useAppStore } from '@/state/context';
 import type { MapMenu as MapMenuState, RouteEditState } from '@/state/store';
 import { useTrackActions } from '@/tracks/actions-context';
@@ -23,6 +24,7 @@ type Item = { text: string; run: () => void } | '-';
 function useItems(menu: MapMenuState, edit: RouteEditState | null): { label?: string; items: Item[] } {
     const editing = useRouteEditing();
     const actions = useTrackActions();
+    const profile = useElevationProfile();
     const { target } = menu;
     if (target.kind === 'point') {
         const { trackId, point } = target;
@@ -42,6 +44,8 @@ function useItems(menu: MapMenuState, edit: RouteEditState | null): { label?: st
     const segment: Item[] = [
         { text: 'Delete segment', run: editing.deleteSegment },
         { text: 'New track from segment', run: editing.newTrackFromSegment },
+        // профиль отрезка; редактирование продолжается (design add-web-elevation-profile, «Профиль следует за треком»)
+        { text: 'Show elevation profile for segment', run: () => profile.open(edit.trackId, edit.segment) },
     ];
     if (target.kind === 'line') {
         const place: LinePlace = target.place;

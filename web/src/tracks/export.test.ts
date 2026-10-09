@@ -39,7 +39,10 @@ describe('экспорт → импорт', () => {
             ...track,
             routes: [{ waypoints: [0, 1], legs: [{ state: 'routed', activity: 'hiking' }] }, null],
         };
-        expect(exportTrack(routed, format).content).toBe(exportTrack(track, format).content);
+        // время создания в metadata GPX у двух вызовов может разойтись на миллисекунду
+        const content = (data: TrackData) =>
+            String(exportTrack(data, format).content).replace(/<time>[^<]*<\/time>/u, '');
+        expect(content(routed)).toBe(content(track));
         expect(reparse(exportTrack(routed, format).content, `t.${format}`)[0].routes).toBeUndefined();
     });
 

@@ -3,6 +3,7 @@ import { type ComponentProps, createRef } from 'react';
 import { expect } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { App } from '@/App';
+import { PROFILE_LAYERS } from '@/elevation/style';
 import { EDIT_LAYERS } from '@/routing/edit-style';
 import { TRACK_LAYERS } from '@/tracks/style';
 import { memoryAutosave } from './memory-autosave';
@@ -41,9 +42,12 @@ export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderO
     return { screen, map: mapRef.current!.getMap() };
 }
 
-const ALWAYS_THERE = new Set(['background', ...[...TRACK_LAYERS, ...EDIT_LAYERS].map((layer) => layer.id)]);
+const ALWAYS_THERE = new Set([
+    'background',
+    ...[...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS].map((layer) => layer.id),
+]);
 
-// id слоёв карты снизу вверх, без серого фона, слоёв треков и редактора (они есть всегда, layers/style.ts)
+// id слоёв карты снизу вверх, без серого фона, слоёв профиля высот, треков и редактора (они есть всегда, layers/style.ts)
 export function mapLayerIds(map: { getStyle(): { layers: { id: string }[] } }) {
     return map
         .getStyle()
