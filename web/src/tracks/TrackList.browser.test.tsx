@@ -224,6 +224,9 @@ describe('Действия со списком', () => {
         await page.getByRole('button', { name: 'New track' }).first().click();
         await expect.element(page.getByRole('button', { name: 'Plan' })).toBeVisible();
         await expect.element(page.getByRole('textbox', { name: 'Track URL' })).toHaveValue('');
+        // прежний новый трек без точек ушёл, когда началось рисование следующего (спека route-editing,
+        // «Пустой новый трек»)
+        await expect.element(rows()).toHaveLength(1);
     });
 });
 

@@ -77,9 +77,11 @@ export function RoutingButton() {
                         value={activity?.id ?? OFF}
                         onValueChange={(value) => editing.setActivity(value === OFF ? null : String(value))}
                     >
-                        <DropdownMenuRadioItem value={OFF}>Off: straight lines</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value={OFF} closeOnClick>
+                            Off: straight lines
+                        </DropdownMenuRadioItem>
                         {ACTIVITIES.map((item) => (
-                            <DropdownMenuRadioItem key={item.id} value={item.id}>
+                            <DropdownMenuRadioItem key={item.id} value={item.id} closeOnClick>
                                 {item.title}
                             </DropdownMenuRadioItem>
                         ))}

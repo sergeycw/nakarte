@@ -15,6 +15,7 @@ const NO_NETWORK: typeof fetch = async (input) => {
 interface RenderOptions {
     fetch?: typeof fetch;
     writeClipboard?: ComponentProps<typeof App>['writeClipboard'];
+    router?: ComponentProps<typeof App>['router'];
 }
 
 // App с подменёнными тайлами и готовой картой. hash — адрес страницы до старта приложения (m=, l= …).
@@ -27,6 +28,7 @@ export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderO
             mapRef={mapRef}
             fetch={options.fetch ?? NO_NETWORK}
             writeClipboard={options.writeClipboard}
+            router={options.router}
         />,
     );
     await expect.poll(() => mapRef.current?.getMap().loaded(), { timeout: 10_000 }).toBe(true);
