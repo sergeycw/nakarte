@@ -12,7 +12,7 @@
 
 ## 3. Мониторинг и документы
 
-- [ ] 3.1 `.github/workflows/tracestrack-check.yml` по образцу `strava-heatmap-check.yml`: `200 image/*` — зелёный, `503` — `::warning::`, остальное — красный; проверка: `actionlint`, ручной прогон после деплоя (до ключа — предупреждение)
+- [x] 3.1 `.github/workflows/tracestrack-check.yml` по образцу `strava-heatmap-check.yml`: `200 image/*` — зелёный, `503` — `::warning::`, остальное — красный; проверка: `actionlint`, ручной прогон после деплоя (до ключа — предупреждение)
 - [x] 3.2 `AGENTS.md` (слой по умолчанию, ключ Tracestrack, подвох с сохранённым выбором), `docs/architecture/` (`cors-proxy.md`, `client.md`, `ci-cd.md`, `decisions.md`), `openspec/backlog.md` (пункт MapMagic закрыт, кеш и защита тайлов Tracestrack, свой стиль на OpenFreeMap), ресёрч («Вопросы владельцу» закрыт); проверка: скрипт ссылок — все файлы и разделы существуют
 - [x] 3.3 `openspec validate --all --strict`
 
@@ -20,6 +20,6 @@
 
 - [x] 4.1 Скриншоты `/` на компьютере и Pixel 7 (headless Playwright против `vite preview`, тайлы Tracestrack — `context.route`), отправить владельцу
 - [x] 4.2 Независимое ревью диффа субагентом, исправления
-- [ ] 4.3 PR в `master`, все проверки `pass` на последнем коммите, merge
-- [ ] 4.4 После деплоя: `prod check`, `tracestrack check` (до ключа — предупреждение), `/` на проде без ключа — OSM с тостом отката, `l=O` — без тоста; CORS прокси на тайл `Tt`; итог — design, «Проверки»; шаг владельца с ключом — в отчёт
-- [ ] 4.5 Archive вторым PR, ссылки после archive, строка change в таблице «Changes по порядку» ресёрча
+- [x] 4.3 PR в `master`, все проверки `pass` на последнем коммите, merge
+- [x] 4.4 После деплоя: `prod check`, `tracestrack check` (до ключа — предупреждение), `/` на проде без ключа — OSM с тостом отката, `l=O` — без тоста; CORS прокси на тайл `Tt`; итог — design, «Проверки»; шаг владельца с ключом — в отчёт
+- [x] 4.5 Archive вторым PR, ссылки после archive, строка change в таблице «Changes по порядку» ресёрча

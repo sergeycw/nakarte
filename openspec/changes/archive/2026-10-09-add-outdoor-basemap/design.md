@@ -2,7 +2,7 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md), поведение — спеки change. Варианты подложки, цены и риски — [ресёрч](../../research/new-ui.md#подложка-по-умолчанию-векторная-туристическая), каталог и прокси слоёв — архив [add-web-map-layers](../archive/2026-10-08-add-web-map-layers/design.md), тост ошибки тайлов — [add-web-skeleton](../archive/2026-10-08-add-web-skeleton/design.md#панель-и-тост), `LAYER_HOSTS` и `ALLOWED_ORIGINS` — [retire-old-client-services](../archive/2026-10-09-retire-old-client-services/design.md#прокси-без-wikimapia-слои--только-те-что-шлёт-приложение).
+Зачем — [proposal](proposal.md), поведение — спеки change. Варианты подложки, цены и риски — [ресёрч](../../../research/new-ui.md#подложка-по-умолчанию-векторная-туристическая), каталог и прокси слоёв — архив [add-web-map-layers](../2026-10-08-add-web-map-layers/design.md), тост ошибки тайлов — [add-web-skeleton](../2026-10-08-add-web-skeleton/design.md#панель-и-тост), `LAYER_HOSTS` и `ALLOWED_ORIGINS` — [retire-old-client-services](../2026-10-09-retire-old-client-services/design.md#прокси-без-wikimapia-слои--только-те-что-шлёт-приложение).
 
 **Решение владельца 2026-10-09:** подложка по умолчанию — Tracestrack Topo (ключ в секрете прокси, откат на OSM), а не свой векторный стиль на OpenFreeMap. Это закрывает открытый вопрос ресёрча.
 
@@ -93,4 +93,12 @@
 
 ## Проверки
 
-Заполняется после деплоя.
+Прод после merge sergeycw/nakarte#121 (`657ec0f`), 2026-10-09, ключа Tracestrack ещё нет.
+
+- `deploy pages`: `cors-proxy`, `pages`, `prune`, `smoke` — зелёные с первого прогона; проверки PR (`check web`, `check lint`, `check cors proxy`) — на последнем коммите `56b3e1e`.
+- Прокси: тайл `/https/tile.tracestrack.com/topo__/12/2557/1514.webp` с `Origin` сайта — `503 Tracestrack key is not set` с `Access-Control-Allow-Origin`; с `Origin: https://example.com` — `403`; preflight — `204`.
+- Бандл на `/` содержит адрес слоя `…/https/tile.tracestrack.com/topo__/{z}/{x}/{y}{ratio}.webp` без ключа.
+- Headless Chromium, чистый профиль: `/` — 16 тайлов `Tt` с `503`, затем тайлы OSM, тост `Tracestrack Topo is unavailable` / `Switched to OpenStreetMap`, тоста `Map tiles failed to load` нет; в адресе `l=Tt`, в `nakarte-web:layers` — `Tt`. `#…&l=O` — только тайлы OSM, без тоста.
+- `tracestrack check` вручную — зелёный: `status 503`, предупреждение `TRACESTRACK_KEY is not set`.
+- e2e «Ссылка на хранилище» один раз упал в полном локальном прогоне и прошёл 10 из 10 повторов и в следующих полных прогонах; тест на `l=O`, change его не трогает — флак под нагрузкой.
+- Не проверено (нужен ключ, шаг владельца): настоящие тайлы Tracestrack, их `Cache-Control` и размер по умолчанию, что Tracestrack отвечает на исчерпание квоты.
