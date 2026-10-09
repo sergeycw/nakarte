@@ -17,17 +17,22 @@ jobs:
   check:
     if: github.repository == 'sergeycw/nakarte'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Tracestrack tile through the proxy
         run: |
           # тайл Тбилиси z12, один кредит квоты; Origin — клон, иначе прокси ответит 403
           url="https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/tile.tracestrack.com/topo__/12/2557/1514.webp"
           for _ in 1 2 3; do
-            if curl -sS -o body.txt -D headers.txt -H 'Origin: https://nakarte-routing.pages.dev' "$url"; then
+            if curl -sS --max-time 30 -o body.txt -D headers.txt -H 'Origin: https://nakarte-routing.pages.dev' "$url"; then
               break
             fi
             sleep 10
           done
+          if [ ! -s headers.txt ]; then
+            echo "::error::proxy did not answer"
+            exit 1
+          fi
           status=$(head -1 headers.txt | tr -d '\r' | cut -d' ' -f2)
           type=$(grep -i '^content-type:' headers.txt | tr -d '\r' | cut -d' ' -f2)
           echo "status $status, $type"
@@ -36,6 +41,7 @@ jobs:
             exit 0
           fi
           if [ "$status" != 200 ] || [[ "$type" != image/* ]]; then
-            echo "::error::proxy does not serve Tracestrack tiles (status $status, $(head -c 200 body.txt))"
+            # тело не печатается: лог Actions публичный, а в тексте ошибки мог бы оказаться ключ
+            echo "::error::proxy does not serve Tracestrack tiles (status $status, $type)"
             exit 1
           fi
