@@ -36,7 +36,7 @@
 
 ## 7. Документы
 
-- [ ] 7.1 `AGENTS.md`, раздел «Новое приложение»: модули поиска, Street View, кнопок карты, отметок; подвохи apply; backlog — исправить риск поиска, `maps.app.goo.gl`; проверка: ссылки на файлы и разделы существуют, `openspec validate --all --strict`
+- [x] 7.1 `AGENTS.md`, раздел «Новое приложение»: модули поиска, Street View, кнопок карты, отметок; подвохи apply; backlog — исправить риск поиска, `maps.app.goo.gl`; проверка: ссылки на файлы и разделы существуют, `openspec validate --all --strict`
 
 ## Workflow follow-up
 
