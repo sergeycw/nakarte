@@ -1,20 +1,10 @@
 import { GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
-import { BinocularsIcon, ExternalLinkIcon, RulerIcon } from 'lucide-react';
+import { BinocularsIcon, RulerIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { config } from '@/config';
 import { useRouteEditing } from '@/routing/editing-context';
-import { useAppStore, useAppStoreApi } from '@/state/context';
+import { useAppStore } from '@/state/context';
 import { useStreetView } from '@/streetview/context';
-import { EXTERNAL_MAPS, type ExternalMap, externalMapUrl } from './external';
 import { forgetPosition, savePosition } from './locate';
 
 // Кнопки карты справа под кнопками зума (design add-web-search-panoramas, «Кнопки карты справа»): номер зума,
@@ -88,7 +78,6 @@ export function geolocationErrorMessage(code: number, message: string): string {
 export interface MapButtonsProps {
     notify: (title: string) => void;
     storage: Storage | null;
-    fetch: typeof window.fetch;
 }
 
 // Режим Street View (кнопка и Alt+P старого контрола панорам; code, а не key: на macOS Alt меняет символ)
@@ -135,46 +124,7 @@ function RulerButton() {
     );
 }
 
-function ExternalMapsButton({ fetch }: { fetch: typeof window.fetch }) {
-    const store = useAppStoreApi();
-    async function open(map: ExternalMap) {
-        const url = await externalMapUrl(
-            map,
-            store.getState().view,
-            { fetch, url: config.elevationsServer },
-            window.innerHeight,
-        );
-        window.open(url, '_blank', 'noopener');
-    }
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger
-                render={
-                    <button
-                        type="button"
-                        className="flex! items-center justify-center"
-                        aria-label="Open this place in another map"
-                        title="Open this place in another map"
-                    />
-                }
-            >
-                <ExternalLinkIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-auto">
-                <DropdownMenuGroup>
-                    <DropdownMenuLabel>Open this place in</DropdownMenuLabel>
-                    {EXTERNAL_MAPS.map((map) => (
-                        <DropdownMenuItem key={map.title} onClick={() => void open(map)}>
-                            {map.title}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuGroup>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
-
-export function MapButtons({ notify, storage, fetch, children }: MapButtonsProps & { children?: ReactNode }) {
+export function MapButtons({ notify, storage, children }: MapButtonsProps & { children?: ReactNode }) {
     return (
         <>
             <ZoomDisplay />
@@ -199,7 +149,6 @@ export function MapButtons({ notify, storage, fetch, children }: MapButtonsProps
                 {children}
                 <StreetViewButton />
                 <RulerButton />
-                <ExternalMapsButton fetch={fetch} />
             </ControlPortal>
             <ScaleControl position="bottom-left" unit="metric" />
         </>

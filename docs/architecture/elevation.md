@@ -60,7 +60,7 @@ flowchart TD
 ```
 
 - Cache API на `*.workers.dev` не работает, поэтому кеш — в памяти изолята.
-- Клиент: API — [web/src/elevation/api.ts](../../web/src/elevation/api.ts) (профиль высот, GPX с высотами, высота для Google Earth; атрибуция `elevationsAttribution` в [config.ts](../../web/src/config.ts)), [client.md](client.md).
+- Клиент: API — [web/src/elevation/api.ts](../../web/src/elevation/api.ts) (профиль высот, GPX с высотами; атрибуция `elevationsAttribution` в [config.ts](../../web/src/config.ts)), [client.md](client.md).
 
 ## Тайлы высот выведены
 
