@@ -263,7 +263,7 @@ Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-
 | 7 | [`add-web-elevation-profile`](../changes/archive/2026-10-09-add-web-elevation-profile/design.md) — сделан | профиль высот, GPX с высотами | 1–2 |
 | 8 | [`add-web-search-panoramas`](../changes/archive/2026-10-09-add-web-search-panoramas/design.md) — сделан | поиск, метка `r=`, Street View, внешние карты, геолокация, линейка | 2–3 |
 | 9 | [`switch-to-web-app`](../changes/archive/2026-10-09-switch-to-web-app/design.md) — сделан | после changes 1–8 и 6б: новое приложение на `/` с OSM по умолчанию, удаление старого клиента, karma, webpack, `main.yml`; спеки и `docs/architecture`; вывод тайлов высот | 1–2 |
-| 9б | `retire-old-client-services` | вторая половина change 9: тайлы высот Worker'а высот, маршрут прокси `/wikimapia/`, порты старого клиента и karma в `ALLOWED_ORIGINS` (вместо них 8769 и 4173) | 0.5 |
+| 9б | [`retire-old-client-services`](../changes/archive/2026-10-09-retire-old-client-services/design.md) — сделан | вторая половина change 9: тайлы высот Worker'а высот, маршрут прокси `/wikimapia/`, порты старого клиента и karma в `ALLOWED_ORIGINS` (вместо них 8769 и 4173) | 0.5 |
 | 10 | `add-outdoor-basemap` | туристическая подложка по умолчанию: Tracestrack Topo через прокси или свой стиль на OpenFreeMap (по ответу владельца); закрывает пункт backlog про слой как у MapMagic | 1–5 |
 | 11 | `polish-web-ui` | полировка интерфейса после всех фронтовых changes (просьба владельца 2026-10-08): агент собирает промпт для Claude Design — экраны, компоненты shadcn, тема, ограничения (только светлая тема, телефон 390×844, карта под панелями) и скриншоты текущего вида; по ответу — правки вёрстки | 1–2 |
 

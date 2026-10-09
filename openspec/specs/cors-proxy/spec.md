@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Свой CORS-прокси клона вместо авторского `proxy.nakarte.me`, который не пускает чужой домен. Через прокси идут импорт треков по ссылкам, часть слоёв, поиск по ссылкам и растеризация для печати. Повторяет протокол авторского прокси, чтобы код nakarte работал без правок.
+Свой CORS-прокси клона вместо авторского `proxy.nakarte.me`, который не пускает чужой домен. Через прокси идут импорт треков по ссылкам, слои Strava heatmap и Tsvetkov, свои слои пользователя с флагом прокси, поиск mapy.cz и короткие ссылки. Протокол — как у авторского прокси (`/<схема>/<хост>/<путь>`).
 
 ## Requirements
 
 ### Requirement: Формат адреса
 
-Прокси SHALL принимать адреса вида `/<схема>/<хост>/<путь>?<запрос>` и запрашивать `<схема>://<хост>/<путь>?<запрос>`, где схема — `http` или `https`. Адрес `/wikimapia/<путь>` SHALL вести на `http://wikimapia.org/<путь>`. Прочие адреса SHALL получать `404`.
+Прокси SHALL принимать адреса вида `/<схема>/<хост>/<путь>?<запрос>` и запрашивать `<схема>://<хост>/<путь>?<запрос>`, где схема — `http` или `https`. Прочие адреса, в том числе `/wikimapia/<путь>` старого клиента, SHALL получать `404`.
 
 #### Scenario: Запрос через прокси
 
@@ -17,27 +17,8 @@
 
 #### Scenario: Неизвестный путь
 
-- **WHEN** запрошен `/ftp/example.com/file`
+- **WHEN** запрошен `/ftp/example.com/file` или `/wikimapia/z1/itiles/0/1/2.xy`
 - **THEN** ответ `404`
-
-### Requirement: Только разрешённые origin
-
-Прокси SHALL обслуживать только origin из `ALLOWED_ORIGINS`: по заголовку `Origin`, а без него — по origin из `Referer`. Остальным SHALL отвечать `403`. Сейчас разрешены `https://nakarte-routing.pages.dev`, локальные dev-серверы на 8765 и 8766 и karma на 9876: апстримные тесты `test_track_load.js` ходят в живые сервисы через этот прокси.
-
-#### Scenario: Чужой сайт
-
-- **WHEN** запрос пришёл с `Origin: https://example.com`
-- **THEN** ответ `403`
-
-#### Scenario: Запрос без Origin, но с Referer
-
-- **WHEN** запрос без `Origin` пришёл с `Referer: https://nakarte-routing.pages.dev/#m=10/41/44`
-- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `https://nakarte-routing.pages.dev`
-
-#### Scenario: Тесты karma
-
-- **WHEN** запрос пришёл с `Origin: http://localhost:9876`
-- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `http://localhost:9876`
 
 ### Requirement: CORS-заголовки
 
@@ -68,7 +49,7 @@
 
 #### Scenario: User-Agent клиента
 
-- **WHEN** браузер запрашивает тайл Wikimapia через прокси
+- **WHEN** браузер запрашивает через прокси файл трека или короткую ссылку
 - **THEN** сервис получает `User-Agent` браузера, а не пустой заголовок
 
 ### Requirement: Куки Strava для тайлов heatmap
@@ -206,3 +187,27 @@
 
 - **WHEN** запрошен `/https/nakarte-routing.pages.dev/tiles/E40_N40.rd5`
 - **THEN** ответ `403`, функция тайлов не вызывается
+
+### Requirement: Разрешённые origin клона
+
+Прокси SHALL обслуживать только origin из `ALLOWED_ORIGINS`: по заголовку `Origin`, а без него — по origin из `Referer`. Остальным SHALL отвечать `403`. Разрешены сайт клона `https://nakarte-routing.pages.dev`, dev-сервер приложения `http://localhost:8769` и `vite preview` `http://localhost:4173`.
+
+#### Scenario: Чужой сайт
+
+- **WHEN** запрос пришёл с `Origin: https://example.com`
+- **THEN** ответ `403`
+
+#### Scenario: Запрос без Origin, но с Referer
+
+- **WHEN** запрос без `Origin` пришёл с `Referer: https://nakarte-routing.pages.dev/#m=10/41/44`
+- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен `https://nakarte-routing.pages.dev`
+
+#### Scenario: Локальный dev-сервер приложения
+
+- **WHEN** запрос пришёл с `Origin: http://localhost:8769` или `http://localhost:4173`
+- **THEN** запрос проксируется, `Access-Control-Allow-Origin` равен origin запроса
+
+#### Scenario: Порт старого клиента
+
+- **WHEN** запрос пришёл с `Origin: http://localhost:9876` или `http://localhost:8765`
+- **THEN** ответ `403`

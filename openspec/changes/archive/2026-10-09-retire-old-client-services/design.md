@@ -2,13 +2,13 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md), поведение — спеки change. Это вторая половина change 9 [ресёрча](../../research/new-ui.md#changes-по-порядку): разрез и почему не одним change — [switch-to-web-app](../archive/2026-10-09-switch-to-web-app/design.md#разрез-два-change-агент). Решение о выводе тайлов высот — архив [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md); как тайлы устроены — архив [add-elevation-tiles](../archive/2026-10-07-add-elevation-tiles/design.md); лимиты — [add-worker-limits](../archive/2026-10-07-add-worker-limits/design.md).
+Зачем — [proposal](proposal.md), поведение — спеки change. Это вторая половина change 9 [ресёрча](../../../research/new-ui.md#changes-по-порядку): разрез и почему не одним change — [switch-to-web-app](../2026-10-09-switch-to-web-app/design.md#разрез-два-change-агент). Решение о выводе тайлов высот — архив [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md); как тайлы устроены — архив [add-elevation-tiles](../2026-10-07-add-elevation-tiles/design.md); лимиты — [add-worker-limits](../2026-10-07-add-worker-limits/design.md).
 
 Что выяснилось при чтении кода (`master` `68ab495`, 2026-10-09):
 
 - Потребитель тайлов высот на проде — никто: приложение на `/` ходит в Worker высот только за API (`ELEVATION_SERVER_URL` в `web/src/config.ts`, `elevation/api.ts`), отмывка — AWS Terrain Tiles, старого клиента нет с деплоя `switch-to-web-app`. Их проверяет только `scripts/prod-check.sh` (две строки).
 - В ядре Worker'а высот тайлам принадлежат `core/src/archive.rs`, `render.rs`, `tile.rs` и ветка `/tiles/` в `http.rs` (`TILES_PREFIX`, `RateGroup::Tiles`, `respond_tile`, `tile_body`); API их не использует. Генератор архива — крейт `tiles/` (`elevation-tiles build` и `thin`), его тесты — `core/tests/tiles.rs`, тесты Worker'а — `test/tiles.test.js` и половина `test/limits.test.js`, фикстуры — `fixtures/tiles/` (тайлы автора) и куски `fixtures/dem3/`, дописанные `elevation-tiles thin`. Адаптер `worker/src/lib.rs` выбирает счётчик `TILES_RATE_LIMITER` и отдаёт уже сжатое тело (`EncodeBody::Manual`) — второе нужно только тайлам. Заливка архива — `scripts/elevation-tiles.sh` в `workers/elevation/` и workflow `elevation tiles`.
-- Прокси: `PATH_ALIASES` (`/wikimapia/` → `http://wikimapia.org/`) нужен был только слою Wikimapia старого клиента; `LAYER_HOSTS` (общий лимит 1 200) перечисляет `wikimapia.org`, `wmts10.geo.admin.ch`, `slazav.xyz`, `static.mapy.hiking.sk` — слои, которые старый клиент слал через прокси (`urlViaCorsProxy` и `noCors` для печати). Приложение шлёт через прокси из каталога только Strava (`content-*.strava.com`) и Tsvetkov (`maptiles.website.yandexcloud.net`); swisstopo, Slazav и Slovakia — напрямую по конечным адресам с CORS ([catalog.ts](../../../web/src/layers/catalog.ts)).
+- Прокси: `PATH_ALIASES` (`/wikimapia/` → `http://wikimapia.org/`) нужен был только слою Wikimapia старого клиента; `LAYER_HOSTS` (общий лимит 1 200) перечисляет `wikimapia.org`, `wmts10.geo.admin.ch`, `slazav.xyz`, `static.mapy.hiking.sk` — слои, которые старый клиент слал через прокси (`urlViaCorsProxy` и `noCors` для печати). Приложение шлёт через прокси из каталога только Strava (`content-*.strava.com`) и Tsvetkov (`maptiles.website.yandexcloud.net`); swisstopo, Slazav и Slovakia — напрямую по конечным адресам с CORS ([catalog.ts](../../../../web/src/layers/catalog.ts)).
 - `ALLOWED_ORIGINS`: прокси — сайт, 8765, 8766, 9876; треки и высоты — сайт, 8765, 8766. Старых dev-серверов и karma больше нет, а 8769 (dev-сервер приложения) и 4173 (`vite preview`) не разрешены — отсюда подвох `AGENTS.md`: локально не работают прокси, «Copy link», профиль высот.
 
 ## Goals / Non-Goals
@@ -65,3 +65,13 @@
 4. **Шаг владельца (необратимо):** удалить объект `tiles/elevation-z0-9` из бакета `nakarte-elevation` — например `npx wrangler@4 r2 object delete nakarte-elevation/tiles/elevation-z0-9 --remote` из любого каталога (wrangler залогинен OAuth) или в дашборде Cloudflare. Агент удаляет его только после явного «да» владельца.
 
 ## Проверки
+
+Прод после merge sergeycw/nakarte#119 (`2c5aa3d`), 2026-10-09.
+
+- `deploy pages`: `guard`, `elevation`, `tracks`, `cors-proxy`, `pages`, `prune`, `smoke` — зелёные с первого прогона; `smoke` — 8 строк без тайлов высот.
+- `nakarte-elevation`: `GET /tiles/5/19/11` и `/tiles/11/1278/762` без `Origin` — `403`, с `Origin` сайта — `405`; `POST /` точки Тбилиси — `707.92`.
+- `ALLOWED_ORIGINS`: `http://localhost:8769` и `http://localhost:4173` — API высот `200`, preflight прокси `204`, хранилище треков `404` на несуществующий ключ (то есть пропущены); `http://localhost:9876` и `http://localhost:8765` — `403` у всех трёх.
+- Прокси: `/wikimapia/z1/itiles/0/1/2.xy` — `404`, `/https/www.openstreetmap.org/api/0.6/capabilities` — `200`.
+- Профиль высот трека по ссылке `nktk=`: на `https://nakarte-routing.pages.dev/` и на локальном dev-сервере (8769) — запрос к API высот `200`, сводка с набором высоты; до change локально был `403`.
+- Архив `tiles/elevation-z0-9` в R2 не тронут: удаление ждёт «да» владельца (Migration Plan, п. 4).
+

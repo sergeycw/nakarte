@@ -172,7 +172,7 @@ flowchart LR
 | `proxy.nakarte.me/mapy/` (слои mapy.cz) | удалены, не заменены | [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md) |
 | `tracks.nakarte.me` | `nakarte-tracks` | [track-storage](../../openspec/specs/track-storage/spec.md) |
 | `elevation.nakarte.me` | `nakarte-elevation`, `POST /` | [elevation-api](../../openspec/specs/elevation-api/spec.md) |
-| `tiles.nakarte.me/elevation` | не заменён: свои тайлы высот выведены вместе со старым клиентом | [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md), [elevation.md](elevation.md#тайлы-высот-выведены) |
+| `tiles.nakarte.me/elevation` | не заменён: свои тайлы высот выведены вместе со старым клиентом | [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md), [elevation.md](elevation.md#тайлы-высот-выведены) |
 | `{s}.tiles.nakarte.me`, `tiles.nakarte.me/topomapper` (сканы карт), `nakarte.me/westraPasses/`, `nakarte.me/geocachingSu/` | слои удалены | [drop-author-scan-layers](../../openspec/changes/archive/2026-10-08-drop-author-scan-layers/design.md) |
 | `tiles.nakarte.me/wikimedia_commons_images`, `mapillary.nakarte.me` (покрытие панорам) | провайдеры удалены, остался Street View | [remove-panorama-providers](../../openspec/changes/archive/2026-10-08-remove-panorama-providers/design.md) |
 | `nakarte.me/event`, Sentry | нет: журнала событий и Sentry в приложении нет | [config.ts](../../web/src/config.ts), [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md) |
