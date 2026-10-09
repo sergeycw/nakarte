@@ -13,7 +13,7 @@ cpu_ms = 50
 subrequests = 5
 
 # Запросы к /tiles/ и /brouter-wasm/ с одного IP за 60 с: маршрут — ≈ 40 Range-чтений тайлов, запуск
-# движка — чтения jar и профилей. namespace_id уникален в аккаунте (1001–1008 — Worker'ы клона).
+# движка — чтения jar и профилей. namespace_id уникален в аккаунте (1002–1008 — Worker'ы клона, 1001 освобождён).
 [[ratelimits]]
 name = "RATE_LIMITER"
 namespace_id = "1008"

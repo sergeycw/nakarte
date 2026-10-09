@@ -1,13 +1,8 @@
-use crate::archive::{self, Lookup};
 use crate::request::{self, MAX_BODY_BYTES, MAX_READS, ParseError};
-use crate::tile::{self, LIVE_MIN_ZOOM};
-use crate::{Error, Source, elevations, read_count, render, response};
+use crate::{Source, elevations, read_count, response};
 
 const ALLOWED_METHODS: &str = "POST, OPTIONS";
 const TEXT: &str = "text/plain; charset=utf-8";
-const TILES_PREFIX: &str = "/tiles/";
-// Тайлы автора кешируются на сутки (`tiles.nakarte.me`, проверено 2026-10-07).
-const TILE_CACHE: &str = "max-age=86400";
 // Длина окна `[[ratelimits]]` в wrangler.toml.
 const RETRY_AFTER_SECONDS: &str = "60";
 /// Единица бюджета чтений: привязка rate limiting считает вызовы `limit()` без веса, поэтому запрос
@@ -86,38 +81,21 @@ pub fn parse_origins(list: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Счётчик частоты запросов с одного IP: у тайлов и API свои лимиты (`[[ratelimits]]` в wrangler.toml).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RateGroup {
-    Tiles,
-    Api,
-}
-
-/// Какой счётчик тратит запрос. `None` — запрос API с неразрешённым `Origin`: он и так получит
-/// `403`, счётчик на него не тратится.
-pub fn rate_group(request: &Request<'_>, allowed_origins: &[&str]) -> Option<RateGroup> {
-    if request.path.starts_with(TILES_PREFIX) {
-        return Some(RateGroup::Tiles);
-    }
+/// Тратит ли запрос счётчик частоты с одного IP (`API_RATE_LIMITER` в wrangler.toml). Запрос с
+/// неразрешённым `Origin` или без него и так получит `403`, счётчик на него не тратится. Тайлов высот
+/// со своим счётчиком больше нет (change retire-old-client-services).
+pub fn counts_toward_limit(request: &Request<'_>, allowed_origins: &[&str]) -> bool {
     request
         .origin
-        .filter(|origin| allowed_origins.contains(origin))
-        .map(|_| RateGroup::Api)
+        .is_some_and(|origin| allowed_origins.contains(&origin))
 }
 
-/// Ответ сверх лимита — с теми же CORS-заголовками, что обычный ответ на этот путь, чтобы клиент
-/// увидел `429`, а не сбой CORS. Вызывать только для запросов, у которых `rate_group` не `None`.
+/// Ответ сверх лимита — с теми же CORS-заголовками, что обычный ответ API, чтобы клиент увидел `429`,
+/// а не сбой CORS. Вызывать только для запросов, у которых `counts_toward_limit`.
 pub fn too_many_requests(request: &Request<'_>) -> Response {
-    let response = rate_limited();
     match request.origin {
-        Some(origin) if !request.path.starts_with(TILES_PREFIX) => response.with_cors(origin),
-        _ => {
-            let mut response = response;
-            response
-                .headers
-                .push(("Access-Control-Allow-Origin", "*".to_string()));
-            response
-        }
+        Some(origin) => rate_limited().with_cors(origin),
+        None => rate_limited(),
     }
 }
 
@@ -133,16 +111,13 @@ fn rate_limited() -> Response {
 // HTTP без привязки к рантайму: адаптер собирает `Request` и переводит `Response` обратно.
 // API высот: CORS как у `workers/tracks` — только origin из `ALLOWED_ORIGINS`, иначе (и без
 // `Origin`) — 403; коды и тексты ошибок — как у Go-сервера автора (`http.Error` дописывает `\n`).
-// Тайлы (`/tiles/`): CORS `*` без проверки `Origin`, как у `tiles.nakarte.me`.
+// Бывший маршрут тайлов `/tiles/` отдельной ветки не имеет: такой запрос — обычный запрос API.
 pub async fn handle<S: Source, B: ReadBudget>(
     request: &Request<'_>,
     allowed_origins: &[&str],
     source: &S,
     budget: &B,
 ) -> Response {
-    if let Some(path) = request.path.strip_prefix(TILES_PREFIX) {
-        return respond_tile(request.method, path, source).await;
-    }
     let Some(origin) = request
         .origin
         .filter(|origin| allowed_origins.contains(origin))
@@ -205,67 +180,4 @@ async fn respond<S: Source, B: ReadBudget>(
             ..Response::new(500, "Server error\n").text()
         },
     }
-}
-
-// `Access-Control-Allow-Origin: *` и на `404`: клиент считает `404` ответом «нет данных», а без
-// заголовка браузер отдал бы ему ошибку CORS.
-async fn respond_tile<S: Source>(method: &str, path: &str, source: &S) -> Response {
-    let mut response = tile_status(method, path, source).await;
-    response
-        .headers
-        .push(("Access-Control-Allow-Origin", "*".to_string()));
-    response
-}
-
-async fn tile_status<S: Source>(method: &str, path: &str, source: &S) -> Response {
-    if method != "GET" && method != "HEAD" {
-        let mut response = Response::new(405, "Method not allowed\n").text();
-        response.headers.push(("Allow", "GET, HEAD".to_string()));
-        return response;
-    }
-    let Some((z, x, y)) = tile::parse_path(path) else {
-        return Response::new(404, "404 page not found\n").text();
-    };
-    match tile_body(source, z, x, y).await {
-        Ok(Some(body)) => {
-            let mut response = Response::new(200, body);
-            response.headers.extend([
-                ("Content-Type", "application/octet-stream".to_string()),
-                ("Content-Encoding", "gzip".to_string()),
-                ("Cache-Control", TILE_CACHE.to_string()),
-            ]);
-            response
-        }
-        Ok(None) => {
-            let mut response = Response::new(404, "No data\n").text();
-            response
-                .headers
-                .push(("Cache-Control", TILE_CACHE.to_string()));
-            response
-        }
-        Err(error) => Response {
-            error: Some(error.to_string()),
-            ..Response::new(500, "Server error\n").text()
-        },
-    }
-}
-
-/// Тело тайла в gzip: z10–11 — на лету из `dem3`, меньшие зумы — из архива; `None` — данных нет.
-pub async fn tile_body<S: Source>(
-    source: &S,
-    z: u8,
-    x: u32,
-    y: u32,
-) -> Result<Option<Vec<u8>>, Error> {
-    if z < LIVE_MIN_ZOOM {
-        return match archive::read(source, z, x, y).await? {
-            Lookup::Tile(body) => Ok(Some(body)),
-            Lookup::Missing | Lookup::NotCovered => Ok(None),
-        };
-    }
-    let raster = render::tile(source, z, x, y).await?;
-    if !raster.has_data() {
-        return Ok(None);
-    }
-    Ok(Some(tile::encode_tile(&raster)))
 }

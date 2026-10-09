@@ -173,14 +173,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "elevation-tiles"
-version = "0.1.0"
-dependencies = [
- "elevation-core",
- "futures",
-]
-
-[[package]]
 name = "elevation-worker"
 version = "0.1.0"
 dependencies = [

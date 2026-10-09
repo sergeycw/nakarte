@@ -1,7 +1,9 @@
-// Частота запросов: какой счётчик тратит запрос и ответ `429` с CORS как у обычного ответа.
+// Частота запросов: тратит ли запрос счётчик и ответ `429` с CORS как у обычного ответа API.
 // Сам счётчик — привязка Cloudflare в адаптере `worker`, её проверяет тест в workerd.
 
-use elevation_core::http::{RateGroup, Request, rate_group, too_many_requests};
+use elevation_core::http::{Request, Unlimited, counts_toward_limit, handle, too_many_requests};
+use elevation_core::{Error, Source};
+use futures::executor::block_on;
 
 const CLONE: &str = "https://nakarte-routing.pages.dev";
 
@@ -17,49 +19,65 @@ fn request<'a>(method: &'a str, path: &'a str, origin: Option<&'a str>) -> Reque
 }
 
 #[test]
-fn tiles_and_api_spend_separate_counters() {
+fn api_requests_from_allowed_origin_spend_the_counter() {
     let allowed = [CLONE];
-    assert_eq!(
-        rate_group(&request("GET", "/tiles/11/1277/754", None), &allowed),
-        Some(RateGroup::Tiles)
-    );
-    assert_eq!(
-        rate_group(
-            &request("GET", "/tiles/x", Some("https://example.com")),
-            &allowed
-        ),
-        Some(RateGroup::Tiles)
-    );
-    assert_eq!(
-        rate_group(&request("POST", "/", Some(CLONE)), &allowed),
-        Some(RateGroup::Api)
-    );
+    assert!(counts_toward_limit(
+        &request("POST", "/", Some(CLONE)),
+        &allowed
+    ));
 }
 
 #[test]
 fn api_requests_that_get_403_do_not_spend_the_counter() {
     let allowed = [CLONE];
-    assert_eq!(rate_group(&request("POST", "/", None), &allowed), None);
-    assert_eq!(
-        rate_group(&request("POST", "/", Some("https://example.com")), &allowed),
-        None
-    );
+    assert!(!counts_toward_limit(&request("POST", "/", None), &allowed));
+    assert!(!counts_toward_limit(
+        &request("POST", "/", Some("https://example.com")),
+        &allowed
+    ));
+    // бывший маршрут тайлов высот без `Origin` своего счётчика больше не тратит
+    assert!(!counts_toward_limit(
+        &request("GET", "/tiles/11/1277/754", None),
+        &allowed
+    ));
 }
 
 #[test]
-fn too_many_requests_keeps_the_cors_of_each_route() {
-    let tiles = too_many_requests(&request("GET", "/tiles/11/1277/754", Some(CLONE)));
-    assert_eq!(tiles.status, 429);
-    assert_eq!(tiles.body, b"Too many requests\n");
-    assert_eq!(tiles.header("Retry-After"), Some("60"));
-    assert_eq!(tiles.header("Access-Control-Allow-Origin"), Some("*"));
-    assert_eq!(tiles.header("Access-Control-Allow-Credentials"), None);
-
+fn too_many_requests_keeps_the_cors_of_the_api() {
     let api = too_many_requests(&request("POST", "/", Some(CLONE)));
     assert_eq!(api.status, 429);
+    assert_eq!(api.body, b"Too many requests\n");
     assert_eq!(api.header("Retry-After"), Some("60"));
     assert_eq!(api.header("Access-Control-Allow-Origin"), Some(CLONE));
     assert_eq!(api.header("Access-Control-Allow-Credentials"), Some("true"));
+}
+
+// Маршрута тайлов высот нет (change retire-old-client-services): `/tiles/…` — обычный запрос API.
+struct NoData;
+
+impl Source for NoData {
+    async fn read(&self, _key: &str, _offset: u64, _length: u64) -> Result<Option<Vec<u8>>, Error> {
+        Ok(None)
+    }
+}
+
+#[test]
+fn former_tiles_route_is_an_api_request() {
+    let without_origin = block_on(handle(
+        &request("GET", "/tiles/0/0/0", None),
+        &[CLONE],
+        &NoData,
+        &Unlimited,
+    ));
+    assert_eq!(without_origin.status, 403);
+    assert_eq!(without_origin.header("Access-Control-Allow-Origin"), None);
+    let with_origin = block_on(handle(
+        &request("GET", "/tiles/0/0/0", Some(CLONE)),
+        &[CLONE],
+        &NoData,
+        &Unlimited,
+    ));
+    assert_eq!(with_origin.status, 405);
 }
 
 // Цена запроса API — чтения хранилища: потолок `MAX_READS` на запрос и бюджет клиента
