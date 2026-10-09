@@ -1,9 +1,13 @@
-import { Map as MapLibreMap, type MapRef, NavigationControl } from '@vis.gl/react-maplibre';
+import { Map as MapLibreMap, type MapRef, Marker, NavigationControl } from '@vis.gl/react-maplibre';
+import { LoaderCircleIcon } from 'lucide-react';
 import type { RequestTransformFunction } from 'maplibre-gl';
 import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
+import { editSources } from '@/routing/edit-style';
 import { useAppStore } from '@/state/context';
+import { TRACK_COLORS } from '@/tracks/model';
+import { trackSources } from '@/tracks/style';
 import { maplibre } from './maplibre';
 
 interface BaseMapProps {
@@ -24,6 +28,8 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
     const viewRequest = useAppStore((state) => state.viewRequest);
     const boundsRequest = useAppStore((state) => state.boundsRequest);
     const tracks = useAppStore((state) => state.tracks);
+    const routeEdit = useAppStore((state) => state.routeEdit);
+    const routePreview = useAppStore((state) => state.routePreview);
     const setView = useAppStore((state) => state.setView);
     const mapRef = useRef<MapRef | null>(null);
     // react-maplibre отдаёт ссылку, когда карта создана (MapLibre грузится лениво), — после первого рендера,
@@ -40,12 +46,31 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
         [ref],
     );
 
+    // Источники треков и редактора собираются отдельно: перетаскивание и резинка меняют только источники редактора,
+    // треки пересобираются при смене треков или редактируемого отрезка (design add-web-route-editor, «Отрисовка»)
+    const editTrackId = routeEdit?.trackId;
+    const editSegment = routeEdit?.segment;
+    const trackData = useMemo(
+        () =>
+            trackSources(
+                tracks,
+                editTrackId === undefined || editSegment === undefined
+                    ? null
+                    : { trackId: editTrackId, segment: editSegment },
+            ),
+        [tracks, editTrackId, editSegment],
+    );
+    const editColorIndex = tracks.find((track) => track.id === editTrackId)?.color ?? 0;
+    const editData = useMemo(
+        () => editSources(routeEdit, TRACK_COLORS[editColorIndex], routePreview),
+        [routeEdit, editColorIndex, routePreview],
+    );
     const mapStyle = useMemo(() => {
         const defs = [selection.base, ...selection.overlays]
             .map((code) => layers.get(code))
             .filter((layer): layer is LayerDef => Boolean(layer));
-        return buildStyle(defs, tracks);
-    }, [selection, layers, tracks]);
+        return buildStyle(defs, { ...trackData.sources, ...editData });
+    }, [selection, layers, trackData, editData]);
 
     useEffect(() => {
         if (viewRequest) {
@@ -101,6 +126,22 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 }}
             >
                 <NavigationControl position="top-right" />
+                {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
+                    единицы, а анимация CSS проще символьного слоя */}
+                {trackData.pending.map((point, i) => (
+                    <Marker
+                        // biome-ignore lint/suspicious/noArrayIndexKey: у двух ожидающих отрезков может быть одна середина
+                        key={`${point.lat},${point.lng},${i}`}
+                        longitude={point.lng}
+                        latitude={point.lat}
+                        style={{ pointerEvents: 'none' }}
+                    >
+                        <LoaderCircleIcon
+                            className="size-5 animate-spin rounded-full bg-white/70 text-blue-600"
+                            data-testid="route-spinner"
+                        />
+                    </Marker>
+                ))}
             </MapLibreMap>
         </div>
     );

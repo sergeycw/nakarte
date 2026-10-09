@@ -1,4 +1,6 @@
-import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
+import type { GeoJSONSourceSpecification, LayerSpecification, StyleSpecification } from 'maplibre-gl';
+import { EDIT_LAYERS, editSources } from '@/routing/edit-style';
+import type { RouteEditState, RoutePreview } from '@/state/store';
 import type { Track } from '@/tracks/model';
 import { TRACK_LAYERS, trackSources } from '@/tracks/style';
 import type { LayerDef } from './catalog';
@@ -7,15 +9,35 @@ import type { LayerDef } from './catalog';
 // включения (titlesByOrder старого клиента). Один источник и один слой на код, id = код: при смене выбора
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
 // Под слоями — серый фон, как у старого клиента: пока тайлы грузятся или подложка сменилась, виден он, а не белая
-// страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts).
-export function buildStyle(layers: readonly LayerDef[], tracks: readonly Track[] = []): StyleSpecification {
+// страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts), над ними —
+// редактируемая линия (src/routing/edit-style.ts). Их источники (overlay) карта собирает сама и мемоизирует отдельно:
+// diff стиля MapLibre сравнивает данные GeoJSON всех источников на каждое обновление.
+export function overlaySources(
+    tracks: readonly Track[] = [],
+    edit: { state: RouteEditState | null; color: string; preview: RoutePreview | null } | null = null,
+): Record<string, GeoJSONSourceSpecification> {
+    const skip = edit?.state ? { trackId: edit.state.trackId, segment: edit.state.segment } : null;
+    return {
+        ...trackSources(tracks, skip).sources,
+        ...editSources(edit?.state ?? null, edit?.color ?? '', edit?.preview ?? null),
+    };
+}
+
+function emptyOverlay() {
+    return overlaySources();
+}
+
+export function buildStyle(
+    layers: readonly LayerDef[],
+    overlay: Record<string, GeoJSONSourceSpecification> = emptyOverlay(),
+): StyleSpecification {
     const sorted = [...layers].sort(
         (a, b) => Number(a.isOverlay) - Number(b.isOverlay) || a.order - b.order || a.code.localeCompare(b.code),
     );
     return {
         version: 8,
-        sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...trackSources(tracks) },
-        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...TRACK_LAYERS],
+        sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...overlay },
+        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...TRACK_LAYERS, ...EDIT_LAYERS],
     };
 }
 

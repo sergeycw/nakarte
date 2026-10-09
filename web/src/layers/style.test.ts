@@ -1,9 +1,12 @@
 import { expect, test } from 'vitest';
-import { TRACK_LABELS, TRACK_LINES, TRACK_POINTS } from '@/tracks/style';
+import { EDIT_LAYERS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from '@/routing/edit-style';
+import { TRACK_LABELS, TRACK_LINES, TRACK_POINTS, TRACK_UNROUTED } from '@/tracks/style';
 import { buildCatalog, type LayerDef } from './catalog';
-import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT } from './style';
+import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, overlaySources } from './style';
 
-const TRACKS = [TRACK_LINES, TRACK_POINTS, TRACK_LABELS];
+// слои треков и редактора над всеми слоями карты (есть всегда, пустые без треков)
+const TRACKS = [TRACK_LINES, TRACK_UNROUTED, TRACK_POINTS, TRACK_LABELS, ...EDIT_LAYERS.map((layer) => layer.id)];
+const OVERLAY_SOURCES = [TRACK_LINES, TRACK_UNROUTED, TRACK_POINTS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS];
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 
@@ -14,7 +17,7 @@ function pick(...codes: string[]) {
 test('подложка снизу, оверлеи по порядку наложения, а не по порядку включения', () => {
     const style = buildStyle(pick('Sa', 'Nm', 'Hs', 'O'));
     expect(style.layers.map((layer) => layer.id)).toEqual(['background', 'O', 'Nm', 'Hs', 'Sa', ...TRACKS]);
-    expect(Object.keys(style.sources).sort()).toEqual(['Hs', 'Nm', 'O', 'Sa', TRACK_POINTS, TRACK_LINES].sort());
+    expect(Object.keys(style.sources).sort()).toEqual(['Hs', 'Nm', 'O', 'Sa', ...OVERLAY_SOURCES].sort());
 });
 
 test('отмывка — слой hillshade поверх raster-dem', () => {
@@ -52,36 +55,37 @@ test('серый фон старого клиента — первым слое�
 
 test('Трек над слоями: линии и точки треков — последними слоями, скрытый трек не рисуется', () => {
     const base = { segments: [], points: [], measureTicksShown: false };
-    const style = buildStyle(pick('O', 'Hs'), [
-        {
-            ...base,
-            id: 'a',
-            name: 'A',
-            color: 1,
-            visible: true,
-            segments: [
-                [
-                    { lat: 1, lng: 2 },
-                    { lat: 3, lng: 4 },
+    const style = buildStyle(
+        pick('O', 'Hs'),
+        overlaySources([
+            {
+                ...base,
+                id: 'a',
+                name: 'A',
+                color: 1,
+                visible: true,
+                segments: [
+                    [
+                        { lat: 1, lng: 2 },
+                        { lat: 3, lng: 4 },
+                    ],
                 ],
-            ],
-            points: [{ lat: 1, lng: 2, name: 'P' }],
-        },
-        { ...base, id: 'b', name: 'B', color: 2, visible: false, points: [{ lat: 5, lng: 6, name: 'Q' }] },
-    ]);
-    expect(style.layers.slice(-3).map((layer) => layer.id)).toEqual(TRACKS);
+                points: [{ lat: 1, lng: 2, name: 'P' }],
+            },
+            { ...base, id: 'b', name: 'B', color: 2, visible: false, points: [{ lat: 5, lng: 6, name: 'Q' }] },
+        ]),
+    );
+    expect(style.layers.slice(-TRACKS.length).map((layer) => layer.id)).toEqual(TRACKS);
     expect(style.sources[TRACK_LINES]).toMatchObject({
         data: {
             features: [
                 {
-                    properties: { id: 'a', color: '#f95' },
+                    properties: { id: 'a', segment: 0, color: '#f95' },
                     geometry: {
-                        type: 'MultiLineString',
+                        type: 'LineString',
                         coordinates: [
-                            [
-                                [2, 1],
-                                [4, 3],
-                            ],
+                            [2, 1],
+                            [4, 3],
                         ],
                     },
                 },
