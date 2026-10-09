@@ -167,7 +167,8 @@ async fn fetch(mut request: Request, env: Env, _ctx: Context) -> Result<Response
     };
     let allowed_origins = http::parse_origins(&allowed_origins);
     let response = if over_limit(&request, &env, &core_request, &allowed_origins).await? {
-        http::too_many_requests(&core_request)
+        // over_limit тратит счётчик только запросам с разрешённым Origin: он здесь всегда есть
+        http::too_many_requests(core_request.origin.unwrap_or_default())
     } else {
         let source = R2Source {
             bucket: env.bucket("DEM")?,

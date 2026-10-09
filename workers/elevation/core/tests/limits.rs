@@ -44,7 +44,7 @@ fn api_requests_that_get_403_do_not_spend_the_counter() {
 
 #[test]
 fn too_many_requests_keeps_the_cors_of_the_api() {
-    let api = too_many_requests(&request("POST", "/", Some(CLONE)));
+    let api = too_many_requests(CLONE);
     assert_eq!(api.status, 429);
     assert_eq!(api.body, b"Too many requests\n");
     assert_eq!(api.header("Retry-After"), Some("60"));

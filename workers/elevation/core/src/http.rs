@@ -91,12 +91,9 @@ pub fn counts_toward_limit(request: &Request<'_>, allowed_origins: &[&str]) -> b
 }
 
 /// Ответ сверх лимита — с теми же CORS-заголовками, что обычный ответ API, чтобы клиент увидел `429`,
-/// а не сбой CORS. Вызывать только для запросов, у которых `counts_toward_limit`.
-pub fn too_many_requests(request: &Request<'_>) -> Response {
-    match request.origin {
-        Some(origin) => rate_limited().with_cors(origin),
-        None => rate_limited(),
-    }
+/// а не сбой CORS. Счётчик тратят только запросы с разрешённым `Origin` (`counts_toward_limit`).
+pub fn too_many_requests(origin: &str) -> Response {
+    rate_limited().with_cors(origin)
 }
 
 // `429` без CORS: заголовки добавляет тот, кто отвечает на путь.
