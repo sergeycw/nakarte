@@ -334,7 +334,7 @@ describe('Меню активностей', () => {
         await expect.element(page.getByRole('button', { name: /^Routing/ })).toHaveAttribute('data-state', 'down');
         await page.getByRole('button', { name: /^Routing/ }).click();
         await expect
-            .element(page.getByRole('menuitem', { name: 'BRouter is not running, start it with yarn local' }))
+            .element(page.getByRole('menuitem', { name: 'BRouter is not running, start it with docker compose up -d' }))
             .toBeVisible();
         // открытие меню перепроверяет живость: кнопка красная, подсказка говорит, что делать
         await expect

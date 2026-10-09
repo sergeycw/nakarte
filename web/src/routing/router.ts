@@ -102,7 +102,7 @@ export function createRouter({ engine, routingServer, fetch, getEngine }: Router
 }
 
 // Короткий статус для подсказки кнопки и что делать пользователю (routerDownStatus/routerDownHint старого клиента).
-// yarn local имеет смысл только для серверного режима.
+// Команда — для серверного режима: docker-compose.yml в корне репозитория поднимает BRouter на 17777.
 export function routerDownStatus(engine: RoutingEngine): string {
     return engine === 'browser' ? 'BRouter engine failed to load' : 'BRouter is not running';
 }
@@ -110,5 +110,5 @@ export function routerDownStatus(engine: RoutingEngine): string {
 export function routerDownHint(engine: RoutingEngine): string {
     return engine === 'browser'
         ? 'BRouter engine failed to load, reload the page to retry'
-        : 'BRouter is not running, start it with yarn local';
+        : 'BRouter is not running, start it with docker compose up -d';
 }
