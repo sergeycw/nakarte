@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-react';
 import { App } from '@/App';
 import { EDIT_LAYERS } from '@/routing/edit-style';
 import { TRACK_LAYERS } from '@/tracks/style';
+import { memoryAutosave } from './memory-autosave';
 import type { FixtureTiles } from './tiles';
 
 // Сеть треков в browser-тестах: без заглушки любой запрос хранилища или прокси — ошибка сети (в сеть тесты не ходят)
@@ -16,6 +17,9 @@ interface RenderOptions {
     fetch?: typeof fetch;
     writeClipboard?: ComponentProps<typeof App>['writeClipboard'];
     router?: ComponentProps<typeof App>['router'];
+    // хранилище автосохранения; по умолчанию — своё пустое в памяти на каждый рендер: рендеры App в одной странице
+    // не видят треков друг друга, а общий IndexedDB страницы тестов не засоряется
+    autosave?: ComponentProps<typeof App>['autosave'];
 }
 
 // App с подменёнными тайлами и готовой картой. hash — адрес страницы до старта приложения (m=, l= …).
@@ -29,6 +33,7 @@ export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderO
             fetch={options.fetch ?? NO_NETWORK}
             writeClipboard={options.writeClipboard}
             router={options.router}
+            autosave={options.autosave === undefined ? memoryAutosave() : options.autosave}
         />,
     );
     await expect.poll(() => mapRef.current?.getMap().loaded(), { timeout: 10_000 }).toBe(true);

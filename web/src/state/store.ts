@@ -51,8 +51,9 @@ export interface AppState {
     replaceCustomLayer(code: string, fields: CustomLayerFields): string;
     removeCustomLayer(code: string): void;
     requestBounds(bounds: Bounds): void;
-    // данные уже подготовлены prepareImport (линии упрощены); возвращает добавленные треки
-    addTracks(data: readonly GeoData[]): Track[];
+    // данные уже подготовлены prepareImport (линии упрощены); возвращает добавленные треки. atStart — в начало списка
+    // (восстановленный рабочий набор, design add-web-autosave, «Восстановление и треки из адреса»)
+    addTracks(data: readonly GeoData[], atStart?: boolean): Track[];
     // новые segments без routes сбрасывают разметку маршрута: правка, которая о ней не знает, не оставит номера опорных
     // точек, указывающие не туда (design add-web-route-editor, «Разметка маршрута в треке»)
     updateTrack(
@@ -218,7 +219,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
 
             requestBounds: (bounds) => set({ boundsRequest: { bounds, seq: (get().boundsRequest?.seq ?? 0) + 1 } }),
 
-            addTracks: (data) => {
+            addTracks: (data, atStart = false) => {
                 let { nextColor } = get();
                 const added = data.map((item): Track => {
                     let color = item.color;
@@ -240,7 +241,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
                         ...(item.routes ? { routes: item.routes } : {}),
                     };
                 });
-                set({ tracks: [...get().tracks, ...added], nextColor });
+                set({ tracks: atStart ? [...added, ...get().tracks] : [...get().tracks, ...added], nextColor });
                 return added;
             },
 

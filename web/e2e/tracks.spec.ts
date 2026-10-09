@@ -58,7 +58,7 @@ test('Неизвестный ключ', async ({ page }) => {
     await expect(page.getByRole('list', { name: 'Tracks' })).toHaveCount(0);
 });
 
-test('Ссылка готова', async ({ page, context, network }) => {
+test('Ссылка готова', async ({ page, context, browser, network }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.goto(`./#m=12/41.7/44.8&l=O&nktk=${TBILISI}`);
     await expect(track(page, 'Mtatsminda')).toBeVisible();
@@ -69,10 +69,17 @@ test('Ссылка готова', async ({ page, context, network }) => {
     const key = new URL(link).hash.match(/nktl=([\w-]{22})$/)?.[1];
     expect(key).toBeDefined();
     expect(network.storage.has(key as string)).toBe(true);
-    // по ссылке во второй вкладке открываются те же треки
-    const second = await context.newPage();
-    await second.goto(link);
-    await expect(track(second, 'Mtatsminda')).toBeVisible();
+    // по ссылке у другого пользователя открываются те же треки; вкладка того же браузера добавила бы их к
+    // автосохранённым (спека tracks, «Треки из адреса дополняют сохранённые»)
+    const other = await browser.newContext();
+    try {
+        await network.attach(other);
+        const second = await other.newPage();
+        await second.goto(link);
+        await expect(track(second, 'Mtatsminda')).toBeVisible();
+    } finally {
+        await other.close();
+    }
 });
 
 test('Трек OSM', async ({ page, network }) => {

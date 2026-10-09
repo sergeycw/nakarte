@@ -1,17 +1,32 @@
-import type { FeatureCollection, LineString, Point } from 'geojson';
-import type { Map as MaplibreMap } from 'maplibre-gl';
+import type { LineString } from 'geojson';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { type FakeRouter, fakeRouter } from '@/test/fake-router';
+import {
+    click,
+    dblclick,
+    drag,
+    editPanel,
+    features,
+    fire,
+    idle,
+    key,
+    legs,
+    near,
+    newTrack,
+    P,
+    pressEscape,
+    waypoints,
+} from '@/test/map-events';
 import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import type { LatLng } from '@/tracks/model';
 import { saveNktk } from '@/tracks/nktk';
 import { TRACK_LINES } from '@/tracks/style';
 import { RoutingError } from './brouter';
-import { EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from './edit-style';
+import { EDIT_PREVIEW } from './edit-style';
 
 // Редактор маршрута в App на настоящей карте MapLibre: тайлы — фикстура, роутер — поддельный (тест сам отвечает на
 // запросы). Мышь — синтетические события на холсте по map.project: так их получает и MapLibre, и обработчики
@@ -31,7 +46,6 @@ afterEach(() => {
 
 // Тбилиси, зум старого клиента 15: между точками ≈ 100 px
 const VIEW = '#m=15/41.69/44.785';
-const P = (lat: number, lng: number) => ({ lat, lng });
 const A = P(41.687, 44.78);
 const B = P(41.69, 44.785);
 const C = P(41.693, 44.79);
@@ -47,94 +61,6 @@ async function render(hash: string, router: FakeRouter = fakeRouter({ auto: true
     }
     const app = await renderApp(tiles, hash, { router });
     return { ...app, router };
-}
-
-function features<T extends LineString | Point>(map: MaplibreMap, id: string) {
-    const source = map.getSource(id);
-    if (!source) {
-        throw new Error(`нет источника ${id}`);
-    }
-    return (source.serialize() as { data: FeatureCollection<T> }).data.features;
-}
-
-const waypoints = (map: MaplibreMap) =>
-    features<Point>(map, EDIT_WAYPOINTS).map((f) => P(f.geometry.coordinates[1], f.geometry.coordinates[0]));
-const legs = (map: MaplibreMap) => features<LineString>(map, EDIT_LEGS);
-
-// карта дорисовала последние данные источников: без этого queryRenderedFeatures ещё не видит новые точки
-function idle(map: MaplibreMap) {
-    return new Promise<void>((resolve) => {
-        map.once('idle', () => resolve());
-        map.triggerRepaint();
-    });
-}
-
-function fire(map: MaplibreMap, type: string, at: LatLng, init: MouseEventInit = {}) {
-    const rect = map.getCanvasContainer().getBoundingClientRect();
-    const point = map.project([at.lng, at.lat]);
-    map.getCanvas().dispatchEvent(
-        new MouseEvent(type, {
-            bubbles: true,
-            cancelable: true,
-            button: 0,
-            clientX: rect.left + point.x,
-            clientY: rect.top + point.y,
-            ...init,
-        }),
-    );
-}
-
-async function click(map: MaplibreMap, at: LatLng, init: MouseEventInit = {}) {
-    await idle(map);
-    fire(map, 'mousemove', at, init);
-    fire(map, 'mousedown', at, init);
-    fire(map, 'mouseup', at, init);
-    fire(map, 'click', at, init);
-    await idle(map);
-}
-
-async function drag(map: MaplibreMap, from: LatLng, to: LatLng) {
-    await idle(map);
-    fire(map, 'mousemove', from);
-    fire(map, 'mousedown', from);
-    const steps = 4;
-    for (let i = 1; i <= steps; i++) {
-        fire(
-            map,
-            'mousemove',
-            P(from.lat + ((to.lat - from.lat) * i) / steps, from.lng + ((to.lng - from.lng) * i) / steps),
-        );
-    }
-    fire(map, 'mouseup', to);
-    fire(map, 'click', to);
-    await idle(map);
-}
-
-async function dblclick(map: MaplibreMap, at: LatLng) {
-    await click(map, at);
-    await click(map, at);
-    fire(map, 'dblclick', at);
-    await idle(map);
-}
-
-function key(init: KeyboardEventInit, target: EventTarget = document.body) {
-    target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-}
-
-const pressEscape = () => key({ key: 'Escape', code: 'Escape' });
-
-// координаты синтетических событий мыши — целые пиксели: на этом зуме пиксель ≈ 0.00004°
-const near = (a: LatLng, b: LatLng) => Math.abs(a.lat - b.lat) < 1e-4 && Math.abs(a.lng - b.lng) < 1e-4;
-
-async function newTrack(map: MaplibreMap, points: LatLng[]) {
-    await page.getByRole('button', { name: 'New track' }).first().click();
-    for (const point of points) {
-        await click(map, point);
-    }
-}
-
-function editPanel() {
-    return page.getByTestId('edit-panel');
 }
 
 describe('Начало и конец редактирования', () => {

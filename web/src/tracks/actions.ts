@@ -22,6 +22,9 @@ export interface TrackActionsDeps {
     location: () => { origin: string; pathname: string; hash: string };
     // запись в буфер обмена; получает промис ссылки сразу, в обработчике клика (design add-web-tracks, «Ссылка — после ответа хранилища»)
     writeClipboard?: (text: Promise<string>) => Promise<void>;
+    // конец восстановления автосохранения: треки из адреса и файлов встают после восстановленных (design
+    // add-web-autosave, «Восстановление и треки из адреса»)
+    restored?: Promise<unknown>;
 }
 
 // ClipboardItem с промисом: Safari сохраняет жест пользователя на время запроса к хранилищу, Chromium ждёт промис
@@ -40,6 +43,7 @@ export function createTrackActions({
     notify,
     location,
     writeClipboard = writeClipboardItem,
+    restored = Promise.resolve(),
 }: TrackActionsDeps) {
     const state = () => store.getState();
 
@@ -47,6 +51,7 @@ export function createTrackActions({
         state().changeLoadingTracks(1);
         try {
             const { tracks, messages } = prepareImport(await data);
+            await restored;
             const added = state().addTracks(tracks);
             for (const message of messages) {
                 notify(message, 'error');
