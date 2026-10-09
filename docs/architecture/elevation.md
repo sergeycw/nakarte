@@ -64,7 +64,7 @@ flowchart TD
 
 ## Тайлы высот выведены
 
-Тайлы высот (`GET /tiles/{z}/{x}/{y}`: z0–9 из архива, z10–11 на лету) показывал только старый клиент — высоту и уклон под курсором. Change [retire-old-client-services](../../openspec/changes/retire-old-client-services/design.md) их убрал: нет маршрута `/tiles/`, счётчика `TILES_RATE_LIMITER` (`namespace_id` `1001` свободен), расчёта тайлов в ядре, генератора архива `elevation-tiles` и workflow `elevation tiles`. `GET /tiles/…` теперь обычный запрос к API: без `Origin` — `403`, с разрешённым — `405`. Архив `tiles/elevation-z0-9` в R2 остаётся до решения владельца, Worker его не читает. Как тайлы были устроены — архив [add-elevation-tiles](../../openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md).
+Тайлы высот (`GET /tiles/{z}/{x}/{y}`: z0–9 из архива, z10–11 на лету) показывал только старый клиент — высоту и уклон под курсором. Change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) их убрал: нет маршрута `/tiles/`, счётчика `TILES_RATE_LIMITER` (`namespace_id` `1001` свободен), расчёта тайлов в ядре, генератора архива `elevation-tiles` и workflow `elevation tiles`. `GET /tiles/…` теперь обычный запрос к API: без `Origin` — `403`, с разрешённым — `405`. Архив `tiles/elevation-z0-9` в R2 остаётся до решения владельца, Worker его не читает. Как тайлы были устроены — архив [add-elevation-tiles](../../openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md).
 
 ## Сверено по
 

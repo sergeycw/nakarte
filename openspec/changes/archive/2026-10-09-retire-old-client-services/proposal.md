@@ -2,7 +2,7 @@
 
 ## Why
 
-Старый клиент удалён (change [switch-to-web-app](../archive/2026-10-09-switch-to-web-app/design.md)), а Worker'ы ещё держат то, что было нужно только ему: тайлы высот для высоты под курсором (маршрут `/tiles/` Worker'а высот, генератор архива, workflow заливки, расчёт z10–11 на лету без бюджета чтений R2 — P2 backlog), маршрут прокси `/wikimapia/` для удалённого слоя Wikimapia и origin старых dev-серверов (8765, 8766) и karma (9876) в `ALLOWED_ORIGINS`. Решение владельца — тайлы высот выводятся ([record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md), «Тени рельефа из AWS Terrain Tiles, тайлы высот выводятся»); это вторая половина change 9 [списка ресёрча](../../research/new-ui.md#changes-по-порядку).
+Старый клиент удалён (change [switch-to-web-app](../2026-10-09-switch-to-web-app/design.md)), а Worker'ы ещё держат то, что было нужно только ему: тайлы высот для высоты под курсором (маршрут `/tiles/` Worker'а высот, генератор архива, workflow заливки, расчёт z10–11 на лету без бюджета чтений R2 — P2 backlog), маршрут прокси `/wikimapia/` для удалённого слоя Wikimapia и origin старых dev-серверов (8765, 8766) и karma (9876) в `ALLOWED_ORIGINS`. Решение владельца — тайлы высот выводятся ([record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md), «Тени рельефа из AWS Terrain Tiles, тайлы высот выводятся»); это вторая половина change 9 [списка ресёрча](../../../research/new-ui.md#changes-по-порядку).
 
 ## What Changes
 
