@@ -2,9 +2,9 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md). Объём — решение владельца в [add-web-route-editor](../archive/2026-10-09-add-web-route-editor/design.md#что-входит-в-этот-change-владелец) и строка 6б [ресёрча](../../research/new-ui.md#changes-по-порядку); модель линии и разметки — там же, «Модель линии» и «Разметка маршрута в треке»; события карты — «События карты»; разметка в ссылке и автосохранении — [add-web-autosave](../archive/2026-10-09-add-web-autosave/design.md) (`simplifyRouted`, `routeFits`, запись по изменению `tracks`).
+Зачем — [proposal](proposal.md). Объём — решение владельца в [add-web-route-editor](../2026-10-09-add-web-route-editor/design.md#что-входит-в-этот-change-владелец) и строка 6б [ресёрча](../../../research/new-ui.md#changes-по-порядку); модель линии и разметки — там же, «Модель линии» и «Разметка маршрута в треке»; события карты — «События карты»; разметка в ссылке и автосохранении — [add-web-autosave](../2026-10-09-add-web-autosave/design.md) (`simplifyRouted`, `routeFits`, запись по изменению `tracks`).
 
-Справочник старого клиента — [track-list.js](../../../src/lib/leaflet.control.track-list/track-list.js) (`onNodeRightClickShowMenu`, `onSegmentRightClickShowMenu`, `splitTrackSegment`, `joinTrackSegments`, `startShortCutSelection`/`getShortCutNodes`, `deleteTrackSegment`, `newTrackFromSegment`, `onMarkerClick`, `beginPointCreate`/`createNewPoint`, `getNewPointName`, `beginPointMove`, `copyPointCoordinatesToClipboard`) и [leaflet.polyline-edit](../../../src/lib/leaflet.polyline-edit/index.js) (`contextmenu` маркеров узлов и отрезков, `highlighNodesForDeletion`).
+Справочник старого клиента — [track-list.js](../../../../src/lib/leaflet.control.track-list/track-list.js) (`onNodeRightClickShowMenu`, `onSegmentRightClickShowMenu`, `splitTrackSegment`, `joinTrackSegments`, `startShortCutSelection`/`getShortCutNodes`, `deleteTrackSegment`, `newTrackFromSegment`, `onMarkerClick`, `beginPointCreate`/`createNewPoint`, `getNewPointName`, `beginPointMove`, `copyPointCoordinatesToClipboard`) и [leaflet.polyline-edit](../../../../src/lib/leaflet.polyline-edit/index.js) (`contextmenu` маркеров узлов и отрезков, `highlighNodesForDeletion`).
 
 Что выяснилось при чтении старого кода (2026-10-09, `master` `93ab210`):
 
@@ -116,6 +116,7 @@ Cut и Shortcut с линии ставят новую опорную точку 
 - `wrapLng` даёт долготе в пределах ±180 шум в последнем знаке; точка трека приводит в ±180 только вышедшую за пределы долготу.
 - Пока открыто меню карты, клики по карте и клавиши редактора не действуют: клик закрывает меню, Escape в меню закрывает только меню, а не редактирование.
 - **Ревью диффа (субагент, 2026-10-09) и исправления.** Режим «Add point» переживал удаление своего трека: панели уже не было, а клики по карте молча уходили в режим, — теперь режим точек заканчивается вместе с треком или переносимой точкой. Долгое нажатие на линию вне редактирования и на отрезок во время рисования ничего не делало (свой таймер редактор взводит только на опорной точке и отрезке редактируемой линии, а `contextmenu` во время касания игнорировал) — теперь такой жест берёт долгое нажатие самого MapLibre, а повторное меню на тот же жест отсекает флаг своего таймера до конца касания. Ctrl+клик на macOS вставлял точку вместо меню — `mousedown` с Ctrl на Mac редактор пропускает. Жест, кончившийся `touchcancel`, оставлял слушатель `touchend`, гасивший следующий тап. Меню точки трека по отставшему кадру могло открыться у соседней точки — найденная по номеру точка сверяется с фичей по названию и координатам. Меню без пунктов закрывается, а не держит клики. Browser-тесты сверяли только пометку «непроложен» и не отличали проложенный отрезок от прямого — фича отрезка редактора получила его состояние (`state`), тесты сверяют его; добавлены срез в пределах одного отрезка, отмена Join кликом мимо и Shortcut — Enter, склейка проложенных частей в `App`.
+- **karma на tracedetrail.** `test (ChromeHeadless)` старого клиента падал на каждом прогоне, на `master` тоже: tracedetrail через прокси клона пускает ≈ 3 запроса подряд, затем ≈ 30 с отвечает `429` (замер из Chromium), а `test_track_load.js` шлёт ему пять запросов подряд с повторами без паузы. Перезапуски не помогали; сетевые случаи tracedetrail убраны отдельным PR sergeycw/nakarte#111 (прецедент — wikiloc), сценарии остались в тестах нового приложения на фикстурах, ограничение — в backlog.
 - `getByRole` Playwright ищет имя по подстроке без учёта регистра: «Cut» находит и «Shortcut» — пункты меню в e2e — с `exact: true`.
 
 ## Проверки
@@ -129,7 +130,16 @@ Cut и Shortcut с линии ставят новую опорную точку 
 | 10 000 (7 856) | 5–6 / 86–91 мс / 50 мс | 1 / 144–148 мс / 131–137 мс |
 | 100 000 (77 787) | 22 / 701–706 мс / 2 × 333 мс | 2 / 342–350 мс / 258–282 мс |
 
-Сама операция над линией — единицы миллисекунд; остальное — React, пересборка источников треков и редактора и diff стиля MapLibre на десятках тысяч опорных точек, как у отпускания перетаскивания в [add-web-route-editor](../archive/2026-10-09-add-web-route-editor/design.md#перетаскивание-внутри-большой-редактируемой-линии) (≈ 1.6 с на 76 тыс.). У Shortcut две долгие задачи: правка линии и пересборка после неё. Картина памяти не меняется (копия линии живёт до записи), `phys_footprint` не мерили. Что делать с такими линиями — backlog, «Редактор и активности».
+Сама операция над линией — единицы миллисекунд; остальное — React, пересборка источников треков и редактора и diff стиля MapLibre на десятках тысяч опорных точек, как у отпускания перетаскивания в [add-web-route-editor](../2026-10-09-add-web-route-editor/design.md#перетаскивание-внутри-большой-редактируемой-линии) (≈ 1.6 с на 76 тыс.). У Shortcut две долгие задачи: правка линии и пересборка после неё. Картина памяти не меняется (копия линии живёт до записи), `phys_footprint` не мерили. Что делать с такими линиями — backlog, «Редактор и активности».
+
+### На проде
+
+После merge PR sergeycw/nakarte#110 (и sergeycw/nakarte#111 — сетевые тесты tracedetrail убраны из karma, «Выяснилось при apply») прогон `deploy pages` выкатил Pages, jobs `pages`, `prune` и `smoke` зелёные. 2026-10-09, `https://nakarte-routing.pages.dev/next/#m=13/41.715/44.79`, Playwright 1.64, Chromium headless, настоящий движок в воркере, скрипт вне репозитория; состояние — запись автосохранения `nakarte-web`:
+
+- «Hiking», «New track», три точки: два отрезка проложены за 7.6 с с холодным движком, 5.7 km, 147 точек, разметка `[0, 116, 146]`.
+- Cut в средней опорной точке: два отрезка трека, 117 и 31 точка, оба `routed`/`hiking`. «Off», перезагрузка — разметка та же; перетаскивание конца второй половины перестроило её движком за 4.3 с (31 → 40 точек), активность `hiking`.
+- Join от конца первой половины к началу второй: один отрезок, разметка `routed`, `straight` (стык), `routed`. Shortcut от начала до конца: две опорные точки срезаны прямой, 6.23 km; Cmd+Z вернул 8.97 km и прежнюю разметку.
+- «Add point» → `Camp`; «Copy link for all tracks» → `nktl=OzHrfy9eLTH_GHqun_aYGQ`. Новый контекст браузера: трек с той же разметкой (опорные точки `[0, 104, 105, 139]` — ссылка упростила точки маршрута, 157 → 140), точка `Camp`, 8.96 km против 8.97. Ошибок на странице нет.
 
 ### Вид
 
