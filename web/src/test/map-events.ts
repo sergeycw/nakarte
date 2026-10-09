@@ -1,5 +1,6 @@
 import type { FeatureCollection, LineString, Point } from 'geojson';
 import type { Map as MaplibreMap } from 'maplibre-gl';
+import { expect } from 'vitest';
 import { page } from 'vitest/browser';
 import { EDIT_LEGS, EDIT_WAYPOINTS } from '@/routing/edit-style';
 import type { LatLng } from '@/tracks/model';
@@ -95,4 +96,70 @@ export async function newTrack(map: MaplibreMap, points: LatLng[]) {
 
 export function editPanel() {
     return page.getByTestId('edit-panel');
+}
+
+// Правый клик: MapLibre шлёт событие карты contextmenu только после mousedown (BlockableMapEventHandler в
+// ui/handler/map_event.ts: без него contextmenu игнорируется, а на Mac откладывается до mouseup)
+export async function rightClick(map: MaplibreMap, at: LatLng) {
+    await idle(map);
+    fire(map, 'mousemove', at);
+    fire(map, 'mousedown', at, { button: 2, buttons: 2 });
+    fire(map, 'contextmenu', at, { button: 2, buttons: 2 });
+    fire(map, 'mouseup', at, { button: 2 });
+    await idle(map);
+}
+
+// Касание пальцем: синтетический TouchEvent на холсте по map.project, как мышь выше
+export function touch(map: MaplibreMap, type: 'touchstart' | 'touchmove' | 'touchend', at: LatLng) {
+    const rect = map.getCanvasContainer().getBoundingClientRect();
+    const point = map.project([at.lng, at.lat]);
+    const finger = new Touch({
+        identifier: 1,
+        target: map.getCanvas(),
+        clientX: rect.left + point.x,
+        clientY: rect.top + point.y,
+    });
+    const touches = type === 'touchend' ? [] : [finger];
+    map.getCanvas().dispatchEvent(
+        new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches,
+            targetTouches: touches,
+            changedTouches: [finger],
+        }),
+    );
+}
+
+// долгое нажатие без сдвига: дольше LONG_PRESS_MS редактора (500 мс)
+export async function longPress(map: MaplibreMap, at: LatLng) {
+    await idle(map);
+    touch(map, 'touchstart', at);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    touch(map, 'touchend', at);
+    await idle(map);
+}
+
+export async function tap(map: MaplibreMap, at: LatLng) {
+    await idle(map);
+    touch(map, 'touchstart', at);
+    touch(map, 'touchend', at);
+    await idle(map);
+}
+
+export function mapMenu() {
+    return page.getByTestId('map-menu');
+}
+
+// пункты открытого меню карты по порядку
+export async function menuItems(): Promise<string[]> {
+    await expect.element(mapMenu()).toBeVisible();
+    return mapMenu()
+        .getByRole('menuitem')
+        .elements()
+        .map((element) => element.textContent ?? '');
+}
+
+export async function chooseFromMenu(item: string) {
+    await mapMenu().getByRole('menuitem', { name: item, exact: true }).click();
 }

@@ -1,14 +1,20 @@
 import { useMap } from '@vis.gl/react-maplibre';
+import type { Point } from 'geojson';
 import type { GeoJSONSource, Map as MaplibreMap, MapMouseEvent, MapTouchEvent, PointLike } from 'maplibre-gl';
 import { useEffect } from 'react';
 import { useAppStoreApi } from '@/state/context';
-import type { AppStore, RouteEditState } from '@/state/store';
-import { type LatLng, TRACK_COLORS } from '@/tracks/model';
-import { TRACK_LINES, TRACK_UNROUTED } from '@/tracks/style';
-import { EDIT_PREVIEW, EDIT_WAYPOINTS, previewData, waypointRole } from './edit-style';
+import type { AppStore, MenuTarget, RouteEditState } from '@/state/store';
+import type { TrackActions } from '@/tracks/actions';
+import { useTrackActions } from '@/tracks/actions-context';
+import { distance } from '@/tracks/geometry';
+import { type LatLng, TRACK_COLORS, type Waypoint } from '@/tracks/model';
+import { TRACK_LINES, TRACK_POINTS, TRACK_UNROUTED } from '@/tracks/style';
+import { EDIT_PREVIEW, EDIT_WAYPOINTS, previewData, toolPreviewData, waypointRole } from './edit-style';
 import type { RouteEditing } from './editing';
 import { useRouteEditing } from './editing-context';
+import type { End } from './editor';
 import { legPath } from './line';
+import { type LinePlace, nearestLink, shortcutRemoved } from './line-tools';
 
 // События карты для редактора (design add-web-route-editor, «События карты»). Компонент внутри <Map>: обработчики
 // MapLibre и document вешаются один раз, текущее состояние читается из стора в момент события.
@@ -20,7 +26,9 @@ import { legPath } from './line';
 //   preventDefault у mousedown/touchstart MapLibre выключает панораму карты на этот жест (ui/handler/map_event.ts);
 // - двойной клик по опорной точке — удаление, preventDefault гасит зум;
 // - клавиши на keydown: на macOS, пока зажат Cmd, keyup других клавиш не приходит (AGENTS.md, «Где код роутинга»);
-// - превью перетаскивания и резинка — setData источника превью мимо стиля (edit-style.ts).
+// - превью перетаскивания и резинка — setData источника превью мимо стиля (edit-style.ts);
+// - инструменты линии и точки трека (design add-web-line-tools): правый клик и долгое нажатие открывают меню, клик по
+//   точке трека — меню точки, выбор Join и Shortcut и режимы точек забирают клики по карте себе.
 
 // допуск попадания по точке и линии, px: кружок опорной точки — радиус 6 + обводка 2; по линии для вставки — 7 px в
 // обе стороны от тонкой линии редактора
@@ -30,6 +38,11 @@ const LINE_HIT = 7;
 const TOUCH_ECHO_MS = 800;
 // клик сразу после перетаскивания или вставки — конец того же жеста
 const CLICK_AFTER_GESTURE_MS = 400;
+// долгое нажатие пальцем — меню; сдвиг больше DRAG_THRESHOLD px до него — перетаскивание (design add-web-line-tools,
+// «Меню на карте»: contextmenu на телефоне ненадёжен, iOS Safari его не шлёт)
+const LONG_PRESS_MS = 500;
+const DRAG_THRESHOLD = 3;
+const MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
 export type EditorKey = 'undo' | 'redo' | 'backspace' | 'escape' | 'enter';
 
@@ -134,6 +147,31 @@ function hitTrack(map: MaplibreMap, point: ScreenPoint): { trackId: string; segm
     return feature ? { trackId: feature.properties.id as string, segment: feature.properties.segment as number } : null;
 }
 
+// Точка трека под курсором — по отрисованному кадру, как линии треков: номер точки — свойство фичи (tracks/style.ts)
+function trackPointAt(
+    map: MaplibreMap,
+    store: AppStore,
+    point: ScreenPoint,
+): { trackId: string; point: Waypoint } | null {
+    const box: [PointLike, PointLike] = [
+        [point.x - HIT_RADIUS, point.y - HIT_RADIUS],
+        [point.x + HIT_RADIUS, point.y + HIT_RADIUS],
+    ];
+    const [feature] = map.queryRenderedFeatures(box, { layers: [TRACK_POINTS] });
+    if (!feature) {
+        return null;
+    }
+    const trackId = feature.properties.id as string;
+    const found = store.getState().tracks.find((track) => track.id === trackId)?.points[
+        feature.properties.index as number
+    ];
+    // кадр мог отстать от стора (точку только что удалили, номера сдвинулись): под номером должна быть та же точка
+    const [lng, lat] = (feature.geometry as Point).coordinates;
+    const same =
+        found && found.name === feature.properties.name && Math.abs(found.lat - lat) + Math.abs(found.lng - lng) < 1e-5;
+    return same ? { trackId, point: found } : null;
+}
+
 // Точка в той копии мира, что ближе к опорной (wrapLatLngToTarget старого клиента): MapLibre рисует копии мира, и
 // клик по соседней копии иначе дал бы скачок линии через весь мир
 function nearTo(latlng: LatLng, reference: LatLng | undefined): LatLng {
@@ -152,11 +190,59 @@ function editColor(store: AppStore): string {
     return TRACK_COLORS[tracks.find((track) => track.id === routeEdit?.trackId)?.color ?? 0];
 }
 
-function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => void {
+function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing, actions: TrackActions): () => void {
     const state = () => store.getState();
     let suppressClickUntil = 0;
     let lastTouch = Number.NEGATIVE_INFINITY;
+    let touching = false;
     let dragging = false;
+    // на это касание редактор взвёл своё долгое нажатие (палец на опорной точке или на отрезке): contextmenu MapLibre
+    // на тот же жест не нужен — оба таймера по 500 мс. Сбрасывается с концом касания.
+    let ownLongPress = false;
+
+    // место на редактируемой линии под точкой экрана: опорная точка или отрезок
+    function placeAt(edit: RouteEditState, point: ScreenPoint, latlng: LatLng): LinePlace | null {
+        const index = waypointAt(map, edit, point);
+        if (index !== null) {
+            return { waypoint: index };
+        }
+        const leg = legAt(map, edit, point);
+        return leg === null ? null : { leg, latlng: nearTo(latlng, edit.line.waypoints[leg]) };
+    }
+
+    // Что под меню: опорная точка или отрезок редактируемой линии, точка трека, линия трека (её редактирование
+    // начинается). null — меню нет.
+    function menuTarget(point: ScreenPoint, latlng: LatLng): MenuTarget | null {
+        let edit = state().routeEdit;
+        const place = edit && placeAt(edit, point, latlng);
+        if (place) {
+            return 'waypoint' in place ? { kind: 'waypoint', index: place.waypoint } : { kind: 'line', place };
+        }
+        const trackPoint = trackPointAt(map, store, point);
+        if (trackPoint) {
+            return { kind: 'point', ...trackPoint };
+        }
+        const track = hitTrack(map, point);
+        if (!track) {
+            return null;
+        }
+        editing.start(track.trackId, track.segment);
+        edit = state().routeEdit;
+        const leg = edit && legAt(map, edit, point);
+        return edit && leg !== null && leg !== undefined
+            ? { kind: 'line', place: { leg, latlng: nearTo(latlng, edit.line.waypoints[leg]) } }
+            : null;
+    }
+
+    function openMenu(point: ScreenPoint, latlng: LatLng, client: ScreenPoint): boolean {
+        const target = menuTarget(point, latlng);
+        if (!target) {
+            return false;
+        }
+        setPreview(null);
+        editing.openMenu(client.x, client.y, target);
+        return true;
+    }
 
     function setPreview(data: ReturnType<typeof previewData> | null) {
         (map.getSource(EDIT_PREVIEW) as GeoJSONSource | undefined)?.setData(data ?? previewData([], ''));
@@ -170,7 +256,7 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
         } else if (editing.pending() > 0) {
             // пока идут запросы, курсор показывает ожидание (спека route-editing, «Клик при рисовании»)
             cursor = 'progress';
-        } else if (edit?.drawing) {
+        } else if (edit?.drawing || state().lineTool || state().pointTool) {
             cursor = 'crosshair';
         }
         map.getCanvas().style.cursor = cursor;
@@ -203,9 +289,25 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
         let latlng = origin;
         let moved = false;
         const canvas = map.getCanvasContainer();
+        // палец на опорной точке без сдвига — меню точки, а не перетаскивание
+        if (touch && !inserted) {
+            ownLongPress = true;
+        }
+        const longPress =
+            touch && !inserted
+                ? window.setTimeout(() => {
+                      if (moved) {
+                          return;
+                      }
+                      finish();
+                      menuAfterLongPress(() =>
+                          editing.openMenu(clientStart.x, clientStart.y, { kind: 'waypoint', index }),
+                      );
+                  }, LONG_PRESS_MS)
+                : undefined;
 
         function move(clientX: number, clientY: number) {
-            if (!moved && Math.hypot(clientX - clientStart.x, clientY - clientStart.y) < 3) {
+            if (!moved && Math.hypot(clientX - clientStart.x, clientY - clientStart.y) < DRAG_THRESHOLD) {
                 return;
             }
             if (!moved) {
@@ -233,7 +335,8 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
                 move(t.clientX, t.clientY);
             }
         };
-        const finish = () => {
+        function finish() {
+            window.clearTimeout(longPress);
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', finish);
             window.removeEventListener('touchmove', onTouchMove);
@@ -250,7 +353,7 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
             if (moved || inserted) {
                 suppressClickUntil = performance.now() + CLICK_AFTER_GESTURE_MS;
             }
-        };
+        }
         if (touch) {
             window.addEventListener('touchmove', onTouchMove, { passive: false });
             window.addEventListener('touchend', finish);
@@ -261,9 +364,76 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
         }
     }
 
+    // Меню после долгого нажатия. Отпускание пальца — конец того же жеста: preventDefault у touchend гасит совместимые
+    // mousedown/click, которые браузер иначе пришлёт после касания, — mousedown меню Base UI считает нажатием снаружи
+    // и закрывается (useDismiss, outsidePressEvent 'sloppy'), а click карты поставил бы точку.
+    function menuAfterLongPress(open: () => void) {
+        setPreview(null);
+        open();
+        // жест может кончиться touchcancel: тогда слушатель touchend снимается, иначе он погасил бы следующий тап
+        const onEnd = (event: TouchEvent) => {
+            window.removeEventListener('touchend', onEnd);
+            window.removeEventListener('touchcancel', onEnd);
+            if (event.type === 'touchend') {
+                event.preventDefault();
+                suppressClickUntil = performance.now() + CLICK_AFTER_GESTURE_MS;
+            }
+        };
+        window.addEventListener('touchend', onEnd, { passive: false });
+        window.addEventListener('touchcancel', onEnd);
+    }
+
+    // Касание отрезка: точка вставляется не сразу, а при сдвиге пальца (вставка и перетаскивание) или при отпускании до
+    // LONG_PRESS_MS (тап — вставка, как мышью); долгое нажатие без сдвига — меню линии (design add-web-line-tools)
+    function touchOnLeg(leg: number, latlng: LatLng, clientStart: ScreenPoint) {
+        let done = false;
+        ownLongPress = true;
+        const cleanup = () => {
+            done = true;
+            window.clearTimeout(timer);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onEnd);
+            window.removeEventListener('touchcancel', onCancel);
+        };
+        const insert = () => {
+            cleanup();
+            return editing.insertWaypoint(leg, latlng);
+        };
+        const onMove = (event: TouchEvent) => {
+            const t = event.touches[0];
+            if (!t || Math.hypot(t.clientX - clientStart.x, t.clientY - clientStart.y) < DRAG_THRESHOLD) {
+                return;
+            }
+            event.preventDefault();
+            const inserted = insert();
+            if (inserted >= 0) {
+                startDrag(inserted, true, clientStart, true);
+            }
+        };
+        const onEnd = () => {
+            if (insert() >= 0) {
+                suppressClickUntil = performance.now() + CLICK_AFTER_GESTURE_MS;
+            }
+        };
+        const onCancel = () => cleanup();
+        const timer = window.setTimeout(() => {
+            if (done) {
+                return;
+            }
+            cleanup();
+            menuAfterLongPress(() =>
+                editing.openMenu(clientStart.x, clientStart.y, { kind: 'line', place: { leg, latlng } }),
+            );
+        }, LONG_PRESS_MS);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+        window.addEventListener('touchcancel', onCancel);
+    }
+
     function onDown(event: MapMouseEvent | MapTouchEvent, client: ScreenPoint, touch: boolean) {
         const edit = state().routeEdit;
-        if (!edit || dragging) {
+        // выбор на карте и режимы точек забирают клики себе, нажатие только двигает карту
+        if (!edit || dragging || state().lineTool || state().pointTool || state().mapMenu) {
             return;
         }
         const index = waypointAt(map, edit, event.point);
@@ -272,38 +442,143 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
             startDrag(index, false, client, touch);
             return;
         }
-        if (edit.drawing) {
+        // точка трека на линии: нажатие на неё точку линии не вставляет, иначе до меню точки не добраться
+        if (edit.drawing || trackPointAt(map, store, event.point)) {
             return;
         }
         const leg = legAt(map, edit, event.point);
-        if (leg !== null) {
-            event.preventDefault();
-            const inserted = editing.insertWaypoint(leg, nearTo(lngLat(event), edit.line.waypoints[leg]));
-            if (inserted >= 0) {
-                startDrag(inserted, true, client, touch);
-            }
+        if (leg === null) {
+            return;
+        }
+        event.preventDefault();
+        const latlng = nearTo(lngLat(event), edit.line.waypoints[leg]);
+        if (touch) {
+            touchOnLeg(leg, latlng, client);
+            return;
+        }
+        const inserted = editing.insertWaypoint(leg, latlng);
+        if (inserted >= 0) {
+            startDrag(inserted, true, client, touch);
         }
     }
 
     const onMouseDown = (event: MapMouseEvent) => {
-        if (event.originalEvent.button !== 0 || performance.now() - lastTouch < TOUCH_ECHO_MS) {
+        // Ctrl+клик на macOS — правый клик: mousedown приходит с button 0, и без этой проверки он вставил бы точку и
+        // начал перетаскивание, а contextmenu отбросился бы
+        const macContextClick = event.originalEvent.ctrlKey && MAC;
+        if (event.originalEvent.button !== 0 || macContextClick || performance.now() - lastTouch < TOUCH_ECHO_MS) {
             return;
         }
         onDown(event, { x: event.originalEvent.clientX, y: event.originalEvent.clientY }, false);
     };
     const onTouchStart = (event: MapTouchEvent) => {
         lastTouch = performance.now();
+        touching = true;
+        ownLongPress = false;
         const t = event.originalEvent.touches[0];
         if (event.originalEvent.touches.length === 1 && t) {
             onDown(event, { x: t.clientX, y: t.clientY }, true);
         }
     };
 
+    const onTouchEnd = () => {
+        lastTouch = performance.now();
+        touching = false;
+        ownLongPress = false;
+    };
+
+    // Правый клик (contextmenu MapLibre): меню опорной точки, линии или точки трека; preventDefault у события браузера
+    // гасит его собственное меню. Во время касания contextmenu карты — долгое нажатие самого MapLibre (родное событие
+    // браузера при касании MapLibre гасит, ui/handler/map_event.ts); сразу после касания — эхо.
+    const onContextMenu = (event: MapMouseEvent) => {
+        const client = { x: event.originalEvent.clientX, y: event.originalEvent.clientY };
+        if (touching) {
+            // долгое нажатие, которое посчитал сам MapLibre (палец на линии вне редактирования, на отрезке во время
+            // рисования): своего таймера у редактора на этот жест нет
+            event.originalEvent.preventDefault();
+            if (!ownLongPress && !dragging && !state().pointTool && !state().lineTool) {
+                menuAfterLongPress(() => openMenu(event.point, lngLat(event), client));
+            }
+            return;
+        }
+        if (performance.now() - lastTouch < TOUCH_ECHO_MS || dragging) {
+            event.originalEvent.preventDefault();
+            return;
+        }
+        if (state().pointTool) {
+            return;
+        }
+        if (openMenu(event.point, lngLat(event), client)) {
+            event.originalEvent.preventDefault();
+        }
+    };
+
+    // Клик в режиме точек трека: поставить точку или перенести (createNewPoint, movePoint старого клиента)
+    function pointToolClick(latlng: LatLng): boolean {
+        const tool = state().pointTool;
+        if (!tool) {
+            return false;
+        }
+        if (tool.kind === 'add') {
+            actions.addPoint(tool.trackId, latlng);
+        } else {
+            actions.movePoint(tool.trackId, tool.point, latlng);
+        }
+        return true;
+    }
+
+    // Join: ближний к клику конец отрезка по расстоянию (isPointCloserToStart старого клиента)
+    function nearerEnd(trackId: string, segment: number, latlng: LatLng): { end: End; point: LatLng } | null {
+        const points = state().tracks.find((track) => track.id === trackId)?.segments[segment];
+        const first = points?.[0];
+        const last = points?.at(-1);
+        if (!first || !last) {
+            return null;
+        }
+        return distance(latlng, first) < distance(latlng, last)
+            ? { end: 'start', point: first }
+            : { end: 'end', point: last };
+    }
+
+    // Клик при выборе Join или Shortcut; клик мимо — отмена (map.on('click', hideLineCursor) старого клиента)
+    function lineToolClick(edit: RouteEditState, point: ScreenPoint, latlng: LatLng): boolean {
+        const tool = state().lineTool;
+        if (!tool) {
+            return false;
+        }
+        if (tool.kind === 'join') {
+            const track = hitTrack(map, point);
+            const end = track && nearerEnd(track.trackId, track.segment, latlng);
+            if (track && end) {
+                editing.join(track.trackId, track.segment, end.end);
+            } else {
+                editing.cancelTool();
+            }
+        } else {
+            const place = placeAt(edit, point, latlng);
+            // место, после которого удалять нечего, — ничего, выбор продолжается
+            if (!place) {
+                editing.cancelTool();
+            } else {
+                editing.shortcut(place);
+            }
+        }
+        setPreview(null);
+        return true;
+    }
+
     const onClick = (event: MapMouseEvent) => {
-        if (performance.now() < suppressClickUntil) {
+        if (performance.now() < suppressClickUntil || state().mapMenu) {
+            return;
+        }
+        if (pointToolClick(lngLat(event))) {
             return;
         }
         const edit = state().routeEdit;
+        if (edit && lineToolClick(edit, event.point, lngLat(event))) {
+            return;
+        }
+        const trackPoint = edit?.drawing ? null : trackPointAt(map, store, event.point);
         if (edit) {
             const index = waypointAt(map, edit, event.point);
             const last = edit.line.waypoints.length - 1;
@@ -319,6 +594,10 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
                 }
                 return;
             }
+            if (trackPoint) {
+                openPointMenu(trackPoint, event);
+                return;
+            }
             if (edit.drawing) {
                 const anchor = edit.drawing === 'end' ? edit.line.waypoints.at(-1) : edit.line.waypoints[0];
                 editing.click(nearTo(lngLat(event), anchor), event.originalEvent.altKey);
@@ -330,6 +609,10 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
                 return;
             }
         }
+        if (trackPoint) {
+            openPointMenu(trackPoint, event);
+            return;
+        }
         const track = hitTrack(map, event.point);
         if (track) {
             editing.start(track.trackId, track.segment);
@@ -339,6 +622,11 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
             editing.stop();
         }
     };
+
+    // меню точки трека — по клику (onMarkerClick старого клиента: и левый, и правый)
+    function openPointMenu(target: { trackId: string; point: Waypoint }, event: MapMouseEvent) {
+        editing.openMenu(event.originalEvent.clientX, event.originalEvent.clientY, { kind: 'point', ...target });
+    }
 
     const onDblClick = (event: MapMouseEvent) => {
         const edit = state().routeEdit;
@@ -358,12 +646,58 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
             return;
         }
         const edit = state().routeEdit;
+        if (edit && state().lineTool) {
+            toolPreview(edit, event.point, lngLat(event));
+            return;
+        }
         updateCursor(edit !== null && !edit.drawing && waypointUnderCursor(map, event.point));
         rubberBand(lngLat(event));
     };
+
+    // Превью выбора Join и Shortcut: линия от начала к курсору (над допустимым местом — зелёная и прилипает к нему),
+    // у Shortcut — ещё удаляемый участок
+    function toolPreview(edit: RouteEditState, point: ScreenPoint, cursor: LatLng) {
+        const tool = state().lineTool;
+        if (!tool) {
+            return;
+        }
+        if (tool.kind === 'join') {
+            const anchor = tool.end === 'end' ? edit.line.waypoints.at(-1) : edit.line.waypoints[0];
+            const track = hitTrack(map, point);
+            const end = track && nearerEnd(track.trackId, track.segment, cursor);
+            if (anchor) {
+                setPreview(toolPreviewData([anchor, end ? end.point : nearTo(cursor, anchor)], Boolean(end)));
+            }
+            return;
+        }
+        const from = placePoint(edit, tool.from);
+        if (!from) {
+            return;
+        }
+        const to = placeAt(edit, point, cursor);
+        const removed = to && shortcutRemoved(edit.line, tool.from, to);
+        const end = to && removed ? placePoint(edit, to) : null;
+        setPreview(toolPreviewData([from, end ?? nearTo(cursor, from)], Boolean(removed), removed));
+    }
+
+    // точка места на линии: опорная точка или проекция на ближайшее звено
+    function placePoint(edit: RouteEditState, place: LinePlace): LatLng | null {
+        if ('waypoint' in place) {
+            return edit.line.waypoints[place.waypoint] ?? null;
+        }
+        return edit.line.legs[place.leg] ? nearestLink(edit.line, place.leg, place.latlng).point : null;
+    }
     const onMouseOut = () => rubberBand(null);
 
     const onKeyDown = (event: KeyboardEvent) => {
+        // открытое меню карты клавиши забирает себе (Escape закрывает его, а не редактирование)
+        if (state().mapMenu) {
+            return;
+        }
+        if (toolKey(event)) {
+            event.preventDefault();
+            return;
+        }
         const edit = state().routeEdit;
         // во время перетаскивания линия не меняется с клавиатуры: номер перетаскиваемой точки должен остаться верным
         const key = edit && !dragging ? editorKey(event, map.getContainer()) : null;
@@ -388,15 +722,48 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
         event.preventDefault();
     };
 
+    // Escape (и Enter у выбора на карте) выходит из режима точек и выбора Join/Shortcut; остальные клавиши редактора
+    // во время выбора не действуют: правка линии сдвинула бы номер точки, от которой он идёт
+    function toolKey(event: KeyboardEvent): boolean {
+        const { lineTool, pointTool, routeEdit } = state();
+        if (!lineTool && !pointTool) {
+            return false;
+        }
+        const key = editorKey(event, map.getContainer());
+        if (pointTool && key === 'escape') {
+            actions.stopPointTool();
+            return true;
+        }
+        if (lineTool && routeEdit && key) {
+            if (key === 'escape' || key === 'enter') {
+                editing.cancelTool();
+                setPreview(null);
+            }
+            return true;
+        }
+        return false;
+    }
+
     // курсор следует за состоянием: рисование, ожидание маршрутов
     const unsubscribe = store.subscribe((next, prev) => {
-        if (next.routeEdit !== prev.routeEdit || next.tracks !== prev.tracks) {
+        if (next.lineTool !== prev.lineTool && !next.lineTool) {
+            setPreview(null);
+        }
+        if (
+            next.routeEdit !== prev.routeEdit ||
+            next.tracks !== prev.tracks ||
+            next.lineTool !== prev.lineTool ||
+            next.pointTool !== prev.pointTool
+        ) {
             updateCursor(false);
         }
     });
 
     map.on('mousedown', onMouseDown);
     map.on('touchstart', onTouchStart);
+    map.on('touchend', onTouchEnd);
+    map.on('touchcancel', onTouchEnd);
+    map.on('contextmenu', onContextMenu);
     map.on('click', onClick);
     map.on('dblclick', onDblClick);
     map.on('mousemove', onMouseMove);
@@ -406,6 +773,9 @@ function bind(map: MaplibreMap, store: AppStore, editing: RouteEditing): () => v
         unsubscribe();
         map.off('mousedown', onMouseDown);
         map.off('touchstart', onTouchStart);
+        map.off('touchend', onTouchEnd);
+        map.off('touchcancel', onTouchEnd);
+        map.off('contextmenu', onContextMenu);
         map.off('click', onClick);
         map.off('dblclick', onDblClick);
         map.off('mousemove', onMouseMove);
@@ -418,9 +788,10 @@ export function MapEditor() {
     const { current } = useMap();
     const store = useAppStoreApi();
     const editing = useRouteEditing();
+    const actions = useTrackActions();
     useEffect(() => {
         const map = current?.getMap();
-        return map ? bind(map, store, editing) : undefined;
-    }, [current, store, editing]);
+        return map ? bind(map, store, editing, actions) : undefined;
+    }, [current, store, editing, actions]);
     return null;
 }

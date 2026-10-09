@@ -1,4 +1,4 @@
-import { CheckIcon, Redo2Icon, Undo2Icon } from 'lucide-react';
+import { CheckIcon, Redo2Icon, Undo2Icon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAppStore } from '@/state/context';
@@ -12,10 +12,18 @@ export function EditPanel() {
     const editing = useRouteEditing();
     const edit = useAppStore((state) => state.routeEdit);
     const track = useAppStore((state) => state.tracks.find((item) => item.id === state.routeEdit?.trackId));
+    const tool = useAppStore((state) => state.lineTool);
     if (!edit || !track) {
         return null;
     }
-    const hint = edit.drawing ? 'Click map to add points' : 'Drag points, click line end to continue';
+    // выбор на карте для Join и Shortcut (design add-web-line-tools): подсказка, что кликнуть, Undo/Redo недоступны —
+    // правка линии сдвинула бы номер точки, от которой идёт выбор
+    let hint = edit.drawing ? 'Click map to add points' : 'Drag points, click line end to continue';
+    if (tool?.kind === 'join') {
+        hint = 'Click a track line to join it';
+    } else if (tool?.kind === 'shortcut') {
+        hint = 'Click the line where the shortcut ends';
+    }
     return (
         <Card
             size="sm"
@@ -35,7 +43,7 @@ export function EditPanel() {
                 size="icon-sm"
                 aria-label="Undo"
                 title="Undo (Cmd/Ctrl+Z)"
-                disabled={!edit.canUndo}
+                disabled={!edit.canUndo || tool !== null}
                 onClick={editing.undo}
             >
                 <Undo2Icon />
@@ -45,15 +53,22 @@ export function EditPanel() {
                 size="icon-sm"
                 aria-label="Redo"
                 title="Redo (Cmd/Ctrl+Shift+Z)"
-                disabled={!edit.canRedo}
+                disabled={!edit.canRedo || tool !== null}
                 onClick={editing.redo}
             >
                 <Redo2Icon />
             </Button>
-            <Button size="sm" onClick={editing.stop}>
-                <CheckIcon />
-                Done
-            </Button>
+            {tool ? (
+                <Button size="sm" variant="outline" onClick={editing.cancelTool}>
+                    <XIcon />
+                    Cancel
+                </Button>
+            ) : (
+                <Button size="sm" onClick={editing.stop}>
+                    <CheckIcon />
+                    Done
+                </Button>
+            )}
         </Card>
     );
 }

@@ -107,9 +107,10 @@ export function trackSources(
         });
     }
     const points: Feature<Point>[] = visible.flatMap((track) =>
-        track.points.map((point) => ({
+        // index — номер точки в треке: по нему клик открывает меню точки (design add-web-line-tools)
+        track.points.map((point, index) => ({
             type: 'Feature' as const,
-            properties: { id: track.id, color: TRACK_COLORS[track.color], name: point.name },
+            properties: { id: track.id, index, color: TRACK_COLORS[track.color], name: point.name },
             geometry: { type: 'Point' as const, coordinates: [point.lng, point.lat] },
         })),
     );

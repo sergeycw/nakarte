@@ -11,12 +11,15 @@ import { LayerSwitcher } from '@/layers/LayerSwitcher';
 import { EditPanel } from '@/routing/EditPanel';
 import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
+import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
 import { AppStoreContext } from '@/state/context';
 import type { AppStore } from '@/state/store';
 import { bindAppStore, startAppStore } from '@/state/sync';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
+import { PointPanel } from '@/tracks/PointPanel';
+import { PointNameDialog } from '@/tracks/TrackDialogs';
 import { TrackList } from '@/tracks/TrackList';
 import { InfoPanel } from './InfoPanel';
 import { BaseMap } from './map/BaseMap';
@@ -185,6 +188,9 @@ export function App({
                             </div>
                             <LayerSwitcher />
                             <EditPanel />
+                            <PointPanel />
+                            <MapMenu />
+                            <PointNameDialog />
                         </main>
                     </Toaster>
                 </RouteEditingContext>

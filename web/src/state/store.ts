@@ -5,8 +5,9 @@ import { type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
+import type { LinePlace } from '@/routing/line-tools';
 import type { Bounds } from '@/tracks/geometry';
-import { type GeoData, TRACK_COLORS, type Track } from '@/tracks/model';
+import { type GeoData, type LatLng, TRACK_COLORS, type Track, type Waypoint } from '@/tracks/model';
 import type { View } from './hash';
 
 // Состояние приложения, которое делят карта, переключатель слоёв и адрес. Стор создаётся на каждый экземпляр App
@@ -30,8 +31,8 @@ export interface AppState {
     nextColor: number;
     // сколько загрузок треков (файлы, ссылки, параметры адреса) идёт сейчас
     loadingTracks: number;
-    // ссылка на треки, которую не удалось положить в буфер обмена: показывается окном
-    sharedLink: string | null;
+    // текст, который не удалось положить в буфер обмена (ссылка на треки, координаты точки): показывается окном
+    copyFallback: CopyFallback | null;
     // прокладка (design add-web-route-editor, «Связь со стором и картой»): выбранная активность или null («Off»),
     // жив ли роутер (красная кнопка), редактируемая линия и номер перетаскиваемой опорной точки — то, что рисует
     // карта. Само превью перетаскивания и резинку карта рисует в обход стора (routing/MapEditor.tsx).
@@ -39,6 +40,12 @@ export interface AppState {
     routerReachable: boolean;
     routeEdit: RouteEditState | null;
     routeDrag: number | null;
+    // инструменты линии и точки трека (design add-web-line-tools): выбор на карте для Join и Shortcut, меню в точке
+    // карты, режим постановки или переноса точки трека и окно её названия
+    lineTool: LineTool | null;
+    mapMenu: MapMenu | null;
+    pointTool: PointTool | null;
+    pointDialog: PointDialog | null;
 
     setView(view: View): void;
     requestView(view: View): void;
@@ -62,11 +69,44 @@ export interface AppState {
     ): void;
     removeTracks(ids: readonly string[]): void;
     changeLoadingTracks(delta: number): void;
-    setSharedLink(link: string | null): void;
+    setCopyFallback(fallback: CopyFallback | null): void;
     setRoutingActivity(id: string | null): void;
     setRouterReachable(reachable: boolean): void;
     setRouteEdit(edit: RouteEditState | null): void;
     setRouteDrag(index: number | null): void;
+    setLineTool(tool: LineTool | null): void;
+    setMapMenu(menu: MapMenu | null): void;
+    setPointTool(tool: PointTool | null): void;
+    setPointDialog(dialog: PointDialog | null): void;
+}
+
+// Выбор на карте: Join от конца редактируемой линии, Shortcut от места на ней
+export type LineTool = { kind: 'join'; end: End } | { kind: 'shortcut'; from: LinePlace };
+
+// Что под меню: опорная точка или место на линии редактируемого отрезка, точка трека
+export type MenuTarget =
+    | { kind: 'waypoint'; index: number }
+    | { kind: 'line'; place: { leg: number; latlng: LatLng } }
+    | { kind: 'point'; trackId: string; point: Waypoint };
+
+// x, y — экранные координаты (clientX/clientY), в них встаёт меню
+export interface MapMenu {
+    x: number;
+    y: number;
+    target: MenuTarget;
+}
+
+// Точка трека — объект Waypoint из стора, а не номер: номер ищется в момент действия, пропавшая точка — ничего
+export type PointTool = { kind: 'add'; trackId: string } | { kind: 'move'; trackId: string; point: Waypoint };
+
+export interface CopyFallback {
+    title: string;
+    text: string;
+}
+
+export interface PointDialog {
+    trackId: string;
+    point: Waypoint;
 }
 
 export interface RouteEditState {
@@ -130,11 +170,15 @@ export function createAppStore(init: AppStoreInit): AppStore {
             tracks: [],
             nextColor: 0,
             loadingTracks: 0,
-            sharedLink: null,
+            copyFallback: null,
             routingActivity: init.routingActivity ?? null,
             routerReachable: true,
             routeEdit: null,
             routeDrag: null,
+            lineTool: null,
+            mapMenu: null,
+            pointTool: null,
+            pointDialog: null,
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
@@ -255,11 +299,15 @@ export function createAppStore(init: AppStoreInit): AppStore {
             removeTracks: (ids) => set({ tracks: get().tracks.filter((track) => !ids.includes(track.id)) }),
 
             changeLoadingTracks: (delta) => set({ loadingTracks: get().loadingTracks + delta }),
-            setSharedLink: (sharedLink) => set({ sharedLink }),
+            setCopyFallback: (copyFallback) => set({ copyFallback }),
             setRoutingActivity: (routingActivity) => set({ routingActivity }),
             setRouterReachable: (routerReachable) => set({ routerReachable }),
             setRouteEdit: (routeEdit) => set({ routeEdit }),
             setRouteDrag: (routeDrag) => set({ routeDrag }),
+            setLineTool: (lineTool) => set({ lineTool }),
+            setMapMenu: (mapMenu) => set({ mapMenu }),
+            setPointTool: (pointTool) => set({ pointTool }),
+            setPointDialog: (pointDialog) => set({ pointDialog }),
 
             removeCustomLayer: (code) => {
                 const { settings, selection } = get();

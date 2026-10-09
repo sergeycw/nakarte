@@ -291,3 +291,201 @@ describe('Выбор активности', () => {
         expect(ctx.calls).toHaveLength(0);
     });
 });
+
+// Инструменты линии (спека route-editing, design add-web-line-tools): операции списка над редактируемым отрезком
+describe('инструменты линии', () => {
+    const D = P(41.72, 44.81);
+    const E = P(41.73, 44.82);
+
+    // трек A–B–C с двумя проложенными отрезками, редактирование закончено
+    async function routedTrack(ctx: ReturnType<typeof setup>) {
+        ctx.editing.newTrack('Walk');
+        for (const point of [A, B, C]) {
+            ctx.editing.click(point);
+        }
+        for (const call of ctx.calls) {
+            call.resolve([P((call.from.lat + call.to.lat) / 2 + 0.001, (call.from.lng + call.to.lng) / 2)]);
+        }
+        await flush();
+        ctx.editing.stop();
+        return tracks(ctx)[0];
+    }
+
+    const states = (route: { legs: readonly { state: string }[] } | null | undefined) =>
+        route?.legs.map((leg) => leg.state);
+
+    test('Разрез в опорной точке: две половины на месте отрезка, разметка у обеих, редактируется первая', async () => {
+        const ctx = setup();
+        const track = await routedTrack(ctx);
+        ctx.editing.start(track.id, 0);
+        ctx.editing.cut({ waypoint: 1 });
+        const [cut] = tracks(ctx);
+        expect(cut.segments).toHaveLength(2);
+        expect(cut.segments[0][0]).toEqual(A);
+        expect(cut.segments[0].at(-1)).toEqual(B);
+        expect(cut.segments[1][0]).toEqual(B);
+        expect(states(cut.routes?.[0])).toEqual(['routed']);
+        expect(states(cut.routes?.[1])).toEqual(['routed']);
+        expect(edit(ctx)).toMatchObject({ trackId: track.id, segment: 0, canUndo: false });
+        expect(edit(ctx)?.line.waypoints).toEqual([A, B]);
+    });
+
+    test('разрез во время прокладки: ожидавшие отрезки — непроложенные, запросы отменены', () => {
+        const ctx = setup();
+        ctx.editing.newTrack('');
+        for (const point of [A, B, C]) {
+            ctx.editing.click(point);
+        }
+        ctx.editing.cut({ waypoint: 1 });
+        const [track] = tracks(ctx);
+        expect(states(track.routes?.[0])).toEqual(['failed']);
+        expect(states(track.routes?.[1])).toEqual(['failed']);
+        expect(edit(ctx)?.line.legs[0]).toMatchObject({ state: 'failed', activity: 'hiking' });
+    });
+
+    test('разрез второго отрезка трека не сдвигает первый', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([
+            geoData('Two', {
+                segments: [
+                    [D, E],
+                    [A, B, C],
+                ],
+            }),
+        ]);
+        ctx.editing.start(track.id, 1);
+        ctx.editing.cut({ leg: 0, latlng: P(41.695, 44.785) });
+        const [cut] = tracks(ctx);
+        expect(cut.segments.map((segment) => segment.length)).toEqual([2, 2, 3]);
+        expect(cut.segments[0]).toEqual([D, E]);
+        expect(edit(ctx)?.segment).toBe(1);
+    });
+
+    test('Склеить отрезки одного трека: один отрезок, редактирование продолжается', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([
+            geoData('Two', {
+                segments: [
+                    [A, B],
+                    [C, D],
+                ],
+            }),
+        ]);
+        ctx.editing.start(track.id, 1);
+        ctx.editing.startJoin('start');
+        expect(ctx.store.getState().lineTool).toEqual({ kind: 'join', end: 'start' });
+        // к началу C–D приклеивается конец B первого отрезка
+        ctx.editing.join(track.id, 0, 'end');
+        const [joined] = tracks(ctx);
+        expect(joined.segments).toEqual([[A, B, C, D]]);
+        expect(edit(ctx)).toMatchObject({ segment: 0 });
+        expect(ctx.store.getState().lineTool).toBeNull();
+    });
+
+    test('Склеить с отрезком другого трека: тот трек не меняется, разметка обеих частей на месте', async () => {
+        const ctx = setup();
+        const walk = await routedTrack(ctx);
+        const [other] = ctx.store.getState().addTracks([
+            geoData('Other', {
+                segments: [[D, P(41.725, 44.83), E]],
+                routes: [{ waypoints: [0, 2], legs: [{ state: 'routed', activity: 'mtb' }] }],
+            }),
+        ]);
+        ctx.editing.start(walk.id, 0);
+        ctx.editing.startJoin('end');
+        // ближний к C конец — D: Other приклеивается началом
+        ctx.editing.join(other.id, 0, 'start');
+        const [joined, untouched] = tracks(ctx);
+        expect(untouched).toBe(other);
+        expect(untouched.segments).toEqual([[D, P(41.725, 44.83), E]]);
+        expect(joined.segments[0].at(-1)).toEqual(E);
+        expect(states(joined.routes?.[0])).toEqual(['routed', 'routed', 'straight', 'routed']);
+        expect(joined.routes?.[0]?.legs.at(-1)).toEqual({ state: 'routed', activity: 'mtb' });
+    });
+
+    test('склеить с самим собой нельзя', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([geoData('One', { segments: [[A, B]] })]);
+        ctx.editing.start(track.id, 0);
+        ctx.editing.startJoin('end');
+        ctx.editing.join(track.id, 0, 'start');
+        expect(tracks(ctx)[0].segments).toEqual([[A, B]]);
+    });
+
+    test('Удалить отрезок: трек остаётся даже пустым, редактирование заканчивается', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([geoData('One', { segments: [[A, B]] })]);
+        ctx.editing.start(track.id, 0);
+        ctx.editing.deleteSegment();
+        expect(tracks(ctx)).toHaveLength(1);
+        expect(tracks(ctx)[0].segments).toEqual([]);
+        expect(edit(ctx)).toBeNull();
+    });
+
+    test('Новый трек из отрезка: копия с разметкой, исходный отрезок редактируется дальше', async () => {
+        const ctx = setup();
+        const track = await routedTrack(ctx);
+        ctx.editing.start(track.id, 0);
+        ctx.editing.newTrackFromSegment();
+        const [source, copy] = tracks(ctx);
+        expect(copy.name).toBe('New track');
+        expect(copy.segments).toEqual(source.segments);
+        expect(copy.routes).toEqual(source.routes);
+        expect(edit(ctx)?.trackId).toBe(source.id);
+    });
+
+    test('Срез через выбор на карте — шаг undo; удалять нечего — выбор продолжается', async () => {
+        const ctx = setup();
+        const track = await routedTrack(ctx);
+        ctx.editing.start(track.id, 0);
+        ctx.editing.startShortcut({ waypoint: 0 });
+        expect(ctx.editing.shortcut({ waypoint: 0 })).toBe(false);
+        expect(ctx.store.getState().lineTool).not.toBeNull();
+        expect(ctx.editing.shortcut({ waypoint: 2 })).toBe(true);
+        expect(ctx.store.getState().lineTool).toBeNull();
+        expect(tracks(ctx)[0].segments[0]).toEqual([A, C]);
+        expect(edit(ctx)?.canUndo).toBe(true);
+        ctx.editing.undo();
+        expect(edit(ctx)?.line.waypoints).toEqual([A, B, C]);
+    });
+
+    test('меню и выбор закрываются с концом редактирования; рисование заканчивается при открытии меню', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([geoData('One', { segments: [[A, B]] })]);
+        ctx.editing.start(track.id, 0, 'end');
+        ctx.editing.openMenu(10, 20, { kind: 'waypoint', index: 1 });
+        expect(edit(ctx)?.drawing).toBeNull();
+        expect(ctx.store.getState().mapMenu).toEqual({ x: 10, y: 20, target: { kind: 'waypoint', index: 1 } });
+        ctx.editing.stop();
+        expect(ctx.store.getState().mapMenu).toBeNull();
+        ctx.editing.start(track.id, 0);
+        ctx.editing.startJoin('end');
+        ctx.editing.stop();
+        expect(ctx.store.getState().lineTool).toBeNull();
+    });
+
+    test('режим точек кончается, когда трек или переносимую точку удалили', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store
+            .getState()
+            .addTracks([geoData('One', { segments: [[A, B]], points: [{ ...C, name: '001' }] })]);
+        ctx.actions.startAddPoint(track);
+        ctx.actions.remove(track);
+        expect(ctx.store.getState().pointTool).toBeNull();
+        const [other] = ctx.store.getState().addTracks([geoData('Two', { points: [{ ...C, name: '001' }] })]);
+        const [point] = other.points;
+        ctx.actions.startMovePoint(other.id, point);
+        ctx.actions.removePoint(other.id, point);
+        expect(ctx.store.getState().pointTool).toBeNull();
+    });
+
+    test('постановка точек трека заканчивает редактирование, редактирование — постановку', () => {
+        const ctx = setup(null);
+        const [track] = ctx.store.getState().addTracks([geoData('One', { segments: [[A, B]] })]);
+        ctx.editing.start(track.id, 0);
+        ctx.store.getState().setPointTool({ kind: 'add', trackId: track.id });
+        expect(edit(ctx)).toBeNull();
+        ctx.editing.start(track.id, 0);
+        expect(ctx.store.getState().pointTool).toBeNull();
+    });
+});
