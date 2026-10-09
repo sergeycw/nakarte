@@ -1,8 +1,7 @@
 import {anonymousTileUrl, heatmapCookie, isStravaHeatmap} from './strava';
 
-const PATH_ALIASES = [['/wikimapia/', 'http://wikimapia.org/']];
-// user-agent нужен Wikimapia: её nginx отвечает 403 на запрос без User-Agent, а fetch из Worker'а
-// своего не ставит.
+// user-agent: fetch из Worker'а своего не ставит, а часть сайтов без него отвечает 403 (так было у Wikimapia,
+// чей адрес /wikimapia/ ушёл вместе со старым клиентом, change retire-old-client-services).
 const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'range', 'user-agent'];
 const DROPPED_RESPONSE_HEADERS = ['set-cookie'];
 const EXPOSED_HEADERS = 'Content-Disposition';
@@ -10,18 +9,11 @@ const EXPOSED_HEADERS = 'Content-Disposition';
 // (security-аудит, п. 4; change restrict-cors-proxy).
 const ALLOWED_METHODS = 'GET, HEAD, OPTIONS';
 const READ_METHODS = ['GET', 'HEAD'];
-// Хосты тайловых слоёв клона: urlViaCorsProxy в src/layers.js, config.wikimapiaTilesBaseUrl и слои с
-// noCors: true, которые печать растеризует через прокси. Они тратят RATE_LIMITER (1200 в минуту), все
-// остальные хосты (импорт по ссылке, поиск, короткие ссылки, печать своих слоёв) — OTHER_RATE_LIMITER.
-// Забытый здесь хост слоя не ломается, а получает меньший лимит.
-const LAYER_HOSTS = [
-    /^content-[a-z]\.strava\.com$/u,
-    'wikimapia.org',
-    'wmts10.geo.admin.ch',
-    'maptiles.website.yandexcloud.net',
-    'slazav.xyz',
-    'static.mapy.hiking.sk',
-];
+// Хосты тайловых слоёв клона, которые приложение шлёт через прокси (viaCorsProxy в web/src/layers/catalog.ts):
+// Strava heatmap и Tsvetkov. Они тратят RATE_LIMITER (1200 в минуту), все остальные хосты (импорт по ссылке,
+// поиск, короткие ссылки, свои слои через прокси) — OTHER_RATE_LIMITER. Забытый здесь хост слоя не ломается, а
+// получает меньший лимит.
+const LAYER_HOSTS = [/^content-[a-z]\.strava\.com$/u, 'maptiles.website.yandexcloud.net'];
 // Свои адреса клона: Worker'ы аккаунта и так отвечают на подзапрос error 1042, а Pages — нет.
 const OWN_HOSTS = [/(^|\.)nakarte-routing\.workers\.dev$/u, /(^|\.)nakarte-routing\.pages\.dev$/u];
 // На эти ответы CloudFront на тайл с куками прокси пробует анонимный тайл: куки протухли или не приняты.
@@ -54,11 +46,6 @@ function callerOrigin(request, allowed) {
 }
 
 function targetUrl(url) {
-    for (const [prefix, base] of PATH_ALIASES) {
-        if (url.pathname.startsWith(prefix)) {
-            return base + url.pathname.slice(prefix.length) + url.search;
-        }
-    }
     const match = url.pathname.match(/^\/(https?)\/(.+)$/u);
     if (!match) {
         return null;
