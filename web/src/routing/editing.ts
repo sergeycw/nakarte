@@ -261,6 +261,10 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
                 router.warmUp();
             }
         },
+        // режим и состояние движка для кнопки прокладки (useSyncExternalStore)
+        engine,
+        engineStatus: () => router.status(),
+        subscribeEngine: (listener: () => void) => router.subscribe(listener),
         async checkRouter() {
             const reachable = await router.isReachable();
             state().setRouterReachable(reachable);

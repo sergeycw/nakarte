@@ -5,6 +5,7 @@ import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
+import { MapEditor } from '@/routing/MapEditor';
 import { useAppStore } from '@/state/context';
 import { TRACK_COLORS } from '@/tracks/model';
 import { trackSources } from '@/tracks/style';
@@ -126,6 +127,7 @@ export function BaseMap({ onTileError, transformRequest, ref }: BaseMapProps) {
                 }}
             >
                 <NavigationControl position="top-right" />
+                <MapEditor />
                 {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
                     единицы, а анимация CSS проще символьного слоя */}
                 {trackData.pending.map((point, i) => (

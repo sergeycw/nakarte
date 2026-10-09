@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useRouteEditing } from '@/routing/editing-context';
+import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
 import { formatLength, tracksLength } from './geometry';
@@ -68,8 +70,15 @@ function ColorPicker({ track }: { track: Track }) {
 
 function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) => void }) {
     const actions = useTrackActions();
+    const editing = useRouteEditing();
+    const edited = useAppStore((state) => state.routeEdit?.trackId === track.id);
     return (
-        <li className="flex min-h-8 items-center gap-1" data-track={track.name}>
+        // редактируемый трек подсвечен (класс edit строки старого клиента)
+        <li
+            className={`-mx-1 flex min-h-8 items-center gap-1 rounded-md px-1 ${edited ? 'bg-muted' : ''}`}
+            data-track={track.name}
+            data-editing={edited || undefined}
+        >
             <Checkbox
                 aria-label={`Show ${track.name}`}
                 checked={track.visible}
@@ -96,6 +105,7 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
                     <EllipsisVerticalIcon />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-auto">
+                    <DropdownMenuItem onClick={() => editing.addSegment(track.id)}>Add segment</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onRename(track)}>Rename</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.duplicate(track)}>Duplicate</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => actions.reverse(track)}>Reverse</DropdownMenuItem>
@@ -114,6 +124,7 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
 
 export function TrackList() {
     const actions = useTrackActions();
+    const editing = useRouteEditing();
     const tracks = useAppStore((state) => state.tracks);
     const loading = useAppStore((state) => state.loadingTracks > 0);
     const [expanded, setExpanded] = useState(true);
@@ -152,12 +163,13 @@ export function TrackList() {
                             aria-label="New track"
                             title="New track"
                             onClick={() => {
-                                actions.newTrack(url.trim());
+                                editing.newTrack(url.trim());
                                 setUrl('');
                             }}
                         >
                             <PlusIcon />
                         </Button>
+                        <RoutingButton />
                         <Button
                             variant="ghost"
                             size="icon-sm"

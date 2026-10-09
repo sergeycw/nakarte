@@ -126,7 +126,6 @@ export function createTrackActions({
                 ),
                 fitView,
             ),
-        newTrack: (name: string) => state().addTracks(prepareImport([geoData(name || 'New track')], true).tracks),
         // новый трек из видимых: их отрезки и точки, название — первого видимого (старый клиент спрашивал название;
         // здесь его можно сменить «Rename»)
         newTrackFromVisible: () => {
