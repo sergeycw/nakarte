@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import type { Page } from '@playwright/test';
+import { parseRedirects, resolveRedirect } from '../vite/redirects.ts';
 import { expect, test } from './fixtures.ts';
 
 // Названия тестов — сценарии спеки web-client (openspec/specs/web-client/spec.md).
@@ -13,7 +16,7 @@ function tileOf(lat: number, lng: number, zoom: number) {
 
 const canvas = '.maplibregl-canvas';
 
-test('Открыть новое приложение', async ({ page, network }) => {
+test('Открыть приложение', async ({ page, network }) => {
     const scripts: string[] = [];
     page.on('request', (request) => {
         if (['script', 'stylesheet'].includes(request.resourceType())) {
@@ -25,9 +28,90 @@ test('Открыть новое приложение', async ({ page, network })
     await expect(page.locator(canvas)).toBeVisible();
     expect(scripts.length).toBeGreaterThan(0);
     for (const path of scripts) {
-        expect(path).toMatch(/^\/next\//);
+        expect(path).toMatch(/^\/assets\//);
     }
     expect(network.external).toEqual([]);
+});
+
+test('Стенд движка', async ({ page }) => {
+    await page.goto('/engine-bench.html');
+    await expect(page).toHaveTitle('engine bench');
+});
+
+// vite preview файл _redirects не читает: на /next/… страница получает тот ответ, что дали бы Pages по правилам
+// public/_redirects (проверено wrangler pages dev 2026-10-09). Перенос # через редирект — работа браузера.
+const REDIRECTS = parseRedirects(readFileSync(new URL('../public/_redirects', import.meta.url), 'utf8'));
+
+async function servePagesRedirects(page: Page) {
+    await page.route(
+        (url) => url.hostname === 'localhost' && resolveRedirect(REDIRECTS, url.pathname) !== null,
+        (route) => {
+            const redirect = resolveRedirect(REDIRECTS, new URL(route.request().url()).pathname);
+            return route.fulfill({ status: redirect?.status, headers: { location: redirect?.location ?? '/' } });
+        },
+    );
+}
+
+test('Ссылка на /next/ с параметрами', async ({ page, network }) => {
+    await servePagesRedirects(page);
+    await page.goto('/next/#m=13/42.68490/47.07008&l=O');
+    expect(new URL(page.url()).pathname).toBe('/');
+    expect(new URL(page.url()).hash).toBe('#m=13/42.68490/47.07008&l=O');
+    await expect
+        .poll(() => network.tilesOf('O'))
+        .toContain(`https://tile.openstreetmap.org/${tileOf(42.6849, 47.07008, 13)}.png`);
+});
+
+test('Стенд по старому адресу', async ({ page }) => {
+    await servePagesRedirects(page);
+    await page.goto('/next/engine-bench.html');
+    expect(new URL(page.url()).pathname).toBe('/engine-bench.html');
+    await expect(page).toHaveTitle('engine bench');
+});
+
+// Реальные ссылки nakarte.me (фикстура разбора адреса) и параметры удалённых функций, которые «Copy link» старого
+// клиента копировал вместе с # (ресёрч new-ui, п. 6): j= (JNX), min= и autoprofile (встраивание), sid= (сессия).
+const OLD_LINKS = readFileSync(new URL('../src/state/fixtures/old-links.txt', import.meta.url), 'utf8')
+    .split('\n')
+    .filter((line) => line.startsWith('https://'))
+    .map((line) => line.slice(line.indexOf('#')));
+const REMOVED_FEATURE_LINKS = [
+    '#m=12/41.69/44.78&l=O&j=10/12/41.6/44.7/41.8/44.9',
+    '#m=12/41.69/44.78&l=O&min=1&autoprofile',
+    '#m=12/41.69/44.78&l=O&sid=kq3f1x_abc123',
+];
+const REMOVED_PARAMS = ['p', 'j', 'min', 'autoprofile', 'sid', 'q'];
+
+test('Набор реальных старых ссылок', async ({ page, network }) => {
+    test.slow();
+    // свои слои ссылок на чужих серверах и файлы треков по ссылкам: запросы обрываются, тесту важно, что приложение
+    // открылось без исключений
+    network.allowExternal();
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    for (const hash of [...OLD_LINKS, ...REMOVED_FEATURE_LINKS]) {
+        // через about:blank: переход с одного # на другой страницу не перезагружает
+        await page.goto('about:blank');
+        await page.goto(`/${hash}`);
+        await expect(page.locator(canvas), hash).toBeVisible();
+        const params = new URLSearchParams(hash.slice(1));
+        const after = new URLSearchParams(new URL(page.url()).hash.slice(1));
+        for (const key of REMOVED_PARAMS) {
+            expect(after.get(key), `${key} в ${hash}`).toBe(params.get(key));
+        }
+        // вид из m= сохраняется (формат приложения — 5 знаков после запятой)
+        const view = /^(\d+)\/(-?\d+\.\d+)\/(-?\d+\.\d+)$/.exec(params.get('m') ?? '');
+        if (view) {
+            const [zoom, lat, lng] = (after.get('m') ?? '').split('/');
+            expect([zoom, Number(lat).toFixed(4), Number(lng).toFixed(4)], hash).toEqual([
+                view[1],
+                Number(view[2]).toFixed(4),
+                Number(view[3]).toFixed(4),
+            ]);
+        }
+        expect(errors, hash).toEqual([]);
+    }
+    expect(OLD_LINKS.length).toBeGreaterThan(50);
 });
 
 test('Первый заход', async ({ page, network }) => {

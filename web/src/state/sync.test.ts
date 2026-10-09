@@ -11,7 +11,7 @@ const DEFAULT_VIEW = { lat: 49.73868, lng: 33.45886, zoom: 7 };
 function fakeWindow(hash: string) {
     const listeners = new Set<() => void>();
     const win = {
-        location: { hash: hash ? `#${hash}` : '', pathname: '/next/', search: '' },
+        location: { hash: hash ? `#${hash}` : '', pathname: '/', search: '' },
         history: {
             replaceState: vi.fn((_data: unknown, _unused: string, url: string) => {
                 win.location.hash = url.slice(url.indexOf('#'));

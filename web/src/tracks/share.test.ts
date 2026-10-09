@@ -64,11 +64,11 @@ describe('разметка маршрута в ссылке', () => {
 });
 
 describe('адрес ссылки', () => {
-    const location = { origin: 'https://nakarte-routing.pages.dev', pathname: '/next/' };
+    const location = { origin: 'https://nakarte-routing.pages.dev', pathname: '/' };
 
     test('без q, r и параметров треков, nktl в конце', () => {
         expect(shareLink({ ...location, hash: '#m=10/41.7/44.8&q=tbilisi&l=O/Hs&r=41/44/x&nktk=abc&p=1' }, 'KEY')).toBe(
-            'https://nakarte-routing.pages.dev/next/#m=10/41.7/44.8&l=O/Hs&p=1&nktl=KEY',
+            'https://nakarte-routing.pages.dev/#m=10/41.7/44.8&l=O/Hs&p=1&nktl=KEY',
         );
     });
 });
