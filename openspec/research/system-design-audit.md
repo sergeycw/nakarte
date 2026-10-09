@@ -28,7 +28,7 @@
 
 **Что мешает.**
 
-- Прокси совмещает три роли с разным риском: импорт по любой ссылке (`simpleService` в [services](../../src/lib/leaflet.control.track-list/lib/services/simpleService.js) отдаёт прокси произвольный URL), тайловые слои с конечным списком хостов ([layers.js](../../src/layers.js), `urlViaCorsProxy`) и Strava heatmap с секретом сессии. Лимит частоты один на всё (1200 в минуту, [wrangler.toml](../../workers/cors-proxy/wrangler.toml)), поднят ради тайлов, и импорт получил его же. Список целевых хостов не ограничен: прокси открыт для любого адреса, если подделать `Origin`.
+- Прокси совмещает три роли с разным риском: импорт по любой ссылке (`simpleService` в [services](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.control.track-list/lib/services/simpleService.js) отдаёт прокси произвольный URL), тайловые слои с конечным списком хостов ([layers.js](https://github.com/sergeycw/nakarte/blob/015be893/src/layers.js), `urlViaCorsProxy`) и Strava heatmap с секретом сессии. Лимит частоты один на всё (1200 в минуту, [wrangler.toml](../../workers/cors-proxy/wrangler.toml)), поднят ради тайлов, и импорт получил его же. Список целевых хостов не ограничен: прокси открыт для любого адреса, если подделать `Origin`.
 - Тайлы BRouter и файлы движка — одна функция по смыслу («файлы движка по Range с того же origin»), но два кода: `functions/tiles` берёт Range у R2, `functions/brouter-wasm` разбирает Range сам и на каждый запрос читает ассет целиком (`asset.arrayBuffer()`, `brouter.jar` — 2.3 МБ). При этом `workers/tiles` выглядит как сервис (свой `wrangler.toml`), но деплоем им не является.
 - Профили и `lookups.dat` движка приезжают из образа `brouter:nightly` в сборку Pages, а тайлы — из brouter.de в R2: одна версия данных BRouter живёт в двух хранилищах с разным циклом обновления (риск уже в backlog, «Внешние зависимости и риски», пункт brouter.de).
 
@@ -45,13 +45,13 @@
 
 ## 2. Контракты
 
-**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../specs/elevation-tiles/spec.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](../../src/config.js), их можно менять без миграции данных.
+**Как сейчас.** Сервисы повторяют протоколы автора, клиент почти не менялся (спеки [track-storage](../specs/track-storage/spec.md), [elevation-api](../specs/elevation-api/spec.md), [elevation-tiles](../specs/elevation-tiles/spec.md), [cors-proxy](../specs/cors-proxy/spec.md)). Адреса Worker'ов — в [src/config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js), их можно менять без миграции данных.
 
 | Контракт | Держится ради старого клиента | Можно поменять с новым UI | Менять нельзя |
 |---|---|---|---|
-| Треки: `POST`/`GET /track/{key}`, тело — строка `nktk` | `withCredentials: true` в клиенте ([track-list.js](../../src/lib/leaflet.control.track-list/track-list.js), [services/nakarte](../../src/lib/leaflet.control.track-list/lib/services/nakarte/index.js)) — отсюда отражённый `Origin` вместо `*`; ссылка копируется до ответа сервера | CORS без `credentials`; ответ о записи до копирования ссылки; адрес и путь (`/v2/…`) | ключ = base64url(md5(тело)) и объекты `tracks/{key}`: на них держатся выданные ссылки `nktl=`; разбор `nktk` всех версий (сейчас 1–4, [nktk.js](../../src/lib/leaflet.control.track-list/lib/parsers/nktk.js)) |
+| Треки: `POST`/`GET /track/{key}`, тело — строка `nktk` | `withCredentials: true` в клиенте ([track-list.js](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.control.track-list/track-list.js), [services/nakarte](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.control.track-list/lib/services/nakarte/index.js)) — отсюда отражённый `Origin` вместо `*`; ссылка копируется до ответа сервера | CORS без `credentials`; ответ о записи до копирования ссылки; адрес и путь (`/v2/…`) | ключ = base64url(md5(тело)) и объекты `tracks/{key}`: на них держатся выданные ссылки `nktl=`; разбор `nktk` всех версий (сейчас 1–4, [nktk.js](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.control.track-list/lib/parsers/nktk.js)) |
 | Высоты: `POST /`, строки `lat lng` → строки `%.2f`/`NULL` | текстовый формат и тексты ошибок Go-сервера автора, контрактный тест на эталонах автора | JSON или бинарный формат, пакет точек трека одним запросом, без `credentials` | — (данных пользователей нет) |
-| Тайлы высот: 256×256 `Int16` дельты, gzip, `-512` | формат декодера [elevation-display](../../src/lib/leaflet.layer.elevation-display/index.js) | любой формат, например Terrain-RGB под MapLibre | — |
+| Тайлы высот: 256×256 `Int16` дельты, gzip, `-512` | формат декодера [elevation-display](https://github.com/sergeycw/nakarte/blob/015be893/src/lib/leaflet.layer.elevation-display/index.js) | любой формат, например Terrain-RGB под MapLibre | — |
 | Прокси: `/{http,https}/{host}/{path}`, `/wikimapia/` | `urlViaCorsProxy` во всём клиенте; `HEAD` как `GET` ради коротких ссылок mapy.com | явные маршруты по ролям (`/tiles/<слой>/…`, `/import?url=`), без `HEAD`-трюка | — |
 | Адрес приложения: `#m=`, `l=`, `nktk=`, `nktl=`, `nktu=`, `nktp=`, `nktj=` | — | новые параметры можно добавлять | разбор существующих параметров и старых кодов слоёв (требование «Старые коды удалённых слоёв» в [clone-hosting](../specs/clone-hosting/spec.md)); хост `nakarte-routing.pages.dev` или редирект с него |
 | Маршрут: запрос BRouter (`lonlats`, `profile`, `profile:<переменная>`) | — | — | формат BRouter, это контракт движка, а не автора |
@@ -144,7 +144,7 @@
 | Запросы, CPU, ошибки, операции R2 | Cloudflare GraphQL Analytics и дашборд | никто не смотрит регулярно |
 | Расходы | бюджетные оповещения $3 и $8 | только деньги, не поломки |
 
-У всех трёх Worker'ов `observability: null` и `logpush: false` (Cloudflare API, `script-settings`), в `wrangler.toml` блока `[observability]` нет — Workers Logs выключены. В клиенте `sentryDSN` и `eventsLogUrl` пустые ([config.js](../../src/config.js)).
+У всех трёх Worker'ов `observability: null` и `logpush: false` (Cloudflare API, `script-settings`), в `wrangler.toml` блока `[observability]` нет — Workers Logs выключены. В клиенте `sentryDSN` и `eventsLogUrl` пустые ([config.js](https://github.com/sergeycw/nakarte/blob/015be893/src/config.js)).
 
 **Чего не хватает.**
 

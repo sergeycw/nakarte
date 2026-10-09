@@ -27,7 +27,7 @@ flowchart LR
 
 | Точка входа | CORS | Частота за 60 с (`namespace_id`) | Потолок на вызов | Лимит запроса | Где |
 |---|---|---|---|---|---|
-| `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials`; в списке и karma `localhost:9876` | хосты слоёв — 1200 (`1004`), остальные — 300 (`1007`) | `cpu_ms = 500`, `subrequests = 50` | только `GET`/`HEAD` без тела; свои адреса — `403` | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
+| `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials`; в списке остались порты старого клиента и karma `localhost:9876` (уходят в change `retire-old-client-services`) | хосты слоёв — 1200 (`1004`), остальные — 300 (`1007`) | `cpu_ms = 500`, `subrequests = 50` | только `GET`/`HEAD` без тела; свои адреса — `403` | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
 | `nakarte-tracks` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1003`), из них записей 10 (`1006`) | `cpu_ms = 500`, `subrequests = 10` | тело ≤ 2 МиБ, только алфавит ссылки | [wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
 | `nakarte-elevation`, `POST /` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1002`); бюджет чтений R2 — 32 единицы по 64 чтения (`1005`) | `cpu_ms = 10000`, `subrequests = 1100` | ≤ 10 000 точек, ≤ 250 000 байт, ≤ 512 чтений R2 (градусы + куски), иначе `413` | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs), [request.rs](../../workers/elevation/core/src/request.rs) |
 | `nakarte-elevation`, `/tiles/` | `*` без проверки `Origin` | 600 (`1001`) | как у API | z ≤ 11 | то же |
@@ -39,21 +39,23 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    build["npm run build<br/>NAKARTE_TARGET=clone"]
+    build["npm run build из web/<br/>vite build --mode clone → build/"]
     engine{"файлы движка в build/?<br/>test -f brouter.jar, lookups.dat"}
-    scan{"check-no-author-hosts.mjs build:<br/>*.nakarte.me вне разрешённых строк?"}
+    scan{"check-no-author-hosts.mjs build:<br/>есть *.nakarte.me?"}
     deploy["wrangler pages deploy"]
     stop(["деплой остановлен"])
 
     build --> engine
     engine -->|"нет"| stop
-    engine -->|"да"| scan
+    engine -->|"да"| e2e["e2e по этой сборке"]
+    e2e -->|"упал"| stop
+    e2e -->|"прошёл"| scan
     scan -->|"нашёл"| stop
     scan -->|"чисто"| deploy
 ```
 
-Скрипт ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) обходит текстовые файлы сборки без `.map` и разрешает только строки-метаданные: `<title>`, `creator` в GPX, имя файла JNX, текст уведомления сессий. Почему так — design [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла»; что заменило сервисы автора — [README.md](README.md#что-больше-не-используется-от-nakarteme).
+Скрипт ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) обходит текстовые файлы сборки без `.map` и падает на любом буквальном `*.nakarte.me`: исключения для строк-метаданных старого клиента (`<title>`, `creator` в GPX, имя файла JNX, текст уведомления сессий) ушли вместе с ним (design [switch-to-web-app](../../openspec/changes/switch-to-web-app/design.md)). До merge ту же проверку делает `check web` ([ci-cd.md](ci-cd.md)). Почему проверка статическая — design [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла»; что заменило сервисы автора — [README.md](README.md#что-больше-не-используется-от-nakarteme).
 
 ## Сверено по
 
-[workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/tracks/src/index.js](../../workers/tracks/src/index.js), [workers/elevation/core/src/http.rs](../../workers/elevation/core/src/http.rs), [workers/elevation/worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [functions/](../../functions/), [scripts/check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml).
+[workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/tracks/src/index.js](../../workers/tracks/src/index.js), [workers/elevation/core/src/http.rs](../../workers/elevation/core/src/http.rs), [workers/elevation/worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [functions/](../../functions/), [scripts/check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml), [check-web.yml](../../.github/workflows/check-web.yml).

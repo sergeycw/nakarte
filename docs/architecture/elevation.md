@@ -78,7 +78,7 @@ flowchart TD
 
 - Расчёт пикселя один для генератора архива и для Worker'а ([render.rs](../../workers/elevation/core/src/render.rs), [tile.rs](../../workers/elevation/core/src/tile.rs)), поэтому уровни из архива и на лету согласованы.
 - Cache API на `*.workers.dev` не работает, поэтому кеш — в памяти изолята; после перезаливки архива Worker передеплоить (кеш держит страницы старого индекса).
-- Клиент: API — [lib/elevations](../../src/lib/elevations/index.js) и профиль высот (атрибуция `elevationsAttribution`), тайлы — [leaflet.layer.elevation-display](../../src/lib/leaflet.layer.elevation-display/index.js) под кнопкой координат ([client.md](client.md)).
+- Клиент: API — [web/src/elevation/api.ts](../../web/src/elevation/api.ts) (профиль высот, GPX с высотами, высота для Google Earth; атрибуция `elevationsAttribution` в [config.ts](../../web/src/config.ts)), [client.md](client.md). У тайлов клиента больше нет: их показывал старый клиент под кнопкой координат, сами тайлы и архив уходят в change `retire-old-client-services`.
 
 ## Сверено по
 

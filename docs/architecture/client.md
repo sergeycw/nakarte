@@ -2,114 +2,86 @@
 
 Уровень выше: [общая схема](README.md#общая-схема), блок ①.
 
-SPA на Leaflet + knockout из апстрима, собирается webpack. Точка входа — [src/index.js](../../src/index.js), карта и контролы собираются в [src/App.js](../../src/App.js). Обзор системы — [README.md](README.md).
+Одностраничное приложение в [web/](../../web/): React 19, MapLibre GL JS 6 через `@vis.gl/react-maplibre`, shadcn/ui на Base UI и Tailwind 4, состояние — Zustand, сборка — Vite. Открывается по `https://nakarte-routing.pages.dev/`; `/next/` (адрес до переключения) отвечает редиректом на тот же путь от корня ([web/public/_redirects](../../web/public/_redirects)). Точка входа — [main.tsx](../../web/src/main.tsx), корень — [App.tsx](../../web/src/App.tsx). Старый клиент автора (Leaflet, knockout, webpack) удалён в change `switch-to-web-app`; почему так и как переносили — [ресёрч нового UI](../../openspec/research/new-ui.md) и архивы changes 1–9 из его списка.
 
 ## Основные модули
 
-Какие модули `src/lib/` подключает приложение и куда они ходят по сети. Показаны модули с собственной логикой или сетью; вспомогательные (`leaflet.control.commons`, `notifications`, `safe-localstorage`, `contextmenu` и т. п.) опущены.
+Каталоги `web/src/` с собственной логикой или сетью. Каждый держит чистые модули без React и карты (разбор, модель, запросы) отдельно от компонентов; компоненты и карта связаны через стор. Вспомогательные (`components/ui` shadcn, `lib/`, `test/`) опущены.
 
 ```mermaid
 flowchart LR
-    app["App.js"]
-    layers["layers.js<br/>определения слоёв"]
-    tracklist["leaflet.control.track-list"]
-    edit["leaflet.polyline-edit"]
-    brouter["brouter"]
-    services["track-list/lib/services<br/>импорт по ссылкам"]
-    nakarte["services/nakarte<br/>nktk, nktl, nktu…"]
-    profile["leaflet.control.elevation-profile"]
-    elevations["elevations"]
-    coords["leaflet.control.coordinates"]
-    elevdisplay["leaflet.layer.elevation-display"]
-    sessions["leaflet.control.sessions"]
-    sessionstate["session-state<br/>IndexedDB"]
-    search["leaflet.control.search"]
-    panoramas["leaflet.control.panoramas"]
-    gmaps["googleMapsApi"]
-    print["printPages, jnx"]
-    rasterize["leaflet.layer.rasterize"]
-    proxy["CORSProxy"]
+    app["App.tsx"]
+    store["state/<br/>стор Zustand, адрес #"]
+    map["map/<br/>BaseMap, кнопки карты"]
+    layers["layers/<br/>каталог, свои слои"]
+    tracks["tracks/<br/>список, парсеры, ссылки"]
+    routing["routing/<br/>редактор, роутер"]
+    engine["engine/<br/>CheerpJ в Web Worker"]
+    autosave["autosave/<br/>IndexedDB"]
+    elevation["elevation/<br/>профиль высот"]
+    search["search/<br/>поиск, метка r="]
+    streetview["streetview/<br/>Street View"]
 
-    app --> layers
-    app --> tracklist
-    app --> coords
-    app --> sessions
+    app --> store
+    app --> map
+    app --> autosave
+    map --> layers
+    map --> tracks
+    map --> routing
+    map --> streetview
+    tracks --> elevation
+    routing --> engine
     app --> search
-    app --> panoramas
-    app --> print
-    tracklist --> edit
-    tracklist --> brouter
-    tracklist --> services
-    tracklist --> nakarte
-    tracklist --> profile
-    profile --> elevations
-    coords --> elevdisplay
-    sessions --> sessionstate
-    panoramas --> gmaps
-    print --> rasterize
-    services --> proxy
-    search --> proxy
-    rasterize --> proxy
-    layers --> proxy
+    store --- tracks
+    store --- routing
+    store --- layers
 ```
 
-| Модуль | Куда ходит | Подробности |
+| Каталог | Куда ходит | Подробности |
 |---|---|---|
-| `brouter` | серверный BRouter или движок CheerpJ | [routing.md](routing.md) |
-| `leaflet.polyline-edit` | — | [route-editor.md](route-editor.md) |
-| `track-list` и `services/nakarte` | `tracksStorageServer` | [track-storage.md](track-storage.md) |
-| `track-list/lib/services` | сайты треков через `CORSProxy` | [cors-proxy.md](cors-proxy.md); что не работает — backlog, «Отложено» |
-| `elevations`, `elevation-display` | `elevationsServer`, `elevationTileUrl` | [elevation.md](elevation.md) |
-| `session-state` | IndexedDB браузера | [route-editor.md](route-editor.md) |
-| `leaflet.control.search` | photon.komoot.io напрямую, mapy.cz и ссылки через `CORSProxy` | [providers/](../../src/lib/leaflet.control.search/providers/) |
-| `leaflet.control.panoramas` | Maps JavaScript API Google | спеки [clone-hosting](../../openspec/specs/clone-hosting/spec.md) («Только Google Street View в панорамах», «Street View без ключа без режима разработки») |
-| `layers.js`, `leaflet.layer.rasterize` | тайловые провайдеры напрямую; слои с `noCors` и печать — через `CORSProxy` | [layers.js](../../src/layers.js) |
+| `state/` | `location.hash`, `localStorage` | `hash.ts` — параметры адреса старого клиента (`m=`, `l=`, `r=`, `n2=` …), `sync.ts` — стор ↔ адрес ↔ `localStorage`; спека [web-client](../../openspec/specs/web-client/spec.md) |
+| `layers/` | тайловые провайдеры напрямую; Strava, Tsvetkov, swisstopo — через `corsProxyUrl` | спека [map-layers](../../openspec/specs/map-layers/spec.md), [cors-proxy.md](cors-proxy.md) |
+| `tracks/` | `tracksStorageServer` (`nktl=`, «Copy link»), сайты треков через `corsProxyUrl` | [track-storage.md](track-storage.md), спеки [tracks](../../openspec/specs/tracks/spec.md), [track-files](../../openspec/specs/track-files/spec.md) |
+| `routing/` | серверный BRouter (`routingServer`) или `engine/` | [route-editor.md](route-editor.md), [routing.md](routing.md) |
+| `engine/` | рантайм CheerpJ с CDN Leaning Technologies, `/brouter-wasm/` и `routingTilesPath` того же origin | [routing.md](routing.md), спека [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md) |
+| `autosave/` | IndexedDB `nakarte-web`; один раз читает `sessions` старого клиента | архивы `add-web-autosave`, `switch-to-web-app` |
+| `elevation/` | `elevationsServer` (профиль, GPX с высотами, высота для Google Earth) | [elevation.md](elevation.md) |
+| `search/` | mapy.cz и короткие ссылки через `corsProxyUrl`, photon.komoot.io напрямую | спека [map-search](../../openspec/specs/map-search/spec.md) |
+| `streetview/` | Maps JavaScript API Google, тайлы покрытия | спека [street-view](../../openspec/specs/street-view/spec.md) |
+| `map/` | — (внешние карты открываются в новой вкладке) | спека [web-client](../../openspec/specs/web-client/spec.md) |
+
+Связь «клик по карте» общая для редактора, метки и Street View — `routing/MapEditor.tsx` (`onClick`); на телефоне долгое нажатие открывает меню на карте ([route-editor.md](route-editor.md)).
 
 ## Как собираются адреса сервисов
 
-`config` — один объект, который читают все модули. Он склеивается из трёх источников, и каждый следующий перебивает предыдущий ([config.js](../../src/config.js)):
+Один модуль [config.ts](../../web/src/config.ts): `makeConfig(mode, googleMapsApiKey)` от режима Vite. Режим `clone` (`vite build --mode clone`, скрипт `build` и деплой) включает движок в браузере; любой другой (`npm run dev`) — серверный BRouter из `docker-compose.yml`. Ключ Google — переменная сборки `VITE_GOOGLE_MAPS_API_KEY`: деплой передаёт секрет `GOOGLE_MAPS_API_KEY` только шагу сборки ([deploy-pages.yml](../../.github/workflows/deploy-pages.yml)), без него — режим без ключа.
 
 ```mermaid
 flowchart LR
-    defaults["Значения по умолчанию<br/>src/config.js"]
-    template["src/secrets.js.template"]
-    secrets["src/secrets.js<br/>вне git"]
-    env["NAKARTE_TARGET"]
-    alias["алиас ~/config-target<br/>webpack.config.js"]
-    deflt["config-target/default.js<br/>пустой"]
-    clone["config-target/clone.js<br/>routingEngine, routingTilesPath"]
-    config["config =<br/>{...defaults, ...secrets, ...configTarget}"]
-    gkey["секрет GOOGLE_MAPS_API_KEY<br/>sed в deploy-pages.yml"]
-
-    template -->|"cp: CI, вручную локально"| secrets
-    gkey -.->|"только деплой"| secrets
-    env -->|"не задан"| alias
-    env -->|"clone"| alias
-    alias --> deflt
-    alias --> clone
-    defaults --> config
-    secrets --> config
-    deflt --> config
-    clone --> config
+    mode["режим Vite<br/>clone / development"]
+    key["VITE_GOOGLE_MAPS_API_KEY<br/>секрет только шагу web build"]
+    make["makeConfig(mode, key)<br/>web/src/config.ts"]
+    config["config"]
+    mode --> make
+    key --> make
+    make --> config
 ```
 
-- В `src/config.js` — адреса своих Worker'ов, общие для всех сборок, и `routingEngine: 'server'`.
-- `src/secrets.js` в CI копируется из шаблона ([main.yml](../../.github/workflows/main.yml), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml)); в шаблоне только `google: ''`. Локальный файл может перебить любое поле — подвох из `AGENTS.md`, [«Запуск»](../../AGENTS.md#запуск).
-- `config-target` перебивает всё. Сейчас клон отличается двумя ключами: `routingEngine: 'browser'` и `routingTilesPath: '/tiles/'`. Правило, что туда кладётся, — `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme) и [«Апстрим»](../../AGENTS.md#апстрим).
-
-| Ключ | Кто читает | Значение в клоне |
+| Поле | Кто читает | Значение в клоне |
 |---|---|---|
-| `CORSProxyUrl` | `CORSProxy`, `index.js` (preconnect) | `https://nakarte-cors-proxy.nakarte-routing.workers.dev/` |
-| `wikimapiaTilesBaseUrl` | `layers.js` | `${CORSProxyUrl}wikimapia/` |
-| `tracksStorageServer` | `track-list`, `services/nakarte`, `index.js` | `https://nakarte-tracks.nakarte-routing.workers.dev` |
-| `elevationsServer` | `elevations`, `index.js` | `https://nakarte-elevation.nakarte-routing.workers.dev/` |
-| `elevationTileUrl` | `App.js` → `leaflet.control.coordinates` | `${elevationsServer}tiles/{z}/{x}/{y}` |
-| `routingEngine` | `brouter` | `'browser'` (по умолчанию `'server'`) |
-| `routingServer` | `brouter` | `http://localhost:17777`, не используется |
-| `routingTilesPath` | `brouter/browser-engine.js` | `'/tiles/'` (по умолчанию `'/brouter-wasm/segments4/'`) |
-| `googleApiUrl` | `googleMapsApi`, `panoramas/lib/google/keyless.js` | `…/maps/api/js?v=3&key=` + `secrets.google` |
-| `eventsLogUrl`, `sentryDSN` | `logging`, `index.js` | пустые |
+| `corsProxyUrl` | `layers/`, `tracks/`, `search/` | `https://nakarte-cors-proxy.nakarte-routing.workers.dev/` |
+| `tracksStorageServer` | `tracks/` | `https://nakarte-tracks.nakarte-routing.workers.dev` |
+| `elevationsServer` | `elevation/`, `map/` (Google Earth) | `https://nakarte-elevation.nakarte-routing.workers.dev/` |
+| `routingEngine` | `routing/`, `App.tsx` | `'browser'` (иначе `'server'`) |
+| `routingEngineRuntimeUrl` | `engine/` | загрузчик CheerpJ 4.3 с `cjrtnc.leaningtech.com` |
+| `routingServer` | `routing/` | `http://localhost:17777`, в клоне не используется |
+| `routingTilesPath` | `engine/` | `'/tiles/'` (иначе `'/brouter-wasm/segments4/'`) |
+| `googleMapsApiKey` | `streetview/` | секрет или пустая строка |
+
+## Сборка и раздача
+
+`vite build --mode clone` кладёт приложение и стенд движка (`engine-bench.html`) в корень `build/`; плагин `engineFiles` ([vite/engine-files.ts](../../web/vite/engine-files.ts)) докладывает файлы движка в `build/brouter-wasm/`, файлы `web/public/` (`_redirects`, `favicon.ico`) копируются как есть. `build/` публикуется в Pages вместе с [functions/](../../functions/) ([ci-cd.md](ci-cd.md)).
 
 ## Сверено по
 
-[src/config.js](../../src/config.js), [src/config-target/](../../src/config-target/), [src/secrets.js.template](../../src/secrets.js.template), [webpack/webpack.config.js](../../webpack/webpack.config.js), [src/App.js](../../src/App.js), [src/index.js](../../src/index.js), импорты модулей в [src/lib/](../../src/lib/) (`grep -rnoE "config\.[A-Za-z]+" src`).
+[web/src/config.ts](../../web/src/config.ts), [web/src/App.tsx](../../web/src/App.tsx), [web/vite.config.ts](../../web/vite.config.ts), каталоги `web/src/*/` (`grep -rhoE "config\.[A-Za-z]+" web/src`, `grep -rl "fetch(" web/src`), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) — `master` после change `switch-to-web-app`.

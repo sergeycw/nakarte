@@ -27,7 +27,7 @@ import { type LinePlace, nearestLink, shortcutRemoved } from './line-tools';
 // - нажатие на опорную точку — перетаскивание, на линию (не при рисовании) — вставка точки и её перетаскивание;
 //   preventDefault у mousedown/touchstart MapLibre выключает панораму карты на этот жест (ui/handler/map_event.ts);
 // - двойной клик по опорной точке — удаление, preventDefault гасит зум;
-// - клавиши на keydown: на macOS, пока зажат Cmd, keyup других клавиш не приходит (AGENTS.md, «Где код роутинга»);
+// - клавиши на keydown: на macOS, пока зажат Cmd, keyup других клавиш не приходит (docs/architecture/route-editor.md, «История»);
 // - превью перетаскивания и резинка — setData источника превью мимо стиля (edit-style.ts);
 // - инструменты линии и точки трека (design add-web-line-tools): правый клик и долгое нажатие открывают меню, клик по
 //   точке трека — меню точки, выбор Join и Shortcut и режимы точек забирают клики по карте себе.
