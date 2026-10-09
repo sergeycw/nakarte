@@ -1,4 +1,0 @@
-node_modules
-build
-# CSS нового приложения проверяет Biome (web/biome.json, директивы Tailwind 4)
-web/
