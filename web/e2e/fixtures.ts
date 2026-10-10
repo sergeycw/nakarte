@@ -208,8 +208,14 @@ export async function openTracks(page: Page) {
     }
 }
 
-export const test = base.extend<{ network: Network }>({
-    page: async ({ page }, use) => {
+export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
+    // false — список не открывается сам после goto и reload (тест открывает его openTracks, где нужно)
+    tracksOpen: [true, { option: true }],
+    page: async ({ page, tracksOpen }, use) => {
+        if (!tracksOpen) {
+            await use(page);
+            return;
+        }
         const goto = page.goto.bind(page);
         const reload = page.reload.bind(page);
         page.goto = async (...args) => {
