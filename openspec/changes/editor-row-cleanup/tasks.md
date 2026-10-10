@@ -9,7 +9,7 @@
 
 ## 2. Документы
 
-- [ ] 2.1 `AGENTS.md` (абзац «Раскладка»: Done → «Finish editing», палитра в строке редактора), `openspec/backlog.md` (пункт про цвет во время правки; часть `editor-row-cleanup` пункта фидбека — при archive); проверка: скрипт ссылок — все файлы и разделы существуют, `openspec validate --all --strict`
+- [x] 2.1 `AGENTS.md` (абзац «Раскладка»: Done → «Finish editing», палитра в строке редактора), `openspec/backlog.md` (пункт про цвет во время правки; часть `editor-row-cleanup` пункта фидбека — при archive); проверка: скрипт ссылок — все файлы и разделы существуют, `openspec validate --all --strict`
 
 ## 3. Ревью, PR, прод
 
