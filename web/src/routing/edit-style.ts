@@ -2,13 +2,14 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import type { CircleLayerSpecification, GeoJSONSourceSpecification, LayerSpecification } from 'maplibre-gl';
 import type { RouteEditState } from '@/state/store';
 import type { LatLng } from '@/tracks/model';
-import { UNROUTED_PAINT } from '@/tracks/style';
+import { CASING_COLOR, UNROUTED_CASING_PAINT, UNROUTED_PAINT } from '@/tracks/style';
 import { legPath } from './line';
 
 // Редактируемая линия на карте (design add-web-route-editor, «Отрисовка»): источники есть в стиле всегда (пустые без
 // редактирования), чтобы порядок слоёв был стабильным. Вид — как у старого редактора (edit_line.css): тонкая
-// непрозрачная линия цвета трека, опорные точки — белые кружки с тёмной обводкой, начало зелёное, конец красный.
-// Ожидающий отрезок не рисуется (разрыв со спиннером), непроложенный — тем же пунктиром, что у треков.
+// непрозрачная линия цвета трека, опорные точки — белые кружки с тёмной обводкой, начало зелёное, конец красный; белая
+// обводка под линией — как у треков (design map-chrome). Ожидающий отрезок не рисуется (разрыв со спиннером),
+// непроложенный — тем же пунктиром с обводкой, что у треков.
 //
 // Превью (резинка при рисовании, перетаскиваемая точка с прямыми до соседей) меняется на каждое движение мыши, поэтому
 // его источник в стиле всегда пустой, а данные ему ставит MapEditor напрямую (setData), мимо стиля: diff стиля MapLibre
@@ -17,6 +18,8 @@ import { legPath } from './line';
 
 export const EDIT_LEGS = 'route-edit-legs';
 export const EDIT_LINE = 'route-edit-line';
+export const EDIT_CASING = 'route-edit-casing';
+export const EDIT_UNROUTED_CASING = 'route-edit-unrouted-casing';
 export const EDIT_UNROUTED = 'route-edit-unrouted';
 export const EDIT_PREVIEW = 'route-edit-preview';
 export const EDIT_WAYPOINTS = 'route-edit-waypoints';
@@ -121,12 +124,27 @@ const WAYPOINT_PAINT = {
 
 export const EDIT_LAYERS: LayerSpecification[] = [
     {
+        id: EDIT_CASING,
+        type: 'line',
+        source: EDIT_LEGS,
+        filter: ['!', ['get', 'unrouted']],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': CASING_COLOR, 'line-width': 5.5 },
+    },
+    {
         id: EDIT_LINE,
         type: 'line',
         source: EDIT_LEGS,
         filter: ['!', ['get', 'unrouted']],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ['get', 'color'], 'line-width': 2.5 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 3 },
+    },
+    {
+        id: EDIT_UNROUTED_CASING,
+        type: 'line',
+        source: EDIT_LEGS,
+        filter: ['get', 'unrouted'],
+        paint: UNROUTED_CASING_PAINT,
     },
     { id: EDIT_UNROUTED, type: 'line', source: EDIT_LEGS, filter: ['get', 'unrouted'], paint: UNROUTED_PAINT },
     {

@@ -40,8 +40,10 @@ export interface Track extends TrackData {
     visible: boolean;
 }
 
-// TRACKLIST_TRACK_COLORS старого клиента: цвет в ссылках nktk — индекс в этом списке
-export const TRACK_COLORS = ['#77f', '#f95', '#0ff', '#f77', '#f7f', '#ee5'] as const;
+// Цвет в ссылках nktk — индекс в этом списке (TRACKLIST_TRACK_COLORS старого клиента: синий, оранжевый, голубой,
+// красный, розовый, жёлтый). Порядок оттенков — старый, значения насыщеннее (design map-chrome): бледные цвета старого
+// клиента на непрозрачной линии с белой обводкой терялись на светлой карте. Индексы не менять — их несут ссылки.
+export const TRACK_COLORS = ['#2563eb', '#f97316', '#0891b2', '#ef4444', '#d946ef', '#eab308'] as const;
 
 export function geoData(name: string, fields: Partial<GeoData> = {}): GeoData {
     return { name, segments: [], points: [], ...fields };

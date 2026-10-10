@@ -4,7 +4,8 @@ import type { SegmentRoute } from '@/routing/line';
 import { type LatLng, TRACK_COLORS, type Track } from './model';
 
 // Треки на карте (design add-web-tracks, «Треки на карте»): GeoJSON-источники на все треки, над всеми слоями.
-// Вид линии — TrackSegment старого клиента (weight 6, opacity 0.5, lineCap round). Подписи точек MapLibre рисует сам,
+// Линия — непрозрачная цвета трека над белой обводкой (design map-chrome): полупрозрачная линия старого клиента
+// (weight 6, opacity 0.5) терялась на спутнике и Strava heatmap. Подписи точек MapLibre рисует сам,
 // без glyphs в стиле: шрифт из text-font берётся как CSS-семейство (GlyphManager MapLibre 6). id источников и слоёв не
 // пересекаются с кодами слоёв каталога и своих слоёв (-cs…).
 //
@@ -14,7 +15,11 @@ import { type LatLng, TRACK_COLORS, type Track } from './model';
 // отрезок рисует редактор (routing/edit-style.ts), здесь его нет.
 
 export const TRACK_LINES = 'tracks';
+// обводка линий: тот же источник, слой под линиями; клики ищут только TRACK_LINES (MapEditor)
+export const TRACK_CASING = 'tracks-casing';
 export const TRACK_UNROUTED = 'tracks-unrouted';
+// обводка пунктира непроложенного отрезка: пометка ошибки не должна теряться на спутнике сильнее линии трека
+export const TRACK_UNROUTED_CASING = 'tracks-unrouted-casing';
 export const TRACK_POINTS = 'track-points';
 export const TRACK_LABELS = 'track-labels';
 // отметки расстояния (tracks/ticks.ts): источник собирает карта на целом зуме
@@ -135,13 +140,33 @@ export const UNROUTED_PAINT: LineLayerSpecification['paint'] = {
     'line-dasharray': [2, 1.5],
 };
 
+// Белая обводка шире линии на 1.5 px с каждой стороны: на светлой карте её почти не видно, на тёмной (спутник, heatmap)
+// она отделяет линию от фона
+export const CASING_COLOR = '#fff';
+// под пунктиром — сплошная: белые промежутки между штрихами
+export const UNROUTED_CASING_PAINT: LineLayerSpecification['paint'] = { 'line-color': CASING_COLOR, 'line-width': 6 };
+const LINE_LAYOUT: LineLayerSpecification['layout'] = { 'line-cap': 'round', 'line-join': 'round' };
+
 export const TRACK_LAYERS: LayerSpecification[] = [
+    {
+        id: TRACK_CASING,
+        type: 'line',
+        source: TRACK_LINES,
+        layout: LINE_LAYOUT,
+        paint: { 'line-color': CASING_COLOR, 'line-width': 7 },
+    },
     {
         id: TRACK_LINES,
         type: 'line',
         source: TRACK_LINES,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.5 },
+        layout: LINE_LAYOUT,
+        paint: { 'line-color': ['get', 'color'], 'line-width': 4 },
+    },
+    {
+        id: TRACK_UNROUTED_CASING,
+        type: 'line',
+        source: TRACK_UNROUTED,
+        paint: UNROUTED_CASING_PAINT,
     },
     {
         id: TRACK_UNROUTED,

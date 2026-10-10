@@ -23,7 +23,7 @@ import {
 import { memoryAutosave } from '@/test/memory-autosave';
 import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
-import type { LatLng } from '@/tracks/model';
+import { type LatLng, TRACK_COLORS } from '@/tracks/model';
 import { ARC_UNIT, saveNktk } from '@/tracks/nktk';
 import { TRACK_LINES } from '@/tracks/style';
 import type { AutosaveStorage } from './autosave';
@@ -273,7 +273,9 @@ describe('Треки переживают перезагрузку', () => {
         await expect.element(page.getByRole('checkbox', { name: 'Show First' })).toBeChecked();
         await expect.element(page.getByRole('checkbox', { name: 'Show Second' })).not.toBeChecked();
         await page.getByRole('checkbox', { name: 'Show Second' }).click();
-        await expect.poll(() => lineFeatures(map).map((line) => line.properties?.color)).toEqual(['#77f', '#f77']);
+        await expect
+            .poll(() => lineFeatures(map).map((line) => line.properties?.color))
+            .toEqual([TRACK_COLORS[0], TRACK_COLORS[3]]);
     });
 
     test('Удалённый трек', async () => {
