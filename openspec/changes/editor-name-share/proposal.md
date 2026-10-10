@@ -7,8 +7,8 @@
 ## What Changes
 
 - **Название трека в строке редактора — поле ввода**: Enter или уход фокуса сохраняет, Escape возвращает прежнее, пустое название трек не меняет (как `Rename` в меню трека). Длина трека — рядом, как сейчас.
-- **Иконка «поделиться» рядом с `Done`**: меню `Copy link for track`, `Save as GPX`, `Save as GPX with elevation`, `Save as KML` для редактируемого трека — те же действия и тексты, что в меню трека списка.
-- Уже 640 px кнопка прокладки в строке редактора — только иконка: иначе на телефоне названию не остаётся места.
+- **Иконка «поделиться» рядом с `Done`**: меню `Save as GPX`, `Save as GPX with elevation`, `Save as KML`, `Copy link for track` для редактируемого трека — те же действия и тексты, что в меню трека списка.
+- Уже 640 px кнопки прокладки, `Done` и `Cancel` в строке редактора — только иконки: иначе на телефоне названию не остаётся места.
 - Меню трека в списке не меняется.
 - Пункт backlog о списке треков во время правки сужается: имя и экспорт доступны, остальные действия трека — после `Done`.
 - Не в этом change: ссылки на треки в поиске (change 4), раскладка телефона (backlog).
@@ -26,6 +26,6 @@
 
 ## Impact
 
-- Код: `web/src/routing/EditPanel.tsx`, `web/src/routing/RoutingButton.tsx`, новые `web/src/routing/TrackNameInput.tsx` и `web/src/tracks/TrackExportItems.tsx` (пункты экспорта — общие с меню трека, `TrackList.tsx`); e2e `search.spec.ts` проверяет название в редакторе значением поля, а не текстом панели.
+- Код: `web/src/routing/EditPanel.tsx`, `web/src/routing/RoutingButton.tsx`, `web/src/map/MapButtons.tsx` (Alt+P в полях ввода), новые `web/src/routing/TrackNameInput.tsx` и `web/src/tracks/TrackExportItems.tsx` (пункты экспорта — общие с меню трека, `TrackList.tsx`); browser-тесты поля названия в `RouteEditor.browser.test.tsx`; e2e `search.spec.ts` проверяет название в редакторе значением поля, а не текстом панели.
 - Сервисы, форматы ссылок, файлов и автосохранения — не меняются.
 - Документы: строка раскладки в `docs/architecture/decisions.md`, абзац «Раскладка» в `AGENTS.md`, строка 3 таблицы ресёрча, `openspec/backlog.md` (пункт о списке во время правки, сценарии без тестов).
