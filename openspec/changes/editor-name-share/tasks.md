@@ -2,7 +2,7 @@
 
 ## 1. Строка редактора
 
-- [ ] 1.1 Поле названия в строке редактора: черновик, Enter и уход фокуса — `rename`, Escape — откат (`TrackNameInput.tsx`, `EditPanel.tsx`); e2e `search.spec.ts` — название значением поля; проверка: browser-тесты `RouteEditor`, `TrackList` и e2e `search`, `route-editing` зелёные
+- [ ] 1.1 Поле названия в строке редактора: черновик, Enter и уход фокуса — `rename`, Escape — откат (`TrackNameInput.tsx`, `EditPanel.tsx`), уже 640 px активность — иконкой (`RoutingButton.tsx`); e2e `search.spec.ts` — название значением поля; проверка: browser-тесты `RouteEditor`, `TrackList` и e2e `search`, `route-editing` зелёные
 - [ ] 1.2 Меню `Share track` рядом с `Done`: пункты экспорта — общий компонент с меню трека (`TrackExportItems.tsx`, `TrackList.tsx`, `EditPanel.tsx`); проверка: browser-тесты `TrackList`, `Ticks` и e2e `tracks` зелёные
 - [ ] 1.3 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
 
