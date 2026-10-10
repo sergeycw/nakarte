@@ -1,37 +1,15 @@
-import { AttributionControl, GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
+import { AttributionControl, GeolocateControl, ScaleControl, useMap } from '@vis.gl/react-maplibre';
 import { BinocularsIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
 import { useStreetView } from '@/streetview/context';
+import { ControlPortal } from './control-portal';
 import { forgetPosition, savePosition } from './locate';
 
-// Кнопки карты справа под кнопкой слоёв (три зоны, design layout-three-zones): Street View, зум капсулой, геолокация
-// MapLibre; линейка масштаба и атрибуция — слева снизу. Свои контролы — контейнер контрола MapLibre с порталом React:
-// так они встают в тот же столбец, что кнопки MapLibre, в порядке монтирования. Вид контролов — круглое стекло,
-// правила в index.css.
-
-// Контейнер контрола MapLibre для портала React
-function useControlContainer(className: string): HTMLElement {
-    const [container] = useState(() => {
-        const element = document.createElement('div');
-        element.className = `maplibregl-ctrl ${className}`;
-        return element;
-    });
-    useControl(
-        () => ({
-            onAdd: () => container,
-            onRemove: () => container.remove(),
-        }),
-        { position: 'top-right' },
-    );
-    return container;
-}
-
-function ControlPortal({ className, children }: { className: string; children: ReactNode }) {
-    return createPortal(children, useControlContainer(className));
-}
+// Кнопки карты справа под быстрыми слоями (три зоны, design layout-three-zones и layer-thumbnails): Street View, зум
+// капсулой, геолокация MapLibre; линейка масштаба и атрибуция — слева снизу. Свои контролы — ControlPortal
+// (control-portal.tsx). Вид контролов — круглое стекло, правила в index.css.
 
 // Зум: кнопки с разметкой и классами NavigationControl MapLibre (иконки — из его CSS, тесты ищут
 // .maplibregl-ctrl-zoom-in), капсулой без номера зума (design layout-three-zones); зум нужен только, чтобы гасить кнопки

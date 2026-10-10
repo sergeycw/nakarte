@@ -143,7 +143,9 @@ function stravaLayer(code: string, kind: string, title: string, env: CatalogEnv)
         title,
         group: 'Routes and traces',
         isOverlay: true,
-        isDefault: false,
+        // в списке по умолчанию только «all»: у него переключатель в столбце справа (design layer-thumbnails), у
+        // старого клиента — isDefault: false у всех четырёх
+        isDefault: code === 'Sa',
         opacity: 0.75,
         source: raster([viaCorsProxy(env.corsProxyUrl, url)], STRAVA_ATTRIBUTION, { maxzoom: hiRes ? 15 : 16 }),
     };
