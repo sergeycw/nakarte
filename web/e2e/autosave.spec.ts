@@ -93,7 +93,7 @@ async function drawRouted(page: Page) {
     await clickMap(page, FINISH);
     // прямая между точками ≈ 0.7 км, маршрут заглушки — заметно длиннее
     await expect.poll(() => kilometers(page)).toBeGreaterThan(2);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);
     await chooseActivity(page, 'Off: straight lines');
     await expect.poll(() => savedTracks(page)).toBe(1);
@@ -206,7 +206,7 @@ test('Свой список уже есть', async ({ page }) => {
     await page.getByRole('button', { name: 'New track' }).first().click();
     await clickMap(page, START);
     await clickMap(page, FINISH);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     await expect.poll(() => savedTracks(page)).toBe(1);
     await writeLegacySessions(page, [{ sessionId: 'old', mtime: Date.now(), tracks: MTATSMINDA }]);
     await page.reload();

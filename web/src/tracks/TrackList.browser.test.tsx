@@ -230,7 +230,7 @@ describe('Действия со списком', () => {
         await page.getByRole('button', { name: 'New track' }).click();
         await expect.element(rows()).toHaveLength(1);
         await expect.element(rows().first()).toHaveAttribute('data-track', 'New track');
-        await expect.element(page.getByTestId('edit-panel').getByText('Click map to add points')).toBeVisible();
+        await expect.element(page.getByTestId('edit-panel')).toHaveAttribute('data-drawing');
     });
 });
 

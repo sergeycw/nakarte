@@ -71,7 +71,7 @@ describe('Начало и конец редактирования', () => {
         await expect.element(editPanel()).toBeVisible();
         await expect.element(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
         await expect.element(page.getByRole('button', { name: 'Redo' })).toBeDisabled();
-        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         await expect.poll(() => waypoints(map)).toHaveLength(2);
     });
 
@@ -104,7 +104,7 @@ describe('Название трека в панели редактировани
         await userEvent.keyboard('{Enter}');
         await expect.element(name).toHaveValue('Kazbek');
         await expect.element(editPanel()).toBeVisible();
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await openTracks();
         await expect.element(page.getByRole('button', { name: 'Kazbek' })).toBeVisible();
     });
@@ -127,6 +127,45 @@ describe('Название трека в панели редактировани
         await userEvent.keyboard('{Escape}');
         await expect.element(name).toHaveValue('Walk');
         await expect.element(editPanel()).toBeVisible();
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
+    });
+});
+
+describe('Цвет трека в панели редактирования', () => {
+    test('Цвет нового трека', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A, B]);
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#77f']);
+        await editPanel().getByRole('button', { name: 'Color of New track' }).click();
+        await page.getByRole('button', { name: 'Color 3' }).click();
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff']);
+        // рисование продолжается: следующий клик ставит третью точку того же цвета
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
+        await click(map, C);
+        await expect.poll(() => waypoints(map)).toHaveLength(3);
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff', '#0ff']);
+        await page.getByRole('button', { name: 'Finish editing' }).click();
+        await openTracks();
+        await expect
+            .poll(() =>
+                page
+                    .getByRole('button', { name: 'Color of New track' })
+                    .element()
+                    .querySelector('[data-color]')
+                    ?.getAttribute('data-color'),
+            )
+            .toBe('2');
+    });
+
+    test('Escape, закрывающий палитру, рисование не заканчивает', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A]);
+        await editPanel().getByRole('button', { name: 'Color of New track' }).click();
+        await expect.element(page.getByRole('button', { name: 'Color 3' })).toBeVisible();
+        await userEvent.keyboard('{Escape}');
+        await expect.element(page.getByRole('button', { name: 'Color 3' })).not.toBeInTheDocument();
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
+        await click(map, B);
         await expect.poll(() => waypoints(map)).toHaveLength(2);
     });
 });
@@ -283,7 +322,7 @@ describe('Продолжение линии с любого конца', () => {
         await click(map, P(41.6895, 44.7815));
         await expect.poll(() => waypoints(map)).toHaveLength(3);
         await click(map, A);
-        await expect.element(page.getByText('Click map to add points')).toBeVisible();
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
         await click(map, D);
         await expect.poll(() => waypoints(map)).toHaveLength(4);
         expect(near(waypoints(map)[0], D)).toBe(true);
@@ -302,7 +341,7 @@ describe('гонки и фокус', () => {
                 fire(map, type, B);
             }
         }
-        await expect.element(page.getByText('Drag points, click line end to continue')).toBeVisible();
+        await expect.element(editPanel()).not.toHaveAttribute('data-drawing');
         expect(waypoints(map)).toHaveLength(2);
     });
 
@@ -312,7 +351,7 @@ describe('гонки и фокус', () => {
         const undo = page.getByRole('button', { name: 'Undo' }).element() as HTMLButtonElement;
         undo.focus();
         key({ key: 'Enter', code: 'Enter' }, undo);
-        await expect.element(page.getByText('Click map to add points')).toBeVisible();
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
     });
 
     test('Escape, закрывающий меню прокладки, рисование не заканчивает', async () => {
@@ -326,7 +365,7 @@ describe('гонки и фокус', () => {
         await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).toBeVisible();
         await userEvent.keyboard('{Escape}');
         await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).not.toBeInTheDocument();
-        await expect.element(page.getByText('Click map to add points')).toBeVisible();
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
     });
 });
 
@@ -387,7 +426,7 @@ describe('Действия с треком', () => {
     test('Новый трек', async () => {
         const { map } = await render(VIEW);
         await newTrack(map, [A, B]);
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await expect.element(page.getByRole('button', { name: 'New track', exact: true }).last()).toBeVisible();
         await expect.poll(() => features(map, TRACK_LINES)).toHaveLength(1);
     });
@@ -398,7 +437,7 @@ describe('Действия с треком', () => {
         await page.getByRole('menuitem', { name: 'Add segment' }).click();
         await click(map, C);
         await click(map, D);
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await expect.poll(() => features(map, TRACK_LINES).map((f) => f.properties?.segment)).toEqual([0, 1]);
     });
 });
