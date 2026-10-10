@@ -60,6 +60,9 @@
        ставит App. --profile-inset — только профиль: над ним встаёт панорама */
     --bottom-inset: 0px;
     --profile-inset: 0px;
+    /* место под кнопку профиля высот снизу по центру, пока она есть: над ней встают атрибуция и линейка масштаба;
+       ставит MapActions */
+    --profile-button-inset: 0px;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -126,13 +129,14 @@
     }
 }
 
-/* Контролы MapLibre в стиле стекла (макет 4a, design polish-web-ui). Вне @layer и после maplibre-gl.css: те же
-   селекторы MapLibre, порядок перебивает его белый фон, скругление 4px и рамку 2px */
+/* Контролы MapLibre в стиле стекла (макет 4a, design polish-web-ui), круглые: зум — вертикальной капсулой, одиночные
+   кнопки — кругом (design layout-three-zones). Вне @layer и после maplibre-gl.css: те же селекторы MapLibre, порядок
+   перебивает его белый фон, скругление 4px и рамку 2px */
 .maplibregl-ctrl-group {
     background-color: var(--glass);
     backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
     border: 1px solid var(--glass-edge);
-    border-radius: var(--radius-lg);
+    border-radius: 9999px;
     overflow: hidden;
 }
 .maplibregl-ctrl-group:not(:empty) {
@@ -140,9 +144,10 @@
         0 1px 2px oklch(0 0 0 / 0.08),
         0 6px 20px oklch(0 0 0 / 0.12);
 }
+/* 34 px + рамка группы = 36 px, как круглые кнопки приложения (ROUND_BUTTON, components/round-button.ts) */
 .maplibregl-ctrl-group button {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
 }
 .maplibregl-ctrl-group button + button {
     border-top-color: oklch(0 0 0 / 0.06);

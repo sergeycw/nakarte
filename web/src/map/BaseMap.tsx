@@ -124,12 +124,13 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     useEffect(fitRequestedBounds, [fitRequestedBounds]);
 
     return (
-        // кнопки зума — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9); атрибуция и линейка масштаба слева
-        // снизу — над нижними панелями (--bottom-inset, App) и строкой кнопок (MapActions): на среднем окне строка кнопок
-        // доходит до левого края и закрыла бы подписи слоёв. С !important: CSS MapLibre подключён вне @layer и без него
-        // перебивает утилиту Tailwind своими top: 0 и bottom: 0
+        // кнопки карты — под кнопкой слоёв (LayerSwitcher, top-3 right-3, 36 px): top-12 = 48 px, зазор — отступ контрола
+        // (index.css). Атрибуция и линейка масштаба слева снизу — над нижними панелями (--bottom-inset, App) и над кнопкой
+        // профиля по центру, пока она есть (--profile-button-inset, MapActions): длинная атрибуция нескольких слоёв
+        // доходит до центра и на широком окне. С !important: CSS MapLibre подключён вне @layer и без него перебивает
+        // утилиту Tailwind своими top: 0 и bottom: 0
         <div
-            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+3.25rem)]! [&_.maplibregl-ctrl-top-right]:top-12!"
+            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+var(--profile-button-inset))]! [&_.maplibregl-ctrl-top-right]:top-12!"
             data-testid="map"
         >
             <MapLibreMap
@@ -138,7 +139,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 initialViewState={{ latitude: initialView.lat, longitude: initialView.lng, zoom: initialView.zoom }}
                 mapStyle={mapStyle}
                 transformRequest={transformRequest}
-                // атрибуция — своим контролом слева снизу (MapButtons): справа снизу строка кнопок
+                // атрибуция — своим контролом слева снизу (MapButtons), как и линейка масштаба
                 attributionControl={false}
                 // поворота и наклона нет, как у старого клиента: компаса в макете 4a нет, а без него повёрнутую карту не
                 // вернуть на север (design polish-web-ui)

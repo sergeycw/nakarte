@@ -1,5 +1,6 @@
 import { LayersIcon, PencilIcon, PlusIcon, Settings2Icon } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ROUND_BUTTON } from '@/components/round-button';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -95,8 +96,9 @@ export function LayerSwitcher() {
                         <Button
                             variant="ghost"
                             size="icon-lg"
-                            className="glass rounded-lg hover:bg-white/90"
+                            className={ROUND_BUTTON}
                             aria-label="Layers"
+                            title="Layers"
                             data-testid="layers-button"
                         />
                     }

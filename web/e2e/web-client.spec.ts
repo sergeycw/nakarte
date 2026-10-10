@@ -208,8 +208,8 @@ test.describe('в тёмной теме системы', () => {
         // тост отката подложки по умолчанию — любой тост годится для проверки темы
         network.failTiles('Tt');
         await page.goto('./');
-        // стекло верхней строки, тоста и кнопки слоёв — светлое (--glass в index.css), а не тёмное
-        const panel = page.getByTestId('top-bar').locator('> div').first();
+        // стекло строки поиска, тоста и кнопки слоёв — светлое (--glass в index.css), а не тёмное
+        const panel = page.getByTestId('search-bar');
         await expect(panel).toBeVisible();
         await expect(panel).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
         await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');

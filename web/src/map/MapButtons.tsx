@@ -1,12 +1,16 @@
 import { AttributionControl, GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
+import { BinocularsIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
+import { useAppStore } from '@/state/context';
+import { useStreetView } from '@/streetview/context';
 import { forgetPosition, savePosition } from './locate';
 
-// Кнопки карты справа под кнопкой слоёв (макет Claude Design 4a, design polish-web-ui): зум с номером между «+» и «−»,
-// геолокация MapLibre; Street View и «Measure distance» — строкой снизу (MapActions), линейка масштаба и атрибуция —
-// слева снизу. Свои контролы — контейнер контрола MapLibre с порталом React: так они встают в тот же столбец, что
-// кнопки MapLibre, в порядке монтирования. Вид контролов — стекло, правила в index.css.
+// Кнопки карты справа под кнопкой слоёв (три зоны, design layout-three-zones): Street View, зум капсулой, геолокация
+// MapLibre; линейка масштаба и атрибуция — слева снизу. Свои контролы — контейнер контрола MapLibre с порталом React:
+// так они встают в тот же столбец, что кнопки MapLibre, в порядке монтирования. Вид контролов — круглое стекло,
+// правила в index.css.
 
 // Контейнер контрола MapLibre для портала React
 function useControlContainer(className: string): HTMLElement {
@@ -30,8 +34,8 @@ function ControlPortal({ className, children }: { className: string; children: R
 }
 
 // Зум: кнопки с разметкой и классами NavigationControl MapLibre (иконки — из его CSS, тесты ищут
-// .maplibregl-ctrl-zoom-in) и номер между ними в единицах старого клиента (leaflet.control.zoom-display): MapLibre + 1.
-// Компаса нет: поворот карты выключен (BaseMap)
+// .maplibregl-ctrl-zoom-in), капсулой без номера зума (design layout-three-zones); зум нужен только, чтобы гасить кнопки
+// на пределах. Компаса нет: поворот карты выключен (BaseMap)
 function ZoomControl() {
     const { current } = useMap();
     const map = current?.getMap();
@@ -59,13 +63,6 @@ function ZoomControl() {
             >
                 <span className="maplibregl-ctrl-icon" aria-hidden="true" />
             </button>
-            <div
-                className="flex h-6 items-center justify-center font-medium text-xs tabular-nums"
-                title="Zoom level"
-                data-testid="zoom-level"
-            >
-                {Math.round(zoom + 1)}
-            </div>
             <button
                 type="button"
                 className="maplibregl-ctrl-zoom-out"
@@ -75,6 +72,40 @@ function ZoomControl() {
                 onClick={(event) => map?.zoomOut({}, { originalEvent: event.nativeEvent })}
             >
                 <span className="maplibregl-ctrl-icon" aria-hidden="true" />
+            </button>
+        </ControlPortal>
+    );
+}
+
+// Режим Street View (кнопка и Alt+P старого контрола панорам; code, а не key: на macOS Alt меняет символ)
+function StreetViewControl() {
+    const streetView = useStreetView();
+    const enabled = useAppStore((state) => state.streetView.enabled);
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.altKey && event.code === 'KeyP') {
+                event.preventDefault();
+                streetView.toggle();
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [streetView]);
+    return (
+        <ControlPortal className="maplibregl-ctrl-group">
+            <button
+                type="button"
+                // CSS MapLibre вне @layer задаёт кнопкам группы display: block и прозрачный фон: flex и фон нажатой — с !
+                className={cn(
+                    'flex! items-center justify-center [&_svg]:size-[18px]',
+                    enabled && 'bg-primary! text-primary-foreground',
+                )}
+                aria-label="Street View"
+                title="Street View (Alt+P)"
+                aria-pressed={enabled}
+                onClick={() => streetView.toggle()}
+            >
+                <BinocularsIcon />
             </button>
         </ControlPortal>
     );
@@ -136,6 +167,7 @@ export function MapButtons({ notify, storage }: MapButtonsProps) {
     useDisabledGeolocateToast(notify);
     return (
         <>
+            <StreetViewControl />
             <ZoomControl />
             <GeolocateControl
                 position="top-right"
@@ -154,8 +186,8 @@ export function MapButtons({ notify, storage }: MapButtonsProps) {
                     notify(geolocationErrorMessage(event.code, event.message));
                 }}
             />
-            {/* справа снизу — строка кнопок (MapActions): атрибуция и линейка масштаба слева (MapLibre ставит каждый
-                следующий нижний контрол выше — линейка над атрибуцией) */}
+            {/* атрибуция и линейка масштаба слева снизу: снизу по центру — кнопка профиля (MapActions); MapLibre ставит
+                каждый следующий нижний контрол выше — линейка над атрибуцией */}
             <AttributionControl position="bottom-left" />
             <ScaleControl position="bottom-left" unit="metric" />
         </>

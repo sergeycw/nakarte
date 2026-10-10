@@ -7,6 +7,7 @@ import {
     LoaderCircleIcon,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { ROUND_BUTTON } from '@/components/round-button';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useElevationProfile } from '@/elevation/context';
+import { cn } from '@/lib/utils';
 import { useRouteEditing } from '@/routing/editing-context';
 import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
@@ -136,22 +138,28 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
     );
 }
 
-// Кнопка списка треков в верхней строке (макет 4a, design polish-web-ui): название и число треков, список — выпадающей
-// панелью под строкой (TopBar)
+// Круглая кнопка списка слева сверху (design layout-three-zones), список — выпадающей панелью под строкой (TopBar). Число
+// треков — данные, а не подпись, поэтому значком в углу кнопки; aria-label с числом — по нему ищут тесты
 export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
     const count = useAppStore((state) => state.tracks.length);
     const loading = useAppStore((state) => state.loadingTracks > 0);
+    const label = count > 0 ? `Tracks ${count}` : 'Tracks';
     return (
         <Button
             variant="ghost"
-            className="h-9 shrink-0 px-2.5"
-            aria-label={count > 0 ? `Tracks ${count}` : 'Tracks'}
+            size="icon-lg"
+            className={cn(ROUND_BUTTON, 'relative aria-expanded:bg-white/90')}
+            aria-label={label}
+            title={label}
             aria-expanded={open}
             onClick={onToggle}
         >
             {loading ? <LoaderCircleIcon className="animate-spin" aria-label="Loading tracks" /> : <ListIcon />}
-            <span className="hidden sm:inline">Tracks</span>
-            {count > 0 && <span className="text-muted-foreground tabular-nums">{count}</span>}
+            {count > 0 && (
+                <span className="-top-1 -right-1 absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-medium text-[10px] text-primary-foreground tabular-nums leading-none">
+                    {count}
+                </span>
+            )}
         </Button>
     );
 }

@@ -135,12 +135,13 @@ describe('Последнее положение при заходе', () => {
     });
 });
 
-describe('Масштаб и зум на карте', () => {
-    test('Номер зума', async () => {
-        const { map } = await renderApp(tiles, '#m=13/42.68490/47.07008&l=O');
-        await expect.element(page.getByTestId('zoom-level')).toHaveTextContent('13');
+describe('Масштаб на карте', () => {
+    test('Линейка масштаба', async () => {
+        await renderApp(tiles, '#m=13/42.68490/47.07008&l=O');
+        await expect.element(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
         expect(document.querySelector('.maplibregl-ctrl-scale')?.textContent).toMatch(/\d+\s?(m|km)/u);
-        map.jumpTo({ zoom: 15 });
-        await expect.element(page.getByTestId('zoom-level')).toHaveTextContent('16');
+        // между кнопками зума номера нет: капсула — только «+» и «−»
+        const zoom = document.querySelector('.maplibregl-ctrl-zoom-in')?.parentElement;
+        expect(zoom?.textContent).toBe('');
     });
 });

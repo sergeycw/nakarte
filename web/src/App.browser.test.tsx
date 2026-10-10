@@ -57,14 +57,14 @@ describe('Интерфейс поверх карты', () => {
 
     test('Клик по панели', async () => {
         const { map } = await renderApp();
-        // плавающая панель — верхняя строка (поиск, Tracks, New)
-        const panel = page.getByTestId('top-bar');
+        // плавающая панель — капсула строки поиска слева сверху
+        const panel = page.getByTestId('search-bar');
         await expect.element(panel).toBeVisible();
 
-        const panelElement = panel.element().firstElementChild as HTMLElement;
+        const panelElement = panel.element() as HTMLElement;
         const rect = panelElement.getBoundingClientRect();
         for (const [x, y] of [
-            // отступ больше радиуса скругления: хит-тест углов учитывает border-radius
+            // хит-тест углов учитывает border-radius: у капсулы радиус 18 px, точка (16, 16) — почти центр дуги угла
             [rect.left + 16, rect.top + 16],
             [rect.right - 16, rect.bottom - 16],
             [rect.left + rect.width / 2, rect.top + rect.height / 2],
