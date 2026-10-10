@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { type BrowserContext, test as base, expect } from '@playwright/test';
+import { type BrowserContext, test as base, expect, type Page } from '@playwright/test';
 import { makeConfig } from '../src/config.ts';
 import { buildCatalog } from '../src/layers/catalog.ts';
 import { COVERAGE_CODE, COVERAGE_TILES } from '../src/streetview/coverage.ts';
@@ -186,7 +186,41 @@ interface Network {
 // провайдерам и сервисам и ловит лишние внешние запросы.
 // auto: фикстура Playwright ленивая, и тест, который не просит network в аргументах, иначе шёл бы без перехвата —
 // в настоящую сеть (так было до 2026-10-09 у тестов вида `async ({ page }) =>`)
+// Список треков в приложении закрыт до кнопки Tracks (макет 4a, design polish-web-ui), а e2e списка и редактора нужен
+// открытым: после каждого goto и reload страницы приложения фикстура его открывает. Страница без приложения (стенд
+// движка, редирект) кнопки не дождётся — тогда ничего.
+export async function openTracks(page: Page) {
+    // не страница приложения или верхняя строка — редактор линии или точек: кнопки Tracks нет
+    if (!page.url().startsWith('http') || (await page.locator('[data-testid$="-panel"]').count())) {
+        return;
+    }
+    const button = page.getByRole('button', { name: /^Tracks( \d+)?$/ });
+    try {
+        await button.waitFor({ timeout: 5_000 });
+    } catch {
+        return;
+    }
+    if ((await button.getAttribute('aria-expanded')) !== 'true') {
+        await button.click();
+    }
+}
+
 export const test = base.extend<{ network: Network }>({
+    page: async ({ page }, use) => {
+        const goto = page.goto.bind(page);
+        const reload = page.reload.bind(page);
+        page.goto = async (...args) => {
+            const response = await goto(...args);
+            await openTracks(page);
+            return response;
+        };
+        page.reload = async (...args) => {
+            const response = await reload(...args);
+            await openTracks(page);
+            return response;
+        };
+        await use(page);
+    },
     network: [
         async ({ context }, use) => {
             const failing = new Set<string>();

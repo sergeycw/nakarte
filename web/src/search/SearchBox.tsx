@@ -147,9 +147,10 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
 
     return (
         // focus и blur всплывают от строки и вариантов: так видно, что фокус ушёл из поиска целиком
+        // в верхней строке (макет 4a, design polish-web-ui): поле без рамки, результаты — карточкой под строкой
         // biome-ignore lint/a11y/noStaticElementInteractions: обёртка ловит фокус потомков, сама не интерактивна
         <div
-            className="flex flex-col gap-1.5"
+            className="relative min-w-0 flex-1"
             data-testid="search"
             onFocus={() => {
                 if (!active) {
@@ -167,10 +168,10 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
             }}
         >
             <div className="relative">
-                <SearchIcon className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 text-muted-foreground" />
+                <SearchIcon className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2.5 size-4 text-muted-foreground" />
                 <Input
                     ref={input}
-                    className="pr-7 pl-7"
+                    className="h-9 border-0 bg-transparent pr-7 pl-8 shadow-none focus-visible:ring-0 dark:bg-transparent"
                     placeholder="Search places, coordinates, links"
                     title="Search places, coordinates, links (Alt+L)"
                     aria-label="Search"
@@ -202,7 +203,7 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
                 )}
             </div>
             {open && (
-                <div className="flex max-h-72 flex-col gap-1 overflow-y-auto text-sm">
+                <div className="glass -left-1 absolute top-full z-20 mt-2.5 flex max-h-72 w-[min(26rem,calc(100vw-1.5rem))] flex-col gap-1 overflow-y-auto rounded-xl p-2 text-sm">
                     {tooShort && <p className="text-muted-foreground">Type at least {MIN_QUERY_LENGTH} characters</p>}
                     {!tooShort && shown.kind === 'loading' && (
                         <LoaderCircleIcon

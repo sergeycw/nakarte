@@ -66,7 +66,8 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    /* акцент — приглушённый синий (макет Claude Design 4a, design polish-web-ui): основная кнопка, выбранное */
+    --primary: oklch(0.5 0.13 255);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -77,13 +78,17 @@
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: oklch(0.62 0.12 255);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    --radius: 0.75rem;
+    /* стекло над картой: полупрозрачный белый с размытием, светлая кромка, мягкая тень (утилита glass ниже) */
+    --glass: oklch(1 0 0 / 0.74);
+    --glass-edge: oklch(1 0 0 / 0.7);
+    --glass-blur: 14px;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -92,6 +97,21 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Стеклянная поверхность панелей, меню и кнопок над картой. Размытие над WebGL-холстом стоит кадров на слабом телефоне:
+   при prefers-reduced-transparency — непрозрачный фон без размытия */
+@utility glass {
+    background-color: var(--glass);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    border: 1px solid var(--glass-edge);
+    box-shadow:
+        0 1px 2px oklch(0 0 0 / 0.08),
+        0 6px 20px oklch(0 0 0 / 0.12);
+    @media (prefers-reduced-transparency: reduce) {
+        background-color: var(--card);
+        backdrop-filter: none;
+    }
 }
 
 @layer base {
@@ -103,5 +123,36 @@
     }
     html {
         @apply font-sans;
+    }
+}
+
+/* Контролы MapLibre в стиле стекла (макет 4a, design polish-web-ui). Вне @layer и после maplibre-gl.css: те же
+   селекторы MapLibre, порядок перебивает его белый фон, скругление 4px и рамку 2px */
+.maplibregl-ctrl-group {
+    background-color: var(--glass);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    border: 1px solid var(--glass-edge);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+.maplibregl-ctrl-group:not(:empty) {
+    box-shadow:
+        0 1px 2px oklch(0 0 0 / 0.08),
+        0 6px 20px oklch(0 0 0 / 0.12);
+}
+.maplibregl-ctrl-group button {
+    width: 36px;
+    height: 36px;
+}
+.maplibregl-ctrl-group button + button {
+    border-top-color: oklch(0 0 0 / 0.06);
+}
+.maplibregl-ctrl-top-right .maplibregl-ctrl {
+    margin: 8px 12px 0 0;
+}
+@media (prefers-reduced-transparency: reduce) {
+    .maplibregl-ctrl-group {
+        background-color: var(--card);
+        backdrop-filter: none;
     }
 }

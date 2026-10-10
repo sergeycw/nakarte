@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, openTracks, test } from './fixtures.ts';
 
 // Названия тестов — сценарии спек route-editing и routing (openspec/specs/). Сборка клона считает маршрут движком в
 // браузере; рантайм CheerpJ с CDN подменён заглушкой (e2e/fixtures.ts, FAKE_CHEERPJ), поэтому воркер движка, его
@@ -13,7 +13,11 @@ const FINISH = { x: 740, y: 380 };
 const NO_DATA = { x: 700, y: 200 };
 
 async function chooseActivity(page: Page, name: string) {
-    await page.getByRole('button', { name: /^Routing/ }).click();
+    await openTracks(page);
+    await page
+        .getByRole('button', { name: /^Routing/ })
+        .first()
+        .click();
     await page.getByRole('menuitemradio', { name, exact: true }).click();
 }
 
@@ -22,12 +26,18 @@ async function clickMap(page: Page, point: { x: number; y: number }) {
     await page.mouse.click(point.x, point.y);
 }
 
-function trackLength(page: Page) {
+// длина трека: пока линия редактируется — из редактора в верхней строке (список тогда закрыт), иначе из списка
+async function trackLength(page: Page) {
+    const editing = page.getByTestId('edit-length');
+    if (await editing.count()) {
+        return editing;
+    }
+    await openTracks(page);
     return page.getByRole('list', { name: 'Tracks' }).getByTestId('track-length');
 }
 
 async function kilometers(page: Page) {
-    return Number.parseFloat((await trackLength(page).textContent()) ?? '');
+    return Number.parseFloat((await (await trackLength(page)).textContent()) ?? '');
 }
 
 test('Новый трек', async ({ page, network }) => {
@@ -65,7 +75,7 @@ test('Отмена клика', async ({ page, network }) => {
     await clickMap(page, FINISH);
     await expect.poll(() => kilometers(page)).toBeGreaterThan(0);
     await page.keyboard.press('ControlOrMeta+z');
-    await expect(trackLength(page)).toHaveText('0.00 km');
+    await expect(await trackLength(page)).toHaveText('0.00 km');
     await page.keyboard.press('ControlOrMeta+Shift+z');
     await expect.poll(() => kilometers(page)).toBeGreaterThan(0);
     // прокладка выключена — рантайм движка не грузится
@@ -77,6 +87,9 @@ test('Перезагрузка страницы', async ({ page }) => {
     await chooseActivity(page, 'Mountain bike');
     await expect(page.getByRole('button', { name: 'Routing: Mountain bike' })).toBeVisible();
     await page.reload();
-    await page.getByRole('button', { name: /^Routing/ }).click();
+    await page
+        .getByRole('button', { name: /^Routing/ })
+        .first()
+        .click();
     await expect(page.getByRole('menuitemradio', { name: 'Mountain bike' })).toHaveAttribute('aria-checked', 'true');
 });

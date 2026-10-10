@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
-import { elevationAt, expect, test } from './fixtures.ts';
+import { elevationAt, expect, openTracks, test } from './fixtures.ts';
 
 // Профиль высот и GPX с высотами со сборкой клона: сервис высот — заглушка фикстуры network (высота — функция широты,
 // elevationAt), в сеть тесты не ходят. Названия тестов — сценарии спек tracks, track-files и route-editing (design
@@ -17,6 +17,7 @@ const panel = (page: Page) => page.getByTestId('elevation-profile');
 const stat = (page: Page, key: string) => panel(page).locator(`[data-stat="${key}"]`);
 
 async function trackMenu(page: Page, name: string, item: string) {
+    await openTracks(page);
     await page.getByRole('button', { name: `Actions for ${name}` }).click();
     await page.getByRole('menuitem', { name: item, exact: true }).click();
 }

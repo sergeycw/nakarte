@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
-import { renderApp } from '@/test/render-app';
+import { renderApp, tracksButton } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import { saveNktk } from './nktk';
 import { TRACK_LINES, TRACK_POINTS } from './style';
@@ -111,12 +111,19 @@ describe('Список треков поверх карты', () => {
             .toBe(true);
     });
 
-    test('сворачивается и разворачивается', async () => {
-        await renderApp(tiles, `#nktk=${track('A')}`);
-        await page.getByRole('button', { name: 'Collapse tracks' }).click();
+    test('Список по кнопке', async () => {
+        const { map } = await renderApp(tiles, `#nktk=${track('A')}`, { tracksOpen: false });
+        const button = tracksButton();
+        await expect.element(button).toHaveAccessibleName('Tracks 1');
+        await expect.element(button).toHaveAttribute('aria-expanded', 'false');
         await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
-        await page.getByRole('button', { name: 'Expand tracks' }).click();
+        await button.click();
         await expect.element(rows()).toHaveLength(1);
+        // нажатие на карту (холст MapLibre) закрывает список, трек остаётся на карте
+        map.getCanvas().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
+        await expect.element(button).toHaveAttribute('aria-expanded', 'false');
+        await expect.poll(() => lines(map)).toHaveLength(1);
     });
 });
 
@@ -216,17 +223,14 @@ describe('Действия со списком', () => {
         await expect.poll(() => points(map)).toHaveLength(2);
     });
 
-    test('новый трек: название из поля ссылки или New track', async () => {
+    // кнопка New — в верхней строке, поля ссылки списка она не видит: название из него, как у старого клиента, ушло
+    // (design polish-web-ui, «Макет 4a»)
+    test('новый трек: New track и сразу рисование', async () => {
         await renderApp(tiles);
         await page.getByRole('button', { name: 'New track' }).click();
-        await expect.element(page.getByRole('button', { name: 'New track', exact: true }).last()).toBeVisible();
-        await page.getByRole('textbox', { name: 'Track URL' }).fill('Plan');
-        await page.getByRole('button', { name: 'New track' }).first().click();
-        await expect.element(page.getByRole('button', { name: 'Plan' })).toBeVisible();
-        await expect.element(page.getByRole('textbox', { name: 'Track URL' })).toHaveValue('');
-        // прежний новый трек без точек ушёл, когда началось рисование следующего (спека route-editing,
-        // «Пустой новый трек»)
         await expect.element(rows()).toHaveLength(1);
+        await expect.element(rows().first()).toHaveAttribute('data-track', 'New track');
+        await expect.element(page.getByTestId('edit-panel').getByText('Click map to add points')).toBeVisible();
     });
 });
 

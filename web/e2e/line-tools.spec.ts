@@ -1,5 +1,5 @@
 import { devices, type Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, openTracks, test } from './fixtures.ts';
 
 // Инструменты линии и точки трека со сборкой клона: настоящие перезагрузка, IndexedDB и «Copy link» в другом контексте
 // браузера. Движок — заглушка CheerpJ (e2e/fixtures.ts), её маршрут уходит от прямой в сторону. Названия тестов —
@@ -17,7 +17,11 @@ const SPOT = { x: 900, y: 500 };
 type Point = { x: number; y: number };
 
 async function chooseActivity(page: Page, name: string) {
-    await page.getByRole('button', { name: /^Routing/ }).click();
+    await openTracks(page);
+    await page
+        .getByRole('button', { name: /^Routing/ })
+        .first()
+        .click();
     await page.getByRole('menuitemradio', { name, exact: true }).click();
 }
 
@@ -78,7 +82,13 @@ function saved(page: Page) {
     );
 }
 
+// длина первого трека: пока линия редактируется — из редактора в верхней строке (список тогда закрыт), иначе из списка
 async function kilometers(page: Page) {
+    const editing = page.getByTestId('edit-length');
+    if (await editing.count()) {
+        return Number.parseFloat((await editing.textContent()) ?? '');
+    }
+    await openTracks(page);
     const text = await page.getByRole('list', { name: 'Tracks' }).getByTestId('track-length').first().textContent();
     return Number.parseFloat(text ?? '');
 }
@@ -126,6 +136,7 @@ test('Ссылка после склейки', async ({ page, context, browser, 
     await drawRouted(page);
     await page.getByRole('button', { name: 'Done' }).click();
     // второй отрезок того же трека
+    await openTracks(page);
     await page.getByRole('button', { name: 'Actions for New track' }).click();
     await page.getByRole('menuitem', { name: 'Add segment' }).click();
     await clickMap(page, SECOND_START);
@@ -141,6 +152,8 @@ test('Ссылка после склейки', async ({ page, context, browser, 
     const joined = [{ legs: [['routed', 'routed', 'straight', 'routed']], points: [] }];
     await expect.poll(() => saved(page)).toEqual(joined);
     await page.getByRole('button', { name: 'Done' }).click();
+
+    await openTracks(page);
 
     await page.getByRole('button', { name: 'Tracks menu' }).click();
     await page.getByRole('menuitem', { name: 'Copy link for all tracks' }).click();
@@ -161,6 +174,10 @@ test('Ссылка после склейки', async ({ page, context, browser, 
 
 test('Точка трека', async ({ page }) => {
     await drawRouted(page);
+    // пока линия редактируется, верхняя строка — редактор и списка не открыть: Escape без рисования заканчивает правку
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('edit-panel')).toHaveCount(0);
+    await openTracks(page);
     await page.getByRole('button', { name: 'Actions for New track' }).click();
     await page.getByRole('menuitem', { name: 'Add point' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);

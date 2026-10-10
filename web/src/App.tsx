@@ -13,12 +13,10 @@ import { getEngine } from '@/engine/engine';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
 import { DEFAULT_SELECTION, FALLBACK_BASE } from '@/layers/selection';
-import { EditPanel } from '@/routing/EditPanel';
 import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
 import { createRouter, type Router } from '@/routing/router';
-import { SearchBox } from '@/search/SearchBox';
 import { AppStoreContext, useAppStore } from '@/state/context';
 import { parseHash, parseView } from '@/state/hash';
 import type { AppStore } from '@/state/store';
@@ -32,13 +30,12 @@ import { panoramaHeight, StreetViewPanel } from '@/streetview/StreetViewPanel';
 import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
 import { isTrackParam } from '@/tracks/links';
-import { PointPanel } from '@/tracks/PointPanel';
-import { PointNameDialog } from '@/tracks/TrackDialogs';
-import { TrackList } from '@/tracks/TrackList';
-import { InfoPanel } from './InfoPanel';
+import { CopyFallbackDialog, PointNameDialog } from '@/tracks/TrackDialogs';
 import { BaseMap } from './map/BaseMap';
 import { loadPosition, refreshPosition } from './map/locate';
+import { MapActions } from './map/MapActions';
 import { MapButtons } from './map/MapButtons';
+import { TopBar } from './TopBar';
 
 function localStorageOrNull(): Storage | null {
     try {
@@ -273,20 +270,14 @@ export function App({
                                     >
                                         <MapButtons notify={notify} storage={localStorageOrNull()} />
                                     </BaseMap>
-                                    {/* левая колонка: панель с названием и список треков; справа место под кнопку слоёв (4.5rem = поля + кнопка), снизу — над профилем высот (--bottom-inset), клики между панелями уходят карте */}
-                                    <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-h-[calc(100dvh-1.5rem-var(--bottom-inset))] w-80 max-w-[calc(100vw-4.5rem)] flex-col items-start gap-2">
-                                        <InfoPanel>
-                                            <SearchBox sources={{ fetch, corsProxyUrl: config.corsProxyUrl }} />
-                                        </InfoPanel>
-                                        <TrackList />
-                                    </div>
+                                    <TopBar fetch={fetch} />
                                     <LayerSwitcher />
-                                    <EditPanel />
-                                    <PointPanel />
+                                    <MapActions />
                                     <ElevationProfile />
                                     <StreetViewPanel />
                                     <MapMenu />
                                     <PointNameDialog />
+                                    <CopyFallbackDialog />
                                 </main>
                             </Toaster>
                         </StreetViewContext>

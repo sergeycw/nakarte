@@ -50,8 +50,9 @@ test('Измерить расстояние', async ({ page }) => {
     // ≈ 3.56 м на пиксель на z15 у Тбилиси: 340 px ≈ 1.2 км
     await clickMap(page, { x: 470, y: 400 });
     await clickMap(page, { x: 810, y: 400 });
-    const row = page.getByRole('list', { name: 'Tracks' }).getByRole('listitem').filter({ hasText: 'Ruler' });
-    await expect(row.getByTestId('track-length')).toHaveText(/^1\.2\d km$/u);
+    // пока линия рисуется, длина — в редакторе верхней строки
+    await expect(page.getByTestId('edit-panel')).toContainText('Ruler');
+    await expect(page.getByTestId('edit-length')).toHaveText(/^1\.2\d km$/u);
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);
 });

@@ -177,16 +177,6 @@ test.describe('на телефоне', () => {
     });
 });
 
-test('Панель на карте', async ({ page }) => {
-    await page.goto('./');
-    const panel = page.getByTestId('info-panel');
-    await expect(panel.getByText('nakarte routing')).toBeVisible();
-    await expect(panel.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
-        'href',
-        'https://github.com/sergeycw/nakarte',
-    );
-});
-
 test('Сервер тайлов недоступен', async ({ page, network }) => {
     network.failTiles('O');
     await page.goto('./#l=O');
@@ -212,15 +202,16 @@ test.describe('в тёмной теме системы', () => {
         // тост отката подложки по умолчанию — любой тост годится для проверки темы
         network.failTiles('Tt');
         await page.goto('./');
-        const panel = page.getByTestId('info-panel');
+        // стекло верхней строки, тоста и кнопки слоёв — светлое (--glass в index.css), а не тёмное
+        const panel = page.getByTestId('top-bar').locator('> div').first();
         await expect(panel).toBeVisible();
-        await expect(panel).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(panel).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
         await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
         const toast = page.locator('[data-slot="toast"]');
         await expect(toast).toBeVisible();
-        await expect(toast).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(toast).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
         // классы dark: компонентов shadcn не включаются темой системы (@custom-variant dark в index.css)
-        await expect(page.getByTestId('layers-button')).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(page.getByTestId('layers-button')).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
     });
 });
 
