@@ -282,7 +282,11 @@ describe('гонки и фокус', () => {
     test('Escape, закрывающий меню прокладки, рисование не заканчивает', async () => {
         const { map } = await render(VIEW);
         await newTrack(map, [A]);
-        await page.getByRole('button', { name: /^Routing/ }).click();
+        // кнопка прокладки есть и в шапке списка, и в редакторе верхней строки — здесь та, что в редакторе
+        await page
+            .getByTestId('edit-panel')
+            .getByRole('button', { name: /^Routing/ })
+            .click();
         await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).toBeVisible();
         await userEvent.keyboard('{Escape}');
         await expect.element(page.getByRole('menuitemradio', { name: 'Hiking' })).not.toBeInTheDocument();

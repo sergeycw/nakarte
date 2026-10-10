@@ -91,7 +91,15 @@ export function LayerSwitcher() {
         <div className="absolute top-3 right-3 z-10">
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger
-                    render={<Button variant="outline" size="icon-lg" aria-label="Layers" data-testid="layers-button" />}
+                    render={
+                        <Button
+                            variant="ghost"
+                            size="icon-lg"
+                            className="glass rounded-lg hover:bg-white/90"
+                            aria-label="Layers"
+                            data-testid="layers-button"
+                        />
+                    }
                 >
                     <LayersIcon />
                 </PopoverTrigger>

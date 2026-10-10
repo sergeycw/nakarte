@@ -12,10 +12,11 @@ import { ProfileGraph } from './ProfileGraph';
 import { type ProfileStats, profileStats } from './profile';
 
 // Панель профиля высот (design add-web-elevation-profile, «Где живёт профиль»): на всю ширину снизу, высота —
-// PROFILE_HEIGHT; панели редактирования и точек, атрибуция карты и тосты встают над ней по --bottom-inset (App).
+// PROFILE_HEIGHT; строка кнопок карты, атрибуция и тосты встают над ней по --bottom-inset (App).
 // Сверху — название, сводка в одну строку (на узком экране прокручивается) и закрытие, ниже — график.
 
-export const PROFILE_HEIGHT = '12rem';
+// в низком окне (телефон в альбомной) — не больше трети окна: иначе над профилем не помещается столбец кнопок справа
+export const PROFILE_HEIGHT = 'min(12rem, 35dvh)';
 
 interface StatItem {
     key: string;
@@ -65,11 +66,12 @@ function Stats({ data }: { data: ProfileData }) {
         note = 'Some elevation data missing';
     }
     return (
-        <div className="flex min-w-0 flex-nowrap items-baseline gap-x-3 overflow-x-auto whitespace-nowrap text-xs">
+        // телефон — строкой с прокруткой, компьютер — столбцом «подпись — значение» слева от графика (макет 4a)
+        <div className="flex min-w-0 flex-nowrap items-baseline gap-x-3 overflow-x-auto whitespace-nowrap text-xs sm:flex-col sm:gap-y-1 sm:overflow-visible">
             {selection && <span className="font-medium text-amber-700">Selection</span>}
-            <dl className="flex items-baseline gap-x-3">
+            <dl className="flex items-baseline gap-x-3 sm:grid sm:grid-cols-[auto_auto_auto_auto] sm:gap-y-0.5">
                 {statItems(stats).map((item) => (
-                    <div key={item.key} className="flex gap-1">
+                    <div key={item.key} className="flex gap-1 sm:contents">
                         <dt className="text-muted-foreground">{item.label}</dt>
                         <dd className="font-medium tabular-nums" data-stat={item.key}>
                             {item.value}
@@ -102,68 +104,73 @@ export function ElevationProfile() {
     return (
         <Card
             size="sm"
-            className="pointer-events-auto absolute inset-x-3 bottom-3 z-10 gap-1 px-3 py-2"
+            // плотнее прочего стекла: график и цифры читаются поверх пёстрой карты
+            className="pointer-events-auto absolute inset-x-3 bottom-3 z-10 gap-1 px-3 py-2 [--glass:oklch(1_0_0/0.9)] sm:flex-row sm:gap-4"
             style={{ height: PROFILE_HEIGHT }}
             data-testid="elevation-profile"
             role="region"
             aria-label="Elevation profile"
         >
-            {/* на узком экране сводка — второй строкой под названием, на широком — в одной строке с ним */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span
-                    className="block h-1.5 w-4 shrink-0 rounded-full"
-                    style={{ backgroundColor: TRACK_COLORS[track.color] }}
-                />
-                <span className="min-w-0 flex-1 truncate font-medium text-sm sm:max-w-40 sm:flex-none" title={title}>
-                    {title}
-                </span>
-                {updating && (
-                    <LoaderCircleIcon className="size-3.5 shrink-0 animate-spin" aria-label="Loading elevation" />
-                )}
-                <div className="order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">
+            {/* на узком экране сводка — второй строкой под названием, на широком — столбцом слева от графика */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:w-80 sm:shrink-0 sm:flex-col sm:flex-nowrap sm:items-stretch">
+                <div className="flex min-w-0 flex-1 items-center gap-x-2 sm:flex-none">
+                    <span
+                        className="block h-1.5 w-4 shrink-0 rounded-full"
+                        style={{ backgroundColor: TRACK_COLORS[track.color] }}
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm" title={title}>
+                        {title}
+                    </span>
+                    {updating && (
+                        <LoaderCircleIcon className="size-3.5 shrink-0 animate-spin" aria-label="Loading elevation" />
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Close elevation profile"
+                        title="Close"
+                        onClick={profile.close}
+                    >
+                        <XIcon />
+                    </Button>
+                </div>
+                <div className="order-last min-w-0 basis-full sm:order-none sm:basis-auto">
                     {data && <Stats data={data} />}
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label="Close elevation profile"
-                    title="Close"
-                    onClick={profile.close}
-                >
-                    <XIcon />
-                </Button>
             </div>
-            <div className="relative min-h-0 flex-1">
-                {data?.error && (
-                    <div
-                        className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-destructive text-xs"
-                        role="alert"
-                    >
-                        <span className="min-w-0 flex-1">Failed to get elevation data: {data.error}</span>
-                        <Button size="xs" variant="outline" onClick={profile.retry}>
-                            <RotateCwIcon />
-                            Retry
-                        </Button>
-                    </div>
-                )}
-                {data?.values ? (
-                    <ProfileGraph data={data} />
-                ) : (
-                    !data?.error && (
-                        <div className="flex h-full items-center justify-center text-muted-foreground text-xs">
-                            Loading elevation…
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
+                <div className="relative min-h-0 flex-1">
+                    {data?.error && (
+                        <div
+                            className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-destructive text-xs"
+                            role="alert"
+                        >
+                            <span className="min-w-0 flex-1">Failed to get elevation data: {data.error}</span>
+                            <Button size="xs" variant="outline" onClick={profile.retry}>
+                                <RotateCwIcon />
+                                Retry
+                            </Button>
                         </div>
-                    )
-                )}
+                    )}
+                    {data?.values ? (
+                        <ProfileGraph data={data} />
+                    ) : (
+                        !data?.error && (
+                            <div className="flex h-full items-center justify-center text-muted-foreground text-xs">
+                                Loading elevation…
+                            </div>
+                        )
+                    )}
+                </div>
+                <a
+                    className="self-end text-[10px] text-muted-foreground leading-none hover:underline"
+                    href={config.elevationsAttribution.url}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    Elevation data: {config.elevationsAttribution.text}
+                </a>
             </div>
-            <a
-                className="self-end text-[10px] text-muted-foreground leading-none hover:underline"
-                href={config.elevationsAttribution.url}
-                target="_blank"
-                rel="noreferrer"
-            >
-                Elevation data: {config.elevationsAttribution.text}
-            </a>
         </Card>
     );
 }

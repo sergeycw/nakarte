@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, openTracks, test } from './fixtures.ts';
 
 // Автосохранение с настоящей перезагрузкой страницы и настоящим IndexedDB Chromium (у каждого теста свой контекст —
 // своя база). Названия тестов — сценарии спек route-editing и tracks. Движок — заглушка CheerpJ (e2e/fixtures.ts):
@@ -18,7 +18,11 @@ const MTATSMINDA = 'RAoCEAESNgoKTXRhdHNtaW5kYRIQCgbele0B0gMSBorn_gHzAhoWCICZ7QEQ
 const NARIKALA = 'RAoCEAESGwoITmFyaWthbGESDwoFopTtAS0SBpj0_gG6AQ==';
 
 async function chooseActivity(page: Page, name: string) {
-    await page.getByRole('button', { name: /^Routing/ }).click();
+    await openTracks(page);
+    await page
+        .getByRole('button', { name: /^Routing/ })
+        .first()
+        .click();
     await page.getByRole('menuitemradio', { name, exact: true }).click();
 }
 
@@ -34,14 +38,21 @@ async function dragMap(page: Page, from: { x: number; y: number }, to: { x: numb
     await page.mouse.up();
 }
 
-function trackNames(page: Page) {
+async function trackNames(page: Page) {
+    await openTracks(page);
     return page
         .getByRole('list', { name: 'Tracks' })
         .getByRole('listitem')
         .getByRole('button', { name: /^Actions for/ });
 }
 
+// длина первого трека: пока линия редактируется — из редактора в верхней строке (список тогда закрыт), иначе из списка
 async function kilometers(page: Page) {
+    const editing = page.getByTestId('edit-length');
+    if (await editing.count()) {
+        return Number.parseFloat((await editing.textContent()) ?? '');
+    }
+    await openTracks(page);
     const text = await page.getByRole('list', { name: 'Tracks' }).getByTestId('track-length').first().textContent();
     return Number.parseFloat(text ?? '');
 }
@@ -105,7 +116,7 @@ test('Перезагрузка страницы', async ({ page, network }) => {
     await drawRouted(page);
     const length = await kilometers(page);
     await page.reload();
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
     expect(await kilometers(page)).toBe(length);
     await expect(page.getByRole('button', { name: 'Routing is off: lines are straight' })).toBeVisible();
     await expectRerouted(page, network.engineLoads, network);
@@ -114,16 +125,15 @@ test('Перезагрузка страницы', async ({ page, network }) => {
 test('Ссылка при сохранённом списке', async ({ page, network }) => {
     network.storage.set('narikalanarikalanarik1', NARIKALA);
     await page.goto(`./#m=12/41.7/44.8&nktk=${MTATSMINDA}`);
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
     await expect.poll(() => savedTracks(page)).toBe(1);
     // новый документ, а не смена хеша: about:blank между переходами
     await page.goto('about:blank');
     await page.goto('./#l=O&nktl=narikalanarikalanarik1');
-    await expect(trackNames(page)).toHaveCount(2);
-    expect(await trackNames(page).evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')))).toEqual([
-        'Actions for Mtatsminda',
-        'Actions for Narikala',
-    ]);
+    await expect(await trackNames(page)).toHaveCount(2);
+    expect(
+        await (await trackNames(page)).evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label'))),
+    ).toEqual(['Actions for Mtatsminda', 'Actions for Narikala']);
     // без m= карта показывает трек из ссылки целиком — вид у Нарикалы, а не у Мтацминды
     await expect.poll(() => new URL(page.url()).hash).toMatch(/m=\d+(\.\d+)?\/41\.68\d+\/44\.80\d+/);
 });
@@ -181,12 +191,12 @@ test('Сессия старого клиента', async ({ page }) => {
     await writeLegacySessions(page, [{ sessionId: 'old', mtime: Date.now(), tracks: MTATSMINDA }]);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toBeVisible();
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
     // подхваченный список записан своей записью: следующий заход не подхватывает сессию второй раз
     await expect.poll(() => savedTracks(page)).toBe(1);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toBeVisible();
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
     expect(await legacySessionIds(page)).toEqual(['old']);
 });
 
@@ -200,7 +210,7 @@ test('Свой список уже есть', async ({ page }) => {
     await expect.poll(() => savedTracks(page)).toBe(1);
     await writeLegacySessions(page, [{ sessionId: 'old', mtime: Date.now(), tracks: MTATSMINDA }]);
     await page.reload();
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Mtatsminda', exact: true })).toHaveCount(0);
     expect(await legacySessionIds(page)).toEqual(['old']);
 });
@@ -214,12 +224,13 @@ test('Несколько сессий старого клиента', async ({ p
     ]);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Narikala', exact: true })).toBeVisible();
-    await expect(trackNames(page)).toHaveCount(1);
+    await expect(await trackNames(page)).toHaveCount(1);
 });
 
 test('Открытие ссылки', async ({ page, context, browser, network }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await drawRouted(page);
+    await openTracks(page);
     await page.getByRole('button', { name: 'Tracks menu' }).click();
     await page.getByRole('menuitem', { name: 'Copy link for all tracks' }).click();
     await expect(page.getByText('Link copied')).toBeVisible();
@@ -230,7 +241,7 @@ test('Открытие ссылки', async ({ page, context, browser, network }
         await network.attach(other);
         const second = await other.newPage();
         await second.goto(link);
-        await expect(trackNames(second)).toHaveCount(1);
+        await expect(await trackNames(second)).toHaveCount(1);
         await expect.poll(() => kilometers(second)).toBeGreaterThan(2);
         await expectRerouted(second, network.engineLoads, network);
     } finally {

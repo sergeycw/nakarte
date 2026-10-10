@@ -1,6 +1,7 @@
 import type { MapRef } from '@vis.gl/react-maplibre';
 import { type ComponentProps, createRef } from 'react';
 import { expect } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { App } from '@/App';
 import { PROFILE_LAYERS } from '@/elevation/style';
@@ -24,6 +25,22 @@ interface RenderOptions {
     autosave?: ComponentProps<typeof App>['autosave'];
     // Street View: по умолчанию поддельный без панорам — в Google тесты не ходят
     streetView?: ComponentProps<typeof App>['streetView'];
+    // список треков открыт после загрузки (по умолчанию да): в приложении он закрыт до кнопки Tracks (макет 4a, design
+    // polish-web-ui), а тестам списка и редактора он нужен открытым
+    tracksOpen?: boolean;
+}
+
+// Кнопка списка треков верхней строки: «Tracks» и число треков
+export const tracksButton = () => page.getByRole('button', { name: /^Tracks( \d+)?$/ });
+
+// Открыть список треков, если закрыт
+export async function openTracks() {
+    const button = tracksButton();
+    await expect.element(button).toBeVisible();
+    if (button.element().getAttribute('aria-expanded') !== 'true') {
+        await button.click();
+    }
+    await expect.element(page.getByTestId('track-list')).toBeVisible();
 }
 
 // App с подменёнными тайлами и готовой картой. hash — адрес страницы до старта приложения (m=, l= …).
@@ -42,6 +59,9 @@ export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderO
         />,
     );
     await expect.poll(() => mapRef.current?.getMap().loaded(), { timeout: 10_000 }).toBe(true);
+    if (options.tracksOpen !== false) {
+        await openTracks();
+    }
     // biome-ignore lint/style/noNonNullAssertion: карта загружена строкой выше
     return { screen, map: mapRef.current!.getMap() };
 }

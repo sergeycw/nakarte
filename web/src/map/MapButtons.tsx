@@ -1,15 +1,12 @@
-import { GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
-import { BinocularsIcon, RulerIcon } from 'lucide-react';
+import { AttributionControl, GeolocateControl, ScaleControl, useControl, useMap } from '@vis.gl/react-maplibre';
 import { type ReactNode, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouteEditing } from '@/routing/editing-context';
-import { useAppStore } from '@/state/context';
-import { useStreetView } from '@/streetview/context';
 import { forgetPosition, savePosition } from './locate';
 
-// Кнопки карты справа под кнопками зума (design add-web-search-panoramas, «Кнопки карты справа»): номер зума,
-// геолокация MapLibre, своя группа кнопок; линейка масштаба — слева снизу. Свои контролы — контейнер контрола MapLibre с
-// порталом React: так они встают в тот же столбец, что кнопки MapLibre, в порядке монтирования.
+// Кнопки карты справа под кнопкой слоёв (макет Claude Design 4a, design polish-web-ui): зум с номером между «+» и «−»,
+// геолокация MapLibre; Street View и «Measure distance» — строкой снизу (MapActions), линейка масштаба и атрибуция —
+// слева снизу. Свои контролы — контейнер контрола MapLibre с порталом React: так они встают в тот же столбец, что
+// кнопки MapLibre, в порядке монтирования. Вид контролов — стекло, правила в index.css.
 
 // Контейнер контрола MapLibre для портала React
 function useControlContainer(className: string): HTMLElement {
@@ -32,8 +29,10 @@ function ControlPortal({ className, children }: { className: string; children: R
     return createPortal(children, useControlContainer(className));
 }
 
-// Номер зума в единицах старого клиента (leaflet.control.zoom-display): MapLibre + 1
-function ZoomDisplay() {
+// Зум: кнопки с разметкой и классами NavigationControl MapLibre (иконки — из его CSS, тесты ищут
+// .maplibregl-ctrl-zoom-in) и номер между ними в единицах старого клиента (leaflet.control.zoom-display): MapLibre + 1.
+// Компаса нет: поворот карты выключен (BaseMap)
+function ZoomControl() {
     const { current } = useMap();
     const map = current?.getMap();
     const [zoom, setZoom] = useState(() => map?.getZoom() ?? 0);
@@ -50,13 +49,33 @@ function ZoomDisplay() {
     }, [map]);
     return (
         <ControlPortal className="maplibregl-ctrl-group">
+            <button
+                type="button"
+                className="maplibregl-ctrl-zoom-in"
+                aria-label="Zoom in"
+                title="Zoom in"
+                disabled={map !== undefined && zoom >= map.getMaxZoom()}
+                onClick={(event) => map?.zoomIn({}, { originalEvent: event.nativeEvent })}
+            >
+                <span className="maplibregl-ctrl-icon" aria-hidden="true" />
+            </button>
             <div
-                className="flex h-[22px] w-[29px] items-center justify-center font-medium text-xs tabular-nums"
+                className="flex h-6 items-center justify-center font-medium text-xs tabular-nums"
                 title="Zoom level"
                 data-testid="zoom-level"
             >
                 {Math.round(zoom + 1)}
             </div>
+            <button
+                type="button"
+                className="maplibregl-ctrl-zoom-out"
+                aria-label="Zoom out"
+                title="Zoom out"
+                disabled={map !== undefined && zoom <= map.getMinZoom()}
+                onClick={(event) => map?.zoomOut({}, { originalEvent: event.nativeEvent })}
+            >
+                <span className="maplibregl-ctrl-icon" aria-hidden="true" />
+            </button>
         </ControlPortal>
     );
 }
@@ -75,59 +94,49 @@ export function geolocationErrorMessage(code: number, message: string): string {
     }
 }
 
+// Неактивная кнопка геолокации (запрещено раньше или нет API) клика не получает, а подсказка «Location not available»
+// видна только при наведении — на телефоне её не увидеть (спека web-client, «Геолокация недоступна»). Пока кнопка
+// disabled, она прозрачна для указателя, и нажатие ловит контейнер контрола: тост с причиной
+function useDisabledGeolocateToast(notify: (title: string) => void) {
+    const { current } = useMap();
+    const map = current?.getMap();
+    useEffect(() => {
+        const button = map?.getContainer().querySelector<HTMLButtonElement>('.maplibregl-ctrl-geolocate');
+        const group = button?.parentElement;
+        if (!button || !group) {
+            return;
+        }
+        // подсказку «Location not available» держит кнопка — пока она прозрачна для указателя, та же подсказка у группы
+        const sync = () => {
+            button.style.pointerEvents = button.disabled ? 'none' : '';
+            group.title = button.disabled ? button.title : '';
+        };
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(button, { attributes: true, attributeFilter: ['disabled'] });
+        const onClick = (event: MouseEvent) => {
+            if (button.disabled && event.target === group) {
+                notify('geolocation' in navigator ? geolocationErrorMessage(1, '') : geolocationErrorMessage(0, ''));
+            }
+        };
+        group.addEventListener('click', onClick);
+        return () => {
+            observer.disconnect();
+            group.removeEventListener('click', onClick);
+        };
+    }, [map, notify]);
+}
+
 export interface MapButtonsProps {
     notify: (title: string) => void;
     storage: Storage | null;
 }
 
-// Режим Street View (кнопка и Alt+P старого контрола панорам; code, а не key: на macOS Alt меняет символ)
-function StreetViewButton() {
-    const streetView = useStreetView();
-    const enabled = useAppStore((state) => state.streetView.enabled);
-    useEffect(() => {
-        const onKey = (event: KeyboardEvent) => {
-            if (event.altKey && event.code === 'KeyP') {
-                event.preventDefault();
-                streetView.toggle();
-            }
-        };
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-    }, [streetView]);
-    return (
-        <button
-            type="button"
-            className={`flex! items-center justify-center ${enabled ? 'bg-amber-300! hover:bg-amber-400!' : ''}`}
-            aria-label="Street View"
-            aria-pressed={enabled}
-            title="Street View (Alt+P)"
-            onClick={() => streetView.toggle()}
-        >
-            <BinocularsIcon className="size-4" />
-        </button>
-    );
-}
-
-// «Measure distance»: трек Ruler с отметками расстояния и сразу рисование (control-ruler.js старого)
-function RulerButton() {
-    const editing = useRouteEditing();
-    return (
-        <button
-            type="button"
-            className="flex! items-center justify-center"
-            aria-label="Measure distance"
-            title="Measure distance"
-            onClick={() => editing.newTrack('Ruler', { measureTicksShown: true })}
-        >
-            <RulerIcon className="size-4" />
-        </button>
-    );
-}
-
-export function MapButtons({ notify, storage, children }: MapButtonsProps & { children?: ReactNode }) {
+export function MapButtons({ notify, storage }: MapButtonsProps) {
+    useDisabledGeolocateToast(notify);
     return (
         <>
-            <ZoomDisplay />
+            <ZoomControl />
             <GeolocateControl
                 position="top-right"
                 trackUserLocation
@@ -145,11 +154,9 @@ export function MapButtons({ notify, storage, children }: MapButtonsProps & { ch
                     notify(geolocationErrorMessage(event.code, event.message));
                 }}
             />
-            <ControlPortal className="maplibregl-ctrl-group">
-                {children}
-                <StreetViewButton />
-                <RulerButton />
-            </ControlPortal>
+            {/* справа снизу — строка кнопок (MapActions): атрибуция и линейка масштаба слева (MapLibre ставит каждый
+                следующий нижний контрол выше — линейка над атрибуцией) */}
+            <AttributionControl position="bottom-left" />
             <ScaleControl position="bottom-left" unit="metric" />
         </>
     );

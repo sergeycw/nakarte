@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseHash } from '../src/state/hash.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, openTracks, test } from './fixtures.ts';
 
 // Названия тестов — сценарии спек tracks и track-files (openspec/specs/tracks, openspec/specs/track-files). Хранилище треков и
 // прокси — в памяти (e2e/fixtures.ts), в сеть тесты не ходят.
@@ -24,7 +24,8 @@ function paramOf(name: string) {
 // строкой, потому что e2e собирается как Node-модуль (nodenext), а src/tracks/ импортирует без расширений
 const TBILISI = 'RAoCEAESNgoKTXRhdHNtaW5kYRIQCgbele0B0gMSBorn_gHzAhoWCICZ7QEQluT-ARoKGghUViB0b3dlcg==';
 
-function track(page: import('@playwright/test').Page, name: string) {
+async function track(page: import('@playwright/test').Page, name: string) {
+    await openTracks(page);
     return page.getByRole('list', { name: 'Tracks' }).getByRole('button', { name, exact: true });
 }
 
@@ -32,7 +33,7 @@ test('Ссылка на хранилище', async ({ page, network }) => {
     const key = paramOf('nktl');
     network.storage.set(key, TBILISI);
     await page.goto(`./#l=O&nktl=${key}`);
-    await expect(track(page, 'Mtatsminda')).toBeVisible();
+    await expect(await track(page, 'Mtatsminda')).toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).not.toContain('nktl');
     // без m= в адресе карта показывает трек целиком — вид рядом с Тбилиси
     await expect.poll(() => new URL(page.url()).hash).toMatch(/^#l=O&m=\d+(\.\d+)?\/41\.69\d+\/44\.78\d+$/);
@@ -40,14 +41,14 @@ test('Ссылка на хранилище', async ({ page, network }) => {
 
 test('Трек в адресе', async ({ page, network }) => {
     await page.goto(`./#m=8/50/30&nktk=${paramOf('nktk')}`);
-    await expect(track(page, 'Hello')).toBeVisible();
+    await expect(await track(page, 'Hello')).toBeVisible();
     expect(new URL(page.url()).hash).not.toContain('nktk');
     expect(network.external).toEqual([]);
 });
 
 test('Точка в адресе', async ({ page }) => {
     await page.goto('./#m=12/41.7/44.8&nktp=41.7/44.8/Tbilisi');
-    await expect(track(page, 'Tbilisi')).toBeVisible();
+    await expect(await track(page, 'Tbilisi')).toBeVisible();
 });
 
 test('Неизвестный ключ', async ({ page }) => {
@@ -61,7 +62,8 @@ test('Неизвестный ключ', async ({ page }) => {
 test('Ссылка готова', async ({ page, context, browser, network }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.goto(`./#m=12/41.7/44.8&l=O&nktk=${TBILISI}`);
-    await expect(track(page, 'Mtatsminda')).toBeVisible();
+    await expect(await track(page, 'Mtatsminda')).toBeVisible();
+    await openTracks(page);
     await page.getByRole('button', { name: 'Tracks menu' }).click();
     await page.getByRole('menuitem', { name: 'Copy link for all tracks' }).click();
     await expect(page.getByText('Link copied')).toBeVisible();
@@ -76,7 +78,7 @@ test('Ссылка готова', async ({ page, context, browser, network }) =>
         await network.attach(other);
         const second = await other.newPage();
         await second.goto(link);
-        await expect(track(second, 'Mtatsminda')).toBeVisible();
+        await expect(await track(second, 'Mtatsminda')).toBeVisible();
     } finally {
         await other.close();
     }
@@ -92,7 +94,7 @@ test('Трек OSM', async ({ page, network }) => {
         .getByRole('textbox', { name: 'Track URL' })
         .fill('https://www.openstreetmap.org/user/Wladich/traces/3376100');
     await page.getByRole('textbox', { name: 'Track URL' }).press('Enter');
-    await expect(track(page, 'Test - Тест - Zkouška')).toBeVisible();
+    await expect(await track(page, 'Test - Тест - Zkouška')).toBeVisible();
 });
 
 test('Открыть GPX', async ({ page }) => {
@@ -100,11 +102,12 @@ test('Открыть GPX', async ({ page }) => {
     await page
         .getByTestId('track-file-input')
         .setInputFiles(fixture('tracks/fixtures/files/track_service_prototype_full.gpx'));
-    await expect(track(page, 'track_service_prototype_full.gpx')).toBeVisible();
+    await expect(await track(page, 'track_service_prototype_full.gpx')).toBeVisible();
 });
 
 test('Сохранить в GPX', async ({ page }) => {
     await page.goto(`./#m=12/41.7/44.8&nktk=${TBILISI}`);
+    await openTracks(page);
     await page.getByRole('button', { name: 'Actions for Mtatsminda' }).click();
     const download = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'Save as GPX', exact: true }).click();

@@ -57,10 +57,11 @@ describe('Интерфейс поверх карты', () => {
 
     test('Клик по панели', async () => {
         const { map } = await renderApp();
-        const panel = page.getByTestId('info-panel');
+        // плавающая панель — верхняя строка (поиск, Tracks, New)
+        const panel = page.getByTestId('top-bar');
         await expect.element(panel).toBeVisible();
 
-        const panelElement = panel.element();
+        const panelElement = panel.element().firstElementChild as HTMLElement;
         const rect = panelElement.getBoundingClientRect();
         for (const [x, y] of [
             // отступ больше радиуса скругления: хит-тест углов учитывает border-radius
@@ -72,8 +73,9 @@ describe('Интерфейс поверх карты', () => {
         }
 
         const before = map.getCenter();
-        await userEvent.click(panelElement, { position: { x: 5, y: 5 } });
-        await userEvent.dblClick(panelElement, { position: { x: 5, y: 5 } });
+        // у поля поиска, мимо кнопок: углы строки скруглены, и клик в самом углу ушёл бы карте
+        await userEvent.click(panelElement, { position: { x: 16, y: 16 } });
+        await userEvent.dblClick(panelElement, { position: { x: 16, y: 16 } });
         expect(map.getCenter()).toEqual(before);
         expect(map.getZoom()).toBe(7);
     });

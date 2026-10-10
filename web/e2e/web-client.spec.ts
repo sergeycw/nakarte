@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 import { parseRedirects, resolveRedirect } from '../vite/redirects.ts';
-import { CORS_PROXY_URL, expect, test } from './fixtures.ts';
+import { CORS_PROXY_URL, expect, openTracks, test } from './fixtures.ts';
 
 // Названия тестов — сценарии спеки web-client (openspec/specs/web-client/spec.md).
 
@@ -101,52 +101,58 @@ const TRACK_LINKS: [hash: string, track: string][] = [
     ['#m=12/41.7/44.8&l=O&nktp=41.7/44.8/Tbilisi', 'Tbilisi'],
 ];
 
-test('Набор реальных старых ссылок', async ({ page, network }) => {
-    test.slow();
-    // свои слои ссылок на чужих серверах и файлы треков по ссылкам: запросы обрываются, тесту важно, что приложение
-    // открылось без исключений
-    network.allowExternal();
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    for (const hash of [...OLD_LINKS, ...REMOVED_FEATURE_LINKS]) {
-        // через about:blank: переход с одного # на другой страницу не перезагружает
-        await page.goto('about:blank');
-        await page.goto(`/${hash}`);
-        await expect(page.locator(canvas), hash).toBeVisible();
-        const params = new URLSearchParams(hash.slice(1));
-        const after = new URLSearchParams(new URL(page.url()).hash.slice(1));
-        for (const key of REMOVED_PARAMS) {
-            expect(after.get(key), `${key} в ${hash}`).toBe(params.get(key));
-        }
-        // вид из m= сохраняется (формат приложения — 5 знаков после запятой)
-        const view = /^(\d+)\/(-?\d+\.\d+)\/(-?\d+\.\d+)$/.exec(params.get('m') ?? '');
-        if (view) {
-            const [zoom, lat, lng] = (after.get('m') ?? '').split('/');
-            expect([zoom, Number(lat).toFixed(4), Number(lng).toFixed(4)], hash).toEqual([
-                view[1],
-                Number(view[2]).toFixed(4),
-                Number(view[3]).toFixed(4),
-            ]);
-        }
-        expect(errors, hash).toEqual([]);
-    }
-    expect(OLD_LINKS.length).toBeGreaterThan(50);
+test.describe('старые ссылки', () => {
+    // открывать список после каждой из десятков ссылок — лишние секунды на медленном CI: он нужен только для треков
+    test.use({ tracksOpen: false });
 
-    // треки и панорама из параметров старых ссылок: хранилище и прокси отвечают заглушками фикстуры network
-    network.storage.set(STORED_KEY, MTATSMINDA);
-    network.proxyResponds('https://www.openstreetmap.org/trace/3376100/data', { path: OSM_TRACE });
-    for (const [hash, name] of TRACK_LINKS) {
+    test('Набор реальных старых ссылок', async ({ page, network }) => {
+        test.slow();
+        // свои слои ссылок на чужих серверах и файлы треков по ссылкам: запросы обрываются, тесту важно, что приложение
+        // открылось без исключений
+        network.allowExternal();
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        for (const hash of [...OLD_LINKS, ...REMOVED_FEATURE_LINKS]) {
+            // через about:blank: переход с одного # на другой страницу не перезагружает
+            await page.goto('about:blank');
+            await page.goto(`/${hash}`);
+            await expect(page.locator(canvas), hash).toBeVisible();
+            const params = new URLSearchParams(hash.slice(1));
+            const after = new URLSearchParams(new URL(page.url()).hash.slice(1));
+            for (const key of REMOVED_PARAMS) {
+                expect(after.get(key), `${key} в ${hash}`).toBe(params.get(key));
+            }
+            // вид из m= сохраняется (формат приложения — 5 знаков после запятой)
+            const view = /^(\d+)\/(-?\d+\.\d+)\/(-?\d+\.\d+)$/.exec(params.get('m') ?? '');
+            if (view) {
+                const [zoom, lat, lng] = (after.get('m') ?? '').split('/');
+                expect([zoom, Number(lat).toFixed(4), Number(lng).toFixed(4)], hash).toEqual([
+                    view[1],
+                    Number(view[2]).toFixed(4),
+                    Number(view[3]).toFixed(4),
+                ]);
+            }
+            expect(errors, hash).toEqual([]);
+        }
+        expect(OLD_LINKS.length).toBeGreaterThan(50);
+
+        // треки и панорама из параметров старых ссылок: хранилище и прокси отвечают заглушками фикстуры network
+        network.storage.set(STORED_KEY, MTATSMINDA);
+        network.proxyResponds('https://www.openstreetmap.org/trace/3376100/data', { path: OSM_TRACE });
+        for (const [hash, name] of TRACK_LINKS) {
+            await page.goto('about:blank');
+            await page.goto(`/${hash}`);
+            await openTracks(page);
+            await expect(
+                page.getByRole('list', { name: 'Tracks' }).getByRole('button', { name, exact: true }).first(),
+                hash,
+            ).toBeVisible();
+        }
         await page.goto('about:blank');
-        await page.goto(`/${hash}`);
-        await expect(
-            page.getByRole('list', { name: 'Tracks' }).getByRole('button', { name, exact: true }).first(),
-            hash,
-        ).toBeVisible();
-    }
-    await page.goto('about:blank');
-    await page.goto('/#m=17/41.6935/44.781&l=O&n=41.693500/44.781000/45.0/0.0/1.0');
-    await expect.poll(() => new URL(page.url()).hash).toMatch(/[#&]n2=_g\/g\/41\.6935/);
-    expect(errors).toEqual([]);
+        await page.goto('/#m=17/41.6935/44.781&l=O&n=41.693500/44.781000/45.0/0.0/1.0');
+        await expect.poll(() => new URL(page.url()).hash).toMatch(/[#&]n2=_g\/g\/41\.6935/);
+        expect(errors).toEqual([]);
+    });
 });
 
 test('Первый заход', async ({ page, network }) => {
@@ -177,16 +183,6 @@ test.describe('на телефоне', () => {
     });
 });
 
-test('Панель на карте', async ({ page }) => {
-    await page.goto('./');
-    const panel = page.getByTestId('info-panel');
-    await expect(panel.getByText('nakarte routing')).toBeVisible();
-    await expect(panel.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
-        'href',
-        'https://github.com/sergeycw/nakarte',
-    );
-});
-
 test('Сервер тайлов недоступен', async ({ page, network }) => {
     network.failTiles('O');
     await page.goto('./#l=O');
@@ -212,15 +208,16 @@ test.describe('в тёмной теме системы', () => {
         // тост отката подложки по умолчанию — любой тост годится для проверки темы
         network.failTiles('Tt');
         await page.goto('./');
-        const panel = page.getByTestId('info-panel');
+        // стекло верхней строки, тоста и кнопки слоёв — светлое (--glass в index.css), а не тёмное
+        const panel = page.getByTestId('top-bar').locator('> div').first();
         await expect(panel).toBeVisible();
-        await expect(panel).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(panel).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
         await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
         const toast = page.locator('[data-slot="toast"]');
         await expect(toast).toBeVisible();
-        await expect(toast).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(toast).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
         // классы dark: компонентов shadcn не включаются темой системы (@custom-variant dark в index.css)
-        await expect(page.getByTestId('layers-button')).toHaveCSS('background-color', 'oklch(1 0 0)');
+        await expect(page.getByTestId('layers-button')).toHaveCSS('background-color', 'oklch(1 0 0 / 0.74)');
     });
 });
 

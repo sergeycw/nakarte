@@ -8,7 +8,6 @@ const ELEVATION_SERVER_URL = 'https://nakarte-elevation.nakarte-routing.workers.
 export type RoutingEngine = 'browser' | 'server';
 
 export interface Config {
-    repoUrl: string;
     defaultLocation: [lat: number, lng: number];
     defaultZoom: number;
     corsProxyUrl: string;
@@ -29,7 +28,6 @@ export interface Config {
 export function makeConfig(mode: string, googleMapsApiKey = ''): Config {
     const clone = mode === 'clone';
     return {
-        repoUrl: 'https://github.com/sergeycw/nakarte',
         // начальный вид старого клиента без параметров в адресе. Зум — в единицах MapLibre: у него мир на z0
         // 512 px, у Leaflet 256 px, поэтому тот же масштаб на 1 меньше (Leaflet z8 = MapLibre 7, тайлы OSM z8).
         // Разбор m= из старых ссылок обязан вычитать 1.

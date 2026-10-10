@@ -1,4 +1,4 @@
-import { Map as MapLibreMap, type MapRef, Marker, NavigationControl } from '@vis.gl/react-maplibre';
+import { Map as MapLibreMap, type MapRef, Marker } from '@vis.gl/react-maplibre';
 import { LoaderCircleIcon } from 'lucide-react';
 import type { RequestTransformFunction } from 'maplibre-gl';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -124,11 +124,12 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     useEffect(fitRequestedBounds, [fitRequestedBounds]);
 
     return (
-        // кнопки зума MapLibre — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9); атрибуция и прочие нижние
-        // контролы — над панелью профиля высот (--bottom-inset, App). С !important: CSS MapLibre подключён вне @layer и
-        // без него перебивает утилиту Tailwind своими top: 0 и bottom: 0
+        // кнопки зума — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9); атрибуция и линейка масштаба слева
+        // снизу — над нижними панелями (--bottom-inset, App) и строкой кнопок (MapActions): на среднем окне строка кнопок
+        // доходит до левого края и закрыла бы подписи слоёв. С !important: CSS MapLibre подключён вне @layer и без него
+        // перебивает утилиту Tailwind своими top: 0 и bottom: 0
         <div
-            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-(--bottom-inset)! [&_.maplibregl-ctrl-bottom-right]:bottom-(--bottom-inset)! [&_.maplibregl-ctrl-top-right]:top-12!"
+            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+3.25rem)]! [&_.maplibregl-ctrl-top-right]:top-12!"
             data-testid="map"
         >
             <MapLibreMap
@@ -137,8 +138,20 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 initialViewState={{ latitude: initialView.lat, longitude: initialView.lng, zoom: initialView.zoom }}
                 mapStyle={mapStyle}
                 transformRequest={transformRequest}
+                // атрибуция — своим контролом слева снизу (MapButtons): справа снизу строка кнопок
+                attributionControl={false}
+                // поворота и наклона нет, как у старого клиента: компаса в макете 4a нет, а без него повёрнутую карту не
+                // вернуть на север (design polish-web-ui)
+                dragRotate={false}
+                pitchWithRotate={false}
+                touchPitch={false}
+                onLoad={(event) => {
+                    // жест двумя пальцами и Shift+стрелки иначе поворачивают и наклоняют карту
+                    event.target.touchZoomRotate.disableRotation();
+                    event.target.keyboard.disableRotation();
+                    fitRequestedBounds();
+                }}
                 style={{ width: '100%', height: '100%' }}
-                onLoad={fitRequestedBounds}
                 onMoveEnd={(event) => {
                     const center = event.target.getCenter().wrap();
                     setView({ lat: center.lat, lng: center.lng, zoom: event.target.getZoom() });
@@ -152,7 +165,6 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                     }
                 }}
             >
-                <NavigationControl position="top-right" />
                 {children}
                 <MapEditor />
                 <ProfileOnMap />

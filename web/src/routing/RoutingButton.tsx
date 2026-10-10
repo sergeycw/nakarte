@@ -1,4 +1,4 @@
-import { LoaderCircleIcon, RouteIcon } from 'lucide-react';
+import { ChevronDownIcon, LoaderCircleIcon, RouteIcon } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +23,8 @@ import { routerDownHint, routerDownStatus } from './router';
 
 const OFF = 'off';
 
-export function RoutingButton() {
+// labeled — с названием активности (редактор в верхней строке, макет 4a): «Hiking ▾»
+export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
     const editing = useRouteEditing();
     const activityId = useAppStore((state) => state.routingActivity);
     const reachable = useAppStore((state) => state.routerReachable);
@@ -61,7 +62,7 @@ export function RoutingButton() {
                 render={
                     <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size={labeled ? 'sm' : 'icon-sm'}
                         aria-label={title}
                         title={title}
                         className={tone}
@@ -70,6 +71,12 @@ export function RoutingButton() {
                 }
             >
                 {loading ? <LoaderCircleIcon className="animate-spin" /> : <RouteIcon />}
+                {labeled && (
+                    <>
+                        <span className="max-w-24 truncate">{activity?.title ?? 'Off'}</span>
+                        <ChevronDownIcon className="opacity-60" />
+                    </>
+                )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-auto">
                 <DropdownMenuGroup>

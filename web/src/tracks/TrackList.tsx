@@ -1,12 +1,10 @@
 import {
-    ChevronDownIcon,
-    ChevronUpIcon,
     DownloadIcon,
     EllipsisIcon,
     EllipsisVerticalIcon,
     FolderOpenIcon,
+    ListIcon,
     LoaderCircleIcon,
-    PlusIcon,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -29,10 +27,10 @@ import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
 import { formatLength, tracksLength } from './geometry';
 import { TRACK_COLORS, type Track } from './model';
-import { CopyFallbackDialog, RenameTrackDialog } from './TrackDialogs';
+import { RenameTrackDialog } from './TrackDialogs';
 
-// Список треков слева под панелью с названием (design add-web-tracks, «Список треков»): строка ввода, меню списка,
-// строки треков с меню трека. Тексты меню — старого клиента. Действия — createTrackActions (actions.ts).
+// Список треков (design add-web-tracks, «Список треков»; раскладка — макет 4a, design polish-web-ui): строка ввода, меню
+// списка, строки треков с меню трека. Тексты меню — старого клиента. Действия — createTrackActions (actions.ts).
 
 function ColorPicker({ track }: { track: Track }) {
     const actions = useTrackActions();
@@ -138,12 +136,32 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
     );
 }
 
+// Кнопка списка треков в верхней строке (макет 4a, design polish-web-ui): название и число треков, список — выпадающей
+// панелью под строкой (TopBar)
+export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+    const count = useAppStore((state) => state.tracks.length);
+    const loading = useAppStore((state) => state.loadingTracks > 0);
+    return (
+        <Button
+            variant="ghost"
+            className="h-9 shrink-0 px-2.5"
+            aria-label={count > 0 ? `Tracks ${count}` : 'Tracks'}
+            aria-expanded={open}
+            onClick={onToggle}
+        >
+            {loading ? <LoaderCircleIcon className="animate-spin" aria-label="Loading tracks" /> : <ListIcon />}
+            <span className="hidden sm:inline">Tracks</span>
+            {count > 0 && <span className="text-muted-foreground tabular-nums">{count}</span>}
+        </Button>
+    );
+}
+
+// Панель списка: шапка с инструментами списка (прокладка, файл, ссылка, меню списка) и строки треков. «New track» —
+// кнопка верхней строки
 export function TrackList() {
     const actions = useTrackActions();
-    const editing = useRouteEditing();
     const tracks = useAppStore((state) => state.tracks);
     const loading = useAppStore((state) => state.loadingTracks > 0);
-    const [expanded, setExpanded] = useState(true);
     const [url, setUrl] = useState('');
     const [renaming, setRenaming] = useState<Track | null>(null);
     const fileInput = useRef<HTMLInputElement>(null);
@@ -156,115 +174,90 @@ export function TrackList() {
     }
 
     return (
-        <Card size="sm" className="pointer-events-auto w-full gap-2 py-2" data-testid="track-list">
-            <div className="flex items-center gap-1 px-3">
-                <span className="flex-1 font-medium">Tracks{tracks.length > 0 && ` (${tracks.length})`}</span>
-                {loading && <LoaderCircleIcon className="size-4 animate-spin" aria-label="Loading tracks" />}
+        <Card size="sm" className="pointer-events-auto w-full gap-1 py-1.5" data-testid="track-list">
+            <div className="flex items-center gap-1 px-1.5">
+                <RoutingButton />
                 <Button
                     variant="ghost"
-                    size="icon-xs"
-                    aria-label={expanded ? 'Collapse tracks' : 'Expand tracks'}
-                    aria-expanded={expanded}
-                    onClick={() => setExpanded(!expanded)}
+                    size="icon-sm"
+                    aria-label="Open file"
+                    title="Open file"
+                    onClick={() => fileInput.current?.click()}
                 >
-                    {expanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                    <FolderOpenIcon />
                 </Button>
+                <input
+                    ref={fileInput}
+                    type="file"
+                    multiple
+                    hidden
+                    data-testid="track-file-input"
+                    onChange={(event) => {
+                        actions.openFiles([...(event.target.files ?? [])]);
+                        event.target.value = '';
+                    }}
+                />
+                <Input
+                    className="h-7 min-w-0 flex-1 bg-background/60"
+                    placeholder="Track URL"
+                    aria-label="Track URL"
+                    value={url}
+                    disabled={loading}
+                    onChange={(event) => setUrl(event.target.value)}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                            loadUrl();
+                        }
+                    }}
+                />
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Download URL"
+                    title="Download URL"
+                    disabled={loading}
+                    onClick={loadUrl}
+                >
+                    <DownloadIcon />
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        render={<Button variant="ghost" size="icon-sm" aria-label="Tracks menu" title="Menu" />}
+                    >
+                        <EllipsisIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-auto">
+                        <DropdownMenuItem onClick={actions.copyAllLink}>Copy link for all tracks</DropdownMenuItem>
+                        <DropdownMenuItem onClick={actions.copyVisibleLink}>
+                            Copy link for visible tracks
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={actions.newTrackFromVisible}>
+                            Create new track from all visible tracks
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={tracks.length === 0} onClick={actions.saveAll}>
+                            Save all tracks to ZIP file
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={actions.removeAll}>Delete all tracks</DropdownMenuItem>
+                        <DropdownMenuItem onClick={actions.removeHidden}>Delete hidden tracks</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
-            {expanded && (
-                <>
-                    <div className="flex items-center gap-1 px-3">
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="New track"
-                            title="New track"
-                            onClick={() => {
-                                editing.newTrack(url.trim());
-                                setUrl('');
-                            }}
-                        >
-                            <PlusIcon />
-                        </Button>
-                        <RoutingButton />
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Open file"
-                            title="Open file"
-                            onClick={() => fileInput.current?.click()}
-                        >
-                            <FolderOpenIcon />
-                        </Button>
-                        <input
-                            ref={fileInput}
-                            type="file"
-                            multiple
-                            hidden
-                            data-testid="track-file-input"
-                            onChange={(event) => {
-                                actions.openFiles([...(event.target.files ?? [])]);
-                                event.target.value = '';
-                            }}
-                        />
-                        <Input
-                            className="h-7 min-w-0 flex-1"
-                            placeholder="Track URL"
-                            aria-label="Track URL"
-                            value={url}
-                            disabled={loading}
-                            onChange={(event) => setUrl(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                    loadUrl();
-                                }
-                            }}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Download URL"
-                            title="Download URL"
-                            disabled={loading}
-                            onClick={loadUrl}
-                        >
-                            <DownloadIcon />
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger
-                                render={<Button variant="ghost" size="icon-sm" aria-label="Tracks menu" title="Menu" />}
-                            >
-                                <EllipsisIcon />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-auto">
-                                <DropdownMenuItem onClick={actions.copyAllLink}>
-                                    Copy link for all tracks
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={actions.copyVisibleLink}>
-                                    Copy link for visible tracks
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={actions.newTrackFromVisible}>
-                                    Create new track from all visible tracks
-                                </DropdownMenuItem>
-                                <DropdownMenuItem disabled={tracks.length === 0} onClick={actions.saveAll}>
-                                    Save all tracks to ZIP file
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={actions.removeAll}>Delete all tracks</DropdownMenuItem>
-                                <DropdownMenuItem onClick={actions.removeHidden}>Delete hidden tracks</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                    {tracks.length > 0 && (
-                        <ul className="max-h-[40dvh] overflow-y-auto px-3" aria-label="Tracks">
-                            {tracks.map((track) => (
-                                <TrackRow key={track.id} track={track} onRename={setRenaming} />
-                            ))}
-                        </ul>
-                    )}
-                </>
+            {tracks.length > 0 ? (
+                <ul
+                    className="max-h-[calc(100dvh-9rem-var(--bottom-inset))] overflow-y-auto border-border/60 border-t px-2.5 pt-1"
+                    aria-label="Tracks"
+                >
+                    {tracks.map((track) => (
+                        <TrackRow key={track.id} track={track} onRename={setRenaming} />
+                    ))}
+                </ul>
+            ) : (
+                <p className="border-border/60 border-t px-3 pt-2 pb-1 text-muted-foreground text-xs">
+                    No tracks yet: open a file, paste a link or draw a new one
+                </p>
             )}
             {renaming && <RenameTrackDialog track={renaming} onClose={() => setRenaming(null)} />}
-            <CopyFallbackDialog />
         </Card>
     );
 }
