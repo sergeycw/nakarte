@@ -2,16 +2,16 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md), поведение — [дельта `web-client`](specs/web-client/spec.md). Выбор библиотеки и темы — [ресёрч, п. 2](../../research/new-ui.md#2-ui-библиотека) и архивы [record-ui-decisions](../archive/2026-10-08-record-ui-decisions/design.md), [record-new-ui-decisions](../archive/2026-10-08-record-new-ui-decisions/design.md): shadcn/ui на Base UI, Tailwind 4, только светлая тема, интерфейс только на английском, телефон — полноценная цель.
+Зачем — [proposal](proposal.md), поведение — [дельта `web-client`](specs/web-client/spec.md). Выбор библиотеки и темы — [ресёрч, п. 2](../../../research/new-ui.md#2-ui-библиотека) и архивы [record-ui-decisions](../2026-10-08-record-ui-decisions/design.md), [record-new-ui-decisions](../2026-10-08-record-new-ui-decisions/design.md): shadcn/ui на Base UI, Tailwind 4, только светлая тема, интерфейс только на английском, телефон — полноценная цель.
 
 Что есть сейчас (`master` `990de65`):
 
-- Тема — `web/src/index.css`: пресет `base-nova` shadcn 4.21 (`components.json`), палитра `neutral` в `oklch` без цветового акцента (`--primary` почти чёрный), `--radius: 0.625rem`, шрифт Geist пакетом `@fontsource-variable/geist`. Блока `.dark` нет, `@custom-variant dark` держит классы `dark:` под несуществующим классом ([add-web-skeleton](../archive/2026-10-08-add-web-skeleton/design.md#панель-и-тост)). Иконки — `lucide-react`.
+- Тема — `web/src/index.css`: пресет `base-nova` shadcn 4.21 (`components.json`), палитра `neutral` в `oklch` без цветового акцента (`--primary` почти чёрный), `--radius: 0.625rem`, шрифт Geist пакетом `@fontsource-variable/geist`. Блока `.dark` нет, `@custom-variant dark` держит классы `dark:` под несуществующим классом ([add-web-skeleton](../2026-10-08-add-web-skeleton/design.md#панель-и-тост)). Иконки — `lucide-react`.
 - Компоненты `web/src/components/ui/`: `button`, `card`, `checkbox`, `dialog`, `dropdown-menu`, `input`, `popover`, `radio-group`, `toast`.
-- Раскладка: левая колонка `w-80` — `InfoPanel` (название, GitHub, строка поиска) и `TrackList`; справа сверху — кнопка слоёв (`LayerSwitcher`, поповер), под ней контролы MapLibre (зум, номер зума, геолокация) и своя группа (Street View, линейка; меню внешних карт удалено в change [remove-external-maps](../archive/2026-10-09-remove-external-maps/proposal.md)) — `MapButtons.tsx`; снизу на всю ширину — профиль высот (`12rem`) и панорама над ним; панели редактора и точек — плашка снизу по центру над нижними панелями (`--bottom-inset`); тосты справа снизу (на телефоне — по центру) над ними же; меню на карте — `DropdownMenu` с якорем в точке клика; диалоги — `Dialog`. Атрибуция и масштаб MapLibre — над `--bottom-inset`.
+- Раскладка: левая колонка `w-80` — `InfoPanel` (название, GitHub, строка поиска) и `TrackList`; справа сверху — кнопка слоёв (`LayerSwitcher`, поповер), под ней контролы MapLibre (зум, номер зума, геолокация) и своя группа (Street View, линейка; меню внешних карт удалено в change [remove-external-maps](../2026-10-09-remove-external-maps/proposal.md)) — `MapButtons.tsx`; снизу на всю ширину — профиль высот (`12rem`) и панорама над ним; панели редактора и точек — плашка снизу по центру над нижними панелями (`--bottom-inset`); тосты справа снизу (на телефоне — по центру) над ними же; меню на карте — `DropdownMenu` с якорем в точке клика; диалоги — `Dialog`. Атрибуция и масштаб MapLibre — над `--bottom-inset`.
 - Ограничения вёрстки — `AGENTS.md`, раздел «Приложение»: `isolation: isolate` у контейнера карты, CSS MapLibre вне `@layer` (свойства `.maplibregl-ctrl-*` — с `!`), `--bottom-inset` и `--profile-inset` на `<html>`.
 
-Отложенное в этот change из прошлых: вид панелей редактора, профиля, меню и маркеров ([add-web-route-editor](../archive/2026-10-09-add-web-route-editor/design.md), [add-web-line-tools](../archive/2026-10-09-add-web-line-tools/design.md), [add-web-elevation-profile](../archive/2026-10-09-add-web-elevation-profile/design.md), [add-web-search-panoramas](../archive/2026-10-09-add-web-search-panoramas/design.md#risks--trade-offs)); тост поверх панели редактора на узком окне; столбец кнопок справа под панелью панорамы в низком окне; две нижние панели на телефоне оставляют ≈ 330 px карты; неактивная кнопка геолокации без объяснения на телефоне; подсветка трека при наведении, начало и конец трека цветом, «Show all / Hide all» ([add-web-tracks](../archive/2026-10-08-add-web-tracks/design.md)), подсказка отрезка с длиной, перетаскиваемая граница панорамы.
+Отложенное в этот change из прошлых: вид панелей редактора, профиля, меню и маркеров ([add-web-route-editor](../2026-10-09-add-web-route-editor/design.md), [add-web-line-tools](../2026-10-09-add-web-line-tools/design.md), [add-web-elevation-profile](../2026-10-09-add-web-elevation-profile/design.md), [add-web-search-panoramas](../2026-10-09-add-web-search-panoramas/design.md#risks--trade-offs)); тост поверх панели редактора на узком окне; столбец кнопок справа под панелью панорамы в низком окне; две нижние панели на телефоне оставляют ≈ 330 px карты; неактивная кнопка геолокации без объяснения на телефоне; подсветка трека при наведении, начало и конец трека цветом, «Show all / Hide all» ([add-web-tracks](../2026-10-08-add-web-tracks/design.md)), подсказка отрезка с длиной, перетаскиваемая граница панорамы.
 
 ## Goals / Non-Goals
 
@@ -67,7 +67,7 @@
 
 ### Внешние карты удалены **[владелец]**
 
-По скриншоту меню «Open this place in» владелец назвал функцию лишней: удалена отдельным change [remove-external-maps](../archive/2026-10-09-remove-external-maps/proposal.md) (PR sergeycw/nakarte#123), чтобы не ждать ответа Claude Design. Скриншоты сняты уже без неё.
+По скриншоту меню «Open this place in» владелец назвал функцию лишней: удалена отдельным change [remove-external-maps](../2026-10-09-remove-external-maps/proposal.md) (PR sergeycw/nakarte#123), чтобы не ждать ответа Claude Design. Скриншоты сняты уже без неё.
 
 ### Макет 4a **[владелец]**
 
@@ -111,7 +111,7 @@
 
 1. Этап 1: промпт и скриншоты владельцу; стоп до ответа Claude Design.
 2. Этап 2: правки по ответу, тесты, ревью диффа субагентом, PR в `master`, все проверки `pass` на последнем коммите, merge, деплой; скриншоты прода владельцу.
-3. Archive в том же PR (решение владельца выше); ресёрч удаляется, если все его changes сделаны (`AGENTS.md`, «Где что записано»), причины решений уже в архивах.
+3. Archive в том же PR (решение владельца выше). Ресёрч `openspec/research/new-ui.md` после этого change закрыт целиком, но остаётся на месте **[агент]**: на его разделы ссылаются ≈ 40 мест в архивах прежних changes, архивы не правятся, а перенос или удаление сломали бы эти ссылки; уникальные цифры ресёрча (VPS и Oracle, свой векторный стиль) нужны пунктам backlog. Правило `AGENTS.md` «ресёрч удаляется» — вопрос владельцу.
 4. Откат — revert и push: форматы ссылок и автосохранения не меняются.
 
 ## Проверки
