@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
 import { ACTIVITIES, getActivity } from './brouter';
 import { useRouteEditing } from './editing-context';
@@ -23,7 +24,8 @@ import { routerDownHint, routerDownStatus } from './router';
 
 const OFF = 'off';
 
-// labeled — с названием активности (редактор в верхней строке, макет 4a): «Hiking ▾»
+// labeled — с названием активности (редактор в верхней строке, макет 4a): «Hiking ▾»; уже 640 px —
+// только иконка, активность — в title: место в строке отдано названию трека (design editor-name-share)
 export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
     const editing = useRouteEditing();
     const activityId = useAppStore((state) => state.routingActivity);
@@ -65,7 +67,7 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                         size={labeled ? 'sm' : 'icon-sm'}
                         aria-label={title}
                         title={title}
-                        className={tone}
+                        className={cn(tone, labeled && 'max-sm:size-7 max-sm:px-0')}
                         data-state={down ? 'down' : loading ? 'loading' : activity ? 'on' : 'off'}
                     />
                 }
@@ -73,8 +75,8 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                 {loading ? <LoaderCircleIcon className="animate-spin" /> : <RouteIcon />}
                 {labeled && (
                     <>
-                        <span className="max-w-24 truncate">{activity?.title ?? 'Off'}</span>
-                        <ChevronDownIcon className="opacity-60" />
+                        <span className="hidden max-w-24 truncate sm:inline">{activity?.title ?? 'Off'}</span>
+                        <ChevronDownIcon className="hidden opacity-60 sm:block" />
                     </>
                 )}
             </DropdownMenuTrigger>

@@ -51,7 +51,7 @@ test('Измерить расстояние', async ({ page }) => {
     await clickMap(page, { x: 470, y: 400 });
     await clickMap(page, { x: 810, y: 400 });
     // пока линия рисуется, длина — в редакторе верхней строки
-    await expect(page.getByTestId('edit-panel')).toContainText('Ruler');
+    await expect(page.getByTestId('edit-panel').getByRole('textbox', { name: 'Track name' })).toHaveValue('Ruler');
     await expect(page.getByTestId('edit-length')).toHaveText(/^1\.2\d km$/u);
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);

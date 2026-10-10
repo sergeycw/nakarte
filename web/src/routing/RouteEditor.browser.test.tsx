@@ -20,7 +20,7 @@ import {
     pressEscape,
     waypoints,
 } from '@/test/map-events';
-import { renderApp } from '@/test/render-app';
+import { openTracks, renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import type { LatLng } from '@/tracks/model';
 import { saveNktk } from '@/tracks/nktk';
@@ -92,6 +92,42 @@ describe('Начало и конец редактирования', () => {
         pressEscape();
         await expect.element(editPanel()).not.toBeInTheDocument();
         await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
+    });
+});
+
+describe('Название трека в панели редактирования', () => {
+    test('Переименовать в редакторе', async () => {
+        const { map } = await render(`${VIEW}&nktk=${line('Walk', [A, C])}`);
+        await click(map, B);
+        const name = editPanel().getByRole('textbox', { name: 'Track name' });
+        await name.fill('Kazbek');
+        await userEvent.keyboard('{Enter}');
+        await expect.element(name).toHaveValue('Kazbek');
+        await expect.element(editPanel()).toBeVisible();
+        await page.getByRole('button', { name: 'Done' }).click();
+        await openTracks();
+        await expect.element(page.getByRole('button', { name: 'Kazbek' })).toBeVisible();
+    });
+
+    test('Пустое название в редакторе', async () => {
+        const { map } = await render(`${VIEW}&nktk=${line('Walk', [A, C])}`);
+        await click(map, B);
+        const name = editPanel().getByRole('textbox', { name: 'Track name' });
+        await name.fill('');
+        // уход фокуса — как клик по карте, без конца редактирования
+        (name.element() as HTMLInputElement).blur();
+        await expect.element(name).toHaveValue('Walk');
+    });
+
+    test('Escape в поле названия', async () => {
+        const { map } = await render(`${VIEW}&nktk=${line('Walk', [A, C])}`);
+        await click(map, B);
+        const name = editPanel().getByRole('textbox', { name: 'Track name' });
+        await name.fill('Discarded');
+        await userEvent.keyboard('{Escape}');
+        await expect.element(name).toHaveValue('Walk');
+        await expect.element(editPanel()).toBeVisible();
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
     });
 });
 
