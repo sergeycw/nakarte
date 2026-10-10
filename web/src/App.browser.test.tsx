@@ -57,11 +57,11 @@ describe('Интерфейс поверх карты', () => {
 
     test('Клик по панели', async () => {
         const { map } = await renderApp();
-        // плавающая панель — верхняя строка (поиск, Tracks, New)
-        const panel = page.getByTestId('top-bar');
+        // плавающая панель — капсула строки поиска слева сверху
+        const panel = page.getByTestId('search-bar');
         await expect.element(panel).toBeVisible();
 
-        const panelElement = panel.element().firstElementChild as HTMLElement;
+        const panelElement = panel.element() as HTMLElement;
         const rect = panelElement.getBoundingClientRect();
         for (const [x, y] of [
             // отступ больше радиуса скругления: хит-тест углов учитывает border-radius
