@@ -12,57 +12,21 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useElevationProfile } from '@/elevation/context';
 import { cn } from '@/lib/utils';
 import { useRouteEditing } from '@/routing/editing-context';
 import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
+import { ColorPicker } from './ColorPicker';
 import { formatLength, tracksLength } from './geometry';
-import { TRACK_COLORS, type Track } from './model';
+import type { Track } from './model';
 import { RenameTrackDialog } from './TrackDialogs';
 import { TrackExportItems } from './TrackExportItems';
 
 // Список треков (design add-web-tracks, «Список треков»; раскладка — макет 4a, design polish-web-ui): шапка с меню
 // списка, строки треков с меню трека; ссылка на трек — в строку поиска (design search-track-links). Тексты меню —
 // старого клиента. Действия — createTrackActions (actions.ts).
-
-function ColorPicker({ track }: { track: Track }) {
-    const actions = useTrackActions();
-    const [open, setOpen] = useState(false);
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger
-                render={
-                    <Button variant="ghost" size="icon-xs" aria-label={`Color of ${track.name}`} className="shrink-0" />
-                }
-            >
-                <span
-                    className="block h-1.5 w-4 rounded-full"
-                    style={{ backgroundColor: TRACK_COLORS[track.color] }}
-                    data-color={track.color}
-                />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="flex w-auto flex-row gap-1 p-1.5">
-                {TRACK_COLORS.map((color, index) => (
-                    <Button
-                        key={color}
-                        variant={index === track.color ? 'outline' : 'ghost'}
-                        size="icon-sm"
-                        aria-label={`Color ${index + 1}`}
-                        onClick={() => {
-                            actions.setColor(track, index);
-                            setOpen(false);
-                        }}
-                    >
-                        <span className="block h-1.5 w-4 rounded-full" style={{ backgroundColor: color }} />
-                    </Button>
-                ))}
-            </PopoverContent>
-        </Popover>
-    );
-}
 
 function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) => void }) {
     const actions = useTrackActions();

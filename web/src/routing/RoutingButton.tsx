@@ -97,13 +97,15 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                         ))}
                     </DropdownMenuRadioGroup>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator />
+                {/* хоткеи Undo и Redo — в title их кнопок, пункта о них в меню нет (design editor-row-cleanup) */}
                 {down && (
-                    <DropdownMenuItem disabled className="text-destructive">
-                        {routerDownHint(editing.engine)}
-                    </DropdownMenuItem>
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled className="text-destructive">
+                            {routerDownHint(editing.engine)}
+                        </DropdownMenuItem>
+                    </>
                 )}
-                <DropdownMenuItem disabled>Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z: undo, redo</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );

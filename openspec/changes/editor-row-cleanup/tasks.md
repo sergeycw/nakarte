@@ -2,9 +2,9 @@
 
 ## 1. Строка редактора
 
-- [ ] 1.1 `Done` строки редактора → круглая кнопка-галочка «Finish editing» (`EditPanel.tsx`); тесты, искавшие `Done` редактора, — по новому имени (browser `RouteEditor`, `LineTools`; e2e `route-editing`, `line-tools`, `autosave`, `search`); проверка: эти browser-тесты зелёные
-- [ ] 1.2 Подсказки рисования уходят, строка подсказки — только у выбора Join и Shortcut, атрибут `data-drawing` у `edit-panel`; пункт меню прокладки про хоткеи уходит (`RoutingButton.tsx`); тесты подсказок — по `data-drawing` (browser `RouteEditor`, `LineTools`, `TrackList`); проверка: эти browser-тесты зелёные
-- [ ] 1.3 `ColorPicker` — в `tracks/ColorPicker.tsx`, в списке и в строке редактора; browser-тест «Цвет нового трека» (`RouteEditor.browser.test.tsx`); проверка: browser `RouteEditor`, `TrackList` зелёные
+- [x] 1.1 `Done` строки редактора → круглая кнопка-галочка «Finish editing» (`EditPanel.tsx`); тесты, искавшие `Done` редактора, — по новому имени (browser `RouteEditor`, `LineTools`; e2e `route-editing`, `line-tools`, `autosave`, `search`); проверка: эти browser-тесты зелёные
+- [x] 1.2 Подсказки рисования уходят, строка подсказки — только у выбора Join и Shortcut, атрибут `data-drawing` у `edit-panel`; пункт меню прокладки про хоткеи уходит (`RoutingButton.tsx`); тесты подсказок — по `data-drawing` (browser `RouteEditor`, `LineTools`, `TrackList`); проверка: эти browser-тесты зелёные
+- [x] 1.3 `ColorPicker` — в `tracks/ColorPicker.tsx`, в списке и в строке редактора; browser-тест «Цвет нового трека» (`RouteEditor.browser.test.tsx`); проверка: browser `RouteEditor`, `TrackList` зелёные
 - [ ] 1.4 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
 
 ## 2. Документы

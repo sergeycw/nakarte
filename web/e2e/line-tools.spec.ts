@@ -118,7 +118,7 @@ test('Перезагрузка после разреза', async ({ page, networ
     await drawRouted(page);
     await clickMap(page, MIDDLE, 'right');
     await menuItem(page, 'Cut');
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     await chooseActivity(page, 'Off: straight lines');
     await expect.poll(() => saved(page)).toEqual([{ legs: [['routed'], ['routed']], points: [] }]);
     await page.reload();
@@ -134,7 +134,7 @@ test('Перезагрузка после разреза', async ({ page, networ
 test('Ссылка после склейки', async ({ page, context, browser, network }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await drawRouted(page);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     // второй отрезок того же трека
     await openTracks(page);
     await page.getByRole('button', { name: 'Actions for New track' }).click();
@@ -151,7 +151,7 @@ test('Ссылка после склейки', async ({ page, context, browser, 
     await clickMap(page, SECOND_START);
     const joined = [{ legs: [['routed', 'routed', 'straight', 'routed']], points: [] }];
     await expect.poll(() => saved(page)).toEqual(joined);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
 
     await openTracks(page);
 
@@ -238,7 +238,7 @@ test('Долгое нажатие', async ({ browser, network }) => {
         await expect.poll(() => kilometers(page)).toBeLessThan(before);
         // вне редактирования долгое нажатие на линию считает сам MapLibre (contextmenu карты): начинается
         // редактирование, открывается меню линии
-        await page.getByRole('button', { name: 'Done' }).tap();
+        await page.getByRole('button', { name: 'Finish editing' }).tap();
         await expect(page.getByTestId('edit-panel')).toHaveCount(0);
         const onLine = { x: 200, y: 520 };
         // попадание по линии — по отрисованному кадру: после Done дать карте перерисоваться

@@ -49,7 +49,7 @@ test('Новый трек', async ({ page, network }) => {
     await clickMap(page, FINISH);
     // прямая между точками ≈ 0.7 км, маршрут заглушки уходит в сторону — заметно длиннее
     await expect.poll(() => kilometers(page)).toBeGreaterThan(2);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);
     // маршрут посчитан в воркере движка, рантайм — заглушка с адреса CDN
     expect(page.workers().map((worker) => worker.url())).toContainEqual(expect.stringContaining('engine.worker'));

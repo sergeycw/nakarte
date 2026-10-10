@@ -89,7 +89,7 @@ async function drawABC(map: MaplibreMap) {
     await newTrack(map, [A, B, C]);
     await expect.poll(() => states(map)).toEqual(['routed', 'routed']);
     pressEscape();
-    await expect.element(page.getByText('Drag points, click line end to continue')).toBeVisible();
+    await expect.element(editPanel()).not.toHaveAttribute('data-drawing');
 }
 
 async function lengthText() {
@@ -179,7 +179,7 @@ describe('Разрез отрезка', () => {
         expect(near(waypoints(map)[1], B)).toBe(true);
         expect(states(map)).toEqual(['routed']);
         await expect.element(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await expect.poll(() => segmentsOnMap(map)).toHaveLength(2);
     });
 
@@ -217,7 +217,9 @@ describe('Склейка отрезков', () => {
         expect(near(waypoints(map)[5], OTHER[2])).toBe(true);
         expect(near(waypoints(map)[7], OTHER[0])).toBe(true);
         await expect.element(rows()).toHaveLength(2);
-        await expect.element(page.getByText('Drag points, click line end to continue')).toBeVisible();
+        // выбор окончен (Cancel сменился галочкой), правка продолжается без рисования
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
+        await expect.element(editPanel()).not.toHaveAttribute('data-drawing');
     });
 
     test('Склеить отрезки одного трека', async () => {
@@ -228,7 +230,7 @@ describe('Склейка отрезков', () => {
         await chooseFromMenu('Join');
         await click(map, OTHER[0]);
         await expect.poll(() => waypoints(map)).toHaveLength(8);
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await expect.poll(() => segmentsOnMap(map)).toHaveLength(1);
     });
 
@@ -240,7 +242,7 @@ describe('Склейка отрезков', () => {
         fire(map, 'mousemove', P(41.684, 44.79));
         await expect.poll(() => features<LineString>(map, EDIT_PREVIEW)).toHaveLength(1);
         pressEscape();
-        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         expect(features<LineString>(map, EDIT_PREVIEW)).toHaveLength(0);
         // клик по другой линии теперь начинает её редактирование, а не склейку
         await click(map, OTHER[1]);
@@ -255,7 +257,7 @@ describe('Склейка отрезков: отмена', () => {
         await rightClick(map, Z[4]);
         await chooseFromMenu('Join');
         await click(map, P(41.684, 44.79));
-        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         expect(waypoints(map)).toHaveLength(5);
         await expect.element(rows()).toHaveLength(2);
     });
@@ -266,7 +268,7 @@ describe('Склейка отрезков: отмена', () => {
         // второй отрезок того же трека: D–E, проложен
         const D = P(41.686, 44.786);
         const E = P(41.684, 44.79);
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await page.getByRole('button', { name: 'Actions for New track' }).click();
         await page.getByRole('menuitem', { name: 'Add segment' }).click();
         await click(map, D);
@@ -290,7 +292,7 @@ describe('Срез участка', () => {
         await rightClick(map, Z[1]);
         await chooseFromMenu('Shortcut');
         key({ key: 'Enter', code: 'Enter' });
-        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         await click(map, Z[3]);
         expect(waypoints(map)).toHaveLength(5);
     });
@@ -335,7 +337,7 @@ describe('Срез участка', () => {
         expect(waypoints(map)).toHaveLength(5);
         await expect.element(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
         await click(map, P(41.694, 44.79));
-        await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible();
+        await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         expect(waypoints(map)).toHaveLength(5);
     });
 });
@@ -348,7 +350,7 @@ describe('Разворот отрезка', () => {
         await chooseFromMenu('Reverse');
         await expect.poll(() => near(waypoints(map)[0], Z[4])).toBe(true);
         await expect.element(page.getByRole('button', { name: 'Undo' })).toBeEnabled();
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         await click(map, OTHER[1]);
         expect(near(waypoints(map)[0], OTHER[0])).toBe(true);
     });
@@ -382,7 +384,7 @@ describe('Удаление и вынос отрезка', () => {
         await expect.element(rows()).toHaveLength(2);
         await expect.element(rows().nth(1)).toHaveAttribute('data-track', 'New track');
         await expect.element(editPanel()).toBeVisible();
-        await page.getByRole('button', { name: 'Done' }).click();
+        await page.getByRole('button', { name: 'Finish editing' }).click();
         // исходный трек удалён, прокладка выключена: перетаскивание опорной точки копии перестраивает её отрезок
         // своей активностью, значит, разметка скопирована
         await page.getByRole('button', { name: 'Actions for New track' }).first().click();

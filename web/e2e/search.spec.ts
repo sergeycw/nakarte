@@ -53,6 +53,6 @@ test('Измерить расстояние', async ({ page }) => {
     // пока линия рисуется, длина — в редакторе верхней строки
     await expect(page.getByTestId('edit-panel').getByRole('textbox', { name: 'Track name' })).toHaveValue('Ruler');
     await expect(page.getByTestId('edit-length')).toHaveText(/^1\.2\d km$/u);
-    await page.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'Finish editing' }).click();
     await expect(page.getByTestId('edit-panel')).toHaveCount(0);
 });
