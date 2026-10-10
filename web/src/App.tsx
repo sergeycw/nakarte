@@ -268,10 +268,11 @@ export function App({
                                         transformRequest={transformRequest}
                                         ref={mapRef}
                                     >
+                                        {/* до MapButtons: контролы справа встают в порядке монтирования (control-portal.tsx) */}
+                                        <LayerSwitcher />
                                         <MapButtons notify={notify} storage={localStorageOrNull()} />
                                     </BaseMap>
                                     <TopBar fetch={fetch} />
-                                    <LayerSwitcher />
                                     <MapActions />
                                     <ElevationProfile />
                                     <StreetViewPanel />

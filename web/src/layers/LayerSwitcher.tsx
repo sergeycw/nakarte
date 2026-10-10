@@ -5,16 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ControlPortal } from '@/map/control-portal';
 import { useAppStore } from '@/state/context';
 import { ConfigureLayersDialog } from './ConfigureLayersDialog';
 import { CustomLayerDialog } from './CustomLayerDialog';
 import type { LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
+import { QuickBases, QuickOverlays } from './QuickLayers';
 import { isListed } from './settings';
 
-// Переключатель слоёв справа сверху (design add-web-map-layers, «Переключатель»): свёрнут в кнопку на всех
-// экранах — развёрнутый список старого клиента на телефоне закрывал пол-экрана. Подложки — радиокнопками,
-// оверлеи — чекбоксами, порядок — порядок наложения каталога.
+// Переключатель слоёв справа сверху: столбец быстрых слоёв — превью подложек и переключатели оверлеев (QuickLayers,
+// design layer-thumbnails), под ними кнопка All layers с полным списком (design add-web-map-layers, «Переключатель»:
+// развёрнутый список старого клиента на телефоне закрывал пол-экрана). В полном списке подложки — радиокнопками,
+// оверлеи — чекбоксами, порядок — порядок наложения каталога. Столбец — контрол MapLibre (ControlPortal): рендерится
+// внутри BaseMap до MapButtons, и кнопки карты встают под ним.
 
 function LayerHint({ layer }: { layer: LayerDef }) {
     if (layer.minZoom === undefined) {
@@ -89,7 +93,11 @@ export function LayerSwitcher() {
     }
 
     return (
-        <div className="absolute top-3 right-3 z-10">
+        // между кругами — карта: контейнер прозрачен для указателя, кнопки (ROUND_BUTTON) — нет. pointer-events с !:
+        // CSS MapLibre вне @layer задаёт .maplibregl-ctrl pointer-events: auto
+        <ControlPortal className="pointer-events-none! flex flex-col items-center gap-2">
+            <QuickBases bases={bases} />
+            <QuickOverlays overlays={overlays} />
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger
                     render={
@@ -97,17 +105,19 @@ export function LayerSwitcher() {
                             variant="ghost"
                             size="icon-lg"
                             className={ROUND_BUTTON}
-                            aria-label="Layers"
-                            title="Layers"
+                            aria-label="All layers"
+                            title="All layers"
                             data-testid="layers-button"
                         />
                     }
                 >
                     <LayersIcon />
                 </PopoverTrigger>
+                {/* влево от столбца, а не вниз поверх Street View и зума */}
                 <PopoverContent
-                    align="end"
-                    className="max-h-[calc(100dvh-5rem)] w-72 overflow-y-auto"
+                    side="left"
+                    align="start"
+                    className="max-h-[calc(100dvh-1.5rem)] w-72 overflow-y-auto"
                     data-testid="layer-switcher"
                 >
                     <RadioGroup
@@ -152,6 +162,6 @@ export function LayerSwitcher() {
             </Popover>
             <ConfigureLayersDialog open={configOpen} onOpenChange={setConfigOpen} />
             {customCode !== null && <CustomLayerDialog code={customCode || null} onClose={() => setCustomCode(null)} />}
-        </div>
+        </ControlPortal>
     );
 }

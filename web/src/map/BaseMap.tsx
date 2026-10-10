@@ -124,13 +124,13 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     useEffect(fitRequestedBounds, [fitRequestedBounds]);
 
     return (
-        // кнопки карты — под кнопкой слоёв (LayerSwitcher, top-3 right-3, 36 px): top-12 = 48 px, зазор — отступ контрола
-        // (index.css). Атрибуция и линейка масштаба слева снизу — над нижними панелями (--bottom-inset, App) и над кнопкой
-        // профиля по центру, пока она есть (--profile-button-inset, MapActions): длинная атрибуция нескольких слоёв
-        // доходит до центра и на широком окне. С !important: CSS MapLibre подключён вне @layer и без него перебивает
+        // столбец справа — контролы MapLibre: быстрые слои (LayerSwitcher), под ними кнопки карты (MapButtons); top-1 = 4 px
+        // + отступ контрола 8 px (index.css) = 12 px от края, как у панелей слева. Атрибуция и линейка масштаба слева
+        // снизу — над нижними панелями (--bottom-inset, App) и над кнопкой профиля по центру, пока она есть
+        // (--profile-button-inset, MapActions): длинная атрибуция нескольких слоёв доходит до центра и на широком окне. С !important: CSS MapLibre подключён вне @layer и без него перебивает
         // утилиту Tailwind своими top: 0 и bottom: 0
         <div
-            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+var(--profile-button-inset))]! [&_.maplibregl-ctrl-top-right]:top-12!"
+            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+var(--profile-button-inset))]! [&_.maplibregl-ctrl-top-right]:top-1!"
             data-testid="map"
         >
             <MapLibreMap
