@@ -60,6 +60,9 @@
        ставит App. --profile-inset — только профиль: над ним встаёт панорама */
     --bottom-inset: 0px;
     --profile-inset: 0px;
+    /* место под кнопку профиля высот снизу по центру, пока она есть: над ней встают атрибуция и линейка масштаба;
+       ставит MapActions */
+    --profile-button-inset: 0px;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);

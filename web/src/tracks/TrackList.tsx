@@ -138,10 +138,8 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
     );
 }
 
-// Кнопка списка треков в верхней строке (макет 4a, design polish-web-ui): название и число треков, список — выпадающей
-// панелью под строкой (TopBar)
-// Круглая кнопка списка слева сверху (design layout-three-zones): число треков — данные, а не подпись, поэтому значком в
-// углу кнопки; aria-label с числом — по нему ищут тесты
+// Круглая кнопка списка слева сверху (design layout-three-zones), список — выпадающей панелью под строкой (TopBar). Число
+// треков — данные, а не подпись, поэтому значком в углу кнопки; aria-label с числом — по нему ищут тесты
 export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
     const count = useAppStore((state) => state.tracks.length);
     const loading = useAppStore((state) => state.loadingTracks > 0);

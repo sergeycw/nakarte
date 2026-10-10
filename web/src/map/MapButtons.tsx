@@ -95,9 +95,9 @@ function StreetViewControl() {
         <ControlPortal className="maplibregl-ctrl-group">
             <button
                 type="button"
-                // CSS MapLibre вне @layer задаёт кнопкам прозрачный фон: нажатая — с !
+                // CSS MapLibre вне @layer задаёт кнопкам группы display: block и прозрачный фон: flex и фон нажатой — с !
                 className={cn(
-                    'flex items-center justify-center [&_svg]:size-[18px]',
+                    'flex! items-center justify-center [&_svg]:size-[18px]',
                     enabled && 'bg-primary! text-primary-foreground',
                 )}
                 aria-label="Street View"

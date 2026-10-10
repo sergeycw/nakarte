@@ -173,7 +173,7 @@ describe('Панель панорамы', () => {
         // карта над обеими панелями: атрибуция и список треков учитывают --bottom-inset
         const inset = getComputedStyle(document.documentElement).getPropertyValue('--bottom-inset');
         expect(inset).toContain('12rem');
-        // строка кнопок карты (профиль, линейка, Street View) — над панорамой
+        // кнопка профиля высот — над панорамой
         expect(page.getByTestId('map-actions').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
             svRect.top,
         );

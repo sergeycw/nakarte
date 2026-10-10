@@ -64,7 +64,7 @@ describe('Интерфейс поверх карты', () => {
         const panelElement = panel.element() as HTMLElement;
         const rect = panelElement.getBoundingClientRect();
         for (const [x, y] of [
-            // отступ больше радиуса скругления: хит-тест углов учитывает border-radius
+            // хит-тест углов учитывает border-radius: у капсулы радиус 18 px, точка (16, 16) — почти центр дуги угла
             [rect.left + 16, rect.top + 16],
             [rect.right - 16, rect.bottom - 16],
             [rect.left + rect.width / 2, rect.top + rect.height / 2],

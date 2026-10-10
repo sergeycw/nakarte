@@ -147,7 +147,8 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
 
     return (
         // focus и blur всплывают от строки и вариантов: так видно, что фокус ушёл из поиска целиком
-        // в верхней строке (макет 4a, design polish-web-ui): поле без рамки, результаты — карточкой под строкой
+        // в стеклянной капсуле зоны маршрута (TopBar, design layout-three-zones): поле без рамки, результаты — карточкой
+        // под строкой
         // biome-ignore lint/a11y/noStaticElementInteractions: обёртка ловит фокус потомков, сама не интерактивна
         <div
             className="relative min-w-0 flex-1"
