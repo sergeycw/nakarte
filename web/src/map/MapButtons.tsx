@@ -8,8 +8,8 @@ import { ControlPortal } from './control-portal';
 import { forgetPosition, savePosition } from './locate';
 
 // Кнопки карты справа под быстрыми слоями (три зоны, design layout-three-zones и layer-thumbnails): Street View, зум
-// капсулой, геолокация MapLibre; линейка масштаба и атрибуция — слева снизу. Свои контролы — ControlPortal
-// (control-portal.tsx). Вид контролов — круглое стекло, правила в index.css.
+// капсулой, геолокация MapLibre; линейка масштаба и атрибуция — слева снизу (design map-chrome). Свои контролы —
+// ControlPortal (control-portal.tsx). Вид контролов — круглое стекло, правила в index.css.
 
 // Зум: кнопки с разметкой и классами NavigationControl MapLibre (иконки — из его CSS, тесты ищут
 // .maplibregl-ctrl-zoom-in), капсулой без номера зума (design layout-three-zones); зум нужен только, чтобы гасить кнопки
@@ -141,6 +141,32 @@ function useDisabledGeolocateToast(notify: (title: string) => void) {
     }, [map, notify]);
 }
 
+// Атрибуция — кнопка (i) и на компьютере: при старте раскрыта, любое движение карты пользователем её сворачивает (гайд
+// OSMF https://osmfoundation.org/wiki/Attribution, «Fading or collapsing»; design map-chrome). Сам MapLibre с compact
+// сворачивает её только на drag, а колесо, щипок и кнопки зума — тоже движение. Свернуть — то же, что делает его
+// _updateCompactMinimize: снять класс maplibregl-compact-show. Программные переходы (вид из адреса, fitBounds треков,
+// геолокация при заходе) originalEvent не несут и атрибуцию не сворачивают
+function useCollapseAttributionOnMove() {
+    const { current } = useMap();
+    const map = current?.getMap();
+    useEffect(() => {
+        if (!map) {
+            return;
+        }
+        const collapse = (event: { originalEvent?: Event }) => {
+            if (event.originalEvent) {
+                map.getContainer()
+                    .querySelector('.maplibregl-ctrl-attrib')
+                    ?.classList.remove('maplibregl-compact-show');
+            }
+        };
+        map.on('movestart', collapse);
+        return () => {
+            map.off('movestart', collapse);
+        };
+    }, [map]);
+}
+
 export interface MapButtonsProps {
     notify: (title: string) => void;
     storage: Storage | null;
@@ -148,6 +174,7 @@ export interface MapButtonsProps {
 
 export function MapButtons({ notify, storage }: MapButtonsProps) {
     useDisabledGeolocateToast(notify);
+    useCollapseAttributionOnMove();
     return (
         <>
             <StreetViewControl />
@@ -170,9 +197,10 @@ export function MapButtons({ notify, storage }: MapButtonsProps) {
                 }}
             />
             {/* атрибуция и линейка масштаба слева снизу: снизу по центру — кнопка профиля (MapActions); MapLibre ставит
-                каждый следующий нижний контрол выше — линейка над атрибуцией */}
-            <AttributionControl position="bottom-left" />
-            <ScaleControl position="bottom-left" unit="metric" />
+                каждый следующий нижний контрол выше — линейка над атрибуцией. maxWidth 80 (у MapLibre 100): свёрнутый
+                столбец помещается слева от кнопки профиля на телефоне (design map-chrome) */}
+            <AttributionControl position="bottom-left" compact />
+            <ScaleControl position="bottom-left" unit="metric" maxWidth={80} />
         </>
     );
 }

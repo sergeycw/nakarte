@@ -8,7 +8,8 @@ import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import { POSITION_KEY } from './locate';
 
 // Кнопки карты в App (спека web-client: «Где я», «Последнее положение при заходе»,
-// «Масштаб и зум на карте»). Геолокация браузера подменяется на время теста: настоящая в headless спросила бы разрешение.
+// «Масштаб на карте», «Атрибуция карты»). Геолокация браузера подменяется на время теста: настоящая в headless
+// спросила бы разрешение.
 
 let tiles: FixtureTiles;
 
@@ -143,5 +144,30 @@ describe('Масштаб на карте', () => {
         // между кнопками зума номера нет: капсула — только «+» и «−»
         const zoom = document.querySelector('.maplibregl-ctrl-zoom-in')?.parentElement;
         expect(zoom?.textContent).toBe('');
+    });
+});
+
+describe('Атрибуция карты', () => {
+    const attribution = () => document.querySelector('.maplibregl-ctrl-attrib');
+    const expanded = () => attribution()?.classList.contains('maplibregl-compact-show') ?? false;
+
+    test('Сворачивание по первому движению карты', async () => {
+        const { map } = await renderApp(tiles, '#m=13/42.68490/47.07008&l=O');
+        // при старте раскрыта: подпись слоя видна без нажатий
+        await expect.element(page.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeVisible();
+        expect(expanded()).toBe(true);
+        // программный переход (вид из адреса, треки, геолокация) не сворачивает
+        map.jumpTo({ center: [47.1, 42.7] });
+        expect(expanded()).toBe(true);
+        // зум кнопкой — движение пользователя, не только drag, на который сворачивает сам MapLibre
+        await page.getByRole('button', { name: 'Zoom in' }).click();
+        await expect.poll(expanded).toBe(false);
+        // свёрнутая: подписи не видно, только кнопка (i); ссылку под display: none (MapLibre прячет блок классом,
+        // <details> остаётся open) getByRole не находит — проверка по DOM
+        expect(attribution()?.querySelector('.maplibregl-ctrl-attrib-inner')?.checkVisibility()).toBe(false);
+        // кнопка (i) раскрывает её снова
+        await page.getByTitle('Toggle attribution').click();
+        await expect.poll(expanded).toBe(true);
+        await expect.element(page.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeVisible();
     });
 });

@@ -60,8 +60,8 @@
        ставит App. --profile-inset — только профиль: над ним встаёт панорама */
     --bottom-inset: 0px;
     --profile-inset: 0px;
-    /* место под кнопку профиля высот снизу по центру, пока она есть: над ней встают атрибуция и линейка масштаба;
-       ставит MapActions */
+    /* место под кнопку профиля высот снизу по центру, пока она есть: над ней встаёт раскрытая атрибуция с линейкой
+       масштаба; ставит MapActions */
     --profile-button-inset: 0px;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -155,7 +155,100 @@
 .maplibregl-ctrl-top-right .maplibregl-ctrl {
     margin: 8px 12px 0 0;
 }
+/* Слева снизу — линейка масштаба над атрибуцией, над нижними панелями (--bottom-inset, App), низ свёрнутой атрибуции —
+   вровень с кнопкой профиля (MapActions, 12 px от низа). Свёрнутый столбец помещается слева от кнопки профиля; раскрытая
+   атрибуция нескольких слоёв доходит до центра и на широком окне — тогда столбец встаёт над кнопкой
+   (--profile-button-inset, пока кнопка есть; design map-chrome) */
+.maplibregl-ctrl-bottom-left {
+    bottom: calc(var(--bottom-inset) + 4px);
+}
+.maplibregl-ctrl-bottom-left:has(.maplibregl-compact-show) {
+    bottom: calc(var(--bottom-inset) + var(--profile-button-inset) + 4px);
+}
+.maplibregl-ctrl-bottom-left .maplibregl-ctrl {
+    margin: 0 0 8px 12px;
+}
+/* Линейка — стеклянная капсула. MapLibre задаёт элементу ширину = длине отрезка шкалы (inline width), поэтому сама
+   капсула — ::before шире элемента на 8 px с боков, а скобка шкалы — ::after ровно по ширине элемента */
+.maplibregl-ctrl.maplibregl-ctrl-scale {
+    position: relative;
+    margin-left: 20px;
+    isolation: isolate;
+    height: 24px;
+    padding: 2px 0 0;
+    border: 0;
+    background: none;
+    color: var(--foreground);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 14px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.maplibregl-ctrl-scale::before {
+    content: "";
+    position: absolute;
+    inset: 0 -8px;
+    z-index: -1;
+    border-radius: 9999px;
+    background-color: var(--glass);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    border: 1px solid var(--glass-edge);
+    box-shadow:
+        0 1px 2px oklch(0 0 0 / 0.08),
+        0 6px 20px oklch(0 0 0 / 0.12);
+}
+.maplibregl-ctrl-scale::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 5px;
+    left: 0;
+    height: 4px;
+    border: 1.5px solid currentColor;
+    border-top: 0;
+}
+/* Атрибуция — кнопка (i) стеклянным кругом 28 px, раскрытая — стеклянная плашка с кнопкой слева. MapLibre держит
+   compact всегда (AttributionControl compact в MapButtons): свёрнута — только кнопка, раскрыта — класс
+   maplibregl-compact-show */
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact {
+    min-height: 28px;
+    margin: 0 0 8px 12px;
+    padding: 0 0 0 28px;
+    box-sizing: border-box;
+    border-radius: 14px;
+    background-color: var(--glass);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    border: 1px solid var(--glass-edge);
+    box-shadow:
+        0 1px 2px oklch(0 0 0 / 0.08),
+        0 6px 20px oklch(0 0 0 / 0.12);
+    color: var(--foreground);
+    font-size: 11px;
+    line-height: 16px;
+}
+/* свёрнутая — ровно круг: у float с пустым содержимым ширина — padding и рамка */
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+    width: 28px;
+    padding: 0;
+}
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact-show {
+    padding: 5px 12px 5px 30px;
+    max-width: calc(100vw - 24px);
+}
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+    top: 1px;
+    left: 1px;
+    width: 24px;
+    height: 24px;
+    background-color: transparent;
+}
+.maplibregl-ctrl-attrib a {
+    color: inherit;
+}
 @media (prefers-reduced-transparency: reduce) {
+    .maplibregl-ctrl-scale::before,
+    .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact,
     .maplibregl-ctrl-group {
         background-color: var(--card);
         backdrop-filter: none;
