@@ -1,15 +1,18 @@
-import { CheckIcon, Redo2Icon, Undo2Icon, XIcon } from 'lucide-react';
+import { CheckIcon, Redo2Icon, Share2Icon, Undo2Icon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/state/context';
 import { formatLength, tracksLength } from '@/tracks/geometry';
 import { TRACK_COLORS } from '@/tracks/model';
+import { TrackExportItems } from '@/tracks/TrackExportItems';
 import { useRouteEditing } from './editing-context';
 import { RoutingButton } from './RoutingButton';
+import { TrackNameInput } from './TrackNameInput';
 
 // Редактор линии в верхней строке вместо поиска (макет 4a, design polish-web-ui; раньше — плашка снизу по центру,
-// решение владельца 2026-10-09): цвет, название и длина трека, активность прокладки, Undo, Redo, Done. Подсказка — строкой под
-// ней, а не у последней точки на карте, как в макете: там она спорит с линией и пропадает за краем карты. Done нужен
-// телефону, где нет Escape.
+// решение владельца 2026-10-09): цвет, название полем и длина трека, активность прокладки, Undo, Redo, «Share track», Done
+// (имя и экспорт без выхода из правки — design editor-name-share). Подсказка — строкой под ней, а не у последней точки на
+// карте, как в макете: там она спорит с линией и пропадает за краем карты. Done нужен телефону, где нет Escape.
 export function EditPanel() {
     const editing = useRouteEditing();
     const edit = useAppStore((state) => state.routeEdit);
@@ -33,9 +36,7 @@ export function EditPanel() {
                     className="block h-1.5 w-4 shrink-0 rounded-full"
                     style={{ backgroundColor: TRACK_COLORS[track.color] }}
                 />
-                <span className="min-w-0 flex-1 truncate px-1 font-medium text-sm" title={track.name}>
-                    {track.name}
-                </span>
+                <TrackNameInput key={track.id} track={track} />
                 {/* длина трека, пока рисуешь: кнопки списка треков в верхней строке в это время нет */}
                 <span className="shrink-0 text-muted-foreground text-xs tabular-nums" data-testid="edit-length">
                     {formatLength(tracksLength(track.segments))}
@@ -61,6 +62,16 @@ export function EditPanel() {
                 >
                     <Redo2Icon />
                 </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        render={<Button variant="ghost" size="icon-sm" aria-label="Share track" title="Share track" />}
+                    >
+                        <Share2Icon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-auto">
+                        <TrackExportItems track={track} />
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 {tool ? (
                     <Button size="sm" variant="outline" onClick={editing.cancelTool}>
                         <XIcon />

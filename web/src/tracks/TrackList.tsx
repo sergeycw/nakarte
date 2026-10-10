@@ -30,6 +30,7 @@ import { useTrackActions } from './actions-context';
 import { formatLength, tracksLength } from './geometry';
 import { TRACK_COLORS, type Track } from './model';
 import { RenameTrackDialog } from './TrackDialogs';
+import { TrackExportItems } from './TrackExportItems';
 
 // Список треков (design add-web-tracks, «Список треков»; раскладка — макет 4a, design polish-web-ui): строка ввода, меню
 // списка, строки треков с меню трека. Тексты меню — старого клиента. Действия — createTrackActions (actions.ts).
@@ -124,14 +125,7 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
                         Show distance marks
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => actions.saveTrackWithElevation(track)}>
-                        Save as GPX with elevation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => actions.saveTrack(track, 'kml')}>Save as KML</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => actions.copyTrackLink(track)}>
-                        Copy link for track
-                    </DropdownMenuItem>
+                    <TrackExportItems track={track} />
                 </DropdownMenuContent>
             </DropdownMenu>
         </li>
