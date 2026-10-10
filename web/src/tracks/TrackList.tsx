@@ -1,11 +1,4 @@
-import {
-    DownloadIcon,
-    EllipsisIcon,
-    EllipsisVerticalIcon,
-    FolderOpenIcon,
-    ListIcon,
-    LoaderCircleIcon,
-} from 'lucide-react';
+import { EllipsisIcon, EllipsisVerticalIcon, FolderOpenIcon, ListIcon, LoaderCircleIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { ROUND_BUTTON } from '@/components/round-button';
 import { Button } from '@/components/ui/button';
@@ -19,7 +12,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useElevationProfile } from '@/elevation/context';
 import { cn } from '@/lib/utils';
@@ -32,8 +24,9 @@ import { TRACK_COLORS, type Track } from './model';
 import { RenameTrackDialog } from './TrackDialogs';
 import { TrackExportItems } from './TrackExportItems';
 
-// Список треков (design add-web-tracks, «Список треков»; раскладка — макет 4a, design polish-web-ui): строка ввода, меню
-// списка, строки треков с меню трека. Тексты меню — старого клиента. Действия — createTrackActions (actions.ts).
+// Список треков (design add-web-tracks, «Список треков»; раскладка — макет 4a, design polish-web-ui): шапка с меню
+// списка, строки треков с меню трека; ссылка на трек — в строку поиска (design search-track-links). Тексты меню —
+// старого клиента. Действия — createTrackActions (actions.ts).
 
 function ColorPicker({ track }: { track: Track }) {
     const actions = useTrackActions();
@@ -158,22 +151,13 @@ export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () =
     );
 }
 
-// Панель списка: шапка с инструментами списка (прокладка, файл, ссылка, меню списка) и строки треков. «New track» —
-// кнопка верхней строки
+// Панель списка: шапка с инструментами списка (прокладка, файл, меню списка) и строки треков. «New track» — кнопка
+// верхней строки
 export function TrackList() {
     const actions = useTrackActions();
     const tracks = useAppStore((state) => state.tracks);
-    const loading = useAppStore((state) => state.loadingTracks > 0);
-    const [url, setUrl] = useState('');
     const [renaming, setRenaming] = useState<Track | null>(null);
     const fileInput = useRef<HTMLInputElement>(null);
-
-    function loadUrl() {
-        if (url.trim()) {
-            actions.openUrl(url);
-            setUrl('');
-        }
-    }
 
     return (
         <Card size="sm" className="pointer-events-auto w-full gap-1 py-1.5" data-testid="track-list">
@@ -199,32 +183,17 @@ export function TrackList() {
                         event.target.value = '';
                     }}
                 />
-                <Input
-                    className="h-7 min-w-0 flex-1 bg-background/60"
-                    placeholder="Track URL"
-                    aria-label="Track URL"
-                    value={url}
-                    disabled={loading}
-                    onChange={(event) => setUrl(event.target.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                            loadUrl();
-                        }
-                    }}
-                />
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Download URL"
-                    title="Download URL"
-                    disabled={loading}
-                    onClick={loadUrl}
-                >
-                    <DownloadIcon />
-                </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        render={<Button variant="ghost" size="icon-sm" aria-label="Tracks menu" title="Menu" />}
+                        render={
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="ml-auto"
+                                aria-label="Tracks menu"
+                                title="Menu"
+                            />
+                        }
                     >
                         <EllipsisIcon />
                     </DropdownMenuTrigger>
@@ -256,7 +225,7 @@ export function TrackList() {
                 </ul>
             ) : (
                 <p className="border-border/60 border-t px-3 pt-2 pb-1 text-muted-foreground text-xs">
-                    No tracks yet: open a file, paste a link or draw a new one
+                    No tracks yet: open or drop a file, paste a link into search or draw a new one
                 </p>
             )}
             {renaming && <RenameTrackDialog track={renaming} onClose={() => setRenaming(null)} />}
