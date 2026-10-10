@@ -1,4 +1,5 @@
 import type { Point } from 'geojson';
+import type { Map as MaplibreMap } from 'maplibre-gl';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
@@ -8,6 +9,7 @@ import { fakeRouter } from '@/test/fake-router';
 import { click, features, near, P, waypoints } from '@/test/map-events';
 import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { saveNktk } from '@/tracks/nktk';
 import { TRACK_POINTS } from '@/tracks/style';
 import mapyczJson from './fixtures/mapycz-mtatsminda.json';
 import photonJson from './fixtures/photon-mtatsminda.json';
@@ -211,9 +213,91 @@ describe('Поиск по координатам и ссылкам', () => {
     });
 
     test('Неизвестная ссылка', async () => {
-        await render();
+        const network = searchNetwork();
+        await render('', network.fetch);
         await searchField().fill('https://example.com/map');
-        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Unsupported link');
+        await expect.poll(optionTitles).toEqual(['map']);
+        await expect.element(options().first().getByText('Open as track · example.com')).toBeVisible();
+        expect(network.requests).toEqual([]);
+    });
+});
+
+// точка на экране карты: трек показан целиком, если видны оба конца
+const shows = (map: MaplibreMap, point: { lat: number; lng: number }) =>
+    map.getBounds().contains([point.lng, point.lat]);
+
+// спека map-search, «Ссылки на треки в поиске» и «Выбор ссылки на трек»; порядок — design search-track-links
+describe('Ссылки на треки в поиске', () => {
+    test('Ссылка nakarte с треком и видом', async () => {
+        // трек далеко от вида ссылки: Enter открывает трек и показывает его, а не вид
+        const nktk = saveNktk({ name: 'Linked', segments: [[P(43, 42), P(43.01, 42.02)]], points: [] });
+        const { map } = await render();
+        await searchField().fill(`https://nakarte-routing.pages.dev/#m=12/41.7/44.8&nktk=${nktk}`);
+        await expect.poll(optionTitles).toEqual(['Tracks from link', 'Nakarte view']);
+        await userEvent.keyboard('{Enter}');
+        await expect.element(page.getByRole('button', { name: 'Linked' })).toBeVisible();
+        await expect.poll(() => shows(map, P(43, 42)) && shows(map, P(43.01, 42.02))).toBe(true);
+        await expect.element(searchField()).toHaveValue('');
+        await expect.element(placemark()).not.toBeInTheDocument();
+    });
+
+    test('Линейка и вид Яндекса', async () => {
+        const network = searchNetwork();
+        await render('', network.fetch);
+        await searchField().fill('https://yandex.ru/maps/?ll=44.8,41.7&z=12&rl=44.8%2C41.7~0.01%2C0.02');
+        await expect.poll(optionTitles).toEqual(['Yandex ruler', 'Yandex map view']);
+        expect(network.requests).toEqual([]);
+    });
+
+    test('Ссылка на карту с негодными координатами', async () => {
+        await render();
+        await searchField().fill('https://www.google.com/maps/@49.1906435,190.5429962,14z');
+        await expect.element(page.getByTestId('search-error')).toHaveTextContent('Invalid coordinates in Google link');
+        expect(options().elements()).toHaveLength(0);
+    });
+});
+
+describe('Выбор ссылки на трек', () => {
+    test('Трек OSM из поиска', async () => {
+        const gpx =
+            '<gpx><trk><name>Kazbek</name><trkseg><trkpt lat="42.7" lon="44.5"/><trkpt lat="42.71" lon="44.52"/></trkseg></trk></gpx>';
+        const network = searchNetwork({
+            other: async (input) =>
+                String(input) === `${config.corsProxyUrl}https/www.openstreetmap.org/trace/3376100/data`
+                    ? new Response(gpx)
+                    : new Response('', { status: 404 }),
+        });
+        const { map } = await render('', network.fetch);
+        await searchField().fill('https://www.openstreetmap.org/user/Wladich/traces/3376100');
+        await expect.poll(optionTitles).toEqual(['OSM track 3376100']);
+        // до выбора трек не качается
+        expect(network.requests).toEqual([]);
+        await userEvent.keyboard('{Enter}');
+        await expect.element(page.getByRole('button', { name: 'Kazbek' })).toBeVisible();
+        await expect.poll(() => shows(map, P(42.7, 44.5)) && shows(map, P(42.71, 44.52))).toBe(true);
+        await expect.element(searchField()).toHaveValue('');
+    });
+
+    test('Файл трека из поиска', async () => {
+        const gpx = '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="3" lon="4"/></trkseg></trk></gpx>';
+        const network = searchNetwork({ other: async () => new Response(gpx) });
+        await render('', network.fetch);
+        await searchField().fill('https://example.test/files/route.gpx');
+        await options().first().click();
+        await expect.element(page.getByRole('button', { name: 'route.gpx' })).toBeVisible();
+        expect(network.requests).toEqual([`${config.corsProxyUrl}https/example.test/files/route.gpx`]);
+    });
+
+    test('Ссылка не скачалась', async () => {
+        const network = searchNetwork({ other: async () => new Response('', { status: 404 }) });
+        await render('', network.fetch);
+        await searchField().fill('https://example.test/files/missing.gpx');
+        await expect.poll(optionTitles).toEqual(['missing.gpx']);
+        await userEvent.keyboard('{Enter}');
+        await expect
+            .element(page.getByText(/^Could not download file from url "https:\/\/example\.test\/files\/missing\.gpx"/))
+            .toBeVisible();
+        await expect.element(page.getByText('No tracks yet', { exact: false })).toBeVisible();
     });
 });
 

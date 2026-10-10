@@ -14,6 +14,19 @@ export interface SearchResult {
 
 export type SearchResponse = { results: SearchResult[] } | { error: string };
 
+// Ссылка на трек (design search-track-links, «Результат-трек и выбор»): точки нет, выбор качает трек по url
+export interface TrackLinkResult {
+    kind: 'track';
+    title: string;
+    subtitle: string;
+    url: string;
+}
+
+export type SearchItem = SearchResult | TrackLinkResult;
+
+export const isTrackLinkResult = (item: SearchItem): item is TrackLinkResult =>
+    (item as Partial<TrackLinkResult>).kind === 'track';
+
 // зум 17 старого клиента — результат без границ у поисковиков и координаты
 export const PLACE_ZOOM = 16;
 

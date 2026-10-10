@@ -236,13 +236,16 @@ const INVALID: [string, string][] = [
     ['https://nakarte.me/', 'Invalid coordinates in Nakarte link'],
     ['https://nakarte.me/#l=O', 'Invalid coordinates in Nakarte link'],
     ['https://example.com/#l=O&m=11/49.44893/', 'Unsupported link'],
+    // OSM без map= — не вид, а, например, прямая ссылка на GPX трека (design search-track-links)
+    ['https://www.openstreetmap.org/trace/3376100/data', 'Unsupported link'],
+    ['https://www.openstreetmap.org/#map=14/abc', 'Invalid coordinates in OpenStreetMap link'],
     ['https://example.com/#l=O&m=99/49.44893/52.5547', 'Unsupported link'],
     ['https://mapy.cz/s/lucacunom', 'Broken Mapy.com short link'],
     ['https://mapy.com/s/lucacunom', 'Broken Mapy.com short link'],
     ['https://goo.gl/maps/ZvjVBY78HUP8HjQi', 'Broken Google short link'],
 ];
 
-const NOT_LINKS = ['abc', 'http:/', 'https:/', 'https:/'];
+const NOT_LINKS = ['abc', 'http:/', 'https:/', 'https:/', 'track:/'];
 
 describe('ссылки на карты', () => {
     it.each(VALID)('%s', async (query, expected) => {
@@ -260,6 +263,10 @@ describe('ссылки на карты', () => {
 
     it.each(NOT_LINKS)('не ссылка %s', (query) => {
         expect(isLinkQuery(query)).toBe(false);
+    });
+
+    it('track:// — ссылка', () => {
+        expect(isLinkQuery('track://abc')).toBe(true);
     });
 
     it('короткая ссылка — HEAD через прокси, языковой поддомен mapy убран', async () => {

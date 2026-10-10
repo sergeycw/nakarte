@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { saveNktk } from '@/tracks/nktk';
 import mapyczJson from './fixtures/mapycz-mtatsminda.json';
 import photonJson from './fixtures/photon-mtatsminda.json';
 import { browserLanguages, mapyczUrl, parseMapycz } from './mapycz';
@@ -151,9 +152,16 @@ describe('поиск', () => {
     it('координаты и ссылки — без сети', async () => {
         const { requests, sources } = network({});
         expect(await search('55.2 37.6', CONTEXT, sources)).toMatchObject({ kind: 'results', attribution: null });
-        expect(await search('https://example.com/map', CONTEXT, sources)).toEqual({
-            kind: 'error',
-            message: 'Unsupported link',
+        expect(await search('https://example.com/map', CONTEXT, sources)).toMatchObject({
+            kind: 'results',
+            results: [
+                {
+                    kind: 'track',
+                    title: 'map',
+                    subtitle: 'Open as track · example.com',
+                    url: 'https://example.com/map',
+                },
+            ],
         });
         expect(await search('95 200', CONTEXT, sources)).toEqual({ kind: 'error', message: 'Invalid coordinates' });
         expect(requests).toEqual([]);
@@ -171,5 +179,59 @@ describe('поиск', () => {
             search('mtatsminda', { ...CONTEXT, signal: controller.signal }, { fetch: fetchFn, corsProxyUrl: PROXY }),
         ).rejects.toThrow();
         expect(requests).toHaveLength(1);
+    });
+});
+
+// порядок результатов ссылки — design search-track-links, «Порядок разбора ссылки»
+describe('ссылки на треки', () => {
+    async function titles(query: string) {
+        const { requests, sources } = network({});
+        const outcome = await search(query, CONTEXT, sources);
+        expect(requests, 'разбор без сети').toEqual([]);
+        return outcome.kind === 'results' ? outcome.results.map((item) => item.title) : outcome;
+    }
+
+    it('Ссылка nakarte с треком и видом', async () => {
+        const nktk = saveNktk({ name: 'A', segments: [[{ lat: 1, lng: 2 }]], points: [] });
+        const url = `https://nakarte-routing.pages.dev/#m=12/41.7/44.8&nktk=${nktk}`;
+        const { requests, sources } = network({});
+        const outcome = await search(url, CONTEXT, sources);
+        expect(outcome).toMatchObject({
+            kind: 'results',
+            results: [
+                { kind: 'track', title: 'Tracks from link', subtitle: 'Open as track', url },
+                { title: 'Nakarte view' },
+            ],
+        });
+        expect(requests).toEqual([]);
+    });
+
+    it('Линейка и вид Яндекса', async () => {
+        expect(await titles('https://yandex.ru/maps/?ll=44.8,41.7&z=12&rl=44.8%2C41.7~0.01%2C0.02')).toEqual([
+            'Yandex ruler',
+            'Yandex map view',
+        ]);
+    });
+
+    it('трек без вида: ошибка разбора вида не показывается', async () => {
+        expect(await titles('https://www.openstreetmap.org/user/Wladich/traces/3376100')).toEqual([
+            'OSM track 3376100',
+        ]);
+        expect(await titles('https://yandex.ru/maps/?rl=44.8%2C41.7~0.01%2C0.02')).toEqual(['Yandex ruler']);
+    });
+
+    it('track://', async () => {
+        expect(await titles('track://abc')).toEqual(['Tracks from link']);
+    });
+
+    it('прямая ссылка на GPX трека OSM — любой файл', async () => {
+        expect(await titles('https://www.openstreetmap.org/trace/3376100/data')).toEqual(['data']);
+    });
+
+    it('Ссылка на карту с негодными координатами', async () => {
+        expect(await titles('https://www.google.com/maps/@49.1906435,190.5429962,14z')).toEqual({
+            kind: 'error',
+            message: 'Invalid coordinates in Google link',
+        });
     });
 });
