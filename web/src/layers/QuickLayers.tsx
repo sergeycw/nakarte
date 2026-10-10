@@ -35,7 +35,7 @@ function quickBases(listed: LayerDef[], current: LayerDef | undefined): LayerDef
     return [...first.slice(0, QUICK_BASES - 1), current];
 }
 
-// Подложка без картинки (свой слой, Tracestrack без ключа прокси) — буквы названия: «Tracestrack Topo» → TT
+// Подложка без картинки (свой слой или тайл, который скрипт превью не скачал) — буквы названия: «Tracestrack Topo» → TT
 function initials(title: string): string {
     const words = title.split(/\s+/u).filter(Boolean);
     const letters = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? '?').slice(0, 2);
