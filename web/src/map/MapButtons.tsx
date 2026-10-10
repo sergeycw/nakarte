@@ -61,6 +61,11 @@ function StreetViewControl() {
     const enabled = useAppStore((state) => state.streetView.enabled);
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
+            // в поле ввода Option+P на macOS — символ «π», а не Street View (поле названия в редакторе, Rename)
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName))) {
+                return;
+            }
             if (event.altKey && event.code === 'KeyP') {
                 event.preventDefault();
                 streetView.toggle();

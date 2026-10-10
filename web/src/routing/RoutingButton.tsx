@@ -12,6 +12,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
 import { ACTIVITIES, getActivity } from './brouter';
 import { useRouteEditing } from './editing-context';
@@ -66,7 +67,7 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                         size={labeled ? 'sm' : 'icon-sm'}
                         aria-label={title}
                         title={title}
-                        className={tone}
+                        className={cn(tone, labeled && 'max-sm:size-7 max-sm:px-0')}
                         data-state={down ? 'down' : loading ? 'loading' : activity ? 'on' : 'off'}
                     />
                 }

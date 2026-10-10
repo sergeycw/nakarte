@@ -11,8 +11,9 @@ import { TrackNameInput } from './TrackNameInput';
 
 // Редактор линии в верхней строке вместо поиска (макет 4a, design polish-web-ui; раньше — плашка снизу по центру,
 // решение владельца 2026-10-09): цвет, название полем и длина трека, активность прокладки, Undo, Redo, «Share track», Done
-// (имя и экспорт без выхода из правки — design editor-name-share). Подсказка — строкой под ней, а не у последней точки на
-// карте, как в макете: там она спорит с линией и пропадает за краем карты. Done нужен телефону, где нет Escape.
+// (имя и экспорт без выхода из правки — design editor-name-share; уже 640 px Done, Cancel и активность — только иконкой).
+// Подсказка — строкой под ней, а не у последней точки на карте, как в макете: там она спорит с линией и пропадает за
+// краем карты. Done нужен телефону, где нет Escape.
 export function EditPanel() {
     const editing = useRouteEditing();
     const edit = useAppStore((state) => state.routeEdit);
@@ -73,14 +74,14 @@ export function EditPanel() {
                     </DropdownMenuContent>
                 </DropdownMenu>
                 {tool ? (
-                    <Button size="sm" variant="outline" onClick={editing.cancelTool}>
+                    <Button size="sm" variant="outline" aria-label="Cancel" onClick={editing.cancelTool}>
                         <XIcon />
-                        Cancel
+                        <span className="max-sm:hidden">Cancel</span>
                     </Button>
                 ) : (
-                    <Button size="sm" onClick={editing.stop}>
+                    <Button size="sm" aria-label="Done" onClick={editing.stop}>
                         <CheckIcon />
-                        Done
+                        <span className="max-sm:hidden">Done</span>
                     </Button>
                 )}
             </div>
