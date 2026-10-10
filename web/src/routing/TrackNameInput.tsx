@@ -23,7 +23,7 @@ export function TrackNameInput({ track }: { track: Track }) {
     const latest = useRef<Latest>({ draft, track, actions });
     latest.current = { draft, track, actions };
 
-    // панель исчезла, пока поле в фокусе: iOS Safari не переводит фокус на нажатую кнопку Done, а при удалении поля
+    // панель исчезла, пока поле в фокусе: iOS Safari не переводит фокус на нажатую кнопку Finish editing, а при удалении поля
     // blur не шлёт — черновик сохраняется здесь
     useEffect(() => () => commit(latest), []);
 

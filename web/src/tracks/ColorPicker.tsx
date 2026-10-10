@@ -5,8 +5,9 @@ import { useTrackActions } from './actions-context';
 import { TRACK_COLORS, type Track } from './model';
 
 // Палитра цвета трека: строка списка треков и строка редактора линии (design editor-row-cleanup, «Палитра одна на
-// список и редактор»; список закрыт, пока линия редактируется, — двух кнопок с одним именем на экране не бывает).
-// Смена цвета меняет только поле color и правку линии не прерывает.
+// список и редактор»). Список, открытый до начала правки, остаётся до первого нажатия на карту — тогда кнопок
+// `Color of <название>` на экране две, и тесты редактора ищут свою внутри edit-panel. Смена цвета меняет только поле
+// color и правку линии не прерывает.
 export function ColorPicker({ track }: { track: Track }) {
     const actions = useTrackActions();
     const [open, setOpen] = useState(false);

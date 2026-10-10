@@ -139,12 +139,34 @@ describe('Цвет трека в панели редактирования', () 
         await editPanel().getByRole('button', { name: 'Color of New track' }).click();
         await page.getByRole('button', { name: 'Color 3' }).click();
         await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff']);
-        await expect.element(editPanel()).toBeVisible();
-        expect(waypoints(map)).toHaveLength(2);
+        // рисование продолжается: следующий клик ставит третью точку того же цвета
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
+        await click(map, C);
+        await expect.poll(() => waypoints(map)).toHaveLength(3);
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff', '#0ff']);
         await page.getByRole('button', { name: 'Finish editing' }).click();
         await openTracks();
-        const swatch = page.getByRole('button', { name: 'Color of New track' }).element().querySelector('[data-color]');
-        expect(swatch?.getAttribute('data-color')).toBe('2');
+        await expect
+            .poll(() =>
+                page
+                    .getByRole('button', { name: 'Color of New track' })
+                    .element()
+                    .querySelector('[data-color]')
+                    ?.getAttribute('data-color'),
+            )
+            .toBe('2');
+    });
+
+    test('Escape, закрывающий палитру, рисование не заканчивает', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A]);
+        await editPanel().getByRole('button', { name: 'Color of New track' }).click();
+        await expect.element(page.getByRole('button', { name: 'Color 3' })).toBeVisible();
+        await userEvent.keyboard('{Escape}');
+        await expect.element(page.getByRole('button', { name: 'Color 3' })).not.toBeInTheDocument();
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
+        await click(map, B);
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
     });
 });
 

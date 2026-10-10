@@ -5,7 +5,7 @@
 - [x] 1.1 `Done` строки редактора → круглая кнопка-галочка «Finish editing» (`EditPanel.tsx`); тесты, искавшие `Done` редактора, — по новому имени (browser `RouteEditor`, `LineTools`; e2e `route-editing`, `line-tools`, `autosave`, `search`); проверка: эти browser-тесты зелёные
 - [x] 1.2 Подсказки рисования уходят, строка подсказки — только у выбора Join и Shortcut, атрибут `data-drawing` у `edit-panel`; пункт меню прокладки про хоткеи уходит (`RoutingButton.tsx`); тесты подсказок — по `data-drawing` (browser `RouteEditor`, `LineTools`, `TrackList`); проверка: эти browser-тесты зелёные
 - [x] 1.3 `ColorPicker` — в `tracks/ColorPicker.tsx`, в списке и в строке редактора; browser-тест «Цвет нового трека» (`RouteEditor.browser.test.tsx`); проверка: browser `RouteEditor`, `TrackList` зелёные
-- [ ] 1.4 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
+- [x] 1.4 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
 
 ## 2. Документы
 
@@ -13,9 +13,9 @@
 
 ## 3. Ревью, PR, прод
 
-- [ ] 3.1 Независимое ревью диффа субагентом, исправления; итог — в design
-- [ ] 3.2 Скриншоты компьютера (1280×800) и `Pixel 7` владельцу до merge; проверка: кадры в scratchpad отправлены
-- [ ] 3.3 Прод: подложка по умолчанию — Tracestrack без тоста отката (чистый контекст браузера); итог — в design, раздел «Проверки»
+- [x] 3.1 Независимое ревью диффа субагентом, исправления; итог — в design
+- [x] 3.2 Скриншоты компьютера (1280×800) и `Pixel 7` владельцу до merge; проверка: кадры в scratchpad отправлены
+- [x] 3.3 Прод: подложка по умолчанию — Tracestrack без тоста отката (чистый контекст браузера); итог — в design, раздел «Проверки»
 
 ## Workflow follow-up
 

@@ -241,7 +241,7 @@ test('Долгое нажатие', async ({ browser, network }) => {
         await page.getByRole('button', { name: 'Finish editing' }).tap();
         await expect(page.getByTestId('edit-panel')).toHaveCount(0);
         const onLine = { x: 200, y: 520 };
-        // попадание по линии — по отрисованному кадру: после Done дать карте перерисоваться
+        // попадание по линии — по отрисованному кадру: после Finish editing дать карте перерисоваться
         await page.waitForTimeout(800);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [onLine] });
         await expect(page.getByTestId('map-menu')).toBeVisible();

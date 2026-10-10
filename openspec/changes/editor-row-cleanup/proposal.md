@@ -28,4 +28,4 @@
 - Код: `web/src/routing/EditPanel.tsx` (кнопка, подсказка, палитра), `web/src/routing/RoutingButton.tsx` (пункт меню), палитра из `web/src/tracks/TrackList.tsx` выносится в свой файл и используется обоими.
 - Тесты: browser `RouteEditor`, `LineTools`, `TrackList` и e2e `route-editing`, `line-tools`, `autosave`, `search` ищут `Done` и убранные подсказки — меняется только способ поиска, сценарии те же; новый browser-тест выбора цвета в редакторе.
 - Сервисы, форматы ссылок, файлов и автосохранения — не меняются.
-- Документы: абзац «Раскладка» в `AGENTS.md` (Done → «Finish editing»), `openspec/backlog.md` (часть пункта фидбека и пункт про цвет во время правки).
+- Документы: абзац «Раскладка» в `AGENTS.md` (Done → «Finish editing»), строка раскладки в `docs/architecture/decisions.md`, `openspec/backlog.md` (часть пункта фидбека и пункт про цвет во время правки).
