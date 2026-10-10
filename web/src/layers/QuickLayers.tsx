@@ -25,15 +25,14 @@ function thumbnailOf(code: string): string | undefined {
     return THUMBNAILS[`./thumbnails/${code}.webp`];
 }
 
-// Подложки в превью: первые QUICK_BASES списка в порядке каталога, выбранная вне их — последней. Порядок стабилен:
-// выбор подложки круги не переставляет
-export function quickBases(bases: LayerDef[], selected: string): LayerDef[] {
-    const first = bases.slice(0, QUICK_BASES);
-    if (first.some((layer) => layer.code === selected)) {
+// Подложки в превью: первые QUICK_BASES списка (listed — без скрытых в Configure layers) в порядке каталога, выбранная
+// вне их — последней, даже если скрыта (current). Порядок стабилен: выбор подложки круги не переставляет
+function quickBases(listed: LayerDef[], current: LayerDef | undefined): LayerDef[] {
+    const first = listed.slice(0, QUICK_BASES);
+    if (!current || first.includes(current)) {
         return first;
     }
-    const current = bases.find((layer) => layer.code === selected);
-    return current ? [...first.slice(0, QUICK_BASES - 1), current] : first;
+    return [...first.slice(0, QUICK_BASES - 1), current];
 }
 
 // Подложка без картинки (свой слой, Tracestrack без ключа прокси) — буквы названия: «Tracestrack Topo» → TT
@@ -43,13 +42,19 @@ function initials(title: string): string {
     return letters.toUpperCase();
 }
 
-// Включённые кнопки — заливка --primary, как Street View (MapButtons). hover ROUND_BUTTON белит фон — у включённой свой
-const PRESSED = 'bg-primary! text-primary-foreground hover:bg-primary/90!';
+// Круглая кнопка внутри контрола MapLibre: его CSS вне @layer на наведении и нажатии ставит кнопкам
+// .maplibregl-ctrl button фон rgba(0, 0, 0, 0.05) и перебивает hover ROUND_BUTTON — отсюда !
+export const COLUMN_BUTTON = cn(ROUND_BUTTON, 'hover:bg-white/90! active:bg-white/90!');
 
-export function QuickBases({ bases }: { bases: LayerDef[] }) {
+// Включённые кнопки — заливка --primary, как Street View (MapButtons); hover ghost-кнопки темнит иконку — у включённой свой
+const PRESSED =
+    'bg-primary! text-primary-foreground hover:bg-primary/90! hover:text-primary-foreground active:bg-primary/90!';
+
+export function QuickBases({ listed, all }: { listed: LayerDef[]; all: LayerDef[] }) {
     const selected = useAppStore((state) => state.selection.base);
     const selectBase = useAppStore((state) => state.selectBase);
-    return quickBases(bases, selected).map((layer) => {
+    const current = all.find((layer) => layer.code === selected);
+    return quickBases(listed, current).map((layer) => {
         const thumbnail = thumbnailOf(layer.code);
         const active = layer.code === selected;
         return (
@@ -58,9 +63,9 @@ export function QuickBases({ bases }: { bases: LayerDef[] }) {
                 variant="ghost"
                 size="icon-lg"
                 className={cn(
-                    ROUND_BUTTON,
+                    COLUMN_BUTTON,
                     'overflow-hidden p-0 font-semibold text-[11px] text-muted-foreground',
-                    // outline-solid: у Button outline-none, tailwind-merge заменяет его только тем же свойством
+                    // outline-solid: у Button outline-none, cn заменяет его только тем же свойством
                     active && 'outline-solid outline-2 outline-primary outline-offset-2',
                 )}
                 aria-label={layer.title}
@@ -68,7 +73,17 @@ export function QuickBases({ bases }: { bases: LayerDef[] }) {
                 aria-pressed={active}
                 onClick={() => selectBase(layer.code)}
             >
-                {thumbnail ? <img src={thumbnail} alt="" className="size-full object-cover" /> : initials(layer.title)}
+                {thumbnail ? (
+                    // без указателя: картинку иначе тащит мышь, и click не доходит до кнопки
+                    <img
+                        src={thumbnail}
+                        alt=""
+                        draggable={false}
+                        className="pointer-events-none size-full object-cover"
+                    />
+                ) : (
+                    initials(layer.title)
+                )}
             </Button>
         );
     });
@@ -88,7 +103,7 @@ export function QuickOverlays({ overlays }: { overlays: LayerDef[] }) {
                 key={code}
                 variant="ghost"
                 size="icon-lg"
-                className={cn(ROUND_BUTTON, active && PRESSED)}
+                className={cn(COLUMN_BUTTON, active && PRESSED)}
                 aria-label={layer.title}
                 title={layer.title}
                 aria-pressed={active}

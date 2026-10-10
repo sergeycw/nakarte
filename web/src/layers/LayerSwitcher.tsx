@@ -1,6 +1,5 @@
 import { LayersIcon, PencilIcon, PlusIcon, Settings2Icon } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ROUND_BUTTON } from '@/components/round-button';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -11,7 +10,7 @@ import { ConfigureLayersDialog } from './ConfigureLayersDialog';
 import { CustomLayerDialog } from './CustomLayerDialog';
 import type { LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
-import { QuickBases, QuickOverlays } from './QuickLayers';
+import { COLUMN_BUTTON, QuickBases, QuickOverlays } from './QuickLayers';
 import { isListed } from './settings';
 
 // Переключатель слоёв справа сверху: столбец быстрых слоёв — превью подложек и переключатели оверлеев (QuickLayers,
@@ -93,18 +92,26 @@ export function LayerSwitcher() {
     }
 
     return (
-        // между кругами — карта: контейнер прозрачен для указателя, кнопки (ROUND_BUTTON) — нет. pointer-events с !:
+        // между кругами — карта: контейнер прозрачен для указателя, кнопки (COLUMN_BUTTON) — нет. pointer-events с !:
         // CSS MapLibre вне @layer задаёт .maplibregl-ctrl pointer-events: auto
-        <ControlPortal className="pointer-events-none! flex flex-col items-center gap-2">
-            <QuickBases bases={bases} />
-            <QuickOverlays overlays={overlays} />
+        <ControlPortal className="pointer-events-none! flex flex-col items-center gap-2" first>
+            {/* быстрые слои уступают место кнопкам карты над нижними панелями: что не влезает по высоте, уходит во
+                второй столбец обёртки и обрезается (flex-wrap + overflow-hidden), и Street View, зум и геолокация не
+                прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами; p-1 —
+                место под обводку выбранной подложки */}
+            <fieldset className="-m-1 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-11 flex-col flex-wrap items-center gap-2 overflow-hidden p-1">
+                <legend className="sr-only">Quick layers</legend>
+                {/* в столбце — только слои списка: скрытый, но включённый ссылкой — в All layers */}
+                <QuickBases listed={bases.filter((layer) => isListed(layer, settings))} all={bases} />
+                <QuickOverlays overlays={overlays.filter((layer) => isListed(layer, settings))} />
+            </fieldset>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger
                     render={
                         <Button
                             variant="ghost"
                             size="icon-lg"
-                            className={ROUND_BUTTON}
+                            className={COLUMN_BUTTON}
                             aria-label="All layers"
                             title="All layers"
                             data-testid="layers-button"

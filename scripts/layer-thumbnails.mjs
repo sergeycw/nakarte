@@ -58,35 +58,48 @@ const bases = buildCatalog({pixelRatio: 1, language: 'en', corsProxyUrl: CORS_PR
 const tile = tileOf(PLACE);
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
-await page.route(`${ORIGIN}/__thumbnails`, (route) => route.fulfill({contentType: 'text/html', body: '<!doctype html>'}));
-await page.goto(`${ORIGIN}/__thumbnails`);
 let failed = 0;
-for (const layer of bases) {
-    const url = tileUrl(layer.source.tiles[0], tile);
-    const result = await page.evaluate(async ({src, fx, fy}) => {
-        const response = await fetch(src, {mode: 'cors'});
-        if (!response.ok) {
-            return {error: `HTTP ${response.status}`};
+try {
+    const page = await browser.newPage();
+    await page.route(`${ORIGIN}/__thumbnails`, (route) =>
+        route.fulfill({contentType: 'text/html', body: '<!doctype html>'}),
+    );
+    await page.goto(`${ORIGIN}/__thumbnails`);
+    for (const layer of bases) {
+        const url = tileUrl(layer.source.tiles[0], tile);
+        // ошибка одной подложки (нет CORS, не картинка, сеть) не останавливает остальные
+        const result = await page.evaluate(
+            async ({src, fx, fy}) => {
+                try {
+                    const response = await fetch(src, {mode: 'cors'});
+                    if (!response.ok) {
+                        return {error: `HTTP ${response.status}`};
+                    }
+                    const bitmap = await createImageBitmap(await response.blob());
+                    const canvas = new OffscreenCanvas(72, 72);
+                    const context = canvas.getContext('2d');
+                    // половина тайла вокруг точки: на круге 36 px целый тайл превратился бы в пятно цвета
+                    const size = bitmap.width / 2;
+                    const left = Math.min(Math.max(fx * bitmap.width - size / 2, 0), bitmap.width - size);
+                    const top = Math.min(Math.max(fy * bitmap.height - size / 2, 0), bitmap.height - size);
+                    context.drawImage(bitmap, left, top, size, size, 0, 0, 72, 72);
+                    const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.8});
+                    return {bytes: [...new Uint8Array(await blob.arrayBuffer())]};
+                } catch (error) {
+                    return {error: String(error)};
+                }
+            },
+            {src: url, fx: tile.fx, fy: tile.fy},
+        );
+        if (result.error) {
+            failed++;
+            console.error(`${layer.code} ${layer.title}: ${result.error} ${url}`);
+            continue;
         }
-        const bitmap = await createImageBitmap(await response.blob());
-        const canvas = new OffscreenCanvas(72, 72);
-        const context = canvas.getContext('2d');
-        // половина тайла вокруг точки: на круге 36 px целый тайл превратился бы в пятно цвета
-        const size = bitmap.width / 2;
-        const left = Math.min(Math.max(fx * bitmap.width - size / 2, 0), bitmap.width - size);
-        const top = Math.min(Math.max(fy * bitmap.height - size / 2, 0), bitmap.height - size);
-        context.drawImage(bitmap, left, top, size, size, 0, 0, 72, 72);
-        const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.8});
-        return {bytes: [...new Uint8Array(await blob.arrayBuffer())]};
-    }, {src: url, fx: tile.fx, fy: tile.fy});
-    if (result.error) {
-        failed++;
-        console.error(`${layer.code} ${layer.title}: ${result.error} ${url}`);
-        continue;
+        await writeFile(join(OUT_DIR, `${layer.code}.webp`), Uint8Array.from(result.bytes));
+        console.log(`${layer.code} ${layer.title}: ${result.bytes.length} bytes`);
     }
-    await writeFile(join(OUT_DIR, `${layer.code}.webp`), Uint8Array.from(result.bytes));
-    console.log(`${layer.code} ${layer.title}: ${result.bytes.length} bytes`);
+} finally {
+    await browser.close();
 }
-await browser.close();
 process.exitCode = failed ? 1 : 0;
