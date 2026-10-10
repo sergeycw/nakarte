@@ -173,10 +173,10 @@ describe('Панель панорамы', () => {
         // карта над обеими панелями: атрибуция и список треков учитывают --bottom-inset
         const inset = getComputedStyle(document.documentElement).getPropertyValue('--bottom-inset');
         expect(inset).toContain('12rem');
-        // клик по треку в режиме начинает правку — панель редактора над панорамой
-        await click(map, P(41.691, 44.78));
-        await expect.element(page.getByTestId('edit-panel')).toBeVisible();
-        expect(page.getByTestId('edit-panel').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(svRect.top);
+        // строка кнопок карты (профиль, линейка, Street View) — над панорамой
+        expect(page.getByTestId('map-actions').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+            svRect.top,
+        );
     });
 
     test('Закрыть панораму', async () => {

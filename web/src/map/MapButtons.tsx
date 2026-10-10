@@ -54,6 +54,7 @@ function ZoomControl() {
                 className="maplibregl-ctrl-zoom-in"
                 aria-label="Zoom in"
                 title="Zoom in"
+                disabled={map !== undefined && zoom >= map.getMaxZoom()}
                 onClick={(event) => map?.zoomIn({}, { originalEvent: event.nativeEvent })}
             >
                 <span className="maplibregl-ctrl-icon" aria-hidden="true" />
@@ -70,6 +71,7 @@ function ZoomControl() {
                 className="maplibregl-ctrl-zoom-out"
                 aria-label="Zoom out"
                 title="Zoom out"
+                disabled={map !== undefined && zoom <= map.getMinZoom()}
                 onClick={(event) => map?.zoomOut({}, { originalEvent: event.nativeEvent })}
             >
                 <span className="maplibregl-ctrl-icon" aria-hidden="true" />
@@ -104,8 +106,10 @@ function useDisabledGeolocateToast(notify: (title: string) => void) {
         if (!button || !group) {
             return;
         }
+        // подсказку «Location not available» держит кнопка — пока она прозрачна для указателя, та же подсказка у группы
         const sync = () => {
             button.style.pointerEvents = button.disabled ? 'none' : '';
+            group.title = button.disabled ? button.title : '';
         };
         sync();
         const observer = new MutationObserver(sync);
@@ -150,7 +154,8 @@ export function MapButtons({ notify, storage }: MapButtonsProps) {
                     notify(geolocationErrorMessage(event.code, event.message));
                 }}
             />
-            {/* справа снизу — строка кнопок (MapActions): атрибуция над линейкой масштаба слева */}
+            {/* справа снизу — строка кнопок (MapActions): атрибуция и линейка масштаба слева (MapLibre ставит каждый
+                следующий нижний контрол выше — линейка над атрибуцией) */}
             <AttributionControl position="bottom-left" />
             <ScaleControl position="bottom-left" unit="metric" />
         </>

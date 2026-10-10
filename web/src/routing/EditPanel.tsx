@@ -36,7 +36,7 @@ export function EditPanel() {
                 <span className="min-w-0 flex-1 truncate px-1 font-medium text-sm" title={track.name}>
                     {track.name}
                 </span>
-                {/* длина трека, пока рисуешь: список треков в это время закрыт */}
+                {/* длина трека, пока рисуешь: кнопки списка треков в верхней строке в это время нет */}
                 <span className="shrink-0 text-muted-foreground text-xs tabular-nums" data-testid="edit-length">
                     {formatLength(tracksLength(track.segments))}
                 </span>

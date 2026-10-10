@@ -125,10 +125,11 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
 
     return (
         // кнопки зума — под кнопкой слоёв (LayerSwitcher, top-3 right-3, высота 9); атрибуция и линейка масштаба слева
-        // снизу — над нижними панелями (--bottom-inset, App), на узком окне — ещё и над строкой кнопок (MapActions). С !important: CSS MapLibre подключён вне @layer и без него
+        // снизу — над нижними панелями (--bottom-inset, App) и строкой кнопок (MapActions): на среднем окне строка кнопок
+        // доходит до левого края и закрыла бы подписи слоёв. С !important: CSS MapLibre подключён вне @layer и без него
         // перебивает утилиту Tailwind своими top: 0 и bottom: 0
         <div
-            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+3.25rem)]! sm:[&_.maplibregl-ctrl-bottom-left]:bottom-(--bottom-inset)! [&_.maplibregl-ctrl-top-right]:top-12!"
+            className="absolute inset-0 isolate [&_.maplibregl-ctrl-bottom-left]:bottom-[calc(var(--bottom-inset)+3.25rem)]! [&_.maplibregl-ctrl-top-right]:top-12!"
             data-testid="map"
         >
             <MapLibreMap
@@ -145,7 +146,9 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 pitchWithRotate={false}
                 touchPitch={false}
                 onLoad={(event) => {
+                    // жест двумя пальцами и Shift+стрелки иначе поворачивают и наклоняют карту
                     event.target.touchZoomRotate.disableRotation();
+                    event.target.keyboard.disableRotation();
                     fitRequestedBounds();
                 }}
                 style={{ width: '100%', height: '100%' }}

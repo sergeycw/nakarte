@@ -191,7 +191,10 @@ interface Network {
 // движка, редирект) кнопки не дождётся — тогда ничего.
 export async function openTracks(page: Page) {
     // не страница приложения или верхняя строка — редактор линии или точек: кнопки Tracks нет
-    if (!page.url().startsWith('http') || (await page.locator('[data-testid$="-panel"]').count())) {
+    if (
+        !page.url().startsWith('http') ||
+        (await page.locator('[data-testid="edit-panel"], [data-testid="point-panel"]').count())
+    ) {
         return;
     }
     const button = page.getByRole('button', { name: /^Tracks( \d+)?$/ });
