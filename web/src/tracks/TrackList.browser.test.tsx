@@ -254,7 +254,7 @@ describe('Импорт', () => {
         await expect.element(page.getByRole('list', { name: 'Tracks' })).not.toBeInTheDocument();
     });
 
-    test('Файл по ссылке через прокси клона', async () => {
+    test('Файл по ссылке', async () => {
         const requested: string[] = [];
         const gpx = '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="3" lon="4"/></trkseg></trk></gpx>';
         await renderApp(tiles, '', {
@@ -263,7 +263,9 @@ describe('Импорт', () => {
                 return new Response(gpx);
             },
         });
-        await page.getByRole('textbox', { name: 'Track URL' }).fill('https://example.test/files/route.gpx');
+        // ссылка — в строку поиска (design search-track-links)
+        await page.getByRole('combobox', { name: 'Search' }).fill('https://example.test/files/route.gpx');
+        await expect.element(page.getByRole('option').getByText('route.gpx')).toBeVisible();
         await userEvent.keyboard('{Enter}');
         await expect.element(page.getByRole('button', { name: 'route.gpx' })).toBeVisible();
         expect(requested).toEqual([

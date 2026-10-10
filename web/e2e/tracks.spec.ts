@@ -90,10 +90,11 @@ test('Трек OSM', async ({ page, network }) => {
         path: fixture('tracks/fixtures/services/osm-3376100.gpx'),
     });
     await page.goto('./#m=12/41.7/44.8');
-    await page
-        .getByRole('textbox', { name: 'Track URL' })
-        .fill('https://www.openstreetmap.org/user/Wladich/traces/3376100');
-    await page.getByRole('textbox', { name: 'Track URL' }).press('Enter');
+    // ссылка — в строку поиска, Enter выбирает трек (design search-track-links)
+    const search = page.getByRole('combobox', { name: 'Search' });
+    await search.fill('https://www.openstreetmap.org/user/Wladich/traces/3376100');
+    await expect(page.getByRole('option', { name: 'OSM track 3376100' })).toBeVisible();
+    await search.press('Enter');
     await expect(await track(page, 'Test - Тест - Zkouška')).toBeVisible();
 });
 

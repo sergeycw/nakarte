@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { fixtureBytes } from '@/test/bytes';
-import { loadFromUrl, nameFromUrl } from './import-url';
+import { loadFromUrl, matchTrackLink, nameFromUrl } from './import-url';
 import type { GeoData } from './model';
 import { saveNktk } from './nktk';
 import { type FakeResponse, fakeSources, viaTestProxy } from './test-sources';
@@ -174,6 +174,34 @@ describe('сценарии', () => {
     test('сеть упала — NETWORK', async () => {
         const { sources } = fakeSources();
         expect((await loadFromUrl('https://example.test/a.gpx', sources))[0].error).toBe('NETWORK');
+    });
+});
+
+describe('ссылка узнаётся без сети', () => {
+    // строка поиска зовёт matchTrackLink на каждую букву (design search-track-links): сеть — только в load
+    test.each([
+        ['https://yandex.ru/maps/?ll=44.8,41.7&rl=44.8%2C41.7~0.01%2C0.02', 'Yandex ruler', false],
+        ['track://abc', 'Tracks from link', false],
+        ['https://nakarte-routing.pages.dev/#m=5/1/2&nktl=abc', 'Tracks from link', false],
+        ['https://www.openstreetmap.org/user/Wladich/traces/3376100', 'OSM track 3376100', false],
+        ['https://tracedetrail.fr/en/trace/123', 'Tracedetrail track 123', false],
+        ['https://sports-tracker.com/workout/yyryyy/5f2d7bf6eefb8e23194d9d80', 'Sports Tracker activity', false],
+        ['https://example.test/files/My%20track.gpx?x=1', 'My track.gpx', true],
+        ['https://nakarte-routing.pages.dev/#m=5/1/2', 'nakarte-routing.pages.dev', true],
+    ])('%s', (url, title, file) => {
+        expect(matchTrackLink(url)).toMatchObject({ title, file });
+    });
+
+    test('не ссылка', () => {
+        expect(matchTrackLink('not a url')).toBeNull();
+    });
+
+    test('мусор после track:// — ошибка трека, а не исключение', async () => {
+        const { sources } = fakeSources();
+        for (const tail of ['!!!', 'AAAA', 'abc']) {
+            const loaded = await matchTrackLink(`track://${tail}`)?.load(sources);
+            expect(loaded?.length).toBeGreaterThan(0);
+        }
     });
 });
 

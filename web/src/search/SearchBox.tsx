@@ -3,9 +3,10 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppStoreApi } from '@/state/context';
+import { useTrackActions } from '@/tracks/actions-context';
 import { isCoordinatesQuery } from './coordinates';
 import { isLinkQuery } from './links';
-import type { SearchResult } from './result';
+import { isTrackLinkResult, type SearchItem } from './result';
 import { type Attribution, MIN_QUERY_LENGTH, type SearchSources, search } from './search';
 
 // Строка поиска в панели с названием (design add-web-search-panoramas, «Где живёт строка поиска»): результаты — списком
@@ -17,11 +18,12 @@ const TYPING_DELAY_MS = 400;
 type Shown =
     | { kind: 'idle' }
     | { kind: 'loading' }
-    | { kind: 'results'; results: SearchResult[]; attribution: Attribution | null }
+    | { kind: 'results'; results: SearchItem[]; attribution: Attribution | null }
     | { kind: 'error'; message: string };
 
 export function SearchBox({ sources }: { sources: SearchSources }) {
     const store = useAppStoreApi();
+    const trackActions = useTrackActions();
     const [query, setQuery] = useState('');
     const [shown, setShown] = useState<Shown>({ kind: 'idle' });
     const [active, setActive] = useState(false);
@@ -100,7 +102,17 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
         };
     }, []);
 
-    function choose(result: SearchResult) {
+    function choose(result: SearchItem) {
+        // ссылка на трек: качается только сейчас, карта — на трек, строка пустеет, как поле Track URL после загрузки
+        // (design search-track-links, «Результат-трек и выбор»)
+        if (isTrackLinkResult(result)) {
+            void trackActions.openUrl(result.url);
+            setQuery('');
+            cancel();
+            setShown({ kind: 'idle' });
+            leave();
+            return;
+        }
         const state = store.getState();
         if (result.bounds) {
             state.requestBounds(result.bounds);
@@ -173,8 +185,8 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
                 <Input
                     ref={input}
                     className="h-9 border-0 bg-transparent pr-7 pl-8 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                    placeholder="Search places, coordinates, links"
-                    title="Search places, coordinates, links (Alt+L)"
+                    placeholder="Search or paste a track link"
+                    title="Search places, coordinates, map or track links (Alt+L)"
                     aria-label="Search"
                     role="combobox"
                     aria-expanded={open && results.length > 0}

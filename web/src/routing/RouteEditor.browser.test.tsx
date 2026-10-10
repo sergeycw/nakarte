@@ -254,7 +254,7 @@ describe('Undo и redo', () => {
     test('Хоткей в поле ввода', async () => {
         const { map } = await render(VIEW);
         await newTrack(map, [A, B]);
-        const input = page.getByRole('textbox', { name: 'Track URL' }).element();
+        const input = page.getByRole('textbox', { name: 'Track name' }).element();
         key({ code: 'KeyZ', key: 'z', metaKey: true }, input);
         await idle(map);
         expect(waypoints(map)).toHaveLength(2);

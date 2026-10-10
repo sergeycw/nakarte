@@ -214,7 +214,8 @@ export function createTrackActions({
                     files.map(async (file) => parseGeoFile(file.name, new Uint8Array(await file.arrayBuffer()))),
                 ).then((parsed) => parsed.flat()),
             ),
-        openUrl: (url: string) => load(loadFromUrl(url.trim(), sources)),
+        // из строки поиска: выбор результата переводит карту, поэтому на трек (design search-track-links)
+        openUrl: (url: string) => load(loadFromUrl(url.trim(), sources), true),
         openTrackParams: (params: TrackParams, fitView: boolean) =>
             load(
                 Promise.all(params.map(([key, values]) => loadTrackParam(key, values, sources))).then((loaded) =>

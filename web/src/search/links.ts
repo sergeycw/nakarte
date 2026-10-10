@@ -38,6 +38,9 @@ function result(lat: number, lng: number, zoom: number, title: string): SearchRe
 
 const malformed = (name: string) => ({ error: `Invalid coordinates in ${name} link` });
 const brokenShort = (name: string) => ({ error: `Broken ${name} short link` });
+// не ссылка на карту: строка поиска предложит открыть её как файл трека (design search-track-links)
+export const UNSUPPORTED_LINK = 'Unsupported link';
+const UNSUPPORTED = { error: UNSUPPORTED_LINK };
 
 // адрес прокси «<прокси>/https/host/path?q» → «https://host/path?q»; прочие адреса — как есть
 function unproxy(url: string, corsProxyUrl: string): URL {
@@ -187,6 +190,10 @@ async function mapy(url: URL, sources: LinkSources): Promise<SearchResponse> {
 }
 
 function openStreetMap(url: URL): SearchResponse {
+    // без map= во фрагменте — не вид (прямая ссылка на GPX трека OSM): строка поиска предложит открыть как файл
+    if (!/\bmap=/u.test(url.hash)) {
+        return UNSUPPORTED;
+    }
     const m = url.hash.match(/map=([\d.]+)\/([\d.-]+)\/([\d.-]+)/u);
     try {
         if (!m) {
@@ -212,8 +219,9 @@ function nakarte(url: URL): SearchResponse {
     }
 }
 
+// track:// — ссылка на трек, её понимало поле Track URL (design search-track-links)
 export function isLinkQuery(query: string): boolean {
-    return /^https?:\/\//u.test(query);
+    return /^(https?|track):\/\//u.test(query);
 }
 
 export async function searchLink(query: string, sources: LinkSources): Promise<SearchResponse> {
@@ -241,5 +249,5 @@ export async function searchLink(query: string, sources: LinkSources): Promise<S
     if (/\bnakarte\b/u.test(host) || !('error' in view)) {
         return view;
     }
-    return { error: 'Unsupported link' };
+    return UNSUPPORTED;
 }
