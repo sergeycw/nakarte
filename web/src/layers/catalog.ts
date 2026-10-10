@@ -99,8 +99,9 @@ export const CUSTOM_BOTTOM_ORDER = ORDER.indexOf('#custom-bottom') + 1;
 export const CUSTOM_TOP_ORDER = ORDER.indexOf('#custom-top') + 1;
 
 const OSM_ATTRIBUTION = '<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>';
-// «Maps © Tracestrack» — подпись из условий Tracestrack (ресёрч new-ui, 2026-10-08), данные — OSM
-const TRACESTRACK_ATTRIBUTION = `<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>, ${OSM_ATTRIBUTION}`;
+// Подпись Topo — дословно из условий Tracestrack, раздел 5 (https://www.tracestrack.com/terms-of-service/, сверено
+// 2026-10-10, design map-chrome): тайлы под CC BY 4.0, атрибуция обязательна
+const TRACESTRACK_ATTRIBUTION = `Data: ${OSM_ATTRIBUTION}, SRTM, GEBCO, SONNY's LiDAR DTM, NASADEM, ESA WorldCover; <a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>`;
 const STRAVA_ATTRIBUTION = '<a href="https://www.strava.com/heatmap">Strava Global Heatmap</a>';
 const KARTVERKET_ATTRIBUTION = '<a href="https://kartverket.no/til-lands/kart/turkart">Kartverket</a>';
 const GOOGLE_ATTRIBUTION = '<a href="https://www.google.com/maps">Google</a>';
