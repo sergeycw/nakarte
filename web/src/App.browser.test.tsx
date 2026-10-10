@@ -114,6 +114,13 @@ describe('Подложка Tracestrack', () => {
         expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(false);
         expect(tiles.requested.some((url) => url.includes('key='))).toBe(false);
         await expect.element(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
+        await expect
+            .element(page.getByRole('link', { name: '© OpenStreetMap contributors' }))
+            .toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
+        // подпись целиком — из условий Tracestrack (design map-chrome)
+        expect(document.querySelector('.maplibregl-ctrl-attrib-inner')?.textContent).toBe(
+            "Data: © OpenStreetMap contributors, SRTM, GEBCO, SONNY's LiDAR DTM, NASADEM, ESA WorldCover; Maps © Tracestrack",
+        );
         expect(location.hash).toContain('l=Tt');
     });
 

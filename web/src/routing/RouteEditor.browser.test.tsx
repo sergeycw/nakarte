@@ -22,7 +22,7 @@ import {
 } from '@/test/map-events';
 import { openTracks, renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
-import type { LatLng } from '@/tracks/model';
+import { type LatLng, TRACK_COLORS } from '@/tracks/model';
 import { saveNktk } from '@/tracks/nktk';
 import { TRACK_LINES } from '@/tracks/style';
 import { RoutingError } from './brouter';
@@ -135,15 +135,17 @@ describe('Цвет трека в панели редактирования', () 
     test('Цвет нового трека', async () => {
         const { map } = await render(VIEW);
         await newTrack(map, [A, B]);
-        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#77f']);
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual([TRACK_COLORS[0]]);
         await editPanel().getByRole('button', { name: 'Color of New track' }).click();
         await page.getByRole('button', { name: 'Color 3' }).click();
-        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff']);
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual([TRACK_COLORS[2]]);
         // рисование продолжается: следующий клик ставит третью точку того же цвета
         await expect.element(editPanel()).toHaveAttribute('data-drawing');
         await click(map, C);
         await expect.poll(() => waypoints(map)).toHaveLength(3);
-        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#0ff', '#0ff']);
+        await expect
+            .poll(() => legs(map).map((leg) => leg.properties?.color))
+            .toEqual([TRACK_COLORS[2], TRACK_COLORS[2]]);
         await page.getByRole('button', { name: 'Finish editing' }).click();
         await openTracks();
         await expect

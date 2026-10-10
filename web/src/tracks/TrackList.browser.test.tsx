@@ -6,6 +6,7 @@ import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { renderApp, tracksButton } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { TRACK_COLORS } from './model';
 import { saveNktk } from './nktk';
 import { TRACK_LINES, TRACK_POINTS } from './style';
 
@@ -141,10 +142,10 @@ describe('Треки на карте', () => {
 
     test('Сменить цвет', async () => {
         const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
-        await expect.poll(() => lines(map)[0]?.properties?.color).toBe('#77f');
+        await expect.poll(() => lines(map)[0]?.properties?.color).toBe(TRACK_COLORS[0]);
         await page.getByRole('button', { name: 'Color of A' }).click();
         await page.getByRole('button', { name: 'Color 4' }).click();
-        await expect.poll(() => lines(map)[0]?.properties?.color).toBe('#f77');
+        await expect.poll(() => lines(map)[0]?.properties?.color).toBe(TRACK_COLORS[3]);
     });
 
     test('Shift+клик по флажку — показать только этот трек', async () => {

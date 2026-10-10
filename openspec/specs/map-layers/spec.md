@@ -22,7 +22,7 @@
 #### Scenario: Атрибуция Tracestrack
 
 - **WHEN** включена подложка «Tracestrack Topo»
-- **THEN** в подписи карты есть «Maps © Tracestrack» со ссылкой на `https://www.tracestrack.com/` и © OpenStreetMap contributors
+- **THEN** в подписи карты — подпись из условий Tracestrack «Data: © OpenStreetMap contributors, SRTM, GEBCO, SONNY's LiDAR DTM, NASADEM, ESA WorldCover; Maps © Tracestrack», где «Maps © Tracestrack» — ссылка на `https://www.tracestrack.com/`, а «© OpenStreetMap contributors» — на `https://www.openstreetmap.org/copyright`
 
 ### Requirement: Подложка и оверлеи
 

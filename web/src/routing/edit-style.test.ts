@@ -95,10 +95,10 @@ describe('редактируемая линия', () => {
     };
 
     test('ожидающий отрезок не рисуется, непроложенный помечен; начало и конец отмечены', () => {
-        const sources = editSources(edit, '#77f', null);
+        const sources = editSources(edit, TRACK_COLORS[0], null);
         expect(data<LineString>(sources[EDIT_LEGS]).map((f) => f.properties)).toEqual([
-            { leg: 0, state: 'routed', color: '#77f', unrouted: false },
-            { leg: 2, state: 'failed', color: '#77f', unrouted: true },
+            { leg: 0, state: 'routed', color: TRACK_COLORS[0], unrouted: false },
+            { leg: 2, state: 'failed', color: TRACK_COLORS[0], unrouted: true },
         ]);
         expect(data<Point>(sources[EDIT_WAYPOINTS]).map((f) => f.properties?.role)).toEqual([
             'start',
@@ -109,10 +109,10 @@ describe('редактируемая линия', () => {
     });
 
     test('перетаскивание: точку и её отрезки рисует превью, а не источники линии', () => {
-        const sources = editSources(edit, '#77f', 1);
+        const sources = editSources(edit, TRACK_COLORS[0], 1);
         expect(data<LineString>(sources[EDIT_LEGS]).map((f) => f.properties?.leg)).toEqual([2]);
         expect(data<Point>(sources[EDIT_WAYPOINTS]).map((f) => f.properties?.index)).toEqual([0, 2, 3]);
-        const preview = previewData([[A, P(2.2, 2.2), C]], '#77f', { latlng: P(2.2, 2.2), role: 'middle' });
+        const preview = previewData([[A, P(2.2, 2.2), C]], TRACK_COLORS[0], { latlng: P(2.2, 2.2), role: 'middle' });
         expect(preview.features.map((f) => f.geometry.type)).toEqual(['LineString', 'Point']);
     });
 

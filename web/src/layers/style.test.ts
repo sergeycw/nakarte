@@ -1,7 +1,16 @@
 import { expect, test } from 'vitest';
 import { PROFILE_SELECTION } from '@/elevation/style';
 import { EDIT_LAYERS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from '@/routing/edit-style';
-import { TRACK_LABELS, TRACK_LINES, TRACK_POINTS, TRACK_TICKS, TRACK_UNROUTED } from '@/tracks/style';
+import { TRACK_COLORS } from '@/tracks/model';
+import {
+    TRACK_CASING,
+    TRACK_LABELS,
+    TRACK_LINES,
+    TRACK_POINTS,
+    TRACK_TICKS,
+    TRACK_UNROUTED,
+    TRACK_UNROUTED_CASING,
+} from '@/tracks/style';
 import { buildCatalog, type LayerDef } from './catalog';
 import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, overlaySources } from './style';
 
@@ -9,7 +18,9 @@ import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, overlaySources } from '.
 // выделенный участок профиля высот — под треками, треки — под редактируемой линией
 const TRACKS = [
     PROFILE_SELECTION,
+    TRACK_CASING,
     TRACK_LINES,
+    TRACK_UNROUTED_CASING,
     TRACK_UNROUTED,
     TRACK_TICKS,
     TRACK_POINTS,
@@ -99,7 +110,7 @@ test('Трек над слоями: линии и точки треков — п
         data: {
             features: [
                 {
-                    properties: { id: 'a', segment: 0, color: '#f95' },
+                    properties: { id: 'a', segment: 0, color: TRACK_COLORS[1] },
                     geometry: {
                         type: 'LineString',
                         coordinates: [
@@ -112,7 +123,7 @@ test('Трек над слоями: линии и точки треков — п
         },
     });
     expect(style.sources[TRACK_POINTS]).toMatchObject({
-        data: { features: [{ properties: { name: 'P', color: '#f95' }, geometry: { coordinates: [2, 1] } }] },
+        data: { features: [{ properties: { name: 'P', color: TRACK_COLORS[1] }, geometry: { coordinates: [2, 1] } }] },
     });
     // подписи без glyphs: MapLibre рисует их локально
     expect(style.glyphs).toBeUndefined();
