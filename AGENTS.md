@@ -20,7 +20,7 @@
 - решения и их причины — `openspec/changes/archive/` (не правится);
 - структура и связи (кто куда ходит) и реестр решений со ссылками на причины — `docs/architecture/`; поменял связь в коде — поправь диаграмму;
 - идеи, отложенное и риски — `openspec/backlog.md`;
-- ресёрч под будущие changes — `openspec/research/`; когда его changes сделаны, документ удаляется;
+- ресёрч под будущие changes — `openspec/research/`; когда его changes сделаны, документ остаётся (на его разделы ссылаются архивы, а архивы не правятся): в шапке — что все changes сделаны, в таблице changes — ссылки на архивы;
 - запуск, окружение, подвохи и карта репозитория — этот файл; `README.md` — только вход для человека.
 
 Работа по [OpenSpec](https://github.com/Fission-AI/OpenSpec): `/opsx:explore` → `/opsx:propose` → `/opsx:apply` → `/opsx:archive`, правила артефактов — `openspec/config.yaml`, проверка — `openspec validate --all --strict`.
