@@ -2,9 +2,9 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md); раскладка, флоу и решения владельца — [ресёрч user-flows](../../research/user-flows.md#раскладка-три-зоны) (решения **[владелец]** там не повторяются). Что есть сейчас — раскладка 4a ([polish-web-ui](../archive/2026-10-10-polish-web-ui/design.md#макет-4a-владелец)): верхняя строка `TopBar.tsx` одной стеклянной плашкой (поиск | `Tracks N` | `+ New`), справа кнопка слоёв `LayerSwitcher.tsx` и контролы MapLibre `MapButtons.tsx` (зум с номером, геолокация), снизу справа строка подписанных кнопок `MapActions.tsx` (профиль, линейка, Street View).
+Зачем — [proposal](proposal.md); раскладка, флоу и решения владельца — [ресёрч user-flows](../../../research/user-flows.md#раскладка-три-зоны) (решения **[владелец]** там не повторяются). Что есть сейчас — раскладка 4a ([polish-web-ui](../2026-10-10-polish-web-ui/design.md#макет-4a-владелец)): верхняя строка `TopBar.tsx` одной стеклянной плашкой (поиск | `Tracks N` | `+ New`), справа кнопка слоёв `LayerSwitcher.tsx` и контролы MapLibre `MapButtons.tsx` (зум с номером, геолокация), снизу справа строка подписанных кнопок `MapActions.tsx` (профиль, линейка, Street View).
 
-Ограничения [«Что Claude Design менять нельзя»](../archive/2026-10-10-polish-web-ui/design.md#что-claude-design-менять-нельзя) остаются: тексты UI и `aria-label`, `data-testid`, кнопки карты — контролы MapLibre столбцом справа, нижние панели через `--bottom-inset`/`--profile-inset`.
+Ограничения [«Что Claude Design менять нельзя»](../2026-10-10-polish-web-ui/design.md#что-claude-design-менять-нельзя) остаются: тексты UI и `aria-label`, `data-testid`, кнопки карты — контролы MapLibre столбцом справа, нижние панели через `--bottom-inset`/`--profile-inset`.
 
 ## Goals / Non-Goals
 
