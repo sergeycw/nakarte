@@ -221,12 +221,11 @@ describe('Разметка маршрута переживает перезаг�
         const db = database();
         const first = await start(db, VIEW, fakeRouter());
         await newTrack(first.map, [A, C]);
-        await expect.element(page.getByTestId('route-spinner')).toBeVisible();
+        await expect.poll(() => first.map.getCanvas().style.cursor).toBe('progress');
         const { map } = await reload(db);
         await expect.element(rows()).toHaveLength(1);
         await click(map, P((A.lat + C.lat) / 2, (A.lng + C.lng) / 2));
         await expect.poll(() => unrouted(map)).toEqual([true]);
-        await expect.element(page.getByTestId('route-spinner')).not.toBeInTheDocument();
     });
 });
 

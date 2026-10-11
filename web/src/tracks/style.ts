@@ -38,12 +38,10 @@ export interface SegmentPieces {
     lines: LatLng[][];
     // непроложенные отрезки: прямая между опорными точками
     unrouted: [LatLng, LatLng][];
-    // середины ожидающих отрезков: там спиннер
-    pending: LatLng[];
 }
 
 export function segmentPieces(points: readonly LatLng[], route: SegmentRoute | null | undefined): SegmentPieces {
-    const pieces: SegmentPieces = { lines: [], unrouted: [], pending: [] };
+    const pieces: SegmentPieces = { lines: [], unrouted: [] };
     if (!route) {
         pieces.lines.push(points.slice());
         return pieces;
@@ -63,11 +61,11 @@ export function segmentPieces(points: readonly LatLng[], route: SegmentRoute | n
         if (!a || !b) {
             return;
         }
+        // ожидающий отрезок — разрыв без маркера: ожидание показывает курсор (спека route-editing, «Разрыв на
+        // ожидающем отрезке»)
         if (leg.state === 'pending' || leg.state === 'failed') {
             flush();
-            if (leg.state === 'pending') {
-                pieces.pending.push({ lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 });
-            } else {
+            if (leg.state === 'failed') {
                 pieces.unrouted.push([a, b]);
             }
             return;
@@ -85,21 +83,18 @@ function line(coordinates: readonly LatLng[], properties: Record<string, unknown
     return { type: 'Feature', properties, geometry: { type: 'LineString', coordinates: toCoordinates(coordinates) } };
 }
 
-// Источники треков. skip — редактируемый отрезок: его рисует редактор. pending — середины ожидающих отрезков всех
-// видимых треков (спиннеры-маркеры карты).
+// Источники треков. skip — редактируемый отрезок: его рисует редактор.
 export function trackSources(
     tracks: readonly Track[],
     skip: SegmentRef | null = null,
-): { sources: Record<string, GeoJSONSourceSpecification>; pending: LatLng[] } {
+): { sources: Record<string, GeoJSONSourceSpecification> } {
     const visible = tracks.filter((track) => track.visible);
     const lines: Feature<LineString>[] = [];
     const unrouted: Feature<LineString>[] = [];
-    const pending: LatLng[] = [];
     for (const track of visible) {
         const color = TRACK_COLORS[track.color];
         track.segments.forEach((points, segment) => {
             const pieces = segmentPieces(points, track.routes?.[segment]);
-            pending.push(...pieces.pending);
             if (skip && skip.trackId === track.id && skip.segment === segment) {
                 return;
             }
@@ -129,7 +124,6 @@ export function trackSources(
             // данные отметок зависят от зума — их ставит карта (BaseMap); здесь источник пустой, чтобы слой был всегда
             [TRACK_TICKS]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
         },
-        pending,
     };
 }
 

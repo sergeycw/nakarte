@@ -31,19 +31,18 @@ function data<T extends LineString | Point>(source: unknown) {
 }
 
 describe('отрезок трека с разметкой', () => {
-    test('Ожидание маршрута: разрыв и спиннер посередине; непроложенный — пунктиром', () => {
+    test('Ожидание маршрута: разрыв; непроложенный — пунктиром', () => {
         const { points, route } = toSegment(LINE);
         const pieces = segmentPieces(points, route);
         expect(pieces.lines).toEqual([[A, R, B]]);
-        expect(pieces.pending).toEqual([P(2.5, 2.5)]);
         expect(pieces.unrouted).toEqual([[C, D]]);
     });
 
     test('без разметки — одна линия', () => {
-        expect(segmentPieces([A, B, C], null)).toEqual({ lines: [[A, B, C]], unrouted: [], pending: [] });
+        expect(segmentPieces([A, B, C], null)).toEqual({ lines: [[A, B, C]], unrouted: [] });
     });
 
-    test('источники треков: куски по отрезкам, редактируемый отрезок пропущен, спиннеры всех видимых', () => {
+    test('источники треков: куски по отрезкам, редактируемый отрезок пропущен', () => {
         const { points, route } = toSegment(LINE);
         const track: Track = {
             id: 't',
@@ -61,13 +60,9 @@ describe('отрезок трека с разметкой', () => {
             { id: 't', segment: 1, color: TRACK_COLORS[0] },
         ]);
         expect(data<LineString>(all.sources[TRACK_UNROUTED])).toHaveLength(1);
-        expect(all.pending).toHaveLength(1);
         const editing = trackSources([track], { trackId: 't', segment: 0 });
         expect(data<LineString>(editing.sources[TRACK_LINES]).map((f) => f.properties?.segment)).toEqual([1]);
         expect(data<LineString>(editing.sources[TRACK_UNROUTED])).toHaveLength(0);
-        // спиннер редактируемого отрезка остаётся
-        expect(editing.pending).toHaveLength(1);
-        expect(trackSources([{ ...track, visible: false }]).pending).toEqual([]);
     });
 
     test('отрезок из одной точки не рисуется', () => {
