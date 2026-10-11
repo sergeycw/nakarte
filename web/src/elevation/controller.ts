@@ -1,3 +1,4 @@
+import { routePending } from '@/routing/line';
 import type { AppState, AppStore, ProfileTarget } from '@/state/store';
 import type { LatLng, Track } from '@/tracks/model';
 import { type ElevationSource, errorReason, fetchElevations } from './api';
@@ -34,7 +35,7 @@ function builtLines(track: Track, target: ProfileTarget) {
 
 function hasPending(track: Track, target: ProfileTarget): boolean {
     const indexes = target.segment === null ? track.segments.map((_, i) => i) : [target.segment];
-    return indexes.some((i) => track.routes?.[i]?.legs.some((leg) => leg.state === 'pending'));
+    return indexes.some((i) => routePending(track.routes?.[i]));
 }
 
 export function createElevationProfile({ store, source, notify, delay = 1000 }: ElevationProfileDeps) {

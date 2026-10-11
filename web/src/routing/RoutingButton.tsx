@@ -16,11 +16,13 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
 import { ACTIVITIES, getActivity } from './brouter';
 import { useRouteEditing } from './editing-context';
+import { tracksRouting } from './line';
 import { routerDownHint, routerDownStatus } from './router';
 
 // Кнопка и меню прокладки в строке списка треков, после «New track», как у старого клиента (спека routing, «Меню
 // активностей»): активна при выбранной активности, красная при недоступном роутере, со спиннером, пока движок
-// загружается (спека routing, «Движок загружается на кнопке прокладки»). Открытие меню перепроверяет живость роутера.
+// загружается (спека routing, «Движок загружается на кнопке прокладки») и пока отрезок ждёт ответа (спека route-editing,
+// «Ожидание прокладки в верхней строке»). Открытие меню перепроверяет живость роутера.
 
 const OFF = 'off';
 
@@ -31,6 +33,8 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
     const activityId = useAppStore((state) => state.routingActivity);
     const reachable = useAppStore((state) => state.routerReachable);
     const engineStatus = useSyncExternalStore(editing.subscribeEngine, editing.engineStatus);
+    // ожидание — у отрезка, а не у активности: запрос, отправленный до выбора Off, всё ещё идёт
+    const routing = useAppStore((state) => tracksRouting(state.tracks));
     const activity = getActivity(activityId);
     const loading = activity !== null && engineStatus === 'loading';
     // движок, упавший на прогреве, — тоже «роутер недоступен», не дожидаясь первого маршрута
@@ -43,6 +47,12 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
         title = `Routing: ${activity.title}. BRouter engine is loading`;
     } else if (activity) {
         title = `Routing: ${activity.title}`;
+    }
+    // недоступность и загрузка движка важнее: пока движок грузится, запрос ждёт в его очереди (design
+    // editor-routing-indicator)
+    if (routing && !down && !loading) {
+        // Off при живом запросе: отрезок, отправленный до выбора Off, всё равно проложится
+        title = activity ? `${title}. Calculating route` : 'Routing is off. Calculating route';
     }
 
     let tone = '';
@@ -69,10 +79,11 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                         title={title}
                         className={cn(tone, labeled && 'max-sm:size-7 max-sm:px-0')}
                         data-state={down ? 'down' : loading ? 'loading' : activity ? 'on' : 'off'}
+                        aria-busy={routing || undefined}
                     />
                 }
             >
-                {loading ? <LoaderCircleIcon className="animate-spin" /> : <RouteIcon />}
+                {loading || routing ? <LoaderCircleIcon className="animate-spin" /> : <RouteIcon />}
                 {labeled && (
                     <>
                         <span className="hidden max-w-24 truncate sm:inline">{activity?.title ?? 'Off'}</span>

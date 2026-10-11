@@ -127,6 +127,17 @@ export function toSegment(line: RouteLine): { points: LatLng[]; route: SegmentRo
     return { points, route: { waypoints, legs } };
 }
 
+// Ждёт ли отрезок трека ответа роутера хоть на одном участке: профиль высот его не строит, settledRoute его гасит
+export function routePending(route: SegmentRoute | null | undefined): boolean {
+    return route?.legs.some((leg) => leg.state === 'pending') ?? false;
+}
+
+// Ждёт ли роутер хоть одного отрезка хоть у одного трека: курсор над картой и спиннеры верхней строки. По трекам, а не
+// по редактору: Finish editing и Escape запрос не отменяют (design drop-route-spinner и editor-routing-indicator)
+export function tracksRouting(tracks: readonly { routes?: readonly (SegmentRoute | null)[] }[]): boolean {
+    return tracks.some((track) => track.routes?.some(routePending));
+}
+
 // Разметка без живых запросов: ожидающий отрезок становится непроложенным. Копия трека и развёрнутый трек — новые
 // массивы отрезков, редактор их не узнаёт, и ответ на прежний запрос в них уже не придёт: без этого у копии навсегда
 // остались бы разрыв и спиннер.
@@ -134,7 +145,7 @@ export function settledRoute(route: SegmentRoute | null | undefined): SegmentRou
     if (!route) {
         return null;
     }
-    if (!route.legs.some((leg) => leg.state === 'pending')) {
+    if (!routePending(route)) {
         return route;
     }
     return {

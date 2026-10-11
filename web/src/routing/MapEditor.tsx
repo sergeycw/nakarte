@@ -15,7 +15,7 @@ import { EDIT_PREVIEW, EDIT_WAYPOINTS, previewData, toolPreviewData, waypointRol
 import type { RouteEditing } from './editing';
 import { useRouteEditing } from './editing-context';
 import type { End } from './editor';
-import { legPath } from './line';
+import { legPath, tracksRouting } from './line';
 import { type LinePlace, placePoint, shortcutRemoved, toolOrigin } from './line-tools';
 
 // События карты для редактора (design add-web-route-editor, «События карты»). Компонент внутри <Map>: обработчики
@@ -259,18 +259,12 @@ function bind(
         (map.getSource(EDIT_PREVIEW) as GeoJSONSource | undefined)?.setData(data ?? previewData([], ''));
     }
 
-    function routing() {
-        return state().tracks.some((track) =>
-            track.routes?.some((route) => route?.legs.some((leg) => leg.state === 'pending')),
-        );
-    }
-
     function updateCursor(overWaypoint: boolean) {
         const edit = state().routeEdit;
         let cursor = '';
         if (overWaypoint || dragging) {
             cursor = 'move';
-        } else if (routing()) {
+        } else if (tracksRouting(state().tracks)) {
             // пока идут запросы, курсор показывает ожидание (спека route-editing, «Клик при рисовании»). По трекам, а
             // не по редактору: Finish editing запрос не отменяет, отрезок ждёт ответа и после правки, а спиннера на
             // карте больше нет (design drop-route-spinner)

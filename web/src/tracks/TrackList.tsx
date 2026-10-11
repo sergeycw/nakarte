@@ -15,6 +15,7 @@ import {
 import { useElevationProfile } from '@/elevation/context';
 import { cn } from '@/lib/utils';
 import { useRouteEditing } from '@/routing/editing-context';
+import { tracksRouting } from '@/routing/line';
 import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
@@ -94,6 +95,9 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
 export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
     const count = useAppStore((state) => state.tracks.length);
     const loading = useAppStore((state) => state.loadingTracks > 0);
+    // ожидание прокладки после Finish editing: строки редактора с кнопкой прокладки уже нет (спека route-editing,
+    // «Ожидание прокладки в верхней строке»); подпись остаётся «Tracks N», ожидание — в title и aria-busy
+    const routing = useAppStore((state) => tracksRouting(state.tracks));
     const label = count > 0 ? `Tracks ${count}` : 'Tracks';
     return (
         <Button
@@ -101,11 +105,16 @@ export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () =
             size="icon-lg"
             className={cn(ROUND_BUTTON, 'relative aria-expanded:bg-white/90')}
             aria-label={label}
-            title={label}
+            title={routing ? `${label}. Calculating route` : label}
             aria-expanded={open}
+            aria-busy={loading || routing || undefined}
             onClick={onToggle}
         >
-            {loading ? <LoaderCircleIcon className="animate-spin" aria-label="Loading tracks" /> : <ListIcon />}
+            {loading || routing ? (
+                <LoaderCircleIcon className="animate-spin" aria-label={loading ? 'Loading tracks' : undefined} />
+            ) : (
+                <ListIcon />
+            )}
             {count > 0 && (
                 <span className="-top-1 -right-1 absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-medium text-[10px] text-primary-foreground tabular-nums leading-none">
                     {count}
