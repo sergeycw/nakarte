@@ -259,13 +259,21 @@ function bind(
         (map.getSource(EDIT_PREVIEW) as GeoJSONSource | undefined)?.setData(data ?? previewData([], ''));
     }
 
+    function routing() {
+        return state().tracks.some((track) =>
+            track.routes?.some((route) => route?.legs.some((leg) => leg.state === 'pending')),
+        );
+    }
+
     function updateCursor(overWaypoint: boolean) {
         const edit = state().routeEdit;
         let cursor = '';
         if (overWaypoint || dragging) {
             cursor = 'move';
-        } else if (editing.pending() > 0) {
-            // пока идут запросы, курсор показывает ожидание (спека route-editing, «Клик при рисовании»)
+        } else if (routing()) {
+            // пока идут запросы, курсор показывает ожидание (спека route-editing, «Клик при рисовании»). По трекам, а
+            // не по редактору: Finish editing запрос не отменяет, отрезок ждёт ответа и после правки, а спиннера на
+            // карте больше нет (design drop-route-spinner)
             cursor = 'progress';
         } else if (edit?.drawing || state().lineTool || state().pointTool) {
             cursor = 'crosshair';

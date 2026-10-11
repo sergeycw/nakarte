@@ -209,6 +209,32 @@ describe('Сводка профиля', () => {
     });
 });
 
+// первая половина SOUTH ровно на 800 м, вторая (≈ 500 м) — подъём 100 м: ≈ 20 %
+const flatThenClimb = (lat: number) => (lat <= 41.6845 ? 800 : 800 + ((lat - 41.6845) / 0.0045) * 100);
+
+function climbApi() {
+    return elevationApi((body) => {
+        const rows = body.split('\n').map((row) => flatThenClimb(Number.parseFloat(row)).toFixed(2));
+        return new Response(rows.join('\n'));
+    });
+}
+
+const slopeFill = (step: number) =>
+    page.getByTestId('profile-graph').element().querySelector(`[data-slope="${step}"]`)?.getAttribute('d') ?? '';
+
+describe('Раскраска профиля по крутизне', () => {
+    test('Участки разной крутизны', async () => {
+        await render(trackLink('Walk', [SOUTH]), climbApi());
+        await openTrackProfile('Walk');
+        await expect.poll(() => slopeFill(0)).not.toBe('');
+        expect(slopeFill(4)).not.toBe('');
+        expect(slopeFill(5)).toBe('');
+        const legend = page.getByRole('img', { name: /^Slope: under 3%, 3–6%/ });
+        await expect.element(legend).toBeVisible();
+        await expect.element(legend).toHaveTextContent('36101525%');
+    });
+});
+
 describe('Курсор профиля и карта', () => {
     test('Курсор на графике', async () => {
         const { map } = await render(trackLink('Walk', [SOUTH]));
@@ -258,11 +284,23 @@ describe('Курсор профиля и карта', () => {
         // 0.25 км подъёма 90 м на 1 км: 22.5 м, точки выделения — ближайшие точки выборки
         expect(stat('ascent')).toMatch(/^2[23] m$/);
         await expect.poll(() => features(map, PROFILE_SELECTION).length).toBe(1);
+        // график вне выделения приглушён: слева и справа от участка
+        expect(page.getByTestId('profile-dim').elements()).toHaveLength(2);
         // клик без сдвига снимает выделение
         pointer('pointerdown', 0.7);
         pointer('pointerup', 0.7);
         await expect.poll(() => stat('distance')).toBe('1.00 km');
         await expect.poll(() => features(map, PROFILE_SELECTION).length).toBe(0);
+    });
+
+    test('Уклон у курсора', async () => {
+        await render(trackLink('Walk', [SOUTH]), climbApi());
+        await openTrackProfile('Walk');
+        pointer('pointermove', 0.1);
+        await expect.element(page.getByTestId('profile-cursor-label')).toBeVisible();
+        expect(cursorLabel()).toMatch(/km0%$/u);
+        pointer('pointermove', 0.9);
+        await expect.poll(cursorLabel).toMatch(/km↑ 20%$/u);
     });
 
     test('двойной клик переводит карту в точку графика', async () => {

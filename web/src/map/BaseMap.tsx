@@ -1,5 +1,4 @@
-import { Map as MapLibreMap, type MapRef, Marker } from '@vis.gl/react-maplibre';
-import { LoaderCircleIcon } from 'lucide-react';
+import { Map as MapLibreMap, type MapRef } from '@vis.gl/react-maplibre';
 import type { RequestTransformFunction } from 'maplibre-gl';
 import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef } from 'react';
 import { ProfileOnMap } from '@/elevation/ProfileOnMap';
@@ -167,22 +166,6 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 <ProfileOnMap />
                 <PlacemarkOnMap />
                 <StreetViewOnMap />
-                {/* спиннер посередине ожидающего отрезка (спека route-editing, «Разрыв со спиннером»): маркеров
-                    единицы, а анимация CSS проще символьного слоя */}
-                {trackData.pending.map((point, i) => (
-                    <Marker
-                        // biome-ignore lint/suspicious/noArrayIndexKey: у двух ожидающих отрезков может быть одна середина
-                        key={`${point.lat},${point.lng},${i}`}
-                        longitude={point.lng}
-                        latitude={point.lat}
-                        style={{ pointerEvents: 'none' }}
-                    >
-                        <LoaderCircleIcon
-                            className="size-5 animate-spin rounded-full bg-white/70 text-blue-600"
-                            data-testid="route-spinner"
-                        />
-                    </Marker>
-                ))}
             </MapLibreMap>
         </div>
     );

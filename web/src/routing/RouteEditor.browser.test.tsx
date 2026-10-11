@@ -187,12 +187,18 @@ describe('Клик при рисовании', () => {
     test('Ожидание маршрута', async () => {
         const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
         await newTrack(map, [A, B]);
-        // между опорными точками разрыв, в середине спиннер
-        await expect.element(page.getByTestId('route-spinner')).toBeVisible();
+        // между опорными точками разрыв, ожидание — курсором
+        await expect.poll(() => map.getCanvas().style.cursor).toBe('progress');
         expect(legs(map)).toHaveLength(0);
+        // конец правки запрос не отменяет: курсор ждёт, пока отрезок не проложен
+        await page.getByRole('button', { name: 'Finish editing' }).click();
+        await expect.poll(() => page.getByRole('button', { name: 'Finish editing' }).query()).toBeNull();
+        expect(map.getCanvas().style.cursor).toBe('progress');
+        expect(features(map, TRACK_LINES)).toHaveLength(0);
         router.live()[0].resolve([]);
-        await expect.element(page.getByTestId('route-spinner')).not.toBeInTheDocument();
-        await expect.poll(() => legs(map)).toHaveLength(1);
+        // ответ пришёл после правки — отрезок рисует уже слой треков
+        await expect.poll(() => features(map, TRACK_LINES)).toHaveLength(1);
+        expect(map.getCanvas().style.cursor).not.toBe('progress');
     });
 
     test('резинка от последней точки к курсору', async () => {
@@ -218,10 +224,10 @@ describe('Ошибка прокладки', () => {
         const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
         await newTrack(map, [A, B]);
         router.live()[0].reject(new RoutingError('no route found'));
-        // спиннер исчез, между опорными точками помеченная прямая, уведомление с причиной
+        // между опорными точками помеченная прямая, уведомление с причиной, курсор больше не ждёт
         await expect.element(page.getByText('Routing failed: no route found')).toBeVisible();
         await expect.poll(() => legs(map).map((f) => f.properties?.unrouted)).toEqual([true]);
-        await expect.element(page.getByTestId('route-spinner')).not.toBeInTheDocument();
+        expect(map.getCanvas().style.cursor).not.toBe('progress');
     });
 });
 
