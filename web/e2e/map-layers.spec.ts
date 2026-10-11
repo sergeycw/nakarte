@@ -85,7 +85,7 @@ test('Список слоёв', async ({ page }) => {
     const switcher = await openSwitcher(page);
     await switcher.getByText('Configure layers').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(32);
+    await expect(dialog.getByRole('checkbox')).toHaveCount(33);
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }
@@ -97,6 +97,15 @@ test('Ссылка со слоями', async ({ page, network }) => {
     await expect.poll(() => hashOf(page)).toBe('#m=13/49.80930/86.47562&l=Otm');
     await expect.poll(() => network.tilesOf('Otm').length).toBeGreaterThan(0);
     expect(network.tilesOf('O')).toEqual([]);
+});
+
+test('Ссылка с Sentinel-2', async ({ page, network }) => {
+    await page.goto('./#m=11/42.66000/44.64000&l=S2');
+    await expect.poll(() => network.tilesOf('S2').length).toBeGreaterThan(0);
+    // напрямую с EOX: ни один тайл не идёт через прокси клона
+    expect(network.tiles.some((tile) => tile.url.startsWith(CORS_PROXY_URL))).toBe(false);
+    expect(network.tilesOf('Tt')).toEqual([]);
+    expect(hashOf(page)).toContain('l=S2');
 });
 
 test('Ссылка с удалённым слоем', async ({ page, network }) => {
