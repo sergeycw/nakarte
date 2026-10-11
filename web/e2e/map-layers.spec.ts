@@ -128,6 +128,7 @@ test('Перезагрузка без l=', async ({ page, network }) => {
     await page.goto('./');
     const switcher = await openSwitcher(page);
     await switcher.getByText('ESRI Satellite').click();
+    await switcher.getByRole('button', { name: 'Overlays', exact: true }).click();
     await switcher.getByText('Relief shading').click();
     await expect.poll(() => hashOf(page)).toContain('l=E/Hs');
     await page.goto('about:blank');
@@ -155,6 +156,8 @@ test('Сохранённые настройки со старыми кодами
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('./');
     const switcher = await openSwitcher(page);
+    // свой слой не включён: его секция свёрнута
+    await switcher.getByRole('button', { name: 'Custom layers', exact: true }).click();
     await expect(switcher.getByText('Custom overlay')).toBeVisible();
     await expect(switcher.getByText('CyclOSM')).toHaveCount(0);
     await expect(switcher.getByText('ESRI Satellite')).toBeVisible();
