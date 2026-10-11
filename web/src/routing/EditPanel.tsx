@@ -13,8 +13,8 @@ import { TrackNameInput } from './TrackNameInput';
 // решение владельца 2026-10-09): палитра цвета, название полем и длина трека, активность прокладки, Undo, Redo,
 // «Share track», галочка «Finish editing» (имя, цвет и экспорт без выхода из правки — design editor-name-share и
 // editor-row-cleanup; уже 640 px Cancel и активность — только иконкой). Галочка нужна телефону, где нет Escape.
-// Подсказка — строкой под ней и только у выбора Join и Shortcut (подсказки рисования убраны, design editor-row-cleanup),
-// а не у последней точки на карте, как в макете: там она спорит с линией и пропадает за краем карты.
+// Подсказка выбора Join и Shortcut — не здесь, а у точки на карте, как в макете (ToolHintOnMap, design
+// editor-hint-at-point).
 export function EditPanel() {
     const editing = useRouteEditing();
     const edit = useAppStore((state) => state.routeEdit);
@@ -23,21 +23,9 @@ export function EditPanel() {
     if (!edit || !track) {
         return null;
     }
-    // выбор на карте для Join и Shortcut (design add-web-line-tools): подсказка, что кликнуть, Undo/Redo недоступны —
-    // правка линии сдвинула бы номер точки, от которой идёт выбор
-    let hint: string | null = null;
-    if (tool?.kind === 'join') {
-        hint = 'Click a track line to join it';
-    } else if (tool?.kind === 'shortcut') {
-        hint = 'Click the line where the shortcut ends';
-    }
     return (
         // data-drawing — режим рисования для тестов: раньше его видели по тексту подсказки
-        <div
-            className="flex w-full flex-col items-start gap-1.5"
-            data-testid="edit-panel"
-            data-drawing={edit.drawing || undefined}
-        >
+        <div className="w-full" data-testid="edit-panel" data-drawing={edit.drawing || undefined}>
             <div className="glass pointer-events-auto flex h-11 w-full items-center gap-1 rounded-xl px-2">
                 <ColorPicker track={track} />
                 <TrackNameInput key={track.id} track={track} />
@@ -51,6 +39,8 @@ export function EditPanel() {
                     size="icon-sm"
                     aria-label="Undo"
                     title="Undo (Cmd/Ctrl+Z)"
+                    // выбор Join и Shortcut на карте (design add-web-line-tools): правка линии сдвинула бы номер точки,
+                    // от которой он идёт
                     disabled={!edit.canUndo || tool !== null}
                     onClick={editing.undo}
                 >
@@ -94,11 +84,6 @@ export function EditPanel() {
                     </Button>
                 )}
             </div>
-            {hint && (
-                <div className="glass pointer-events-auto max-w-full truncate rounded-lg px-2.5 py-1 text-muted-foreground text-xs">
-                    {hint}
-                </div>
-            )}
         </div>
     );
 }

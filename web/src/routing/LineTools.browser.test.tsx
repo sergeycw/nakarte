@@ -92,6 +92,19 @@ async function drawABC(map: MaplibreMap) {
     await expect.element(editPanel()).not.toHaveAttribute('data-drawing');
 }
 
+// подсказка выбора стоит над точкой at по центру, зазор до неё не больше 20 px
+async function hintAbove(map: MaplibreMap, at: LatLng) {
+    const hint = page.getByTestId('tool-hint');
+    await expect.element(hint).toBeVisible();
+    const box = hint.element().getBoundingClientRect();
+    const rect = map.getContainer().getBoundingClientRect();
+    const p = map.project([at.lng, at.lat]);
+    const x = rect.left + p.x;
+    const y = rect.top + p.y;
+    const centered = Math.abs((box.left + box.right) / 2 - x) <= 2;
+    return centered && box.bottom <= y && y - box.bottom <= 20;
+}
+
 async function lengthText() {
     return (await page.getByTestId('track-length').first().element().textContent) ?? '';
 }
@@ -339,6 +352,36 @@ describe('Срез участка', () => {
         await click(map, P(41.694, 44.79));
         await expect.element(page.getByRole('button', { name: 'Finish editing' })).toBeVisible();
         expect(waypoints(map)).toHaveLength(5);
+    });
+});
+
+describe('Подсказка выбора на карте', () => {
+    test('Подсказка у конца линии', async () => {
+        // вид с центром в конце: у края подсказка прижалась бы к полю и встала не по центру точки
+        const { map } = await render(
+            `#m=15/${Z[4].lat}/${Z[4].lng}&nktk=${link('Zigzag', [Z])}/${link('Other', [OTHER])}`,
+        );
+        await click(map, Z[4]);
+        await rightClick(map, Z[4]);
+        await chooseFromMenu('Join');
+        await expect.element(page.getByTestId('tool-hint')).toHaveTextContent('Click a track line to join it');
+        expect(await hintAbove(map, Z[4])).toBe(true);
+        // на карте, а не в строке редактора
+        expect(editPanel().getByText('Click a track line to join it').query()).toBeNull();
+        pressEscape();
+        await expect.element(page.getByTestId('tool-hint')).not.toBeInTheDocument();
+    });
+
+    test('Подсказка у места начала', async () => {
+        const { map } = await render(`#m=15/${Z[1].lat}/${Z[1].lng}&nktk=${link('Zigzag', [Z])}`);
+        await click(map, Z[1]);
+        await rightClick(map, Z[1]);
+        await chooseFromMenu('Shortcut');
+        await expect.element(page.getByTestId('tool-hint')).toHaveTextContent('Click the line where the shortcut ends');
+        expect(await hintAbove(map, Z[1])).toBe(true);
+        await click(map, Z[3]);
+        await expect.poll(() => waypoints(map)).toHaveLength(4);
+        await expect.element(page.getByTestId('tool-hint')).not.toBeInTheDocument();
     });
 });
 
