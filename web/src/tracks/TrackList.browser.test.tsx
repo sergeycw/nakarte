@@ -252,8 +252,50 @@ describe('Любой цвет трека', () => {
         await userEvent.keyboard('{Escape}');
         await expect.element(hex()).not.toBeInTheDocument();
         await page.getByRole('button', { name: 'Color of B' }).click();
+        await expect.element(page.getByRole('button', { name: 'Recent color #14b8a6' })).toBeVisible();
+        // одна строка из шести: свой цвет первым, за ним пять первых готовых
+        const swatches = page.getByRole('dialog').getByRole('button', { name: /^(Recent color|Color \d)/ });
+        expect(swatches.elements().map((button) => button.ariaLabel)).toEqual([
+            'Recent color #14b8a6',
+            'Color 1',
+            'Color 2',
+            'Color 3',
+            'Color 4',
+            'Color 5',
+        ]);
         await page.getByRole('button', { name: 'Recent color #14b8a6' }).click();
         await expect.poll(() => color(map, 1)).toBe('#14b8a6');
+    });
+
+    test('Выбранный готовый цвет в строке', async () => {
+        // старая запись из шести недавних: читаются три свежих
+        localStorage.setItem(
+            'nakarte-web:recent-colors',
+            JSON.stringify(['#111111', '#222222', '#333333', '#444444', '#555555', '#666666']),
+        );
+        await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A', { color: 5 })}`);
+        await page.getByRole('button', { name: 'Color of A' }).click();
+        const swatches = page.getByRole('dialog').getByRole('button', { name: /^(Recent color|Color \d)/ });
+        expect(swatches.elements().map((button) => button.ariaLabel)).toEqual([
+            'Recent color #111111',
+            'Recent color #222222',
+            'Recent color #333333',
+            'Color 1',
+            'Color 2',
+            'Color 6',
+        ]);
+    });
+
+    test('Фокус при открытии', async () => {
+        await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A', { color: 1 })}`);
+        await page.getByRole('button', { name: 'Color of A' }).click();
+        await expect.element(page.getByRole('dialog')).toBeVisible();
+        await expect.poll(() => document.activeElement?.getAttribute('role')).toBe('dialog');
+        await userEvent.keyboard('{Escape}');
+        await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
+        (page.getByRole('button', { name: 'Color of A' }).element() as HTMLElement).focus();
+        await userEvent.keyboard('{Enter}');
+        await expect.poll(() => document.activeElement?.ariaLabel).toBe('Color 2');
     });
 });
 

@@ -1,10 +1,11 @@
 import { normalizeColor, parseHex } from './color';
 
 // Недавние свои цвета палитры (design track-color-picker, «Недавние цвета»): удобство одного браузера, не данные трека.
-// Хранилище может быть недоступно (приватное окно, запрет сайта) — тогда строки недавних просто нет.
+// Хранилище может быть недоступно (приватное окно, запрет сайта) — тогда в строке палитры только готовые цвета.
 
 const KEY = 'nakarte-web:recent-colors';
-export const RECENT_COLORS_LIMIT = 6;
+// три: в строке палитры из шести всегда остаются три первых готовых цвета (design palette-one-row)
+export const RECENT_COLORS_LIMIT = 3;
 
 export function readRecentColors(): string[] {
     try {
@@ -21,7 +22,7 @@ export function readRecentColors(): string[] {
     }
 }
 
-// Свежий цвет первым, без повторов; цвета палитры сюда не попадают — они и так над строкой недавних
+// Свежий цвет первым, без повторов; цвета палитры сюда не попадают — они и так в строке палитры
 export function rememberColor(hex: string): void {
     if (typeof normalizeColor(hex) !== 'string') {
         return;
