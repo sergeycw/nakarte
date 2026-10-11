@@ -8,11 +8,11 @@
 ## 2. Пикер
 
 - [x] 2.1 `HsvPicker.tsx`, `recent-colors.ts`, палитра с пикером в `ColorPicker.tsx`; browser «Свой цвет из поля hex», «Свой цвет перетаскиванием», «Свой цвет с клавиатуры», «Набранный hex при закрытии», «Неверный hex», «Недавние цвета» (`TrackList.browser.test.tsx`), «Свой цвет после перезагрузки» (`Autosave.browser.test.tsx`), «Свой цвет во время правки» (`RouteEditor.browser.test.tsx`); проверка: эти browser-файлы зелёные
-- [ ] 2.2 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
+- [x] 2.2 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
 
 ## 3. Документы
 
-- [ ] 3.1 `AGENTS.md` (абзацы «Треки» и «Автосохранение»: цвет трека и поле `rgb`); проверка: скрипт ссылок — все файлы и разделы существуют, `openspec validate --all --strict`
+- [x] 3.1 `AGENTS.md` (абзацы «Треки» и «Автосохранение»: цвет трека и поле `rgb`); проверка: скрипт ссылок — все файлы и разделы существуют, `openspec validate --all --strict`
 
 ## 4. Ревью, PR, прод
 
