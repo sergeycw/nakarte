@@ -195,6 +195,8 @@ export function ElevationProfile() {
                     <a
                         className="ml-auto truncate text-[10px] text-muted-foreground leading-none hover:underline"
                         href={config.elevationsAttribution.url}
+                        // на телефоне подпись обрезается рядом с легендой
+                        title={`Elevation data: ${config.elevationsAttribution.text}`}
                         target="_blank"
                         rel="noreferrer"
                     >

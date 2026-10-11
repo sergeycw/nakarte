@@ -6,4 +6,4 @@
 
 ## 2. Документы
 
-- [ ] 2.1 `openspec/backlog.md` (строка «Разрыв со спиннером»); проверка: `openspec validate --all --strict`
+- [x] 2.1 `openspec/backlog.md` (строка «Разрыв со спиннером»); проверка: `openspec validate --all --strict`
