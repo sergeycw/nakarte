@@ -7,6 +7,7 @@ import type { LayerDef } from '@/layers/catalog';
 import { buildStyle } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
 import { MapEditor } from '@/routing/MapEditor';
+import { ToolHintOnMap } from '@/routing/ToolHintOnMap';
 import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
 import { COVERAGE_LAYER } from '@/streetview/coverage';
@@ -163,6 +164,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
             >
                 {children}
                 <MapEditor />
+                <ToolHintOnMap />
                 <ProfileOnMap />
                 <PlacemarkOnMap />
                 <StreetViewOnMap />

@@ -1,3 +1,4 @@
+import type { LineTool } from '@/state/store';
 import type { LatLng } from '@/tracks/model';
 import type { End } from './editor';
 import { type Leg, legPath, type RouteLine, STRAIGHT } from './line';
@@ -229,4 +230,21 @@ export function shortcutRemoved(line: RouteLine, from: LinePlace, to: LinePlace)
     });
     points.push(second.point);
     return points;
+}
+
+// точка места на линии: опорная точка или проекция на ближайшее звено
+export function placePoint(line: RouteLine, place: LinePlace): LatLng | null {
+    if ('waypoint' in place) {
+        return line.waypoints[place.waypoint] ?? null;
+    }
+    return line.legs[place.leg] ? nearestLink(line, place.leg, place.latlng).point : null;
+}
+
+// Откуда идёт выбор на карте: конец линии у Join, место на ней у Shortcut. От неё тянется линия выбора и у неё стоит
+// подсказка (ToolHintOnMap)
+export function toolOrigin(line: RouteLine, tool: LineTool): LatLng | null {
+    if (tool.kind === 'join') {
+        return (tool.end === 'end' ? line.waypoints.at(-1) : line.waypoints[0]) ?? null;
+    }
+    return placePoint(line, tool.from);
 }

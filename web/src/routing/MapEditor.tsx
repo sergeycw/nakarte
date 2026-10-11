@@ -16,7 +16,7 @@ import type { RouteEditing } from './editing';
 import { useRouteEditing } from './editing-context';
 import type { End } from './editor';
 import { legPath } from './line';
-import { type LinePlace, nearestLink, shortcutRemoved } from './line-tools';
+import { type LinePlace, placePoint, shortcutRemoved, toolOrigin } from './line-tools';
 
 // События карты для редактора (design add-web-route-editor, «События карты»). Компонент внутри <Map>: обработчики
 // MapLibre и document вешаются один раз, текущее состояние читается из стора в момент события.
@@ -699,7 +699,7 @@ function bind(
             return;
         }
         if (tool.kind === 'join') {
-            const anchor = tool.end === 'end' ? edit.line.waypoints.at(-1) : edit.line.waypoints[0];
+            const anchor = toolOrigin(edit.line, tool);
             const track = hitTrack(map, point);
             const end = track && nearerEnd(track.trackId, track.segment, cursor);
             if (anchor) {
@@ -707,23 +707,16 @@ function bind(
             }
             return;
         }
-        const from = placePoint(edit, tool.from);
+        const from = toolOrigin(edit.line, tool);
         if (!from) {
             return;
         }
         const to = placeAt(edit, point, cursor);
         const removed = to && shortcutRemoved(edit.line, tool.from, to);
-        const end = to && removed ? placePoint(edit, to) : null;
+        const end = to && removed ? placePoint(edit.line, to) : null;
         setPreview(toolPreviewData([from, end ?? nearTo(cursor, from)], Boolean(removed), removed));
     }
 
-    // точка места на линии: опорная точка или проекция на ближайшее звено
-    function placePoint(edit: RouteEditState, place: LinePlace): LatLng | null {
-        if ('waypoint' in place) {
-            return edit.line.waypoints[place.waypoint] ?? null;
-        }
-        return edit.line.legs[place.leg] ? nearestLink(edit.line, place.leg, place.latlng).point : null;
-    }
     const onMouseOut = () => rubberBand(null);
 
     const onKeyDown = (event: KeyboardEvent) => {
