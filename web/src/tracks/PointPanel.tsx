@@ -2,7 +2,7 @@ import { CheckIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
-import { TRACK_COLORS } from './model';
+import { trackColor } from './model';
 
 // Режим точек трека (design add-web-line-tools, «Точки трека»): постановка кликами или перенос точки. Стоит в верхней
 // строке, как редактор линии (макет 4a, design polish-web-ui): оба режима не бывают одновременно.
@@ -19,7 +19,7 @@ export function PointPanel() {
             <div className="glass pointer-events-auto flex h-11 w-full items-center gap-1 rounded-xl px-2">
                 <span
                     className="block size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: TRACK_COLORS[track.color] }}
+                    style={{ backgroundColor: trackColor(track.color) }}
                 />
                 <span className="min-w-0 flex-1 truncate px-1 font-medium text-sm" title={track.name}>
                     {track.name}

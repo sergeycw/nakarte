@@ -1,6 +1,6 @@
 // Схема строки трека nktk версии 4: копия src/lib/leaflet.control.track-list/lib/parsers/nktk.proto старого клиента
-// с новым полем Segment.route (design add-web-autosave, «Ссылка: необязательное поле разметки»). Код не генерируется:
-// чтение и запись написаны руками в nktk.ts. Номера полей не менять — на них держатся выданные ссылки.
+// с новыми полями Segment.route (design add-web-autosave, «Ссылка: необязательное поле разметки») и View.rgb. Код не
+// генерируется: чтение и запись написаны руками в nktk.ts. Номера полей не менять — на них держатся выданные ссылки.
 
 syntax = "proto3";
 
@@ -40,9 +40,13 @@ message Track {
 }
 
 message View {
+    // номер цвета палитры (TRACK_COLORS); у своего цвета — номер ближайшего, для читателей без поля rgb
     int32 color = 1;
     bool shown = 2;
     bool ticksShown = 3;
+    // свой цвет трека 0xRRGGBB (design track-color-picker, «Ссылка: новое поле View.rgb»); нет поля — цвет палитры из
+    // color. optional — ради чёрного: 0 — цвет, а не отсутствие. Старый клиент поле пропускает.
+    optional uint32 rgb = 4;
 }
 
 message TrackView {

@@ -9,6 +9,7 @@ import type { RouteLine } from '@/routing/line';
 import type { LinePlace } from '@/routing/line-tools';
 import type { Placemark } from '@/search/placemark';
 import type { PanoView } from '@/streetview/hash';
+import { parseTrackColor } from '@/tracks/color';
 import type { Bounds } from '@/tracks/geometry';
 import { type GeoData, type LatLng, TRACK_COLORS, type Track, type Waypoint } from '@/tracks/model';
 import type { View } from './hash';
@@ -348,10 +349,8 @@ export function createAppStore(init: AppStoreInit): AppStore {
             addTracks: (data, atStart = false) => {
                 let { nextColor } = get();
                 const added = data.map((item): Track => {
-                    let color = item.color;
-                    if (
-                        !(Number.isInteger(color) && (color as number) >= 0 && (color as number) < TRACK_COLORS.length)
-                    ) {
+                    let color = parseTrackColor(item.color);
+                    if (color === null) {
                         color = nextColor;
                         nextColor = (nextColor + 1) % TRACK_COLORS.length;
                     }
@@ -361,7 +360,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
                         name: item.name,
                         segments: item.segments,
                         points: item.points,
-                        color: color as number,
+                        color,
                         visible: !item.hidden,
                         measureTicksShown: item.measureTicksShown ?? false,
                         ...(item.routes ? { routes: item.routes } : {}),

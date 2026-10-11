@@ -115,6 +115,19 @@ describe('nktj', () => {
         expect(track.name).toBe('Таймыр 2021');
     });
 
+    test('Свой цвет в nktj', async () => {
+        const [track] = await loadTrackParam(
+            'nktj',
+            [base64Json([{ t: [[[41.7, 44.8]]], c: '#14B8A6' }])],
+            fakeSources().sources,
+        );
+        expect(track.color).toBe('#14b8a6');
+        expect(
+            (await loadTrackParam('nktj', [base64Json([{ t: [[[41.7, 44.8]]], c: 'teal' }])], fakeSources().sources))[0]
+                .error,
+        ).toBe('CORRUPT');
+    });
+
     test.each([
         ['не base64', '!!!'],
         ['не JSON', base64Json('x').slice(0, 3)],

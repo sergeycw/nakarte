@@ -1,11 +1,19 @@
-import { PbfWriter } from 'pbf';
+import { PbfReader, PbfWriter } from 'pbf';
 import { describe, expect, test } from 'vitest';
 import type { SegmentRoute } from '@/routing/line';
 import oldLinksText from '@/state/fixtures/old-links.txt?raw';
 import { parseHash } from '@/state/hash';
 import reference from './fixtures/nktk-old.json';
 import type { GeoData } from './model';
-import { ARC_UNIT, encodeBase64Url, parseNktk, parseNktkSequence, parseTrackUrlData, saveNktk } from './nktk';
+import {
+    ARC_UNIT,
+    decodeBase64Url,
+    encodeBase64Url,
+    parseNktk,
+    parseNktkSequence,
+    parseTrackUrlData,
+    saveNktk,
+} from './nktk';
 
 // Эталон — строки, записанные кодировщиками старого клиента, и их разбор старым parseNktkFragment
 // (fixtures/nktk-old.json): v4 — saveNktk, v3 и v2 — saveToString из истории апстрима (7534e57^, f339a82^),
@@ -87,6 +95,48 @@ describe('запись версии 4', () => {
 
     test('пустой трек — как старый', () => {
         expect(saveNktk({ name: '', segments: [], points: [] })).toBe(reference.cases[5].nktk);
+    });
+});
+
+describe('Любой цвет в ссылке', () => {
+    const track = { name: 'Цвет', segments: [], points: [{ lat: 41.69, lng: 44.79, name: 'P' }] };
+
+    // поле color сообщения View, как его читает клиент без поля rgb (pbf пропускает неизвестные поля)
+    function viewColor(nktk: string): number {
+        // первый байт — версия строки
+        const pbf = new PbfReader((decodeBase64Url(nktk) as Uint8Array).slice(1));
+        let color = 0;
+        pbf.readFields((tag, _, reader) => {
+            if (tag === 1) {
+                reader.readFields(
+                    (viewTag, __, view) => {
+                        if (viewTag === 1) color = view.readVarint(true);
+                    },
+                    null,
+                    reader.readVarint() + reader.pos,
+                );
+            }
+        }, null);
+        return color;
+    }
+
+    test.each(['#14b8a6', '#000000', '#ffffff'])('Ссылка со своим цветом: %s', (color) => {
+        const [parsed] = parseNktk(saveNktk({ ...track, color }));
+        expect(parsed.color).toBe(color);
+        expect(parsed.error).toBeUndefined();
+    });
+
+    test('Читатель без поля rgb', () => {
+        expect(viewColor(saveNktk({ ...track, color: '#14b8a6' }))).toBe(2);
+    });
+
+    test('Цвет палитры в ссылке', () => {
+        const nktk = saveNktk({ ...track, color: 3 });
+        expect(viewColor(nktk)).toBe(3);
+        expect(parseNktk(nktk)[0].color).toBe(3);
+        // у цвета палитры поля rgb нет: свой цвет с тем же номером в color длиннее ровно на поле 4 (тег и 3 байта)
+        const bytes = (text: string) => decodeBase64Url(text)?.length ?? 0;
+        expect(bytes(saveNktk({ ...track, color: '#14b8a6' }))).toBe(bytes(saveNktk({ ...track, color: 2 })) + 4);
     });
 });
 

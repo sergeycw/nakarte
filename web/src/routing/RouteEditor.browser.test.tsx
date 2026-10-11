@@ -159,6 +159,17 @@ describe('Цвет трека в панели редактирования', () 
             .toBe('2');
     });
 
+    test('Свой цвет во время правки', async () => {
+        const { map } = await render(VIEW);
+        await newTrack(map, [A, B]);
+        await editPanel().getByRole('button', { name: 'Color of New track' }).click();
+        await page.getByRole('textbox', { name: 'Hex color' }).fill('#14b8a6');
+        await userEvent.keyboard('{Enter}');
+        await expect.poll(() => legs(map).map((leg) => leg.properties?.color)).toEqual(['#14b8a6']);
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
+        await expect.element(editPanel()).toHaveAttribute('data-drawing');
+    });
+
     test('Escape, закрывающий палитру, рисование не заканчивает', async () => {
         const { map } = await render(VIEW);
         await newTrack(map, [A]);

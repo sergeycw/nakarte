@@ -12,7 +12,7 @@ import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
 import { COVERAGE_LAYER } from '@/streetview/coverage';
 import { StreetViewOnMap } from '@/streetview/StreetViewOnMap';
-import { TRACK_COLORS } from '@/tracks/model';
+import { trackColor } from '@/tracks/model';
 import { TRACK_TICKS, trackSources } from '@/tracks/style';
 import { ticksData } from '@/tracks/ticks';
 import { maplibre } from './maplibre';
@@ -73,11 +73,8 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
             ),
         [tracks, editTrackId, editSegment],
     );
-    const editColorIndex = tracks.find((track) => track.id === editTrackId)?.color ?? 0;
-    const editData = useMemo(
-        () => editSources(routeEdit, TRACK_COLORS[editColorIndex], routeDrag),
-        [routeEdit, editColorIndex, routeDrag],
-    );
+    const editColor = trackColor(tracks.find((track) => track.id === editTrackId)?.color);
+    const editData = useMemo(() => editSources(routeEdit, editColor, routeDrag), [routeEdit, editColor, routeDrag]);
     const ticks = useMemo(() => ticksData(tracks, ticksZoom), [tracks, ticksZoom]);
     const mapStyle = useMemo(() => {
         const defs = [selection.base, ...selection.overlays]

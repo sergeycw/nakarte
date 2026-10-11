@@ -1,5 +1,6 @@
+import { parseTrackColor } from './color';
 import { loadFromUrl } from './import-url';
-import { type GeoData, geoData, TRACK_COLORS, type Waypoint } from './model';
+import { type GeoData, geoData, type Waypoint } from './model';
 import { decodeBase64Url, parseNktk, parseNktkSequence } from './nktk';
 import { fetchOrNull, type TrackSources } from './sources';
 
@@ -145,8 +146,11 @@ async function fromJson(value: string, sources: TrackSources): Promise<GeoData[]
             tracks = [track];
         }
         if ('c' in item) {
-            const color = Number(item.c);
-            if (!(color >= 0 && color < TRACK_COLORS.length)) {
+            // номер палитры, как у старого клиента (строка с номером тоже), или свой '#rrggbb' (design track-color-picker)
+            const color = parseTrackColor(
+                typeof item.c === 'string' && item.c.startsWith('#') ? item.c : Number(item.c),
+            );
+            if (color === null) {
                 return CORRUPT_JSON();
             }
             for (const track of tracks) {

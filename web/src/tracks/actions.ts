@@ -7,7 +7,7 @@ import { boundsOf, wrapLng } from './geometry';
 import { prepareImport } from './import-result';
 import { loadFromUrl } from './import-url';
 import { loadTrackParam } from './links';
-import { type GeoData, geoData, type LatLng, type Track, type Waypoint } from './model';
+import { type GeoData, geoData, type LatLng, type Track, type TrackColor, type Waypoint } from './model';
 import { parseGeoFile } from './parsers';
 import { ShareError, shareBody, shareLink, storeTracks } from './share';
 import type { TrackSources } from './sources';
@@ -276,7 +276,7 @@ export function createTrackActions({
                 state().updateTrack(other.id, { visible: other.id === track.id });
             }
         },
-        setColor: (track: Track, color: number) => state().updateTrack(track.id, { color }),
+        setColor: (track: Track, color: TrackColor) => state().updateTrack(track.id, { color }),
         // отметки расстояния (switchMeasureTicksVisibility старого)
         setMeasureTicks: (track: Track, measureTicksShown: boolean) =>
             state().updateTrack(track.id, { measureTicksShown }),

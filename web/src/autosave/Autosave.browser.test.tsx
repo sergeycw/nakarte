@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import type { SegmentRoute } from '@/routing/line';
@@ -275,6 +275,20 @@ describe('Треки переживают перезагрузку', () => {
         await expect
             .poll(() => lineFeatures(map).map((line) => line.properties?.color))
             .toEqual([TRACK_COLORS[0], TRACK_COLORS[3]]);
+    });
+
+    test('Свой цвет после перезагрузки', async () => {
+        const db = database();
+        await start(db, TWO);
+        await expect.element(rows()).toHaveLength(2);
+        await page.getByRole('button', { name: 'Color of Second' }).click();
+        await page.getByRole('textbox', { name: 'Hex color' }).fill('#14b8a6');
+        await userEvent.keyboard('{Enter}');
+        const { map } = await reload(db);
+        await expect.element(rows()).toHaveLength(2);
+        await expect
+            .poll(() => lineFeatures(map).map((line) => line.properties?.color))
+            .toEqual([TRACK_COLORS[0], '#14b8a6']);
     });
 
     test('Удалённый трек', async () => {
