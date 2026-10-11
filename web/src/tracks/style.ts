@@ -1,7 +1,7 @@
 import type { Feature, LineString, Point } from 'geojson';
 import type { GeoJSONSourceSpecification, LayerSpecification, LineLayerSpecification } from 'maplibre-gl';
 import type { SegmentRoute } from '@/routing/line';
-import { type LatLng, TRACK_COLORS, type Track } from './model';
+import { type LatLng, type Track, trackColor } from './model';
 
 // Треки на карте (design add-web-tracks, «Треки на карте»): GeoJSON-источники на все треки, над всеми слоями.
 // Линия — непрозрачная цвета трека над белой обводкой (design map-chrome): полупрозрачная линия старого клиента
@@ -92,7 +92,7 @@ export function trackSources(
     const lines: Feature<LineString>[] = [];
     const unrouted: Feature<LineString>[] = [];
     for (const track of visible) {
-        const color = TRACK_COLORS[track.color];
+        const color = trackColor(track.color);
         track.segments.forEach((points, segment) => {
             const pieces = segmentPieces(points, track.routes?.[segment]);
             if (skip && skip.trackId === track.id && skip.segment === segment) {
@@ -112,7 +112,7 @@ export function trackSources(
         // index — номер точки в треке: по нему клик открывает меню точки (design add-web-line-tools)
         track.points.map((point, index) => ({
             type: 'Feature' as const,
-            properties: { id: track.id, index, color: TRACK_COLORS[track.color], name: point.name },
+            properties: { id: track.id, index, color: trackColor(track.color), name: point.name },
             geometry: { type: 'Point' as const, coordinates: [point.lng, point.lat] },
         })),
     );

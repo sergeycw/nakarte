@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { config } from '@/config';
 import { useAppStore } from '@/state/context';
 import type { ProfileData } from '@/state/store';
-import { TRACK_COLORS } from '@/tracks/model';
+import { trackColor } from '@/tracks/model';
 import { useElevationProfile } from './context';
 import { kilometers, meters, profileSections } from './format';
 import { ProfileGraph } from './ProfileGraph';
@@ -144,7 +144,7 @@ export function ElevationProfile() {
                 <div className="flex min-w-0 flex-1 items-center gap-x-2 sm:flex-none">
                     <span
                         className="block h-1.5 w-4 shrink-0 rounded-full"
-                        style={{ backgroundColor: TRACK_COLORS[track.color] }}
+                        style={{ backgroundColor: trackColor(track.color) }}
                     />
                     <span className="min-w-0 flex-1 truncate font-medium text-sm" title={title}>
                         {title}

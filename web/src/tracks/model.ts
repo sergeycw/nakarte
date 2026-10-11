@@ -17,8 +17,8 @@ export interface TrackData {
     name: string;
     segments: LatLng[][];
     points: Waypoint[];
-    // индекс в TRACK_COLORS; без него — следующий цвет по кругу
-    color?: number;
+    // номер в TRACK_COLORS или свой '#rrggbb'; без него — следующий цвет палитры по кругу
+    color?: TrackColor;
     hidden?: boolean;
     // отметки расстояния на линии; рисует их линейка (change 8), здесь флаг только переживает ссылки
     measureTicksShown?: boolean;
@@ -36,7 +36,7 @@ export interface GeoData extends TrackData {
 
 export interface Track extends TrackData {
     id: string;
-    color: number;
+    color: TrackColor;
     visible: boolean;
 }
 
@@ -44,6 +44,19 @@ export interface Track extends TrackData {
 // красный, розовый, жёлтый). Порядок оттенков — старый, значения насыщеннее (design map-chrome): бледные цвета старого
 // клиента на непрозрачной линии с белой обводкой терялись на светлой карте. Индексы не менять — их несут ссылки.
 export const TRACK_COLORS = ['#2563eb', '#f97316', '#0891b2', '#ef4444', '#d946ef', '#eab308'] as const;
+
+// Цвет трека: номер палитры TRACK_COLORS или свой цвет строкой '#rrggbb' строчными (design track-color-picker, «Цвет —
+// номер палитры или #rrggbb»). Цвет палитры всегда номер: так ссылка с ним байт в байт как у старого клиента, а трек идёт
+// за палитрой, если её оттенки поправят. Приводит к этому виду normalizeColor из color.ts.
+export type TrackColor = number | string;
+
+// Краска для карты и панелей; негодное значение — первый цвет палитры
+export function trackColor(color: TrackColor | undefined): string {
+    if (typeof color === 'string') {
+        return color;
+    }
+    return TRACK_COLORS[color ?? 0] ?? TRACK_COLORS[0];
+}
 
 export function geoData(name: string, fields: Partial<GeoData> = {}): GeoData {
     return { name, segments: [], points: [], ...fields };

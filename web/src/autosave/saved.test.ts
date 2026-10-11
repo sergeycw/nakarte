@@ -55,6 +55,14 @@ describe('трек → запись → трек', () => {
         ]);
     });
 
+    test('свой цвет туда и обратно, номер палитры из старой записи — как раньше', () => {
+        const saved = toSaved([track({ segments: [[A, C]], color: '#14b8a6' })]);
+        expect(fromSaved(saved)?.[0].color).toBe('#14b8a6');
+        // запись до change track-color-picker: номер палитры, та же версия
+        const old = { ...saved, tracks: [{ ...saved.tracks[0], color: 4 }] };
+        expect(fromSaved(old)?.[0].color).toBe(4);
+    });
+
     test('без разметки — без routes', () => {
         expect(fromSaved(toSaved([track({ segments: [[A, C]] })]))?.[0].routes).toBeUndefined();
     });

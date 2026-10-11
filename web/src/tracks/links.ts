@@ -1,5 +1,6 @@
+import { parseTrackColor } from './color';
 import { loadFromUrl } from './import-url';
-import { type GeoData, geoData, TRACK_COLORS, type Waypoint } from './model';
+import { type GeoData, geoData, TRACK_COLORS, type TrackColor, type Waypoint } from './model';
 import { decodeBase64Url, parseNktk, parseNktkSequence } from './nktk';
 import { fetchOrNull, type TrackSources } from './sources';
 
@@ -92,6 +93,16 @@ function jsonPoint(raw: unknown): Waypoint | null {
     return { name, lat, lng };
 }
 
+// Поле c: номер палитры, как у старого клиента (строкой тоже; дробный проходит и даёт цвет по кругу в addTracks), или
+// свой '#rrggbb' (design track-color-picker); null — испорчено
+function jsonColor(value: unknown): TrackColor | null {
+    if (typeof value === 'string' && value.startsWith('#')) {
+        return parseTrackColor(value);
+    }
+    const number = Number(value);
+    return number >= 0 && number < TRACK_COLORS.length ? number : null;
+}
+
 // Любая испорченная часть — весь параметр CORRUPT, как у старого клиента
 async function fromJson(value: string, sources: TrackSources): Promise<GeoData[]> {
     const bytes = decodeBase64Url(value);
@@ -145,8 +156,8 @@ async function fromJson(value: string, sources: TrackSources): Promise<GeoData[]
             tracks = [track];
         }
         if ('c' in item) {
-            const color = Number(item.c);
-            if (!(color >= 0 && color < TRACK_COLORS.length)) {
+            const color = jsonColor(item.c);
+            if (color === null) {
                 return CORRUPT_JSON();
             }
             for (const track of tracks) {

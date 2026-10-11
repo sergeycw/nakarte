@@ -9,7 +9,7 @@ import type { StreetView } from '@/streetview/controller';
 import type { TrackActions } from '@/tracks/actions';
 import { useTrackActions } from '@/tracks/actions-context';
 import { distance } from '@/tracks/geometry';
-import { type LatLng, TRACK_COLORS, type Waypoint } from '@/tracks/model';
+import { type LatLng, trackColor, type Waypoint } from '@/tracks/model';
 import { TRACK_LINES, TRACK_POINTS, TRACK_UNROUTED } from '@/tracks/style';
 import { EDIT_PREVIEW, EDIT_WAYPOINTS, previewData, toolPreviewData, waypointRole } from './edit-style';
 import type { RouteEditing } from './editing';
@@ -189,7 +189,7 @@ function lngLat(event: MapMouseEvent | MapTouchEvent): LatLng {
 
 function editColor(store: AppStore): string {
     const { routeEdit, tracks } = store.getState();
-    return TRACK_COLORS[tracks.find((track) => track.id === routeEdit?.trackId)?.color ?? 0];
+    return trackColor(tracks.find((track) => track.id === routeEdit?.trackId)?.color);
 }
 
 // радиус поиска панорамы по клику — 24 px экрана в метрах (onMapClick контрола панорам старого клиента)

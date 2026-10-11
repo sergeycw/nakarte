@@ -1,5 +1,6 @@
 import { PbfReader, PbfWriter } from 'pbf';
 import { type LegMark, routeFits, type SegmentRoute, settledRoute } from '@/routing/line';
+import { hexToRgb, nearestPaletteIndex, normalizeColor, rgbToHex } from './color';
 import { type GeoData, geoData, type LatLng, type TrackData, type Waypoint } from './model';
 
 // Строка трека nktk (parsers/nktk.js старого клиента): base64url от байтов «версия + данные». Версия — первое
@@ -180,6 +181,8 @@ interface ViewMessage {
     color: number;
     shown: boolean;
     ticksShown: boolean;
+    // свой цвет 0xRRGGBB; null — поля нет (чёрный — 0, поэтому не ноль, а null)
+    rgb: number | null;
 }
 interface SegmentMessage {
     lats: number[];
@@ -263,6 +266,11 @@ function readView(tag: number, obj: ViewMessage, pbf: PbfReader) {
     if (tag === 1) obj.color = pbf.readVarint(true);
     else if (tag === 2) obj.shown = pbf.readBoolean();
     else if (tag === 3) obj.ticksShown = pbf.readBoolean();
+    // чужой тип или значение вне 0xRRGGBB — как нет поля: цвет палитры из color
+    else if (tag === 4 && pbf.type === 0) {
+        const rgb = pbf.readVarint();
+        obj.rgb = rgb <= 0xffffff ? rgb : null;
+    }
 }
 
 function deltaDecode(lats: number[], lons: number[]): LatLng[] {
@@ -331,7 +339,7 @@ function parseProtobuf(bytes: Uint8Array): GeoData[] {
     let track: TrackMessage | null = null;
     try {
         new PbfReader(bytes).readFields((tag, _, pbf) => {
-            if (tag === 1) view = readMessage(pbf, { color: 0, shown: false, ticksShown: false }, readView);
+            if (tag === 1) view = readMessage(pbf, { color: 0, shown: false, ticksShown: false, rgb: null }, readView);
             else if (tag === 2) track = readMessage(pbf, { name: '', segments: [], waypoints: null }, readTrack);
         }, null);
     } catch {
@@ -344,7 +352,7 @@ function parseProtobuf(bytes: Uint8Array): GeoData[] {
         return corrupt();
     }
     const result = geoData(t.name || DEFAULT_NAME, {
-        color: v.color,
+        color: v.rgb === null ? v.color : normalizeColor(rgbToHex(v.rgb)),
         hidden: !v.shown,
         measureTicksShown: v.ticksShown,
         segments: t.segments.map((segment) => deltaDecode(segment.lats, segment.lons)),
@@ -460,9 +468,12 @@ export function saveNktk(track: TrackData): string {
     pbf.writeMessage(
         1,
         (_: null, out: PbfWriter) => {
-            if (track.color) out.writeVarintField(1, track.color);
+            // свой цвет: в color — ближайший цвет палитры для читателей без поля rgb (клиент автора), в rgb — точный
+            const color = typeof track.color === 'string' ? nearestPaletteIndex(track.color) : track.color;
+            if (color) out.writeVarintField(1, color);
             if (!track.hidden) out.writeBooleanField(2, true);
             if (track.measureTicksShown) out.writeBooleanField(3, true);
+            if (typeof track.color === 'string') out.writeVarintField(4, hexToRgb(track.color));
         },
         null,
     );

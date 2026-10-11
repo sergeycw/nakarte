@@ -1,5 +1,5 @@
 import { isRouteShape, routeFits, type SegmentRoute, settledRoute } from '@/routing/line';
-import type { GeoData, LatLng, Track, Waypoint } from '@/tracks/model';
+import type { GeoData, LatLng, Track, TrackColor, Waypoint } from '@/tracks/model';
 
 // Запись рабочего набора в IndexedDB (design add-web-autosave, «Автосохранение: структура в IndexedDB»): точные
 // координаты без округления и упрощения — номера опорных точек разметки верны как есть. Отрезок — Float64Array
@@ -10,7 +10,8 @@ export const SAVED_VERSION = 1;
 
 export interface SavedTrack {
     name: string;
-    color: number;
+    // номер палитры или свой '#rrggbb' (design track-color-picker): записи с номером читаются как раньше
+    color: TrackColor;
     visible: boolean;
     measureTicksShown: boolean;
     segments: Float64Array[];
