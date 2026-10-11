@@ -152,3 +152,24 @@ describe('Подложка Tracestrack', () => {
         expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
     });
 });
+
+describe('Подложка Sentinel-2', () => {
+    test('Атрибуция Sentinel-2', async () => {
+        await renderApp('#l=S2');
+        await expect.poll(() => tiles.requested.some((url) => url.startsWith('https://tiles.maps.eox.at/'))).toBe(true);
+        expect(tiles.requested.some((url) => url.includes('tracestrack'))).toBe(false);
+        expect(tiles.requested.some((url) => url.includes('nakarte-cors-proxy'))).toBe(false);
+        await expect
+            .element(page.getByRole('link', { name: 'https://cloudless.eox.at' }))
+            .toHaveAttribute('href', 'https://cloudless.eox.at');
+        await expect
+            .element(page.getByRole('link', { name: 'CC BY-NC-SA 4.0' }))
+            .toHaveAttribute('href', 'https://creativecommons.org/licenses/by-nc-sa/4.0/');
+        // подпись целиком — из условий EOX с годом мозаики (design add-sentinel-imagery)
+        expect(document.querySelector('.maplibregl-ctrl-attrib-inner')?.textContent).toBe(
+            'EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025), ' +
+                'CC BY-NC-SA 4.0',
+        );
+        expect(location.hash).toContain('l=S2');
+    });
+});

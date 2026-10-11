@@ -40,6 +40,12 @@ describe('Слои в адресе', () => {
         },
     );
 
+    test('Ссылка с Sentinel-2', () => {
+        const parsed = layers('l=S2/Hs');
+        expect(parsed).toEqual({ selection: { base: 'S2', overlays: ['Hs'] }, custom: [] });
+        expect(formatLayersParam(parsed?.selection ?? DEFAULT_SELECTION, byCode)).toEqual(['S2', 'Hs']);
+    });
+
     test('Ссылка со своим слоем', () => {
         expect(layers(`l=O/${CUSTOM_OVERLAY}`)).toEqual({
             selection: { base: 'O', overlays: [CUSTOM_OVERLAY] },

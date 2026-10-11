@@ -33,6 +33,7 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
     ['O', [8, 151, 87], 'https://tile.openstreetmap.org/8/151/87.png'],
     ['Co', [8, 151, 87], 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/8/151/87.png'],
     ['E', [8, 151, 87], 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/8/87/151'],
+    ['S2', [8, 151, 87], 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/8/87/151.jpg'],
     ['G', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=m@169000000&hl=en&x=151&y=87&z=8'],
     ['Gh', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=h@169000000&hl=en&x=151&y=87&z=8'],
     ['L', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=s&x=151&y=87&z=8'],
@@ -102,8 +103,8 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
 ];
 
 describe('Каталог слоёв', () => {
-    test('Список слоёв: 30 слоёв старого клиента, отмывка и Tracestrack, без Яндекса, Wikimapia и сетки', () => {
-        expect(catalog).toHaveLength(32);
+    test('Список слоёв: 30 слоёв старого клиента, отмывка, Tracestrack и Sentinel-2, без Яндекса, Wikimapia и сетки', () => {
+        expect(catalog).toHaveLength(33);
         expect([...catalog].sort((a, b) => a.order - b.order)[0].title).toBe('Tracestrack Topo');
         for (const code of ['Y', 'S', 'W', 'Ng']) {
             expect(byCode.has(code)).toBe(false);
@@ -129,7 +130,7 @@ describe('Каталог слоёв', () => {
 
     test('подложки — как в старом клиенте, остальное — оверлеи', () => {
         const bases = catalog.filter((layer) => !layer.isOverlay).map((layer) => layer.code);
-        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'Tt']);
+        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'S2', 'Tt']);
     });
 
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
@@ -183,6 +184,21 @@ describe('Каталог слоёв', () => {
         expect(tt.source.maxzoom).toBe(19);
         expect(tt.source.attribution).toContain('<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>');
         expect(tt.source.attribution).toContain('OpenStreetMap contributors');
+    });
+
+    test('Атрибуция Sentinel-2: подпись EOX с годом мозаики из адреса и лицензия', () => {
+        const s2 = byCode.get('S2') as LayerDef;
+        const year = s2.source.tiles?.[0].match(/s2cloudless-(\d{4})_3857/)?.[1];
+        expect(year).toBe('2025');
+        expect(s2.source.attribution).toBe(
+            'EOxCloudless <a href="https://cloudless.eox.at">https://cloudless.eox.at</a> by EOX IT Services GmbH ' +
+                `(Contains modified Copernicus Sentinel data ${year}), ` +
+                '<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>',
+        );
+        // пирамида EOX для EPSG:3857 — до z14, выше тайлы растягивает карта
+        expect(s2.source.maxzoom).toBe(14);
+        expect(s2.group).toBe('Default layers');
+        expect(s2.order).toBe((byCode.get('E')?.order ?? 0) + 1);
     });
 
     test('региональные слои: прямоугольник покрытия и минимальный зум', () => {

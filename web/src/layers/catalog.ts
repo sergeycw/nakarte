@@ -66,6 +66,7 @@ const ORDER = [
     'Ocm',
     'Oso',
     'E',
+    'S2',
     'L',
     'I',
     'G',
@@ -107,6 +108,17 @@ const KARTVERKET_ATTRIBUTION = '<a href="https://kartverket.no/til-lands/kart/tu
 const GOOGLE_ATTRIBUTION = '<a href="https://www.google.com/maps">Google</a>';
 const GOOGLE_SAT_ATTRIBUTION =
     '<a href="https://www.google.com/maps/@43.0668619,60.5738071,13622628m/data=!3m1!1e3">Google</a>';
+// Год мозаики EOX Sentinel-2 cloudless (design add-sentinel-imagery): из него — и слой WMTS, и год в подписи. Новый
+// год появляется в https://tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml слоем s2cloudless-<год>_3857 (backlog,
+// «Сопровождение»); s2cloudless_3857 без года — мозаика 2016, а не последняя
+const SENTINEL_YEAR = 2025;
+// Подпись — дословно из условий EOX (https://cloudless.eox.at/documentation/license, сверено 2026-10-11): адрес
+// виден текстом и он же ссылка (license-non-commercial: «include the links and show the text»); лицензия 2018+ —
+// CC BY-NC-SA 4.0, только некоммерческое использование
+const SENTINEL_ATTRIBUTION =
+    'EOxCloudless <a href="https://cloudless.eox.at">https://cloudless.eox.at</a> by EOX IT Services GmbH ' +
+    `(Contains modified Copernicus Sentinel data ${SENTINEL_YEAR}), ` +
+    '<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>';
 const SLAZAV_ATTRIBUTION = '<a href="http://slazav.xyz/maps">Vladislav Zavjalov</a>';
 // Полный список источников DEM (11 пунктов) — по ссылке: joerd/docs/attribution.md требует атрибуцию «в разумном
 // для носителя месте», правила OSMF, на которые он ссылается, допускают ссылку на страницу с полной атрибуцией.
@@ -198,6 +210,21 @@ function definitions(env: CatalogEnv): Def[] {
                 ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
                 '<a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">' +
                     'ESRI World Imagery for ArcGIS</a>',
+            ),
+        },
+        {
+            code: 'S2',
+            title: 'Sentinel-2 cloudless',
+            group: 'Default layers',
+            isOverlay: false,
+            isDefault: true,
+            // напрямую: EOX отражает Origin в CORS, ключа нет. Матрица g — GoogleMapsCompatible, порядок {y}/{x}.
+            // maxzoom 14 — пирамида EOX для EPSG:3857 (10 м на пиксель); тайлы z15+ сервер растягивает из тех же
+            // данных, MapLibre сделает это сам без запросов
+            source: raster(
+                [`https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${SENTINEL_YEAR}_3857/default/g/{z}/{y}/{x}.jpg`],
+                SENTINEL_ATTRIBUTION,
+                { maxzoom: 14 },
             ),
         },
         {
