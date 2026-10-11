@@ -300,10 +300,12 @@ export function ProfileGraph({ data }: { data: ProfileData }) {
                                 <div
                                     className="pointer-events-none absolute inset-y-0 left-0 bg-background/65"
                                     style={{ width: xOf(selection[0]) }}
+                                    data-testid="profile-dim"
                                 />
                                 <div
                                     className="pointer-events-none absolute inset-y-0 right-0 bg-background/65"
                                     style={{ left: xOf(selection[1]) }}
+                                    data-testid="profile-dim"
                                 />
                                 <div
                                     className="pointer-events-none absolute inset-y-0 border-foreground/50 border-x"

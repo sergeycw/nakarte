@@ -34,9 +34,10 @@ export function cursorInfo(data: ProfileData, index: number): CursorInfo {
     const section = sectionAt(profileSections(data), index);
     let slopeText = '-';
     if (section) {
-        const percent = Math.round(section.grade);
-        const arrow = percent > 0 ? '↑ ' : percent < 0 ? '↓ ' : '';
-        slopeText = `${arrow}${Math.abs(percent)}%`;
+        // округление модуля, как в slopeClass: Math.round(-2.5) = -2, а ступень −2.5 % — 3–6
+        const percent = Math.round(Math.abs(section.grade));
+        const arrow = percent === 0 ? '' : section.grade > 0 ? '↑ ' : '↓ ';
+        slopeText = `${arrow}${percent}%`;
     }
     return {
         elevation: height === null ? '-' : meters(height),

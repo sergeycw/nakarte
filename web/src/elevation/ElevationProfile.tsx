@@ -7,7 +7,7 @@ import { useAppStore } from '@/state/context';
 import type { ProfileData } from '@/state/store';
 import { TRACK_COLORS } from '@/tracks/model';
 import { useElevationProfile } from './context';
-import { kilometers, meters } from './format';
+import { kilometers, meters, profileSections } from './format';
 import { ProfileGraph } from './ProfileGraph';
 import { type ProfileStats, profileStats, SLOPE_CLASSES, SLOPE_STEPS } from './profile';
 
@@ -191,7 +191,8 @@ export function ElevationProfile() {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {data?.values && <SlopeLegend />}
+                    {/* легенда — пока на графике есть заливка: без данных высот участков нет */}
+                    {data?.values && profileSections(data).length > 0 && <SlopeLegend />}
                     <a
                         className="ml-auto truncate text-[10px] text-muted-foreground leading-none hover:underline"
                         href={config.elevationsAttribution.url}

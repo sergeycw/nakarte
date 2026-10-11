@@ -284,6 +284,8 @@ describe('Курсор профиля и карта', () => {
         // 0.25 км подъёма 90 м на 1 км: 22.5 м, точки выделения — ближайшие точки выборки
         expect(stat('ascent')).toMatch(/^2[23] m$/);
         await expect.poll(() => features(map, PROFILE_SELECTION).length).toBe(1);
+        // график вне выделения приглушён: слева и справа от участка
+        expect(page.getByTestId('profile-dim').elements()).toHaveLength(2);
         // клик без сдвига снимает выделение
         pointer('pointerdown', 0.7);
         pointer('pointerup', 0.7);

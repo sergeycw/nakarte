@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { distance } from '@/tracks/geometry';
+import { cursorInfo } from './format';
 import {
     distanceAt,
     elevationAt,
@@ -224,8 +225,8 @@ describe('Участки крутизны', () => {
     });
 
     it('ступень — по модулю уклона, округлённого до целого', () => {
-        expect([0, 2.4, 2.6, -2.6, 5.6, 6, -12, 15, 24.4, 24.6, 100].map(slopeClass)).toEqual([
-            0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5,
+        expect([0, 2.4, 2.6, -2.6, -2.5, 5.6, 6, -12, 15, 24.4, 24.6, 100].map(slopeClass)).toEqual([
+            0, 0, 1, 1, 1, 2, 2, 3, 4, 4, 5, 5,
         ]);
     });
 
@@ -239,5 +240,16 @@ describe('Участки крутизны', () => {
         expect(sectionAt(gapped, 1)).toBe(gapped[0]);
         expect(sectionAt(gapped, 2.5)).toBeNull();
         expect(sectionAt(gapped, 3)).toBe(gapped[1]);
+    });
+});
+
+describe('уклон у курсора', () => {
+    it('модуль округляется как ступень: −2.5 % — «↓ 3%», ступень 3–6', () => {
+        // 120 м спуска на 3 м: −2.5 %
+        const samples = { points: [], distances: Float64Array.from([0, 120]), starts: [0], length: 120 };
+        const data = { samples, values: [100, 97], updating: false, error: null };
+        expect(cursorInfo(data, 0.5).slope).toBe('↓ 3%');
+        expect(cursorInfo({ ...data, values: [100, 100] }, 0.5).slope).toBe('0%');
+        expect(cursorInfo({ ...data, values: [100, null] }, 0.5).slope).toBe('-');
     });
 });
