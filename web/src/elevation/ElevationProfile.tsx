@@ -1,5 +1,5 @@
 import { LoaderCircleIcon, RotateCwIcon, XIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { config } from '@/config';
@@ -9,7 +9,7 @@ import { TRACK_COLORS } from '@/tracks/model';
 import { useElevationProfile } from './context';
 import { kilometers, meters } from './format';
 import { ProfileGraph } from './ProfileGraph';
-import { type ProfileStats, profileStats } from './profile';
+import { type ProfileStats, profileStats, SLOPE_CLASSES, SLOPE_STEPS } from './profile';
 
 // Панель профиля высот (design add-web-elevation-profile, «Где живёт профиль»): на всю ширину снизу, высота —
 // PROFILE_HEIGHT; кнопка профиля, атрибуция и тосты встают над ней по --bottom-inset (App).
@@ -88,6 +88,34 @@ function Stats({ data }: { data: ProfileData }) {
     );
 }
 
+// Легенда ступеней крутизны (design slope-profile, «Легенда — шкала в строке атрибуции»): плашки подряд, пороги между
+// ними — короче подписи у каждой ступени; словами ступени — в aria-label и title
+const SLOPE_RANGES = [
+    `under ${SLOPE_STEPS[0]}%`,
+    ...SLOPE_STEPS.slice(1).map((step, i) => `${SLOPE_STEPS[i]}–${step}%`),
+    `${SLOPE_STEPS[SLOPE_STEPS.length - 1]}% and steeper`,
+];
+const SLOPE_LEGEND = `Slope: ${SLOPE_RANGES.join(', ')}`;
+
+function SlopeLegend() {
+    return (
+        <div
+            className="flex items-center gap-0.5 text-[10px] text-muted-foreground tabular-nums leading-none"
+            role="img"
+            aria-label={SLOPE_LEGEND}
+            title={SLOPE_LEGEND}
+        >
+            {SLOPE_CLASSES.map((step, i) => (
+                <Fragment key={step.swatch}>
+                    <span className={`block h-2 w-3 rounded-[2px] ${step.swatch}`} />
+                    {i < SLOPE_STEPS.length && <span>{SLOPE_STEPS[i]}</span>}
+                </Fragment>
+            ))}
+            <span>%</span>
+        </div>
+    );
+}
+
 export function ElevationProfile() {
     const profile = useElevationProfile();
     const target = useAppStore((state) => state.profile);
@@ -162,14 +190,17 @@ export function ElevationProfile() {
                         )
                     )}
                 </div>
-                <a
-                    className="self-end text-[10px] text-muted-foreground leading-none hover:underline"
-                    href={config.elevationsAttribution.url}
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    Elevation data: {config.elevationsAttribution.text}
-                </a>
+                <div className="flex items-center gap-2">
+                    {data?.values && <SlopeLegend />}
+                    <a
+                        className="ml-auto truncate text-[10px] text-muted-foreground leading-none hover:underline"
+                        href={config.elevationsAttribution.url}
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        Elevation data: {config.elevationsAttribution.text}
+                    </a>
+                </div>
             </div>
         </Card>
     );

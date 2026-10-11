@@ -1,11 +1,11 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore, useAppStoreApi } from '@/state/context';
 import type { ProfileData } from '@/state/store';
-import { cursorInfo } from './format';
-import { distanceAt, gridValues, indexAtDistance, pointAt } from './profile';
+import { cursorInfo, profileSections } from './format';
+import { distanceAt, gridValues, indexAtDistance, pointAt, SLOPE_CLASSES, slopeClass } from './profile';
 
-// График профиля — свой SVG (design add-web-elevation-profile, «График: свой SVG»): ломаная с заливкой по точкам
-// выборки, шкала слева, курсор и выделение поверх. Ось X — расстояние, а не номер точки: на концах отрезков шаг
+// График профиля — свой SVG (design add-web-elevation-profile, «График: свой SVG»): ломаная по точкам выборки над
+// заливкой участков цветом ступени крутизны (design slope-profile), шкала слева, курсор и выделение поверх. Ось X — расстояние, а не номер точки: на концах отрезков шаг
 // выборки короче. Мышь: движение — курсор, нажатие со сдвигом — выделение, клик — снять выделение, двойной клик —
 // карта в эту точку, колесо — зум 1–10× (прокрутка родная). Палец водит курсор, без выделения и зума.
 
@@ -61,24 +61,22 @@ function scaleOf(values: readonly (number | null)[], height: number): Scale | nu
     return { grid, y: (value) => PAD_TOP + ((high - value) / (high - low)) * span };
 }
 
-// Ломаная и заливка: прогон рвётся на точке без данных и на стыке отрезков
+// Ломаная: прогон рвётся на точке без данных и на стыке отрезков. Заливка — по участкам крутизны, по пути на ступень:
+// участки рвутся там же, где ломаная (slopeSections).
 function paths(data: ProfileData, width: number, height: number, scale: Scale) {
     const { distances, starts } = data.samples;
     const values = data.values ?? [];
     const first = distances[0];
     const total = distances[distances.length - 1] - first || 1;
-    const x = (i: number) => ((distances[i] - first) / total) * (width - 1);
+    const x = (i: number) => (((distances[i] - first) / total) * (width - 1)).toFixed(1);
+    const point = (i: number) => `${x(i)} ${scale.y(values[i] as number).toFixed(1)}`;
     const base = height - PAD_BOTTOM;
     const startSet = new Set(starts);
     const line: string[] = [];
-    const area: string[] = [];
     let run: string[] = [];
-    let runStart = 0;
-    let runEnd = 0;
     const flush = () => {
         if (run.length > 1) {
             line.push(`M${run.join('L')}`);
-            area.push(`M${x(runStart).toFixed(1)} ${base}L${run.join('L')}L${x(runEnd).toFixed(1)} ${base}Z`);
         } else if (run.length === 1) {
             line.push(`M${run[0]}h0.5`);
         }
@@ -92,14 +90,20 @@ function paths(data: ProfileData, width: number, height: number, scale: Scale) {
             flush();
             return;
         }
-        if (run.length === 0) {
-            runStart = i;
-        }
-        runEnd = i;
-        run.push(`${x(i).toFixed(1)} ${scale.y(value).toFixed(1)}`);
+        run.push(point(i));
     });
     flush();
-    return { line: line.join(''), area: area.join('') };
+    const fills: string[][] = SLOPE_CLASSES.map(() => []);
+    for (const section of profileSections(data)) {
+        const outline: string[] = [];
+        for (let i = section.from; i <= section.to; i++) {
+            outline.push(point(i));
+        }
+        fills[slopeClass(section.grade)].push(
+            `M${x(section.from)} ${base}L${outline.join('L')}L${x(section.to)} ${base}Z`,
+        );
+    }
+    return { line: line.join(''), fills: fills.map((parts) => parts.join('')) };
 }
 
 export function ProfileGraph({ data }: { data: ProfileData }) {
@@ -270,10 +274,18 @@ export function ProfileGraph({ data }: { data: ProfileData }) {
                             ))}
                             {drawn && (
                                 <>
-                                    <path d={drawn.area} className="fill-amber-700/15" />
+                                    {drawn.fills.map((d, step) => (
+                                        <path
+                                            // biome-ignore lint/suspicious/noArrayIndexKey: ступени постоянны, номер — ключ
+                                            key={step}
+                                            d={d}
+                                            className={SLOPE_CLASSES[step].fill}
+                                            data-slope={step}
+                                        />
+                                    ))}
                                     <path
                                         d={drawn.line}
-                                        className="fill-none stroke-amber-800"
+                                        className="fill-none stroke-foreground/75"
                                         strokeWidth={1.5}
                                         strokeLinejoin="round"
                                         data-testid="profile-line"
@@ -281,15 +293,27 @@ export function ProfileGraph({ data }: { data: ProfileData }) {
                                 </>
                             )}
                         </svg>
+                        {/* выделение приглушает график вокруг: цвета ступеней внутри остаются истинными (design
+                            slope-profile, «Выделение») */}
                         {selection && (
-                            <div
-                                className="pointer-events-none absolute inset-y-0 bg-yellow-300/40"
-                                style={{
-                                    left: xOf(selection[0]),
-                                    width: Math.max(xOf(selection[1]) - xOf(selection[0]), 1),
-                                }}
-                                data-testid="profile-selection"
-                            />
+                            <>
+                                <div
+                                    className="pointer-events-none absolute inset-y-0 left-0 bg-background/65"
+                                    style={{ width: xOf(selection[0]) }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute inset-y-0 right-0 bg-background/65"
+                                    style={{ left: xOf(selection[1]) }}
+                                />
+                                <div
+                                    className="pointer-events-none absolute inset-y-0 border-foreground/50 border-x"
+                                    style={{
+                                        left: xOf(selection[0]),
+                                        width: Math.max(xOf(selection[1]) - xOf(selection[0]), 1),
+                                    }}
+                                    data-testid="profile-selection"
+                                />
+                            </>
                         )}
                         {info && (
                             <>

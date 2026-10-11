@@ -10,8 +10,11 @@ import {
     profileStats,
     sampleSegments,
     samplingInterval,
+    sectionAt,
+    sectionLength,
     simplifyProfile,
-    slopeAt,
+    slopeClass,
+    slopeSections,
 } from './profile';
 
 const P = (lat: number, lng: number) => ({ lat, lng });
@@ -156,14 +159,10 @@ describe('курсор', () => {
         expect(indexAtDistance(distances, 1000)).toBe(2);
     });
 
-    it('высота и уклон у курсора', () => {
+    it('высота у курсора', () => {
         expect(elevationAt([100, null, 200], 0.8)).toBe(100);
         expect(elevationAt([100, null, 200], 1.2)).toBe(200);
         expect(elevationAt([100, null, 200], 1)).toBeNull();
-        const profile = { distances: Float64Array.from([0, 100, 200]), starts: [0] };
-        expect(slopeAt(profile, [0, 100, 100], 0.5)).toBe(45);
-        expect(slopeAt(profile, [0, null, 100], 0.5)).toBeNull();
-        expect(slopeAt({ ...profile, starts: [0, 1] }, [0, 100, 100], 0.5)).toBeNull();
     });
 
     it('ближайшее место на линии на экране, без звена через стык', () => {
@@ -176,5 +175,69 @@ describe('курсор', () => {
         expect(nearestIndex(screen, [0], { x: 50, y: 30 }, 10)).toBeNull();
         expect(nearestIndex(screen, [0, 1], { x: 50, y: 3 }, 10)).toBeNull();
         expect(nearestIndex(screen, [0], { x: 201, y: 101 }, 10)).toBe(2);
+    });
+});
+
+describe('Участки крутизны', () => {
+    // 1 км через 100 м: первая половина ровно на 800 м, вторая — подъём 100 м (20 %)
+    const flatThenClimb = [800, 800, 800, 800, 800, 800, 820, 840, 860, 880, 900];
+    const span = (sections: { from: number; to: number }[]) => sections.map(({ from, to }) => [from, to]);
+
+    it('Участки разной крутизны', () => {
+        const sections = slopeSections(even(11), flatThenClimb);
+        expect(span(sections)).toEqual(Array.from({ length: 10 }, (_, i) => [i, i + 1]));
+        expect(sections.map((section) => slopeClass(section.grade))).toEqual([0, 0, 0, 0, 0, 4, 4, 4, 4, 4]);
+        expect(sections[9].grade).toBeCloseTo(20, 9);
+    });
+
+    it('Короткий хвост участка', () => {
+        const profile = { distances: Float64Array.from([0, 50, 100, 150, 200, 240]), starts: [0] };
+        expect(span(slopeSections(profile, [0, 0, 0, 0, 0, 0], 100))).toEqual([
+            [0, 2],
+            [2, 5],
+        ]);
+        // хвост не короче половины участка — свой участок
+        const longTail = { distances: Float64Array.from([0, 100, 160]), starts: [0] };
+        expect(span(slopeSections(longTail, [0, 0, 0], 100))).toEqual([
+            [0, 1],
+            [1, 2],
+        ]);
+    });
+
+    it('участки рвутся на точках без данных и на стыке отрезков', () => {
+        expect(span(slopeSections(even(5), [0, 10, null, 0, 10], 100))).toEqual([
+            [0, 1],
+            [3, 4],
+        ]);
+        expect(span(slopeSections(even(4, 100, [0, 2]), [0, 10, 20, 30], 100))).toEqual([
+            [0, 1],
+            [2, 3],
+        ]);
+        // прогон короче участка — один участок, единичная точка — ни одного
+        expect(span(slopeSections(even(3), [0, 5, null], 1000))).toEqual([[0, 1]]);
+        expect(slopeSections(even(3), [null, 5, null], 100)).toEqual([]);
+    });
+
+    it('длина участка — не меньше 100 м и 1/200 профиля', () => {
+        expect(sectionLength(1000)).toBe(100);
+        expect(sectionLength(100_000)).toBe(500);
+    });
+
+    it('ступень — по модулю уклона, округлённого до целого', () => {
+        expect([0, 2.4, 2.6, -2.6, 5.6, 6, -12, 15, 24.4, 24.6, 100].map(slopeClass)).toEqual([
+            0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5,
+        ]);
+    });
+
+    it('участок под курсором', () => {
+        const sections = slopeSections(even(11), flatThenClimb);
+        expect(sectionAt(sections, 0.5)).toBe(sections[0]);
+        // общая точка двух участков — следующий, конец прогона — последний
+        expect(sectionAt(sections, 5)).toBe(sections[5]);
+        expect(sectionAt(sections, 10)).toBe(sections[9]);
+        const gapped = slopeSections(even(5), [0, 10, null, 0, 10], 100);
+        expect(sectionAt(gapped, 1)).toBe(gapped[0]);
+        expect(sectionAt(gapped, 2.5)).toBeNull();
+        expect(sectionAt(gapped, 3)).toBe(gapped[1]);
     });
 });

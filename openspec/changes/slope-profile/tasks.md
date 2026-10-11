@@ -2,8 +2,8 @@
 
 ## 1. Раскраска профиля
 
-- [ ] 1.1 Участки крутизны и ступени (`slopeSections`, `sectionLength`, `slopeClass`, `sectionAt`, `SLOPE_STEPS`, `SLOPE_CLASSES`), удаление `slopeAt` (`elevation/profile.ts`); unit «Участки разной крутизны», «Короткий хвост участка», разрывы и ступень по округлённому проценту (`profile.test.ts`); проверка: unit `profile.test.ts` зелёный
-- [ ] 1.2 Заливка по участкам, линия над ней, выделение приглушает остальное (`ProfileGraph.tsx`), уклон участка у курсора и метки (`format.ts`), легенда в строке атрибуции (`ElevationProfile.tsx`); browser «Участки разной крутизны» и «Уклон у курсора» (`ElevationProfile.browser.test.tsx`); проверка: browser `ElevationProfile` зелёный
+- [x] 1.1 Участки крутизны и ступени (`slopeSections`, `sectionLength`, `slopeClass`, `sectionAt`, `SLOPE_STEPS`, `SLOPE_CLASSES`), удаление `slopeAt` (`elevation/profile.ts`); unit «Участки разной крутизны», «Короткий хвост участка», разрывы и ступень по округлённому проценту (`profile.test.ts`); проверка: unit `profile.test.ts` зелёный
+- [x] 1.2 Заливка по участкам, линия над ней, выделение приглушает остальное (`ProfileGraph.tsx`), уклон участка у курсора и метки (`format.ts`), легенда в строке атрибуции (`ElevationProfile.tsx`); browser «Участки разной крутизны» и «Уклон у курсора» (`ElevationProfile.browser.test.tsx`); проверка: browser `ElevationProfile` зелёный
 - [ ] 1.3 Полный прогон; проверка: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build && npm run e2e` в `web/` зелёные (CI — `check-web.yml`)
 
 ## 2. Документы

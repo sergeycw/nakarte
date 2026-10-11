@@ -91,15 +91,6 @@ function segmentLength(line: readonly LatLng[]): number {
 
 export type Elevation = number | null;
 
-// номер отрезка, которому принадлежит точка i
-export function segmentOf(starts: readonly number[], i: number): number {
-    let k = 0;
-    while (k + 1 < starts.length && starts[k + 1] <= i) {
-        k++;
-    }
-    return k;
-}
-
 export interface Inclination {
     // градусы, округлены как gradientToAngle старого
     avg: number;
@@ -360,25 +351,115 @@ export function elevationAt(values: readonly Elevation[], index: number): Elevat
     return values[Math.floor(index)] ?? values[Math.ceil(index)] ?? null;
 }
 
-// Уклон шага под курсором в градусах; null — нет данных или курсор на стыке отрезков
-export function slopeAt(
+// Раскраска профиля по крутизне (design slope-profile, «Уклон по участкам», «Ступени в процентах по модулю»). Шаг
+// выборки (10–50 м) мельче ячейки данных высот 3″ (≈ 90 м): уклон соседних точек — шум интерполяции, поэтому уклон
+// считается по участкам не короче sectionLength.
+
+// пороги ступеней, % по модулю: < 3, 3–6, 6–10, 10–15, 15–25, ≥ 25
+export const SLOPE_STEPS = [3, 6, 10, 15, 25];
+
+// цвета ступеней: последовательная шкала, светлота OKLCH строго убывает (94.5 → 39.6 %), порядок читается и без
+// различения оттенков. Классы целиком строками — их находит сканер Tailwind.
+export const SLOPE_CLASSES = [
+    { fill: 'fill-yellow-200', swatch: 'bg-yellow-200' },
+    { fill: 'fill-amber-300', swatch: 'bg-amber-300' },
+    { fill: 'fill-orange-400', swatch: 'bg-orange-400' },
+    { fill: 'fill-orange-600', swatch: 'bg-orange-600' },
+    { fill: 'fill-red-700', swatch: 'bg-red-700' },
+    { fill: 'fill-red-900', swatch: 'bg-red-900' },
+];
+
+// участок не короче ячейки данных и не мельче 1/200 профиля: на графике телефона (≈ 350 px) это ≥ 1.7 px. От данных,
+// а не от ширины графика — цвет одинаков на графике, у метки на карте и при любом зуме.
+const MIN_SECTION = 100;
+const MAX_SECTIONS = 200;
+
+export function sectionLength(length: number): number {
+    return Math.max(MIN_SECTION, length / MAX_SECTIONS);
+}
+
+export interface SlopeSection {
+    // номера крайних точек выборки; соседние участки прогона делят точку на границе
+    from: number;
+    to: number;
+    // уклон, % со знаком: разность высот концов на длину
+    grade: number;
+}
+
+// Участки по прогонам точек с данными внутри отрезков (рвутся там же, где ломаная графика): от начала прогона копим
+// точки, пока длина не дойдёт до length; хвост короче length / 2 входит в предыдущий участок прогона.
+export function slopeSections(
     profile: Pick<ProfileSamples, 'distances' | 'starts'>,
     values: readonly Elevation[],
-    index: number,
-) {
-    const n = values.length;
-    let i = Math.min(Math.floor(index), n - 2);
-    i = Math.max(i, 0);
-    const a = values[i];
-    const b = values[i + 1];
-    const run = profile.distances[i + 1] - profile.distances[i];
-    if (a === null || b === null || a === undefined || b === undefined || run <= 0) {
-        return null;
+    length = sectionLength(profile.distances[profile.distances.length - 1] - profile.distances[0] || 0),
+): SlopeSection[] {
+    const { distances, starts } = profile;
+    const sections: SlopeSection[] = [];
+    const grade = (from: number, to: number) =>
+        (((values[to] as number) - (values[from] as number)) / (distances[to] - distances[from])) * 100;
+    const closeRun = (first: number, last: number) => {
+        const before = sections.length;
+        let from = first;
+        for (let i = first + 1; i <= last; i++) {
+            if (distances[i] - distances[from] >= length) {
+                sections.push({ from, to: i, grade: grade(from, i) });
+                from = i;
+            }
+        }
+        if (from === last || distances[last] <= distances[from]) {
+            return;
+        }
+        const previous = sections.length > before ? sections[sections.length - 1] : null;
+        if (previous && distances[last] - distances[from] < length / 2) {
+            previous.to = last;
+            previous.grade = grade(previous.from, last);
+            return;
+        }
+        sections.push({ from, to: last, grade: grade(from, last) });
+    };
+    starts.forEach((start, k) => {
+        const end = (starts[k + 1] ?? values.length) - 1;
+        let first = -1;
+        for (let i = start; i <= end; i++) {
+            const known = values[i] !== null && values[i] !== undefined;
+            if (known && first < 0) {
+                first = i;
+            }
+            if (first >= 0 && (!known || i === end)) {
+                closeRun(first, known ? i : i - 1);
+                first = -1;
+            }
+        }
+    });
+    return sections;
+}
+
+// номер ступени по модулю уклона, округлённого до целого — того же числа, что у курсора
+export function slopeClass(grade: number): number {
+    const percent = Math.round(Math.abs(grade));
+    const step = SLOPE_STEPS.findIndex((threshold) => percent < threshold);
+    return step < 0 ? SLOPE_STEPS.length : step;
+}
+
+// Участок под дробным номером точки; на общей точке двух участков — следующий, на конце прогона — последний его
+// участок; вне участков (точки без данных, стык) — null
+export function sectionAt(sections: readonly SlopeSection[], index: number): SlopeSection | null {
+    let lo = 0;
+    let hi = sections.length - 1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const section = sections[mid];
+        if (index < section.from) {
+            hi = mid - 1;
+        } else if (index >= section.to) {
+            lo = mid + 1;
+        } else {
+            return section;
+        }
     }
-    if (segmentOf(profile.starts, i) !== segmentOf(profile.starts, i + 1)) {
-        return null;
-    }
-    return toAngle((b - a) / run);
+    // index точно на конце участка, за которым нет участка с этого же места
+    const last = sections[hi];
+    return last && index === last.to ? last : null;
 }
 
 export interface ScreenPoint {
