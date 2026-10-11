@@ -231,6 +231,66 @@ describe('Ошибка прокладки', () => {
     });
 });
 
+describe('Ожидание прокладки в верхней строке', () => {
+    // в строке редактора: открытый список треков под ней показывает свою кнопку прокладки
+    const routingButton = () => editPanel().getByRole('button', { name: /^Routing/ });
+    const tracksButton = () => page.getByRole('button', { name: /^Tracks( \d+)?$/ });
+
+    test('Ожидание в строке редактора', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(routingButton()).toHaveAttribute('aria-busy', 'true');
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing: Hiking. Calculating route');
+        router.live()[0].resolve([]);
+        await expect.element(routingButton()).not.toHaveAttribute('aria-busy');
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing: Hiking');
+    });
+
+    test('Ожидание, пока движок загружается', async () => {
+        const { map } = await render(VIEW, fakeRouter({ status: 'loading' }), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(routingButton()).toHaveAttribute('aria-busy', 'true');
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing: Hiking. BRouter engine is loading');
+    });
+
+    test('Прокладку выключили во время ожидания', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await routingButton().click();
+        await page.getByRole('menuitemradio', { name: 'Off: straight lines' }).click();
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing is off. Calculating route');
+        await expect.element(routingButton()).toHaveAttribute('aria-busy', 'true');
+        router.live()[0].resolve([]);
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing is off: lines are straight');
+    });
+
+    test('Ожидание после конца правки', async () => {
+        const { map } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await page.getByRole('button', { name: 'Finish editing' }).click();
+        await expect.element(tracksButton()).toHaveAttribute('aria-busy', 'true');
+    });
+
+    test('Ответ снимает ожидание', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await page.getByRole('button', { name: 'Finish editing' }).click();
+        await expect.element(tracksButton()).toHaveAttribute('aria-busy', 'true');
+        router.live()[0].resolve([]);
+        await expect.element(tracksButton()).not.toHaveAttribute('aria-busy');
+        await expect.element(tracksButton()).toHaveAttribute('title', 'Tracks 1');
+    });
+
+    test('Ошибка снимает ожидание', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(routingButton()).toHaveAttribute('aria-busy', 'true');
+        router.live()[0].reject(new RoutingError('no route found'));
+        await expect.element(routingButton()).not.toHaveAttribute('aria-busy');
+        await expect.element(routingButton()).toHaveAttribute('title', 'Routing: Hiking');
+    });
+});
+
 describe('Перетаскивание опорной точки', () => {
     test('Точка между двумя отрезками', async () => {
         const { map, router } = await render(VIEW, fakeRouter({ auto: true }), 'hiking');
