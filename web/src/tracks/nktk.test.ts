@@ -130,6 +130,32 @@ describe('Любой цвет в ссылке', () => {
         expect(viewColor(saveNktk({ ...track, color: '#14b8a6' }))).toBe(2);
     });
 
+    // строка версии 4 с View { color: 2, shown, rgb } — rgb записан как есть, без проверок saveNktk
+    function withRgb(write: (view: PbfWriter) => void): string {
+        const pbf = new PbfWriter();
+        pbf.writeMessage(
+            1,
+            (_: null, view: PbfWriter) => {
+                view.writeVarintField(1, 2);
+                view.writeBooleanField(2, true);
+                write(view);
+            },
+            null,
+        );
+        pbf.writeMessage(2, (_: null, out: PbfWriter) => out.writeStringField(1, 'Цвет'), null);
+        const body = pbf.finish();
+        return encodeBase64Url(Uint8Array.from([4 + 64, ...body]));
+    }
+
+    test.each([
+        ['строкой', (view: PbfWriter) => view.writeStringField(4, '#14b8a6')],
+        ['вне 0xRRGGBB', (view: PbfWriter) => view.writeVarintField(4, 0x1000000)],
+    ])('поле rgb %s — цвет палитры из color', (_, write) => {
+        const [parsed] = parseNktk(withRgb(write));
+        expect(parsed.error).toBeUndefined();
+        expect(parsed.color).toBe(2);
+    });
+
     test('Цвет палитры в ссылке', () => {
         const nktk = saveNktk({ ...track, color: 3 });
         expect(viewColor(nktk)).toBe(3);

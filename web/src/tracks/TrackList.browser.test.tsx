@@ -164,15 +164,16 @@ describe('Любой цвет трека', () => {
     const hex = () => page.getByRole('textbox', { name: 'Hex color' });
 
     // синтетический указатель на полосе оттенка: доля ширины слева направо
-    function pointer(type: string, element: Element, x: number) {
+    function pointer(type: string, element: Element, x: number, pointerType = 'mouse') {
         const rect = element.getBoundingClientRect();
         element.dispatchEvent(
             new PointerEvent(type, {
                 bubbles: true,
                 pointerId: 1,
-                pointerType: 'mouse',
+                pointerType,
                 isPrimary: true,
                 button: 0,
+                buttons: type === 'pointerup' ? 0 : 1,
                 clientX: rect.left + rect.width * x,
                 clientY: rect.top + rect.height / 2,
             }),
@@ -190,20 +191,45 @@ describe('Любой цвет трека', () => {
         await expect.element(page.getByRole('slider', { name: 'Hue' })).toBeVisible();
     });
 
-    test('Свой цвет перетаскиванием', async () => {
+    test.each(['mouse', 'touch'])('Свой цвет перетаскиванием: %s', async (pointerType) => {
         const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
         await expect.poll(() => color(map, 0)).toBe(TRACK_COLORS[0]);
         await page.getByRole('button', { name: 'Color of A' }).click();
         const hue = page.getByRole('slider', { name: 'Hue' }).element();
-        pointer('pointerdown', hue, 0.5);
-        pointer('pointermove', hue, 0.1);
+        pointer('pointerdown', hue, 0.5, pointerType);
+        pointer('pointermove', hue, 0.1, pointerType);
         await expect.element(page.getByRole('slider', { name: 'Hue' })).toHaveAttribute('aria-valuenow', '36');
-        // пока указатель не отпущен, трек прежнего цвета
+        // пока указатель не отпущен, трек прежнего цвета: карта успела бы перекраситься за кадр-другой
+        await new Promise((resolve) => setTimeout(resolve, 200));
         expect(color(map, 0)).toBe(TRACK_COLORS[0]);
-        pointer('pointerup', hue, 0.1);
+        pointer('pointerup', hue, 0.1, pointerType);
         const picked = (hex().element() as HTMLInputElement).value;
         expect(picked).not.toBe(TRACK_COLORS[0]);
         await expect.poll(() => color(map, 0)).toBe(picked);
+    });
+
+    test('Свой цвет с клавиатуры', async () => {
+        const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
+        await expect.poll(() => color(map, 0)).toBe(TRACK_COLORS[0]);
+        await page.getByRole('button', { name: 'Color of A' }).click();
+        const hue = page.getByRole('slider', { name: 'Hue' });
+        const before = Number(hue.element().getAttribute('aria-valuenow'));
+        (hue.element() as HTMLElement).focus();
+        await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
+        await expect.element(hue).toHaveAttribute('aria-valuenow', String(before + 10));
+        const picked = (hex().element() as HTMLInputElement).value;
+        expect(picked).not.toBe(TRACK_COLORS[0]);
+        await expect.poll(() => color(map, 0)).toBe(picked);
+    });
+
+    test('Набранный hex при закрытии', async () => {
+        const { map } = await renderApp(tiles, `#m=12/41.69/44.8&nktk=${track('A')}`);
+        await expect.poll(() => color(map, 0)).toBe(TRACK_COLORS[0]);
+        await page.getByRole('button', { name: 'Color of A' }).click();
+        await hex().fill('#14b8a6');
+        await userEvent.keyboard('{Escape}');
+        await expect.element(hex()).not.toBeInTheDocument();
+        await expect.poll(() => color(map, 0)).toBe('#14b8a6');
     });
 
     test('Неверный hex', async () => {

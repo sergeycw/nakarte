@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTrackActions } from './actions-context';
@@ -35,15 +35,39 @@ export function ColorPicker({ track }: { track: Track }) {
 }
 
 // Содержимое открытой палитры: монтируется при каждом открытии, недавние цвета читаются тогда же. Пока палитра открыта,
-// строка недавних не меняется: новая строка сдвинула бы квадрат пикера под пальцем.
+// строка недавних не меняется: новая строка сдвинула бы квадрат пикера под пальцем. При закрытии (любом, и Escape тоже)
+// применяется показанный, но не применённый цвет пикера — набранный hex без Enter (что видно в образце, то и у трека),
+// а в недавние уходит один цвет — последний свой, применённый за это открытие: стрелки и короткие перетаскивания иначе
+// вытеснили бы недавние почти одинаковыми оттенками.
 function Palette({ track, close }: { track: Track; close: () => void }) {
     const actions = useTrackActions();
     const [recent] = useState(readRecentColors);
+    // трек на момент закрытия: эффект закрытия видит замыкание первого рендера
+    const current = useRef(track);
+    current.current = track;
+    const draft = useRef<string | null>(null);
+    const applied = useRef<string | null>(null);
     const choose = (color: TrackColor) => {
-        if (color !== track.color) {
-            actions.setColor(track, color);
+        draft.current = null;
+        if (typeof color === 'string') {
+            applied.current = color;
+        }
+        if (color !== current.current.color) {
+            actions.setColor(current.current, color);
         }
     };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: только при закрытии, choose читает refs
+    useEffect(
+        () => () => {
+            if (draft.current) {
+                choose(normalizeColor(draft.current));
+            }
+            if (applied.current) {
+                rememberColor(applied.current);
+            }
+        },
+        [],
+    );
     const swatch = (color: string) => (
         <span className="block h-1.5 w-4 rounded-full" style={{ backgroundColor: color }} />
     );
@@ -85,9 +109,9 @@ function Palette({ track, close }: { track: Track; close: () => void }) {
             )}
             <HsvPicker
                 color={trackColor(track.color)}
-                onCommit={(hex) => {
-                    choose(normalizeColor(hex));
-                    rememberColor(hex);
+                onCommit={(hex) => choose(normalizeColor(hex))}
+                onDraft={(hex) => {
+                    draft.current = hex;
                 }}
             />
         </>

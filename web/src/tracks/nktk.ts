@@ -266,7 +266,11 @@ function readView(tag: number, obj: ViewMessage, pbf: PbfReader) {
     if (tag === 1) obj.color = pbf.readVarint(true);
     else if (tag === 2) obj.shown = pbf.readBoolean();
     else if (tag === 3) obj.ticksShown = pbf.readBoolean();
-    else if (tag === 4) obj.rgb = pbf.readVarint();
+    // чужой тип или значение вне 0xRRGGBB — как нет поля: цвет палитры из color
+    else if (tag === 4 && pbf.type === 0) {
+        const rgb = pbf.readVarint();
+        obj.rgb = rgb <= 0xffffff ? rgb : null;
+    }
 }
 
 function deltaDecode(lats: number[], lons: number[]): LatLng[] {
