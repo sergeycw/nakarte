@@ -27,6 +27,11 @@ async function openSwitcher() {
     return switcher;
 }
 
+// секции оверлеев свёрнуты, пока в них ничего не включено
+async function openSection(switcher: ReturnType<typeof page.getByTestId>, name: string) {
+    await switcher.getByRole('button', { name, exact: true }).click();
+}
+
 function storedListed(listed: Record<string, boolean>) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, listed, custom: [], selection: null }));
 }
@@ -65,7 +70,9 @@ describe('Подложка и оверлеи', () => {
         storedListed({ Sa: true, Nm: true });
         const { map } = await renderApp(tiles);
         const switcher = await openSwitcher();
+        await openSection(switcher, 'Overlays');
         await switcher.getByText('Strava heatmap (all)').click();
+        await openSection(switcher, 'Norway');
         await switcher.getByText('Norway topo').click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Nm', 'Sa']);
         expect(location.hash).toContain('l=Tt/Nm/Sa');
@@ -74,6 +81,7 @@ describe('Подложка и оверлеи', () => {
     test('Включить отмывку', async () => {
         const { map } = await renderApp(tiles);
         const switcher = await openSwitcher();
+        await openSection(switcher, 'Overlays');
         await switcher.getByText('Relief shading').click();
         await expect.poll(() => map.getLayer('Hs')?.type).toBe('hillshade');
         await expect
@@ -103,6 +111,62 @@ describe('Подложка и оверлеи', () => {
         const before = map.getCenter();
         await userEvent.dblClick(switcher.element(), { position: { x: 5, y: 5 } });
         expect(map.getCenter()).toEqual(before);
+    });
+});
+
+describe('Полный список слоёв', () => {
+    test('Полный список', async () => {
+        await renderApp(tiles);
+        const switcher = await openSwitcher();
+        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
+        const overlays = switcher.getByRole('button', { name: 'Overlays', exact: true });
+        await expect.element(overlays).toHaveAttribute('aria-expanded', 'false');
+        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
+        await overlays.click();
+        await expect.element(overlays).toHaveAttribute('aria-expanded', 'true');
+        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
+        await expect.element(switcher.getByRole('button', { name: 'Configure layers' })).toBeVisible();
+        await expect.element(switcher.getByRole('button', { name: 'Add custom layer' })).toBeVisible();
+    });
+
+    test('Редкие группы свёрнуты', async () => {
+        storedListed({ Nm: true, Gbt: true });
+        await renderApp(tiles);
+        const switcher = await openSwitcher();
+        const norway = switcher.getByRole('button', { name: 'Norway', exact: true });
+        await expect.element(norway).toHaveAttribute('aria-expanded', 'false');
+        await expect
+            .element(switcher.getByRole('button', { name: 'Topo maps', exact: true }))
+            .toHaveAttribute('aria-expanded', 'false');
+        await expect.element(switcher.getByText('Norway topo')).not.toBeVisible();
+        await norway.click();
+        await expect.element(switcher.getByRole('checkbox', { name: 'Norway topo' })).toBeVisible();
+        // соседняя редкая секция по-прежнему свёрнута
+        await expect
+            .element(switcher.getByRole('button', { name: 'Topo maps', exact: true }))
+            .toHaveAttribute('aria-expanded', 'false');
+    });
+
+    test('Секция с включённым оверлеем раскрыта', async () => {
+        await renderApp(tiles, '#l=O/Hs');
+        const switcher = await openSwitcher();
+        await expect
+            .element(switcher.getByRole('button', { name: 'Overlays 1 on' }))
+            .toHaveAttribute('aria-expanded', 'true');
+        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeChecked();
+        // снятие последнего включённого секцию не сворачивает
+        await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
+        const overlays = switcher.getByRole('button', { name: 'Overlays', exact: true });
+        await expect.element(overlays).toHaveAttribute('aria-expanded', 'true');
+        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).not.toBeChecked();
+        await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
+        // свернуть можно и её; выбор держится, пока страница открыта
+        await switcher.getByRole('button', { name: 'Overlays 1 on' }).click();
+        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
+        await page.getByTestId('layers-button').click();
+        await expect.element(switcher).not.toBeInTheDocument();
+        await openSwitcher();
+        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
     });
 });
 
