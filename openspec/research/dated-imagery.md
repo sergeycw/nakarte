@@ -68,5 +68,5 @@ GIBS и Earth Search браузер зовёт напрямую, Worker'ы кл�
 
 | # | Change | Что | Решения |
 |---|---|---|---|
-| 1 | `add-dated-imagery` | слой HLS из GIBS с выбором даты, список дат с облачностью из Earth Search | владелец 2026-10-12: делать, после `add-contour-lines` |
+| 1 | `add-dated-imagery` | слой HLS из GIBS с выбором даты, список дат с облачностью из Earth Search | владелец 2026-10-12: делать, после `add-contour-lines`; сделано — [архив](../changes/archive/2026-10-12-add-dated-imagery/design.md) |
 | 2 | `spike-sentinel-cog` | spike: COG Sentinel-2 10 м из `sentinel-cogs` в браузере — перепроекция и склейка в Web Worker, объём трафика и время на телефоне; итог — делать ли слой 10 м | **[агент]**; владелец 2026-10-12: решать после `add-dated-imagery`, если 30 м мало |

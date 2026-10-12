@@ -2,7 +2,7 @@
 
 ### Requirement: Каталог слоёв
 
-Приложение SHALL предлагать слои старого клиента с теми же кодами, названиями и группами, кроме Yandex map (`Y`), Yandex Satellite (`S`), Wikimapia (`W`) и Soviet topo maps grid (`Ng`), и SHALL добавлять оверлеи «Relief shading» (`Hs`) и «Contour lines» (`Ct`), подложку «Tracestrack Topo» (`Tt`, первой в группе `Default layers`), подложку «Sentinel-2 cloudless» (`S2`, сразу после «ESRI Satellite») и подложку «Satellite by date» (`Hls`, сразу после «Sentinel-2 cloudless»). Каждый показанный слой SHALL иметь свою атрибуцию в подписи карты.
+Приложение SHALL предлагать слои старого клиента с теми же кодами, названиями и группами, кроме Yandex map (`Y`), Yandex Satellite (`S`), Wikimapia (`W`) и Soviet topo maps grid (`Ng`), и SHALL добавлять оверлеи «Relief shading» (`Hs`) и «Contour lines» (`Ct`), подложку «Tracestrack Topo» (`Tt`, первой в группе `Default layers`), подложки «Sentinel-2 cloudless» (`S2`) и «Satellite by date» (`Hls`) сразу после «ESRI Satellite». Каждый показанный слой SHALL иметь свою атрибуцию в подписи карты.
 
 #### Scenario: Список слоёв
 
