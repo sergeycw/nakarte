@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { renderApp } from '@/test/render-app';
@@ -152,7 +152,7 @@ describe('Снимки по датам', () => {
         expect(rows.map((row) => row.dataset.date)).toEqual([daysAgo(2), daysAgo(5), daysAgo(7)]);
         expect(rows[0].textContent).toBe(`${daysAgo(2)}8%Sentinel-2 · may not be ready`);
         expect(rows[1].textContent).toBe(`${daysAgo(5)}96%Sentinel-2`);
-        expect(rows[2].getAttribute('aria-current')).toBe('date');
+        expect(rows.map((row) => row.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
 
         await list.getByRole('button', { name: new RegExp(`^${daysAgo(5)}`) }).click();
         expect(hashDate()).toBe(daysAgo(5));
@@ -166,7 +166,12 @@ describe('Снимки по датам', () => {
         const search = fakeEarthSearch(ok);
         await renderApp(tiles, `#m=12/${AT}&l=Hls&d=${daysAgo(7)}`, { fetch: search.fetch, tracksOpen: false });
         await dateButton().click();
-        await page.getByLabelText('Other date').fill('2025-08-01');
+        // ввод не применяет дату, пока не нажат Enter: иначе часть даты (месяц 1 из «10») уже была бы датой
+        const other = page.getByLabelText('Other date');
+        await other.fill('2025-08-01');
+        expect(hashDate()).toBe(daysAgo(7));
+        await expect.element(page.getByTestId('imagery-dates')).toBeVisible();
+        await userEvent.keyboard('{Enter}');
         await expect.poll(hashDate).toBe('2025-08-01');
         await expect.poll(() => gibsTiles().some(([, date]) => date === '2025-08-01')).toBe(true);
         await expect.element(dateButton()).toHaveTextContent('Imagery date2025-08-01');
@@ -191,6 +196,8 @@ describe('Снимки по датам', () => {
         });
         await expect.poll(() => gibsTiles().length).toBeGreaterThan(0);
         await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        // тост появился бы асинхронно после ошибки: даём ему время
+        await new Promise((resolve) => setTimeout(resolve, 500));
         expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
     });
 

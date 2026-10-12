@@ -98,10 +98,11 @@ describe('Дата снимка по умолчанию', () => {
 describe('Снимки по датам: дата в адресе и слой', () => {
     test('d= — только настоящая дата ГГГГ-ММ-ДД', () => {
         expect(parseDateParam(['2026-10-05'])).toBe('2026-10-05');
-        for (const values of [['2026-02-30'], ['2026-1-5'], ['2026-10-05', 'x'], [], undefined]) {
+        for (const values of [['2026-02-30'], ['2026-1-5'], ['2013-03-21'], ['2026-10-05', 'x'], [], undefined]) {
             expect(parseDateParam(values)).toBeNull();
         }
         expect(isDate('2024-02-29')).toBe(true);
+        expect(parseDateParam(['2013-03-22'])).toBe('2013-03-22');
     });
 
     test('Снимок за дату из ссылки: дата в адресах тайлов, год в подписи', () => {

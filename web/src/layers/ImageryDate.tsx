@@ -95,6 +95,12 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
         }
     }
 
+    function commitOther(value: string) {
+        if (value !== date && isDate(value) && value >= FIRST_DATE && value <= isoDay(new Date())) {
+            choose(value);
+        }
+    }
+
     function choose(next: string) {
         setDate(next);
         setOpen(false);
@@ -141,13 +147,13 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
                     Satellite passes near the map center, last 90 days
                 </div>
                 {dates?.status === 'loading' && (
-                    <div className="flex items-center gap-2 px-1.5 py-1 text-muted-foreground">
+                    <div role="status" className="flex items-center gap-2 px-1.5 py-1 text-muted-foreground">
                         <LoaderCircleIcon className="size-4 animate-spin" aria-hidden="true" />
                         Loading dates…
                     </div>
                 )}
                 {dates?.status === 'error' && (
-                    <div className="flex items-center gap-2 px-1.5 py-1">
+                    <div role="status" className="flex items-center gap-2 px-1.5 py-1">
                         <span className="text-muted-foreground">Dates unavailable</span>
                         <Button variant="outline" size="xs" onClick={load}>
                             Retry
@@ -163,7 +169,7 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
                                 <li key={item.date}>
                                     <button
                                         type="button"
-                                        aria-current={selected ? 'date' : undefined}
+                                        aria-pressed={selected}
                                         data-date={item.date}
                                         onClick={() => choose(item.date)}
                                         className={cn(
@@ -204,12 +210,14 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
                         max={isoDay(today)}
                         defaultValue={date ?? ''}
                         className="h-7 w-auto"
-                        onChange={(event) => {
-                            const { value } = event.target;
-                            if (isDate(value) && value >= FIRST_DATE && value <= isoDay(today)) {
-                                choose(value);
+                        // по Enter и уходу с поля, а не на input: Chromium шлёт input на каждый сегмент даты, и месяц
+                        // 1 из «10» уже давал готовую дату — список закрывался посреди ввода (ревью диффа)
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                commitOther(event.currentTarget.value);
                             }
                         }}
+                        onBlur={(event) => commitOther(event.currentTarget.value)}
                     />
                 </label>
             </PopoverContent>

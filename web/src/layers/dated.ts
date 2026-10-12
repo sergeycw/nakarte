@@ -8,9 +8,9 @@ export const DATE_PARAM = 'd';
 
 // STAC API Element 84 (https://earth-search.aws.element84.com/v1): CORS *, без ключа; заявляет fields и sort item-search
 export const EARTH_SEARCH_URL = 'https://earth-search.aws.element84.com/v1/search';
-// За 90 дней у Казбеги — 65 сцен обеих коллекций, ответ одной страницей (limit 200); при большем числе теряются
-// только старые даты: сортировка по убыванию даты
-const SEARCH_LIMIT = 200;
+// За 90 дней у Казбеги — 65 сцен обеих коллекций, у Тромсё — 195, на Шпицбергене — 266 (перекрытие орбит у полюса):
+// одна страница до 500; при большем числе теряются только старые даты, сортировка — по убыванию даты
+const SEARCH_LIMIT = 500;
 export const DATES_DAYS = 90;
 // HLS выходит через 2–3 дня после съёмки (https://www.earthdata.nasa.gov/data/projects/hls): более свежая дата Earth
 // Search может ещё не дойти до GIBS, и тайлы будут прозрачными
@@ -49,8 +49,9 @@ export function isDate(value: string): boolean {
     return !Number.isNaN(time) && isoDay(new Date(time)) === value;
 }
 
+// раньше первых снимков HLS — серая карта без объяснений, такая дата отбрасывается
 export function parseDateParam(values: readonly string[] | undefined): string | null {
-    return values?.length === 1 && isDate(values[0]) ? values[0] : null;
+    return values?.length === 1 && isDate(values[0]) && values[0] >= FIRST_DATE ? values[0] : null;
 }
 
 // сколько полных дней прошло от даты снимка до сегодня (UTC)
