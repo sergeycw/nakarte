@@ -148,7 +148,7 @@
 #### Scenario: Слой Tracestrack
 
 - **WHEN** включена подложка «Tracestrack Topo»
-- **THEN** тайлы запрашиваются у `nakarte-cors-proxy.nakarte-routing.workers.dev` по адресу `…/https/tile.tracestrack.com/topo__/…` без параметра `key`, а не у `tile.tracestrack.com` напрямую
+- **THEN** тайлы запрашиваются у `nakarte-cors-proxy.nakarte-routing.workers.dev` по адресу `…/https/tile.tracestrack.com/topo_<язык>/…` без параметра `key`, а не у `tile.tracestrack.com` напрямую
 
 ### Requirement: Региональные слои
 
@@ -360,3 +360,17 @@
 
 - **WHEN** приложение открыто по адресу с `l=Hls&d=2026-10-05`
 - **THEN** кнопка «Satellite by date» отмечена, среди превью подложек её нет; нажатие на кнопку выбирает Tracestrack Topo
+
+### Requirement: Язык подписей Tracestrack
+
+Подложка «Tracestrack Topo» SHALL показывать подписи на языке браузера, если Tracestrack его поддерживает, а иначе — на английском. Язык SHALL быть частью адреса тайла.
+
+#### Scenario: Браузер на русском
+
+- **WHEN** язык браузера — `ru-RU`
+- **THEN** тайлы Tracestrack запрашиваются по адресу `…/tile.tracestrack.com/topo_ru/…`
+
+#### Scenario: Язык, которого нет у Tracestrack
+
+- **WHEN** язык браузера — `ka-GE`
+- **THEN** тайлы Tracestrack запрашиваются по адресу `…/tile.tracestrack.com/topo_en/…`
