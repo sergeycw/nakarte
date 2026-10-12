@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { buildCatalog } from '@/layers/catalog';
 import { EMPTY_SETTINGS } from '@/layers/settings';
 import { createAppStore } from '@/state/store';
-import { createTrackActions, nextPointName, pointCoordinates } from './actions';
+import { createTrackActions, nextPointName, pointCoordinates, type ShareFiles } from './actions';
 import type { ExportedFile } from './export';
 import { geoData, type Waypoint } from './model';
 
@@ -189,5 +189,147 @@ describe('GPX с высотами', () => {
         expect(messages).toEqual(['Track is empty, nothing to save']);
         expect(requests).toBe(0);
         expect(saved).toEqual([]);
+    });
+});
+
+// Спека track-files, «Файл для устройства» и «Шторка “Поделиться” с откатом на скачивание»: API высот — подставной fetch,
+// шторка — подставная shareFiles, файл — подставная запись
+describe('Send to device', () => {
+    function device(fetch: typeof globalThis.fetch, shareFiles: ShareFiles | null = null) {
+        const store = createAppStore({
+            catalog: buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' }),
+            corsProxyUrl: 'https://proxy.test/',
+            settings: EMPTY_SETTINGS,
+            selection: { base: 'O', overlays: [] },
+            view: { lat: 0, lng: 0, zoom: 1 },
+        });
+        const messages: string[] = [];
+        const saved: ExportedFile[] = [];
+        const actions = createTrackActions({
+            store,
+            sources: { fetch, corsProxyUrl: '', tracksStorageServer: '', elevationsServer: 'https://elevation.test/' },
+            notify: (title) => messages.push(title),
+            location: () => ({ origin: '', pathname: '', hash: '' }),
+            save: (file) => saved.push(file),
+            shareFiles,
+        });
+        const [track] = store.getState().addTracks([kazbek]);
+        return { store, actions, messages, saved, track };
+    }
+    const kazbek = geoData('Kazbek', {
+        segments: [
+            [
+                { lat: 42.66, lng: 44.64 },
+                { lat: 42.68, lng: 44.6 },
+                { lat: 42.69, lng: 44.52 },
+            ],
+        ],
+    });
+    const heights = async () => new Response('1700.00\n2950.00\n5033.00');
+
+    test('Файл для устройства', async () => {
+        let answer!: () => void;
+        const { store, actions, messages } = device(
+            () => new Promise((resolve) => (answer = () => resolve(new Response('1700.00\n2950.00\n5033.00')))),
+        );
+        const sending = actions.sendToDevice(store.getState().tracks[0]);
+        expect(store.getState().deviceFile).toMatchObject({ trackName: 'Kazbek', file: null });
+        answer();
+        await sending;
+        const { deviceFile } = store.getState();
+        expect(deviceFile?.elevationError).toBeNull();
+        expect(deviceFile?.file?.filename).toBe('Kazbek.gpx');
+        expect(String(deviceFile?.file?.content).match(/<ele>/gu)).toHaveLength(3);
+        expect(messages).toEqual([]);
+    });
+
+    test('Высоты недоступны', async () => {
+        const { store, actions, track } = device(async () => {
+            throw new TypeError('Failed to fetch');
+        });
+        await actions.sendToDevice(track);
+        const { deviceFile } = store.getState();
+        expect(deviceFile?.elevationError).toBe('network error');
+        expect(deviceFile?.file?.filename).toBe('Kazbek.gpx');
+        expect(deviceFile?.file?.content).not.toContain('<ele>');
+        expect(deviceFile?.file?.content).toContain('<trkpt lat="42.660000" lon="44.640000">');
+    });
+
+    test('Пустой трек на устройство', async () => {
+        let requests = 0;
+        const { store, actions, messages } = device(async () => {
+            requests++;
+            return new Response('');
+        });
+        const [empty] = store.getState().addTracks([geoData('Empty')]);
+        await actions.sendToDevice(empty);
+        expect(messages).toEqual(['Track is empty, nothing to save']);
+        expect(store.getState().deviceFile).toBeNull();
+        expect(requests).toBe(0);
+    });
+
+    test('ответ API высот после закрытия окна отбрасывается', async () => {
+        let answer!: () => void;
+        const { store, actions, track } = device(
+            () => new Promise((resolve) => (answer = () => resolve(new Response('1\n2\n3')))),
+        );
+        const sending = actions.sendToDevice(track);
+        store.getState().setDeviceFile(null);
+        answer();
+        await sending;
+        expect(store.getState().deviceFile).toBeNull();
+    });
+
+    test('Отправить через шторку', async () => {
+        const shared: File[][] = [];
+        const { store, actions, saved, track } = device(heights, async (files) => {
+            shared.push(files);
+        });
+        await actions.sendToDevice(track);
+        expect(actions.canShareFiles).toBe(true);
+        const sharing = actions.shareDeviceFile();
+        // share() — в том же такте, что нажатие: после await активация нажатия теряется, и Safari шторку не откроет
+        expect(shared).toHaveLength(1);
+        await sharing;
+        expect(shared[0][0].name).toBe('Kazbek.gpx');
+        expect(shared[0][0].type).toBe('application/gpx+xml');
+        expect(await shared[0][0].text()).toContain('<ele>5033.0</ele>');
+        expect(store.getState().deviceFile).toBeNull();
+        expect(saved).toEqual([]);
+    });
+
+    test('Браузер не отдаёт файл', async () => {
+        const { store, actions, saved, track } = device(heights, () =>
+            Promise.reject(new DOMException('Permission denied', 'NotAllowedError')),
+        );
+        await actions.sendToDevice(track);
+        await actions.shareDeviceFile();
+        expect(saved.map((file) => file.filename)).toEqual(['Kazbek.gpx']);
+        expect(saved[0]).toBe(store.getState().deviceFile?.file);
+    });
+
+    test('TypeError шторки — тоже скачивание', async () => {
+        const { actions, saved, track } = device(heights, () => Promise.reject(new TypeError('Unsupported file type')));
+        await actions.sendToDevice(track);
+        await actions.shareDeviceFile();
+        expect(saved).toHaveLength(1);
+    });
+
+    test('Шторку закрыли', async () => {
+        const { store, actions, saved, track } = device(heights, () =>
+            Promise.reject(new DOMException('Share canceled', 'AbortError')),
+        );
+        await actions.sendToDevice(track);
+        await actions.shareDeviceFile();
+        expect(saved).toEqual([]);
+        expect(store.getState().deviceFile?.file).not.toBeNull();
+    });
+
+    test('Нет Web Share', async () => {
+        const { store, actions, saved, track } = device(heights, null);
+        await actions.sendToDevice(track);
+        expect(actions.canShareFiles).toBe(false);
+        actions.downloadDeviceFile();
+        expect(saved).toEqual([store.getState().deviceFile?.file]);
     });
 });

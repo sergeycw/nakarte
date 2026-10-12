@@ -131,6 +131,18 @@ describe('Название трека в панели редактировани
     });
 });
 
+describe('Поделиться треком из панели редактирования', () => {
+    test('Send to device из редактора', async () => {
+        const { map } = await render(`${VIEW}&nktk=${line('Kazbek', [A, C])}`);
+        await click(map, B);
+        await page.getByRole('button', { name: 'Share track' }).click();
+        await page.getByRole('menuitem', { name: 'Send to device' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Send to device' });
+        await expect.element(dialog.getByText('GPX of “Kazbek”', { exact: false })).toBeVisible();
+        await expect.element(editPanel()).toBeVisible();
+    });
+});
+
 describe('Цвет трека в панели редактирования', () => {
     test('Цвет нового трека', async () => {
         const { map } = await render(VIEW);
