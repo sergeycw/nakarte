@@ -134,7 +134,7 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
             {/* вверх: кнопка снизу, над ней карта */}
             <PopoverContent
                 side="top"
-                className="max-h-(--available-height) w-max max-w-[calc(100vw-1.5rem)] gap-1 overflow-y-auto overscroll-contain p-1.5"
+                className="max-h-[min(var(--available-height),24rem)] w-max max-w-[calc(100vw-1.5rem)] gap-1 overflow-y-auto overscroll-contain p-1.5"
                 data-testid="imagery-dates"
             >
                 <div className="px-1.5 pt-0.5 font-medium text-muted-foreground text-xs">
@@ -176,7 +176,7 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
                                             aria-hidden="true"
                                         />
                                         <span>{item.date}</span>
-                                        <span className="flex w-12 items-center gap-1 text-muted-foreground">
+                                        <span className="flex w-14 items-center gap-1 text-muted-foreground">
                                             <CloudIcon className="size-3.5 shrink-0" aria-hidden="true" />
                                             {cloudText(item.cloudCover) ?? '—'}
                                         </span>

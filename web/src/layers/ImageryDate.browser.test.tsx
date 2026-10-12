@@ -182,6 +182,18 @@ describe('Снимки по датам', () => {
         await expect.element(dateButton()).not.toBeInTheDocument();
     });
 
+    test('Ошибка пустого тайла', async () => {
+        // ответ 500 — как GIBS на тайл даты без съёмки (вперемешку с прозрачным PNG); /__status__/ — плагин vitest.config.ts
+        tiles.respond(GIBS, new URL('/__status__/500/gibs.png', location.href).href);
+        const { map } = await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-07`, {
+            fetch: fakeEarthSearch(ok).fetch,
+            tracksOpen: false,
+        });
+        await expect.poll(() => gibsTiles().length).toBeGreaterThan(0);
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+    });
+
     test('Снимок на крупном зуме', async () => {
         const search = fakeEarthSearch(ok);
         const { map } = await renderApp(tiles, `#m=15/${AT}&l=Hls&d=2026-10-05`, {
