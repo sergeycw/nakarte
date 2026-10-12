@@ -2,7 +2,7 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md); факты о Garmin, Wahoo, COROS и Web Share со ссылками на первоисточники и решения владельца — [ресёрч device-route-sync](../../research/device-route-sync.md) (там не повторяются). Что есть сейчас: пункты экспорта трека — общий компонент `TrackExportItems.tsx` для меню трека в списке и меню «Share track» редактора ([editor-name-share](../archive/2026-10-10-editor-name-share/design.md)); GPX с высотами — `exportGpxWithElevations` в `tracks/export.ts` и действие `saveTrackWithElevation` в `tracks/actions.ts` (ошибка API высот — сообщение без файла); сохранение — ссылка `download` на Blob (`saveFile`). Окна поверх карты — состояние в сторе и компонент в `TrackDialogs.tsx` (`CopyFallbackDialog`, `PointNameDialog`); сеть и буфер обмена `App` принимает пропами (`fetch`, `writeClipboard`), browser-тесты подставляют свои.
+Зачем — [proposal](proposal.md); факты о Garmin, Wahoo, COROS и Web Share со ссылками на первоисточники и решения владельца — [ресёрч device-route-sync](../../../research/device-route-sync.md) (там не повторяются). Что есть сейчас: пункты экспорта трека — общий компонент `TrackExportItems.tsx` для меню трека в списке и меню «Share track» редактора ([editor-name-share](../2026-10-10-editor-name-share/design.md)); GPX с высотами — `exportGpxWithElevations` в `tracks/export.ts` и действие `saveTrackWithElevation` в `tracks/actions.ts` (ошибка API высот — сообщение без файла); сохранение — ссылка `download` на Blob (`saveFile`). Окна поверх карты — состояние в сторе и компонент в `TrackDialogs.tsx` (`CopyFallbackDialog`, `PointNameDialog`); сеть и буфер обмена `App` принимает пропами (`fetch`, `writeClipboard`), browser-тесты подставляют свои.
 
 ## Goals / Non-Goals
 
