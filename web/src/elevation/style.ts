@@ -1,6 +1,7 @@
 import type { Feature, MultiLineString } from 'geojson';
 import type { GeoJSONSourceSpecification, LayerSpecification } from 'maplibre-gl';
 import type { LatLng } from '@/tracks/model';
+import { TRACK_LINE_OFFSET } from '@/tracks/style';
 
 // Выделенный участок профиля на карте (polyLineSelection старого клиента: жёлтая полупрозрачная широкая линия под
 // треками). Источник в стиле есть всегда и пустой: данные ставит ProfileOnMap через setData мимо стиля, как превью
@@ -18,7 +19,8 @@ export const PROFILE_LAYERS: LayerSpecification[] = [
         type: 'line',
         source: PROFILE_SELECTION,
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': '#ffeb3b', 'line-width': 16, 'line-opacity': 0.6 },
+        // по оси смещённой линии трека, а не по геометрии (tracks/style.ts)
+        paint: { 'line-color': '#ffeb3b', 'line-width': 16, 'line-opacity': 0.6, 'line-offset': TRACK_LINE_OFFSET },
     },
 ];
 

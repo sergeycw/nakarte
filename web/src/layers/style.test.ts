@@ -5,6 +5,7 @@ import { TRACK_COLORS } from '@/tracks/model';
 import {
     TRACK_CASING,
     TRACK_LABELS,
+    TRACK_LINE_OFFSET,
     TRACK_LINES,
     TRACK_POINTS,
     TRACK_TICKS,
@@ -176,4 +177,24 @@ test('Трек над слоями: линии и точки треков — п
     });
     // подписи без glyphs: MapLibre рисует их локально
     expect(style.glyphs).toBeUndefined();
+});
+
+test('Радиалка: линии треков, редактора и выделение профиля смещены вправо по ходу на половину обводки', () => {
+    const style = buildStyle([]);
+    const offsets = Object.fromEntries(
+        style.layers
+            .filter((layer) => layer.type === 'line')
+            .map((layer) => [layer.id, (layer.paint as { 'line-offset'?: number } | undefined)?.['line-offset']]),
+    );
+    for (const id of [TRACK_CASING, TRACK_LINES, TRACK_UNROUTED_CASING, TRACK_UNROUTED, PROFILE_SELECTION]) {
+        expect(offsets[id], id).toBe(TRACK_LINE_OFFSET);
+    }
+    for (const layer of EDIT_LAYERS.filter((item) => item.type === 'line' && item.id !== EDIT_PREVIEW)) {
+        expect(offsets[layer.id], layer.id).toBe(TRACK_LINE_OFFSET);
+    }
+    // резинка — прямая к курсору, её не смещать
+    expect(offsets[EDIT_PREVIEW]).toBeUndefined();
+    // обводки двух направлений соприкасаются: смещение — половина ширины обводки трека
+    const casing = style.layers.find((layer) => layer.id === TRACK_CASING) as { paint: { 'line-width': number } };
+    expect(TRACK_LINE_OFFSET).toBe(casing.paint['line-width'] / 2);
 });
