@@ -93,31 +93,47 @@ export function createEngine(
         return starting;
     }
 
-    // Зависший расчёт не прервать изнутри CheerpJ: воркер завершается (dispose отклоняет его route), и следующий запрос
-    // проходит ensureStarted с начала — новый воркер, чистый перезапуск. Главный поток — помечается зависшим
-    function onTimeout(backend: EngineBackend): Error {
-        const seconds = Math.round(routeTimeout / 1000);
+    // Зависший расчёт не прервать изнутри CheerpJ. Воркер завершается, и следующий запрос проходит ensureStarted с
+    // начала — новый воркер, чистый перезапуск; движок сразу прогревается, чтобы следующий клик не ждал холодный старт.
+    // Главный поток не выгрузить: движок помечается зависшим, пока расчёт не закончится (сработавший таймер значит,
+    // что CheerpJ отпускал поток, — скорее медленный маршрут, чем мёртвый)
+    function afterTimeout(backend: EngineBackend, route: Promise<string>) {
         if (backend.name === 'main-thread') {
             hung = true;
             setStatus('failed');
-            return new EngineStartError('BRouter engine stopped responding');
+            route
+                .catch(() => {})
+                .finally(() => {
+                    hung = false;
+                    setStatus('ready');
+                });
+            return;
         }
+        // dispose отклоняет зависший route — уже после таймаута, гонку выиграла ошибка таймаута (ревью диффа)
         backend.dispose();
-        if (current === backend) {
-            current = null;
-            starting = null;
-            setStatus('idle');
-        }
-        return new EngineTimeoutError(`BRouter engine did not answer in ${seconds} s`);
+        current = null;
+        starting = null;
+        setStatus('idle');
+        ensureStarted().catch(() => {});
     }
 
     async function routeWithTimeout(backend: EngineBackend, query: string): Promise<string> {
+        const route = backend.route(query);
         let timer: ReturnType<typeof setTimeout> | undefined;
         const timeout = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(onTimeout(backend)), routeTimeout);
+            timer = setTimeout(() => {
+                reject(
+                    backend.name === 'main-thread'
+                        ? new EngineStartError('BRouter engine stopped responding')
+                        : new EngineTimeoutError(
+                              `BRouter engine did not answer in ${Math.round(routeTimeout / 1000)} s`,
+                          ),
+                );
+                afterTimeout(backend, route);
+            }, routeTimeout);
         });
         try {
-            return await Promise.race([backend.route(query), timeout]);
+            return await Promise.race([route, timeout]);
         } finally {
             clearTimeout(timer);
         }

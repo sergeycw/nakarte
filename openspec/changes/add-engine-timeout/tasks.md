@@ -9,8 +9,8 @@
 
 ## 2. Ревью и прод
 
-- [ ] 2.1 Независимое ревью диффа субагентом, исправления; итог — в design; скрипт ссылок, `openspec validate --all --strict`
-- [ ] 2.2 Прод после `add-dated-imagery`: итог — в design, раздел «Проверки»
+- [x] 2.1 Независимое ревью диффа субагентом, исправления; итог — в design; скрипт ссылок, `openspec validate --all --strict`
+- [x] 2.2 Прод после `add-dated-imagery`: итог — в design, раздел «Проверки»
 
 ## Workflow follow-up
 

@@ -26,8 +26,12 @@ function fakeBackend(name: EngineBackend['name'], options: { failStart?: boolean
         route(query) {
             return new Promise((resolve, reject) => calls.push({ query, resolve, reject }));
         },
+        // как workerBackend: завершение отклоняет начатые расчёты сразу, синхронно
         dispose() {
             counters.disposed++;
+            for (const call of calls) {
+                call.reject(new Error('engine worker terminated'));
+            }
         },
     };
     return { backend, calls, counters };
@@ -188,18 +192,43 @@ describe('Таймаут расчёта', () => {
             ],
             { routeTimeout: TIMEOUT },
         );
-        const hung = engine.route('a');
-        await expect(hung).rejects.toBeInstanceOf(EngineTimeoutError);
-        await expect(hung).rejects.toThrow(/^BRouter engine did not answer in \d+ s$/);
-        // воркер остановлен, движок снова не запущен
+        const seen: string[] = [];
+        const result = engine.route('a');
+        await flush();
+        engine.subscribe(() => seen.push(engine.status()));
+        // dispose настоящего воркера отклоняет зависший расчёт синхронно — отказ всё равно об истечении времени
+        await expect(result).rejects.toThrow(EngineTimeoutError);
+        await expect(result).rejects.toThrow(/^BRouter engine did not answer in \d+ s$/);
         expect(fakes[0].counters.disposed).toBe(1);
-        expect(engine.status()).toBe('idle');
-        expect(engine.backend()).toBeNull();
-        // следующий запрос запускает новый движок и получает маршрут
+        // движок сброшен и сразу прогревается заново: следующий клик не ждёт холодный старт
+        await flush();
+        expect(seen).toEqual(['idle', 'loading', 'ready']);
+        expect(fakes).toHaveLength(2);
         const next = engine.route('b');
         await flush();
-        expect(fakes).toHaveLength(2);
-        expect(engine.status()).toBe('ready');
+        fakes[1].calls[0].resolve('B');
+        await expect(next).resolves.toBe('B');
+    });
+
+    test('отмена во время зависшего расчёта: отказ сразу, следующий — после таймаута новым движком', async () => {
+        const fakes: Array<ReturnType<typeof fakeBackend>> = [];
+        const engine = createEngine(
+            [
+                () => {
+                    fakes.push(fakeBackend('worker'));
+                    return fakes[fakes.length - 1].backend;
+                },
+            ],
+            { routeTimeout: TIMEOUT },
+        );
+        const controller = new AbortController();
+        const cancelled = engine.route('a', controller.signal);
+        const next = engine.route('b');
+        await flush();
+        controller.abort();
+        await expect(cancelled).rejects.toMatchObject({ name: 'AbortError' });
+        await expect.poll(() => fakes[1]?.calls.length ?? 0).toBe(1);
+        expect(fakes[0].calls.map((c) => c.query)).toEqual(['a']);
         fakes[1].calls[0].resolve('B');
         await expect(next).resolves.toBe('B');
     });
@@ -255,6 +284,15 @@ describe('Таймаут расчёта', () => {
         await expect(engine.start()).rejects.toBeInstanceOf(EngineStartError);
         expect(mains).toHaveLength(1);
         expect(mains[0].calls.map((c) => c.query)).toEqual(['a']);
+        // расчёт всё-таки закончился: движок снова готов, без перезапуска; поздний ответ первому запросу не уходит
+        mains[0].calls[0].resolve('late');
+        await flush();
+        expect(engine.status()).toBe('ready');
+        const after = engine.route('d');
+        await flush();
+        mains[0].calls[1].resolve('D');
+        await expect(after).resolves.toBe('D');
+        expect(mains).toHaveLength(1);
     });
 
     test('ответ в срок — без таймаута и перезапуска', async () => {
