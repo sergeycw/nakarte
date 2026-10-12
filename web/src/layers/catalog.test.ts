@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildCatalog, type LayerDef } from './catalog';
+import { buildCatalog, type LayerDef, TERRARIUM_TILES } from './catalog';
 
 const PROXY = 'https://proxy.test/';
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: PROXY });
@@ -100,11 +100,12 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
             '&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix=8&TileCol=140&TileRow=73',
     ],
     ['Hs', [8, 151, 87], 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/8/151/87.png'],
+    ['Ct', [12, 2552, 1505], 'nakarte-contours://12/2552/1505'],
 ];
 
 describe('Каталог слоёв', () => {
-    test('Список слоёв: 30 слоёв старого клиента, отмывка, Tracestrack и Sentinel-2, без Яндекса, Wikimapia и сетки', () => {
-        expect(catalog).toHaveLength(33);
+    test('Список слоёв: 30 слоёв старого клиента, отмывка, горизонтали, Tracestrack и Sentinel-2, без Яндекса, Wikimapia и сетки', () => {
+        expect(catalog).toHaveLength(34);
         expect([...catalog].sort((a, b) => a.order - b.order)[0].title).toBe('Tracestrack Topo');
         for (const code of ['Y', 'S', 'W', 'Ng']) {
             expect(byCode.has(code)).toBe(false);
@@ -208,11 +209,25 @@ describe('Каталог слоёв', () => {
         // зум карты MapLibre = зум Leaflet - 1: Great Britain Topo с Leaflet 12, Slovakia — с 10
         expect(byCode.get('Gbt')?.minZoom).toBe(11);
         expect(byCode.get('St')?.minZoom).toBe(9);
-        expect(byCode.get('Si')?.source.tileSize).toBe(128);
+        expect(byCode.get('Si')?.source).toMatchObject({ tileSize: 128 });
     });
 
     test('отмывка — raster-dem Terrarium до z15', () => {
         expect(byCode.get('Hs')?.source).toMatchObject({ type: 'raster-dem', encoding: 'terrarium', maxzoom: 15 });
         expect(byCode.get('Hs')?.isOverlay).toBe(true);
+    });
+
+    test('горизонтали — свой протокол от z10, рельеф и подпись — как у отмывки, над отмывкой и под Strava', () => {
+        const ct = byCode.get('Ct') as LayerDef;
+        const hs = byCode.get('Hs') as LayerDef;
+        expect(ct.title).toBe('Contour lines');
+        expect(ct.group).toBe('Miscellaneous');
+        expect(ct.isOverlay).toBe(true);
+        expect(ct.minZoom).toBe(10);
+        expect(ct.source).toMatchObject({ type: 'vector', minzoom: 10, maxzoom: 15 });
+        expect(ct.source.attribution).toBe(hs.source.attribution);
+        expect(TERRARIUM_TILES).toBe(hs.source.tiles?.[0]);
+        expect(ct.order).toBe(hs.order + 1);
+        expect(ct.order).toBeLessThan(byCode.get('Sa')?.order ?? 0);
     });
 });

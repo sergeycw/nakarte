@@ -1,4 +1,4 @@
-import type { RasterDEMSourceSpecification, RasterSourceSpecification } from 'maplibre-gl';
+import type { RasterDEMSourceSpecification, RasterSourceSpecification, VectorSourceSpecification } from 'maplibre-gl';
 
 // Каталог растровых слоёв нового приложения — данные старого src/layers.js, переведённые в источники MapLibre
 // (design add-web-map-layers, «Каталог»). Без Яндекса (Y, S: EPSG:3395), Wikimapia (W) и сетки Ng — решения
@@ -9,7 +9,17 @@ import type { RasterDEMSourceSpecification, RasterSourceSpecification } from 'ma
 // переходит в maxzoom источника как есть (без него — 18: старая карта выше maxZoom 18 не поднималась), а minZoom
 // слоя — в minZoom - 1. cutline отброшен, остаётся прямоугольник bounds.
 
-export type LayerSource = RasterSourceSpecification | RasterDEMSourceSpecification;
+export type LayerSource = RasterSourceSpecification | RasterDEMSourceSpecification | VectorSourceSpecification;
+
+// AWS Terrain Tiles (Terrarium): реплика elevation-tiles-prod-eu публично отвечает 403, тайлы есть до z15. Один адрес у
+// отмывки (MapLibre) и горизонталей (maplibre-contour грузит тайлы сам, src/layers/contours.ts)
+export const TERRARIUM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+export const TERRARIUM_MAX_ZOOM = 15;
+
+// Векторные тайлы горизонталей отдаёт свой протокол MapLibre (src/layers/contours.ts, регистрация — src/map/maplibre.ts):
+// здесь только адрес, чтобы каталог оставался данными без импорта библиотеки (design add-contour-lines)
+export const CONTOUR_PROTOCOL = 'nakarte-contours';
+export const CONTOUR_MIN_ZOOM = 10;
 
 export interface LayerDef {
     // код в l= и в leafletLayersSettings — тот же, что у старого клиента
@@ -86,6 +96,7 @@ const ORDER = [
     'Z',
     '#custom-top',
     'Hs',
+    'Ct',
     'Gh',
     'Wh',
     'Wc',
@@ -523,13 +534,29 @@ function definitions(env: CatalogEnv): Def[] {
             group: 'Miscellaneous',
             isOverlay: true,
             isDefault: true,
-            // AWS Terrain Tiles (Terrarium): реплика elevation-tiles-prod-eu публично отвечает 403, тайлы есть до z15
             source: {
                 type: 'raster-dem',
                 encoding: 'terrarium',
-                tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                tiles: [TERRARIUM_TILES],
                 tileSize: 256,
-                maxzoom: 15,
+                maxzoom: TERRARIUM_MAX_ZOOM,
+                attribution: TERRAIN_ATTRIBUTION,
+            },
+        },
+        {
+            code: 'Ct',
+            title: 'Contour lines',
+            group: 'Miscellaneous',
+            isOverlay: true,
+            isDefault: true,
+            // ниже z10 горизонталей нет, и рельеф ради них не грузится (шаг по зуму — contours.ts); тайлы 512 px по
+            // умолчанию: тайл горизонталей zN строится из тайла рельефа zN и восьми соседей
+            minZoom: CONTOUR_MIN_ZOOM,
+            source: {
+                type: 'vector',
+                tiles: [`${CONTOUR_PROTOCOL}://{z}/{x}/{y}`],
+                minzoom: CONTOUR_MIN_ZOOM,
+                maxzoom: TERRARIUM_MAX_ZOOM,
                 attribution: TERRAIN_ATTRIBUTION,
             },
         },

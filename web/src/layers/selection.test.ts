@@ -46,6 +46,13 @@ describe('Слои в адресе', () => {
         expect(formatLayersParam(parsed?.selection ?? DEFAULT_SELECTION, byCode)).toEqual(['S2', 'Hs']);
     });
 
+    test('Горизонтали из рельефа: ссылка с l=O/Ct', () => {
+        const parsed = layers('l=O/Ct/Hs');
+        expect(parsed).toEqual({ selection: { base: 'O', overlays: ['Ct', 'Hs'] }, custom: [] });
+        // в адресе — порядок наложения каталога: отмывка под горизонталями
+        expect(formatLayersParam(parsed?.selection ?? DEFAULT_SELECTION, byCode)).toEqual(['O', 'Hs', 'Ct']);
+    });
+
     test('Ссылка со своим слоем', () => {
         expect(layers(`l=O/${CUSTOM_OVERLAY}`)).toEqual({
             selection: { base: 'O', overlays: [CUSTOM_OVERLAY] },

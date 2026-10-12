@@ -1,4 +1,5 @@
 import type { RequestTransformFunction } from 'maplibre-gl';
+import { CONTOUR_PROTOCOL } from '@/layers/catalog';
 import tileFixture from './tile.png?url';
 
 // Сеть browser-тестов карты: тайлы любых слоёв (растр и DEM) уходят на локальную фикстуру, запрошенные адреса
@@ -25,7 +26,10 @@ export function fixtureTiles(): FixtureTiles {
             overrides.push([pattern, url]);
         },
         transformRequest: (url, resourceType) => {
-            if (new URL(url).hostname === location.hostname) {
+            // протокол горизонталей — не сеть: renderApp ставит его обработчик, который берёт тайлы рельефа через этот же
+            // transformRequest (src/layers/contours.ts)
+            const { hostname, protocol } = new URL(url);
+            if (hostname === location.hostname || protocol === `${CONTOUR_PROTOCOL}:`) {
                 return { url };
             }
             if (resourceType !== 'Tile') {

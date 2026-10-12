@@ -18,6 +18,10 @@ export default defineConfig({
         emptyOutDir: true,
         // maplibre-gl ≈ 1.1 МБ (≈ 290 КБ gzip) отдельным чанком: react-maplibre грузит его динамическим import()
         chunkSizeWarningLimit: 1200,
+        // лицензии зависимостей бандла одним файлом /licenses.md: BSD-3 (MapLibre, maplibre-contour) требует копирайт и
+        // текст лицензии при распространении в собранном виде, а минификатор комментарии лицензий отбрасывает
+        // (design add-contour-lines, «Риски»). Имя в корне вместо .vite/license.md по умолчанию — короткий адрес на проде
+        license: { fileName: 'licenses.md' },
         // стенд движка выкатывается рядом с приложением (/engine-bench.html) для проверок на проде
         // (design spike-engine-in-worker); ссылок на него нет, рантайм CheerpJ грузится только при открытии
         rolldownOptions: {
