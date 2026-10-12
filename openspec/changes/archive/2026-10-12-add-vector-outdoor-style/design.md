@@ -2,7 +2,7 @@
 
 ## Context
 
-Зачем — [proposal](proposal.md), поведение — [дельта спеки](specs/map-layers/spec.md). Варианты векторной подложки и цена — ресёрч [new-ui.md](../../research/new-ui.md#подложка-по-умолчанию-векторная-туристическая) («Рекомендация на потом»), подложка по умолчанию — архив [add-outdoor-basemap](../archive/2026-10-09-add-outdoor-basemap/design.md), подписи Tracestrack — архив [tracestrack-labels](../archive/2026-10-12-tracestrack-labels/design.md).
+Зачем — [proposal](proposal.md), поведение — [дельта спеки](specs/map-layers/spec.md). Варианты векторной подложки и цена — ресёрч [new-ui.md](../../../research/new-ui.md#подложка-по-умолчанию-векторная-туристическая) («Рекомендация на потом»), подложка по умолчанию — архив [add-outdoor-basemap](../2026-10-09-add-outdoor-basemap/design.md), подписи Tracestrack — архив [tracestrack-labels](../2026-10-12-tracestrack-labels/design.md).
 
 Сейчас каждый слой каталога — один источник и один слой стиля (`web/src/layers/style.ts`), единственный векторный — оверлей горизонталей `Ct` (свой протокол, линии и подписи в `contourLayers`). Подписи треков и горизонталей — без `glyphs` в стиле: `GlyphManager` MapLibre 6.13 без адреса `glyphs` рисует каждый глиф сам (TinySDF) шрифтом из `text-font` как CSS-семейством (`node_modules/maplibre-gl/src/render/glyph_manager.ts`, ветка `!this.url`). Каталог (`catalog.ts`) — данные без импортов приложения: его импортирует e2e (Node, `nodenext`) и `scripts/layer-thumbnails.mjs`.
 

@@ -4,7 +4,7 @@
 
 ### Requirement: Каталог слоёв
 
-Приложение SHALL предлагать слои старого клиента с теми же кодами, названиями и группами, кроме Yandex map (`Y`), Yandex Satellite (`S`), Wikimapia (`W`) и Soviet topo maps grid (`Ng`), и SHALL добавлять оверлеи «Relief shading» (`Hs`) и «Contour lines» (`Ct`), подложку «Tracestrack Topo» (`Tt`, первой в группе `Default layers`), подложку «OpenFreeMap Outdoor» (`Of`) сразу после неё, подложки «Sentinel-2 cloudless» (`S2`) и «Satellite by date» (`Hls`) сразу после «ESRI Satellite». В группе `Default layers` «ESRI Satellite» SHALL идти сразу после «OpenStreetMap», а «CyclOSM» — после «Satellite by date». Каждый показанный слой SHALL иметь свою атрибуцию в подписи карты.
+Приложение SHALL предлагать слои старого клиента с теми же кодами, названиями и группами, кроме Yandex map (`Y`), Yandex Satellite (`S`), Wikimapia (`W`) и Soviet topo maps grid (`Ng`), и SHALL добавлять оверлеи «Relief shading» (`Hs`) и «Contour lines» (`Ct`), подложку «Tracestrack Topo» (`Tt`, первой в группе `Default layers`), подложки «Sentinel-2 cloudless» (`S2`) и «Satellite by date» (`Hls`) сразу после «ESRI Satellite». Каждый показанный слой SHALL иметь свою атрибуцию в подписи карты.
 
 #### Scenario: Список слоёв
 
@@ -46,6 +46,15 @@
 - **THEN** превью четырёх подложек видны, тайлы Tracestrack Topo и ESRI Satellite не запрашиваются, к `tiles.openfreemap.org` запросов нет
 
 ## ADDED Requirements
+
+### Requirement: Порядок подложек по умолчанию
+
+В группе `Default layers` подложка «OpenFreeMap Outdoor» (`Of`) SHALL идти сразу после «Tracestrack Topo», «ESRI Satellite» — сразу после «OpenStreetMap», а «CyclOSM» — после «Satellite by date», чтобы первые четыре подложки списка были Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и ESRI Satellite.
+
+#### Scenario: Подложки по умолчанию по порядку
+
+- **WHEN** пользователь открывает полный список слоёв без настроек
+- **THEN** подложки идут так: Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap, ESRI Satellite, Sentinel-2 cloudless, Satellite by date, CyclOSM
 
 ### Requirement: Подложка OpenFreeMap Outdoor
 

@@ -162,7 +162,7 @@ describe('Каталог слоёв', () => {
         ]);
     });
 
-    test('порядок подложек по умолчанию: ESRI сразу после OSM, Sentinel-2 и снимки по датам за ней, CyclOSM после них', () => {
+    test('Подложки по умолчанию по порядку: OpenFreeMap после Tracestrack, ESRI сразу после OSM, CyclOSM после снимков по датам', () => {
         const defaults = [...catalog]
             .filter((layer) => layer.group === 'Default layers')
             .sort((a, b) => a.order - b.order)
