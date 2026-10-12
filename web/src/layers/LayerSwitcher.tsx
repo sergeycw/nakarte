@@ -11,7 +11,7 @@ import { ConfigureLayersDialog } from './ConfigureLayersDialog';
 import { CustomLayerDialog } from './CustomLayerDialog';
 import { GROUPS, type LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
-import { COLUMN_BUTTON, QuickBases, QuickOverlays } from './QuickLayers';
+import { COLUMN_BUTTON, QuickBases, QuickDated, QuickOverlays } from './QuickLayers';
 import { isListed } from './settings';
 
 // Переключатель слоёв справа сверху: столбец быстрых слоёв — превью подложек и переключатели оверлеев (QuickLayers,
@@ -160,6 +160,7 @@ export function LayerSwitcher() {
                 <legend className="sr-only">Quick layers</legend>
                 {/* в столбце — только слои списка: скрытый, но включённый ссылкой — в All layers */}
                 <QuickBases listed={bases.filter((layer) => isListed(layer, settings))} all={bases} />
+                <QuickDated />
                 <QuickOverlays overlays={overlays.filter((layer) => isListed(layer, settings))} />
             </fieldset>
             <Popover open={open} onOpenChange={setOpen}>
