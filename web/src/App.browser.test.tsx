@@ -155,6 +155,42 @@ describe('Подложка Tracestrack', () => {
     });
 });
 
+describe('Подложка OpenFreeMap Outdoor', () => {
+    const OPENFREEMAP = 'https://tiles.openfreemap.org/';
+
+    test('Ссылка с OpenFreeMap Outdoor', async () => {
+        const { map } = await renderApp('#m=12/42.69/44.52&l=Of');
+        expect(tiles.requested).toContain('https://tiles.openfreemap.org/planet');
+        await expect
+            .poll(() => tiles.requested.some((url) => /\/planet\/fixture\/\d+\/\d+\/\d+\.pbf$/.test(url)))
+            .toBe(true);
+        // только TileJSON и тайлы OpenFreeMap: без шрифтов, спрайтов и растров (external проверяет afterEach)
+        expect(tiles.requested.every((url) => url.startsWith(OPENFREEMAP))).toBe(true);
+        expect(map.getStyle().glyphs).toBeUndefined();
+        expect(map.getStyle().sprite).toBeUndefined();
+        // вершины фикстуры (Казбек и соседи) нарисованы слоем стиля
+        await expect.poll(() => map.queryRenderedFeatures({ layers: ['Of-peaks'] }).length).toBeGreaterThan(0);
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+        expect(location.hash).toContain('l=Of');
+    });
+
+    test('Атрибуция OpenFreeMap', async () => {
+        await renderApp('#l=Of');
+        await expect
+            .element(page.getByRole('link', { name: 'OpenFreeMap' }))
+            .toHaveAttribute('href', 'https://openfreemap.org');
+        await expect
+            .element(page.getByRole('link', { name: '© OpenMapTiles' }))
+            .toHaveAttribute('href', 'https://www.openmaptiles.org/');
+        await expect
+            .element(page.getByRole('link', { name: 'OpenStreetMap' }))
+            .toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
+        expect(document.querySelector('.maplibregl-ctrl-attrib-inner')?.textContent).toBe(
+            'OpenFreeMap © OpenMapTiles Data from OpenStreetMap',
+        );
+    });
+});
+
 describe('Подложка Sentinel-2', () => {
     test('Атрибуция Sentinel-2', async () => {
         await renderApp('#l=S2');

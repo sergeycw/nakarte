@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildCatalog, type LayerDef, TERRARIUM_TILES, tracestrackMap } from './catalog';
+import { buildCatalog, type LayerDef, OPENFREEMAP_TILEJSON, TERRARIUM_TILES, tracestrackMap } from './catalog';
 
 const PROXY = 'https://proxy.test/';
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: PROXY });
@@ -111,9 +111,15 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
 ];
 
 describe('Каталог слоёв', () => {
-    test('Список слоёв: 30 слоёв старого клиента, отмывка, горизонтали, Tracestrack, Sentinel-2 и снимки по датам, без Яндекса, Wikimapia и сетки', () => {
-        expect(catalog).toHaveLength(35);
-        expect([...catalog].sort((a, b) => a.order - b.order)[0].title).toBe('Tracestrack Topo');
+    test('Список слоёв: 30 слоёв старого клиента, отмывка, горизонтали, Tracestrack, OpenFreeMap, Sentinel-2 и снимки по датам, без Яндекса, Wikimapia и сетки', () => {
+        expect(catalog).toHaveLength(36);
+        const first = [...catalog].sort((a, b) => a.order - b.order).slice(0, 4);
+        expect(first.map((layer) => layer.title)).toEqual([
+            'Tracestrack Topo',
+            'OpenFreeMap Outdoor',
+            'OpenStreetMap',
+            'ESRI Satellite',
+        ]);
         for (const code of ['Y', 'S', 'W', 'Ng']) {
             expect(byCode.has(code)).toBe(false);
         }
@@ -138,7 +144,30 @@ describe('Каталог слоёв', () => {
 
     test('подложки — как в старом клиенте, остальное — оверлеи', () => {
         const bases = catalog.filter((layer) => !layer.isOverlay).map((layer) => layer.code);
-        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'Hls', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'S2', 'Tt']);
+        expect(bases.sort()).toEqual([
+            'Co',
+            'E',
+            'G',
+            'Hls',
+            'I',
+            'L',
+            'O',
+            'Ocm',
+            'Of',
+            'Oso',
+            'Otm',
+            'P',
+            'S2',
+            'Tt',
+        ]);
+    });
+
+    test('Подложки по умолчанию по порядку: OpenFreeMap после Tracestrack, ESRI сразу после OSM, CyclOSM после снимков по датам', () => {
+        const defaults = [...catalog]
+            .filter((layer) => layer.group === 'Default layers')
+            .sort((a, b) => a.order - b.order)
+            .map((layer) => layer.code);
+        expect(defaults.slice(0, 7)).toEqual(['Tt', 'Of', 'O', 'E', 'S2', 'Hls', 'Co']);
     });
 
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
@@ -151,7 +180,9 @@ describe('Каталог слоёв', () => {
     });
 
     test('у каждого слоя каталога есть образец адреса', () => {
-        expect(SAMPLES.map(([code]) => code).sort()).toEqual(catalog.map((layer) => layer.code).sort());
+        // у OpenFreeMap Outdoor шаблона нет: адрес тайлов MapLibre берёт из TileJSON
+        const templated = catalog.filter((layer) => layer.source.tiles);
+        expect(SAMPLES.map(([code]) => code).sort()).toEqual(templated.map((layer) => layer.code).sort());
     });
 
     test.each(SAMPLES)('адрес тайла %s', (code, [z, x, y], expected) => {
@@ -192,6 +223,23 @@ describe('Каталог слоёв', () => {
         expect(tt.source.maxzoom).toBe(19);
         expect(tt.source.attribution).toContain('<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>');
         expect(tt.source.attribution).toContain('OpenStreetMap contributors');
+    });
+
+    test('Подложка OpenFreeMap Outdoor: TileJSON OpenFreeMap напрямую, подпись OpenFreeMap, OpenMapTiles и OSM', () => {
+        const of = byCode.get('Of') as LayerDef;
+        expect(of.title).toBe('OpenFreeMap Outdoor');
+        expect(of.isOverlay).toBe(false);
+        expect(of.source).toEqual({
+            type: 'vector',
+            url: OPENFREEMAP_TILEJSON,
+            attribution:
+                '<a href="https://openfreemap.org">OpenFreeMap</a> ' +
+                '<a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' +
+                'Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        });
+        expect(OPENFREEMAP_TILEJSON).toBe('https://tiles.openfreemap.org/planet');
+        const ru = buildCatalog({ pixelRatio: 1, language: 'ru-RU', corsProxyUrl: PROXY });
+        expect(ru.find((layer) => layer.code === 'Of')?.labelLanguage).toBe('ru-RU');
     });
 
     test('Атрибуция Sentinel-2: подпись EOX с годом мозаики из адреса и лицензия', () => {

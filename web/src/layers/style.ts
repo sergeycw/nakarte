@@ -6,6 +6,7 @@ import type { Track } from '@/tracks/model';
 import { TRACK_LAYERS, trackSources } from '@/tracks/style';
 import type { LayerDef } from './catalog';
 import { CONTOUR_ELEVATION, CONTOUR_LAYER, CONTOUR_LEVEL } from './contours';
+import { outdoorLayers } from './outdoor';
 
 // Стиль карты из включённых слоёв: подложка снизу, оверлеи — по порядку наложения каталога, а не по порядку
 // включения (titlesByOrder старого клиента). Один источник и один слой на код (у горизонталей ещё подписи, у снимков по датам — по источнику на слой GIBS), id = код: при смене выбора
@@ -120,10 +121,13 @@ function layerSources(layer: LayerDef): [string, LayerDef['source']][] {
     return datedIds(layer).map((id, index) => [id, { ...layer.source, tiles: [tiles[index]] }]);
 }
 
-// Векторный источник в каталоге один — горизонтали (свои слои растровые). Id подписей с суффиксом не пересекается с
-// кодами каталога и своих слоёв (-cs…)
+// Векторные источники каталога: подложка OpenFreeMap Outdoor (свой стиль из многих слоёв, src/layers/outdoor.ts) и
+// оверлей горизонталей (свои слои растровые). Id слоёв с суффиксом не пересекается с кодами каталога и своих слоёв (-cs…)
 function layerSpecs(layer: LayerDef): LayerSpecification[] {
     const zoom = layer.minZoom === undefined ? {} : { minzoom: layer.minZoom };
+    if (layer.source.type === 'vector' && !layer.isOverlay) {
+        return outdoorLayers(layer.code, layer.labelLanguage ?? '');
+    }
     if (layer.source.type === 'vector') {
         return contourLayers(layer.code, zoom);
     }

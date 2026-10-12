@@ -8,15 +8,24 @@
 // Tracestrack Topo — через боевой прокси, только когда у него есть ключ TRACESTRACK_KEY: без ключа прокси отвечает
 // 503, и картинка Tt не появится (скрипт так и напишет). Страница — пустая заглушка на origin клона: прокси пускает
 // только свои origin, провайдеры видят обычный Referer сайта.
+//
+// Векторную подложку (OpenFreeMap Outdoor, design add-vector-outdoor-style) не из чего вырезать: тайл — данные, а не
+// картинка. Её рисует MapLibre из web/node_modules на той же заглушке — стиль из outdoorLayers и источника каталога,
+// холст 128×128 над тем же местом и в том же масштабе, что половина растрового тайла z12 (зум MapLibre на 1 меньше,
+// AGENTS.md), — и снимок холста сжимается в те же 72 px. Подписи — английские (язык каталога скрипта).
 import {createRequire} from 'node:module';
 import {writeFile} from 'node:fs/promises';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildCatalog} from '../web/src/layers/catalog.ts';
+import {outdoorLayers} from '../web/src/layers/outdoor.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'web/src/layers/thumbnails');
-const {chromium} = createRequire(join(ROOT, 'web/package.json'))('playwright');
+const require = createRequire(join(ROOT, 'web/package.json'));
+const {chromium} = require('playwright');
+// MapLibre 6 — только ESM: страница импортирует сборку и ставит адрес воркера, как src/map/maplibre.ts приложения
+const MAPLIBRE_DIST = join(ROOT, 'web/node_modules/maplibre-gl/dist');
 
 // Местиа (Сванетия), z12: в кадре город, дороги, река и склоны — отличаются и карты, и снимки
 const PLACE = {lat: 43.0467, lng: 42.7286, zoom: 12};
@@ -67,8 +76,24 @@ try {
     await page.route(`${ORIGIN}/__thumbnails`, (route) =>
         route.fulfill({contentType: 'text/html', body: '<!doctype html>'}),
     );
+    await page.route(`${ORIGIN}/__maplibre/*`, (route) =>
+        route.fulfill({
+            path: join(MAPLIBRE_DIST, new URL(route.request().url()).pathname.split('/').pop()),
+            contentType: 'text/javascript',
+        }),
+    );
     await page.goto(`${ORIGIN}/__thumbnails`);
-    for (const layer of bases) {
+    for (const layer of bases.filter((base) => base.source.type === 'vector')) {
+        const result = await vectorThumbnail(page, layer);
+        if (result.error) {
+            failed++;
+            console.error(`${layer.code} ${layer.title}: ${result.error}`);
+            continue;
+        }
+        await writeFile(join(OUT_DIR, `${layer.code}.webp`), Uint8Array.from(result.bytes));
+        console.log(`${layer.code} ${layer.title}: ${result.bytes.length} bytes`);
+    }
+    for (const layer of bases.filter((base) => base.source.type !== 'vector')) {
         // у слоя по датам шаблоны — слои GIBS снизу вверх: превью — верхний, Sentinel-2
         const url = tileUrl(layer.dated ? layer.source.tiles.at(-1) : layer.source.tiles[0], tile);
         // ошибка одной подложки (нет CORS, не картинка, сеть) не останавливает остальные
@@ -107,3 +132,46 @@ try {
     await browser.close();
 }
 process.exitCode = failed ? 1 : 0;
+
+async function vectorThumbnail(page, layer) {
+    const style = {
+        version: 8,
+        sources: {[layer.code]: layer.source},
+        layers: outdoorLayers(layer.code, layer.labelLanguage ?? 'en'),
+    };
+    return page.evaluate(
+        async ({style, center}) => {
+            try {
+                const maplibre = await import('/__maplibre/maplibre-gl.mjs');
+                maplibre.setWorkerUrl('/__maplibre/maplibre-gl-worker.mjs');
+                const container = document.createElement('div');
+                container.style.cssText = 'width: 128px; height: 128px';
+                document.body.append(container);
+                const map = new maplibre.Map({
+                    container,
+                    style,
+                    center: [center.lng, center.lat],
+                    zoom: center.zoom - 1,
+                    interactive: false,
+                    attributionControl: false,
+                    pixelRatio: 1,
+                    // без него холст после кадра пустой для drawImage
+                    canvasContextAttributes: {preserveDrawingBuffer: true},
+                });
+                await new Promise((resolve, reject) => {
+                    map.once('idle', resolve);
+                    map.once('error', (event) => reject(event.error));
+                });
+                const canvas = new OffscreenCanvas(72, 72);
+                canvas.getContext('2d').drawImage(map.getCanvas(), 0, 0, 72, 72);
+                const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.8});
+                map.remove();
+                container.remove();
+                return {bytes: [...new Uint8Array(await blob.arrayBuffer())]};
+            } catch (error) {
+                return {error: String(error)};
+            }
+        },
+        {style, center: PLACE},
+    );
+}

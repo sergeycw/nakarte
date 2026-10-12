@@ -85,7 +85,7 @@ test('Список слоёв', async ({ page }) => {
     const switcher = await openSwitcher(page);
     await switcher.getByText('Configure layers').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(35);
+    await expect(dialog.getByRole('checkbox')).toHaveCount(36);
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }

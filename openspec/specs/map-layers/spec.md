@@ -12,7 +12,7 @@
 #### Scenario: Список слоёв
 
 - **WHEN** пользователь открывает настройку списка слоёв
-- **THEN** в ней 35 слоёв по группам старого клиента, первый — «Tracestrack Topo», слоёв Яндекса, Wikimapia и сетки советских топокарт нет
+- **THEN** в ней 36 слоёв по группам старого клиента, первые — «Tracestrack Topo», «OpenFreeMap Outdoor», «OpenStreetMap», «ESRI Satellite»; слоёв Яндекса, Wikimapia и сетки советских топокарт нет
 
 #### Scenario: Атрибуция слоя
 
@@ -209,17 +209,17 @@
 #### Scenario: Превью без настроек
 
 - **WHEN** приложение открыто без настроек слоёв
-- **THEN** в превью — Tracestrack Topo, OpenStreetMap, CyclOSM и ESRI Satellite
+- **THEN** в превью — Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и ESRI Satellite
 
 #### Scenario: Выбранная подложка вне превью
 
 - **WHEN** выбрана подложка «Google Terrain»
-- **THEN** в превью — Tracestrack Topo, OpenStreetMap, CyclOSM и Google Terrain
+- **THEN** в превью — Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и Google Terrain
 
 #### Scenario: Превью без запросов тайлов
 
 - **WHEN** приложение открыто по адресу с `l=O`
-- **THEN** превью четырёх подложек видны, тайлы Tracestrack Topo, CyclOSM и ESRI Satellite не запрашиваются
+- **THEN** превью четырёх подложек видны, тайлы Tracestrack Topo и ESRI Satellite не запрашиваются, к `tiles.openfreemap.org` запросов нет
 
 ### Requirement: Переключатели оверлеев справа
 
@@ -374,3 +374,55 @@
 
 - **WHEN** язык браузера — `ka-GE`
 - **THEN** тайлы Tracestrack запрашиваются по адресу `…/tile.tracestrack.com/topo_en/…`
+
+### Requirement: Порядок подложек по умолчанию
+
+В группе `Default layers` подложка «OpenFreeMap Outdoor» (`Of`) SHALL идти сразу после «Tracestrack Topo», «ESRI Satellite» — сразу после «OpenStreetMap», а «CyclOSM» — после «Satellite by date», чтобы первые четыре подложки списка были Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и ESRI Satellite.
+
+#### Scenario: Подложки по умолчанию по порядку
+
+- **WHEN** пользователь открывает полный список слоёв без настроек
+- **THEN** подложки идут так: Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap, ESRI Satellite, Sentinel-2 cloudless, Satellite by date, CyclOSM
+
+### Requirement: Подложка OpenFreeMap Outdoor
+
+Подложка «OpenFreeMap Outdoor» (`Of` в `l=`) SHALL рисовать свой туристический векторный стиль по тайлам OpenFreeMap, запрашивая описание тайлов и тайлы напрямую у `tiles.openfreemap.org`, без шрифтов и значков с других адресов. Тропы и грунтовки SHALL отличаться от дорог, вершины и перевалы SHALL подписываться высотой в метрах. Подпись карты SHALL называть OpenFreeMap, OpenMapTiles и OpenStreetMap.
+
+#### Scenario: Ссылка с OpenFreeMap Outdoor
+
+- **WHEN** приложение открыто по адресу с `l=Of`
+- **THEN** включена подложка «OpenFreeMap Outdoor», описание тайлов и тайлы запрошены у `tiles.openfreemap.org`, других внешних запросов ради подложки нет, тайлы Tracestrack Topo не запрашиваются, в адресе `l=Of`
+
+#### Scenario: Атрибуция OpenFreeMap
+
+- **WHEN** включена подложка «OpenFreeMap Outdoor»
+- **THEN** в подписи карты — «OpenFreeMap © OpenMapTiles Data from OpenStreetMap» со ссылками на `https://openfreemap.org`, `https://www.openmaptiles.org/` и `https://www.openstreetmap.org/copyright`
+
+#### Scenario: Вершина с высотой
+
+- **WHEN** на карте с «OpenFreeMap Outdoor» видна вершина Казбек
+- **THEN** под её названием — высота «5054 m»
+
+### Requirement: Подписи OpenFreeMap Outdoor
+
+Подписи подложки «OpenFreeMap Outdoor» SHALL показывать местное название, а под ним — название на языке браузера или, если его нет, латиницей; совпадающая вторая строка SHALL не показываться. Подписи SHALL строиться так на любом зуме.
+
+#### Scenario: Браузер на русском в Грузии
+
+- **WHEN** язык браузера — `ru-RU`, на карте Степанцминда, у которой есть название по-русски
+- **THEN** подпись — «სტეფანწმინდა» и под ней «Степанцминда»
+
+#### Scenario: Нет перевода на язык браузера
+
+- **WHEN** у места «სტეფანწმინდა» нет названия на языке браузера, а латиницей оно «Stepantsminda»
+- **THEN** подпись — «სტეფანწმინდა» и под ней «Stepantsminda»
+
+#### Scenario: Название уже на языке браузера
+
+- **WHEN** язык браузера — `ru-RU`, а местное название — «Верхний Ларс» и по-русски так же, или язык браузера — `ka-GE`, а название грузинское
+- **THEN** подпись — одна строка с местным названием
+
+#### Scenario: Подписи на крупном зуме
+
+- **WHEN** приложение открыто с `l=Of` на зуме 15 (`m=15`) в Тбилиси
+- **THEN** названия улиц и районов подписаны в две строки, как на мелком зуме

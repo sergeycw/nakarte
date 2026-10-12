@@ -223,6 +223,7 @@ flowchart LR
 | `nakarte-cors-proxy` → Tracestrack | тайлы `tile.tracestrack.com/topo_<язык>/…` (язык подписей — браузера или английский) с `key` из секрета `TRACESTRACK_KEY` | [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
 | браузер → тайловые провайдеры | `GET` тайлов напрямую (большинство слоёв) | [catalog.ts](../../web/src/layers/catalog.ts) |
+| браузер → OpenFreeMap | `GET /planet` (TileJSON), затем векторные тайлы `/planet/<сборка>/{z}/{x}/{y}.pbf` подложки `Of`; без шрифтов и спрайтов | [catalog.ts](../../web/src/layers/catalog.ts) (`OPENFREEMAP_TILEJSON`), [outdoor.ts](../../web/src/layers/outdoor.ts) |
 | браузер → Earth Search (Element 84) | `GET /v1/search` дат съёмки Sentinel-2 и Landsat над центром карты (снимки по датам `Hls`) | [dated.ts](../../web/src/layers/dated.ts) |
 | браузер → photon.komoot.io | `GET /api/` поиска (запасной к mapy.cz) | [photon.ts](../../web/src/search/photon.ts) |
 | браузер → Google | Maps JavaScript API для Street View, тайлы покрытия | [google.ts](../../web/src/streetview/google.ts), [coverage.ts](../../web/src/streetview/coverage.ts) |

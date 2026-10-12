@@ -14,6 +14,7 @@ import {
 } from '@/tracks/style';
 import { buildCatalog, type LayerDef } from './catalog';
 import { withDate } from './dated';
+import { outdoorLayers } from './outdoor';
 import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, layerCodeOfSource, overlaySources } from './style';
 
 // слои треков и редактора над всеми слоями карты (есть всегда, пустые без треков)
@@ -82,6 +83,19 @@ test('Горизонтали над отмывкой: линии и подпис
         filter: ['>', ['get', 'level'], 0],
         layout: { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', 'ele']] },
     });
+});
+
+test('Подложка OpenFreeMap Outdoor: слои своего стиля одним источником, горизонтали над ней — свои', () => {
+    const [of] = pick('Of');
+    const ru = { ...of, labelLanguage: 'ru-RU' };
+    const style = buildStyle([...pick('Ct', 'Hs'), ru]);
+    const own = outdoorLayers('Of', 'ru-RU').map((layer) => layer.id);
+    expect(style.layers.map((layer) => layer.id)).toEqual(['background', ...own, 'Hs', 'Ct', 'Ct-labels', ...TRACKS]);
+    expect(style.sources.Of).toEqual(of.source);
+    expect(style.layers.filter((layer) => 'source' in layer && layer.source === 'Of').length).toBeGreaterThan(10);
+    expect(style.layers).toEqual(expect.arrayContaining(outdoorLayers('Of', 'ru-RU')));
+    expect(style).not.toHaveProperty('glyphs');
+    expect(style).not.toHaveProperty('sprite');
 });
 
 test('Снимок за дату из ссылки: Landsat и Sentinel-2 — по своему источнику, Sentinel-2 сверху', () => {

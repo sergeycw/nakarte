@@ -241,7 +241,12 @@ describe('Снимки по датам', () => {
             const search = fakeEarthSearch(ok);
             await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
             await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'true');
-            expect(quickBases()).toEqual(['Tracestrack Topo', 'OpenStreetMap', 'CyclOSM', 'ESRI Satellite']);
+            expect(quickBases()).toEqual([
+                'Tracestrack Topo',
+                'OpenFreeMap Outdoor',
+                'OpenStreetMap',
+                'ESRI Satellite',
+            ]);
             await quickButton().click();
             await expect.poll(layersParam).toBe('Tt');
         });

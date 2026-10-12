@@ -40,6 +40,9 @@ export interface LayerDef {
     // зум карты MapLibre, с которого слой виден
     minZoom?: number;
     opacity?: number;
+    // векторная подложка (OpenFreeMap Outdoor): язык подписей — navigator.language, стиль строит outdoorLayers
+    // (src/layers/outdoor.ts) в style.ts, у которого окружения каталога нет
+    labelLanguage?: string;
     // снимки по датам: в source.tiles — по шаблону с DATE_TOKEN на слой GIBS снизу вверх, style.ts рисует каждый своим
     // источником, а не чередует по тайлам, как поддомены
     dated?: boolean;
@@ -76,16 +79,19 @@ export const GROUPS = [
 
 // titlesByOrder старого клиента; места своих слоёв — CUSTOM_BOTTOM и CUSTOM_TOP. Отмывка рельефа — над непрозрачными
 // картами-оверлеями и под линейными, чтобы тени ложились на любую подложку и не закрывали тропы.
+// Подложки по умолчанию: Tt, Of, O, E — первые четыре, они же превью справа (QuickLayers, решение владельца 2026-10-12:
+// OpenFreeMap Outdoor вместо CyclOSM, design add-vector-outdoor-style); CyclOSM — после снимков по датам
 const ORDER = [
     'Tt',
+    'Of',
     'O',
+    'E',
+    'S2',
+    'Hls',
     'Co',
     'Otm',
     'Ocm',
     'Oso',
-    'E',
-    'S2',
-    'Hls',
     'L',
     'I',
     'G',
@@ -123,6 +129,13 @@ const OSM_ATTRIBUTION = '<a href="https://www.openstreetmap.org/copyright">&copy
 // Подпись Topo — дословно из условий Tracestrack, раздел 5 (https://www.tracestrack.com/terms-of-service/, сверено
 // 2026-10-10, design map-chrome): тайлы под CC BY 4.0, атрибуция обязательна
 const TRACESTRACK_ATTRIBUTION = `Data: ${OSM_ATTRIBUTION}, SRTM, GEBCO, SONNY's LiDAR DTM, NASADEM, ESA WorldCover; <a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>`;
+// OpenFreeMap (design add-vector-outdoor-style): TileJSON, а не шаблон тайлов — в адресе тайлов версия сборки планеты,
+// она меняется, а путь без версии отдаёт пустой тайл (проверено 2026-10-12). Подпись — из TileJSON без target, в
+// источнике: явные опции источника MapLibre ставит выше полей TileJSON
+export const OPENFREEMAP_TILEJSON = 'https://tiles.openfreemap.org/planet';
+const OPENFREEMAP_ATTRIBUTION =
+    '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' +
+    'Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const STRAVA_ATTRIBUTION = '<a href="https://www.strava.com/heatmap">Strava Global Heatmap</a>';
 const KARTVERKET_ATTRIBUTION = '<a href="https://kartverket.no/til-lands/kart/turkart">Kartverket</a>';
 const GOOGLE_ATTRIBUTION = '<a href="https://www.google.com/maps">Google</a>';
@@ -260,6 +273,17 @@ function definitions(env: CatalogEnv): Def[] {
                 TRACESTRACK_ATTRIBUTION,
                 { maxzoom: 19 },
             ),
+        },
+        {
+            code: 'Of',
+            title: 'OpenFreeMap Outdoor',
+            group: 'Default layers',
+            isOverlay: false,
+            isDefault: true,
+            // свой векторный стиль на тайлах OpenFreeMap (схема OpenMapTiles, до z14), без ключа: подписи — местное
+            // название и под ним язык браузера или латиница на любом зуме (Tracestrack переводит только до z12)
+            labelLanguage: env.language,
+            source: { type: 'vector', url: OPENFREEMAP_TILEJSON, attribution: OPENFREEMAP_ATTRIBUTION },
         },
         {
             code: 'O',
