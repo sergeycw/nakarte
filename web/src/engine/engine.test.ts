@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { EngineBackend } from './backends';
-import { createEngine, EngineStartError } from './engine';
+import { createEngine, EngineStartError, EngineTimeoutError } from './engine';
 
 // Сценарии спеки browser-routing-engine на поддельном движке: настоящий рантайм CheerpJ живёт на CDN,
 // а тесты в сеть не ходят. Настоящий движок проверяется стендом engine-bench.html.
@@ -169,6 +169,104 @@ describe('Расчёт маршрута вне главного потока', (
         ]);
         await expect(engine.start()).rejects.toThrow('BRouter engine failed to start: main-thread failed');
         expect(engine.backend()).toBeNull();
+    });
+});
+
+describe('Таймаут расчёта', () => {
+    // короткий таймаут вместо 60 с: поддельный бэкенд «считает», пока тест не ответит
+    const TIMEOUT = 30;
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    test('Движок не ответил вовремя', async () => {
+        const fakes: Array<ReturnType<typeof fakeBackend>> = [];
+        const engine = createEngine(
+            [
+                () => {
+                    fakes.push(fakeBackend('worker'));
+                    return fakes[fakes.length - 1].backend;
+                },
+            ],
+            { routeTimeout: TIMEOUT },
+        );
+        const hung = engine.route('a');
+        await expect(hung).rejects.toBeInstanceOf(EngineTimeoutError);
+        await expect(hung).rejects.toThrow(/^BRouter engine did not answer in \d+ s$/);
+        // воркер остановлен, движок снова не запущен
+        expect(fakes[0].counters.disposed).toBe(1);
+        expect(engine.status()).toBe('idle');
+        expect(engine.backend()).toBeNull();
+        // следующий запрос запускает новый движок и получает маршрут
+        const next = engine.route('b');
+        await flush();
+        expect(fakes).toHaveLength(2);
+        expect(engine.status()).toBe('ready');
+        fakes[1].calls[0].resolve('B');
+        await expect(next).resolves.toBe('B');
+    });
+
+    test('Очередь за зависшим расчётом', async () => {
+        const fakes: Array<ReturnType<typeof fakeBackend>> = [];
+        const engine = createEngine(
+            [
+                () => {
+                    fakes.push(fakeBackend('worker'));
+                    return fakes[fakes.length - 1].backend;
+                },
+            ],
+            { routeTimeout: TIMEOUT },
+        );
+        const hung = engine.route('a');
+        const queued = [engine.route('b'), engine.route('c')];
+        await expect(hung).rejects.toBeInstanceOf(EngineTimeoutError);
+        await flush();
+        // b считает уже новый движок; ожидание в очереди за зависшим в таймаут не входит
+        expect(fakes[1].calls.map((c) => c.query)).toEqual(['b']);
+        await wait(TIMEOUT / 2);
+        fakes[1].calls[0].resolve('B');
+        await flush();
+        expect(fakes[1].calls.map((c) => c.query)).toEqual(['b', 'c']);
+        await wait(TIMEOUT / 2);
+        fakes[1].calls[1].resolve('C');
+        expect(await Promise.all(queued)).toEqual(['B', 'C']);
+        expect(fakes).toHaveLength(2);
+    });
+
+    test('Завис движок на главном потоке', async () => {
+        const worker = fakeBackend('worker', { failStart: true });
+        const mains: Array<ReturnType<typeof fakeBackend>> = [];
+        const engine = createEngine(
+            [
+                () => worker.backend,
+                () => {
+                    mains.push(fakeBackend('main-thread'));
+                    return mains[mains.length - 1].backend;
+                },
+            ],
+            { routeTimeout: TIMEOUT },
+        );
+        const hung = engine.route('a');
+        const queued = engine.route('b');
+        await expect(hung).rejects.toBeInstanceOf(EngineStartError);
+        await expect(hung).rejects.toThrow('BRouter engine stopped responding');
+        expect(engine.status()).toBe('failed');
+        // запрос в очереди и новые — отказ сразу, в движок не уходят, движок заново не запускается
+        await expect(queued).rejects.toBeInstanceOf(EngineStartError);
+        await expect(engine.route('c')).rejects.toBeInstanceOf(EngineStartError);
+        await expect(engine.start()).rejects.toBeInstanceOf(EngineStartError);
+        expect(mains).toHaveLength(1);
+        expect(mains[0].calls.map((c) => c.query)).toEqual(['a']);
+    });
+
+    test('ответ в срок — без таймаута и перезапуска', async () => {
+        const fake = fakeBackend('worker');
+        const engine = createEngine([() => fake.backend], { routeTimeout: TIMEOUT });
+        const result = engine.route('a');
+        await flush();
+        fake.calls[0].resolve('A');
+        await expect(result).resolves.toBe('A');
+        await wait(TIMEOUT * 2);
+        expect(fake.counters.disposed).toBe(0);
+        expect(engine.status()).toBe('ready');
     });
 });
 

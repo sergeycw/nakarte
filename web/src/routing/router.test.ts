@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { type Engine, EngineStartError, type EngineStatus } from '@/engine/engine';
+import { type Engine, EngineStartError, type EngineStatus, EngineTimeoutError } from '@/engine/engine';
 import { type Activity, getActivity, RoutingError } from './brouter';
 import { createRouter, routerDownHint } from './router';
 
@@ -151,6 +151,29 @@ describe('Недоступный роутер', () => {
         const error = (await router.route(FROM, TO, HIKING).catch((e: unknown) => e)) as RoutingError;
         expect(error.message).toBe('no track found');
         expect(error.unreachable).toBe(false);
+    });
+
+    test('Движок не ответил вовремя: ошибка отрезка, роутер жив', async () => {
+        const engine = fakeEngine(async () => {
+            throw new EngineTimeoutError('BRouter engine did not answer in 60 s');
+        }, 'idle');
+        const router = createRouter({ engine: 'browser', routingServer: '', fetch: noFetch, getEngine: () => engine });
+        const error = (await router.route(FROM, TO, HIKING).catch((e: unknown) => e)) as RoutingError;
+        expect(error).toBeInstanceOf(RoutingError);
+        expect(error.message).toBe('BRouter engine did not answer in 60 s');
+        expect(error.unreachable).toBe(false);
+        expect(await router.isReachable()).toBe(true);
+    });
+
+    test('Завис движок на главном потоке: роутер недоступен, подсказка — перезагрузить страницу', async () => {
+        const engine = fakeEngine(async () => {
+            throw new EngineStartError('BRouter engine stopped responding');
+        }, 'failed');
+        const router = createRouter({ engine: 'browser', routingServer: '', fetch: noFetch, getEngine: () => engine });
+        const error = (await router.route(FROM, TO, HIKING).catch((e: unknown) => e)) as RoutingError;
+        expect(error.unreachable).toBe(true);
+        expect(await router.isReachable()).toBe(false);
+        expect(routerDownHint('browser')).toContain('reload the page');
     });
 });
 

@@ -44,7 +44,7 @@ sequenceDiagram
 
 ## Движок в браузере
 
-Отличия от сервера: движок — синглтон `getEngine()` в [engine.ts](../../web/src/engine/engine.ts), один на страницу, создаётся лениво и запускается заранее; запросы идут в очередь по одному; файлы BRouter читаются по HTTP Range с того же origin. CheerpJ живёт в классическом Web Worker ([engine.worker.ts](../../web/src/engine/engine.worker.ts)), и главный поток во время запуска и расчёта свободен. Если воркер не поднялся, в той же попытке движок запускается на главном потоке ([backends.ts](../../web/src/engine/backends.ts), `mainThreadBackend`). Решения и замеры — архив [spike-engine-in-worker](../../openspec/changes/archive/2026-10-08-spike-engine-in-worker/design.md).
+Отличия от сервера: движок — синглтон `getEngine()` в [engine.ts](../../web/src/engine/engine.ts), один на страницу, создаётся лениво и запускается заранее; запросы идут в очередь по одному, расчёт дольше 60 с обрывается: воркер завершается и следующий запрос поднимает новый, а зависший движок на главном потоке считается недоступным до перезагрузки ([add-engine-timeout](../../openspec/changes/archive/2026-10-12-add-engine-timeout/design.md)); файлы BRouter читаются по HTTP Range с того же origin. CheerpJ живёт в классическом Web Worker ([engine.worker.ts](../../web/src/engine/engine.worker.ts)), и главный поток во время запуска и расчёта свободен. Если воркер не поднялся, в той же попытке движок запускается на главном потоке ([backends.ts](../../web/src/engine/backends.ts), `mainThreadBackend`). Решения и замеры — архив [spike-engine-in-worker](../../openspec/changes/archive/2026-10-08-spike-engine-in-worker/design.md).
 
 ```mermaid
 sequenceDiagram
