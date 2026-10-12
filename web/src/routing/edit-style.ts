@@ -2,7 +2,7 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import type { CircleLayerSpecification, GeoJSONSourceSpecification, LayerSpecification } from 'maplibre-gl';
 import type { RouteEditState } from '@/state/store';
 import type { LatLng } from '@/tracks/model';
-import { CASING_COLOR, UNROUTED_CASING_PAINT, UNROUTED_PAINT } from '@/tracks/style';
+import { CASING_COLOR, TRACK_LINE_OFFSET, UNROUTED_CASING_PAINT, UNROUTED_PAINT } from '@/tracks/style';
 import { legPath } from './line';
 
 // Редактируемая линия на карте (design add-web-route-editor, «Отрисовка»): источники есть в стиле всегда (пустые без
@@ -129,7 +129,7 @@ export const EDIT_LAYERS: LayerSpecification[] = [
         source: EDIT_LEGS,
         filter: ['!', ['get', 'unrouted']],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': CASING_COLOR, 'line-width': 5.5 },
+        paint: { 'line-color': CASING_COLOR, 'line-width': 5.5, 'line-offset': TRACK_LINE_OFFSET },
     },
     {
         id: EDIT_LINE,
@@ -137,7 +137,7 @@ export const EDIT_LAYERS: LayerSpecification[] = [
         source: EDIT_LEGS,
         filter: ['!', ['get', 'unrouted']],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ['get', 'color'], 'line-width': 3 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-offset': TRACK_LINE_OFFSET },
     },
     {
         id: EDIT_UNROUTED_CASING,

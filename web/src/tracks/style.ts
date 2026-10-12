@@ -127,18 +127,29 @@ export function trackSources(
     };
 }
 
+// Линии треков и редактора смещены вправо по ходу (design offset-track-lines): у радиалки «туда» и «обратно» по одной
+// дороге — противоположные направления, и линии ложатся рядом, как полосы, а не одна на другую. Смещение — половина
+// белой обводки трека: обводки двух направлений соприкасаются. Данные не трогаются, клик MapLibre ищет по смещённой
+// линии (queryRenderedFeatures учитывает line-offset)
+export const TRACK_LINE_OFFSET = 3.5;
+
 // пунктир непроложенного отрезка: line-dasharray — в ширинах линии
 export const UNROUTED_PAINT: LineLayerSpecification['paint'] = {
     'line-color': UNROUTED_COLOR,
     'line-width': 3,
     'line-dasharray': [2, 1.5],
+    'line-offset': TRACK_LINE_OFFSET,
 };
 
 // Белая обводка шире линии на 1.5 px с каждой стороны: на светлой карте её почти не видно, на тёмной (спутник, heatmap)
 // она отделяет линию от фона
 export const CASING_COLOR = '#fff';
 // под пунктиром — сплошная: белые промежутки между штрихами
-export const UNROUTED_CASING_PAINT: LineLayerSpecification['paint'] = { 'line-color': CASING_COLOR, 'line-width': 6 };
+export const UNROUTED_CASING_PAINT: LineLayerSpecification['paint'] = {
+    'line-color': CASING_COLOR,
+    'line-width': 6,
+    'line-offset': TRACK_LINE_OFFSET,
+};
 const LINE_LAYOUT: LineLayerSpecification['layout'] = { 'line-cap': 'round', 'line-join': 'round' };
 
 export const TRACK_LAYERS: LayerSpecification[] = [
@@ -147,14 +158,14 @@ export const TRACK_LAYERS: LayerSpecification[] = [
         type: 'line',
         source: TRACK_LINES,
         layout: LINE_LAYOUT,
-        paint: { 'line-color': CASING_COLOR, 'line-width': 7 },
+        paint: { 'line-color': CASING_COLOR, 'line-width': 7, 'line-offset': TRACK_LINE_OFFSET },
     },
     {
         id: TRACK_LINES,
         type: 'line',
         source: TRACK_LINES,
         layout: LINE_LAYOUT,
-        paint: { 'line-color': ['get', 'color'], 'line-width': 4 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-offset': TRACK_LINE_OFFSET },
     },
     {
         id: TRACK_UNROUTED_CASING,
