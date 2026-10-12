@@ -49,6 +49,12 @@
 | Ожидающий отрезок — разрыв линии и курсор ожидания, без спиннера на карте | решение владельца: курсора достаточно | [drop-route-spinner](../../openspec/changes/archive/2026-10-11-drop-route-spinner/design.md#разрыв-остаётся-спиннер-уходит-владелец) |
 | Ключи разметки по координатам, `_drawingDirection` до `spliceLatLngs` | отменено вместе со старым редактором; ключи сетки читает только подхват сессии | [fix-route-markup-after-reload](../../openspec/changes/archive/2026-10-07-fix-route-markup-after-reload/design.md) |
 
+## Экспорт треков
+
+| Решение | Почему | Источник |
+|---|---|---|
+| Маршрут в приложение часов и велокомпьютера — файлом: GPX с высотами в окне «Send to device», шторка Web Share отдельной кнопкой, любой отказ шторки кроме отмены — скачивание; прямой отправки в облака Garmin, Wahoo, COROS нет | API Garmin и COROS закрыты для частного проекта, Wahoo — решение владельца «не сейчас»; `share()` требует свежего нажатия, а файл готов после ответа API высот; Chromium отклоняет `.gpx`, хотя `canShare` отвечает `true` | [send-route-to-device](../../openspec/changes/archive/2026-10-12-send-route-to-device/design.md#окно-а-не-сразу-шторка), [device-route-sync](../../openspec/research/device-route-sync.md#итог) |
+
 ## Хранилище треков
 
 | Решение | Почему | Источник |

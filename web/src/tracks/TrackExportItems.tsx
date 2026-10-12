@@ -12,6 +12,7 @@ export function TrackExportItems({ track }: { track: Track }) {
             <DropdownMenuItem onClick={() => actions.saveTrackWithElevation(track)}>
                 Save as GPX with elevation
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void actions.sendToDevice(track)}>Send to device</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.saveTrack(track, 'kml')}>Save as KML</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.copyTrackLink(track)}>Copy link for track</DropdownMenuItem>
         </>

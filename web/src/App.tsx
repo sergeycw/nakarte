@@ -27,10 +27,10 @@ import { createStreetView } from '@/streetview/controller';
 import { COVERAGE_CODE, COVERAGE_TITLE } from '@/streetview/coverage';
 import { googleStreetView } from '@/streetview/google';
 import { panoramaHeight, StreetViewPanel } from '@/streetview/StreetViewPanel';
-import { createTrackActions, type TrackActionsDeps } from '@/tracks/actions';
+import { browserShareFiles, createTrackActions, type ShareFiles, type TrackActionsDeps } from '@/tracks/actions';
 import { TrackActionsContext } from '@/tracks/actions-context';
 import { isTrackParam } from '@/tracks/links';
-import { CopyFallbackDialog, PointNameDialog } from '@/tracks/TrackDialogs';
+import { CopyFallbackDialog, DeviceSendDialog, PointNameDialog } from '@/tracks/TrackDialogs';
 import { BaseMap } from './map/BaseMap';
 import { loadPosition, refreshPosition } from './map/locate';
 import { MapActions } from './map/MapActions';
@@ -74,6 +74,9 @@ interface AppProps {
     // сеть треков (хранилище, прокси) и буфер обмена: browser-тесты подставляют свои, в сеть они не ходят
     fetch?: typeof fetch;
     writeClipboard?: TrackActionsDeps['writeClipboard'];
+    // шторка «Поделиться» окна «Send to device»: по умолчанию Web Share браузера, null — без неё; browser-тесты
+    // подставляют свою (в headless Chromium шторки нет)
+    shareFiles?: ShareFiles | null;
     // роутер прокладки: browser-тесты подставляют поддельный, по умолчанию — движок или сервер из config
     router?: Router;
     // хранилище автосохранения треков: по умолчанию IndexedDB nakarte-web с подхватом последней сессии старого клиента
@@ -120,6 +123,7 @@ export function App({
     mapRef,
     fetch = window.fetch.bind(window),
     writeClipboard,
+    shareFiles,
     router,
     autosave,
     streetView,
@@ -149,6 +153,7 @@ export function App({
             notify,
             location: () => window.location,
             writeClipboard,
+            shareFiles: shareFiles === undefined ? browserShareFiles() : shareFiles,
             restored: restored.promise,
         }),
     );
@@ -284,6 +289,7 @@ export function App({
                                     <MapMenu />
                                     <PointNameDialog />
                                     <CopyFallbackDialog />
+                                    <DeviceSendDialog />
                                 </main>
                             </Toaster>
                         </StreetViewContext>
