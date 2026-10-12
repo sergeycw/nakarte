@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { useElevationProfile } from '@/elevation/context';
 import { meters } from '@/elevation/format';
 import { profileStats } from '@/elevation/profile';
+import { ImageryDateButton } from '@/layers/ImageryDate';
 import { useAppStore } from '@/state/context';
 import type { AppState } from '@/state/store';
 import { formatLength, tracksLength } from '@/tracks/geometry';
@@ -40,19 +41,6 @@ function ProfileButton() {
         const stats = profileStats(data.samples, data.values);
         return stats.noData ? null : stats.ascent;
     }, [data]);
-    const shown = track !== undefined;
-    // раскрытая атрибуция с линейкой масштаба слева снизу встаёт над кнопкой, пока она есть (index.css): длинная
-    // атрибуция нескольких слоёв доходит до центра окна
-    useEffect(() => {
-        if (!shown) {
-            return;
-        }
-        const root = document.documentElement;
-        root.style.setProperty('--profile-button-inset', '3.25rem');
-        return () => {
-            root.style.removeProperty('--profile-button-inset');
-        };
-    }, [shown]);
     if (!track) {
         return null;
     }
@@ -79,12 +67,29 @@ function ProfileButton() {
     );
 }
 
-export function MapActions() {
+// fetch — сеть дат снимков (Earth Search): browser-тесты подставляют свой, как у TopBar
+export function MapActions({ fetch }: { fetch: typeof window.fetch }) {
+    const shown = useAppStore(
+        (state) => profileTrackId(state) !== null || state.layers.get(state.selection.base)?.dated === true,
+    );
+    // раскрытая атрибуция с линейкой масштаба слева снизу встаёт над кнопками, пока они есть (index.css): длинная
+    // атрибуция нескольких слоёв доходит до центра окна
+    useEffect(() => {
+        if (!shown) {
+            return;
+        }
+        const root = document.documentElement;
+        root.style.setProperty('--profile-button-inset', '3.25rem');
+        return () => {
+            root.style.removeProperty('--profile-button-inset');
+        };
+    }, [shown]);
     return (
         <div
-            className="pointer-events-none absolute right-3 bottom-[calc(var(--bottom-inset)+0.75rem)] left-3 z-10 flex justify-center"
+            className="pointer-events-none absolute right-3 bottom-[calc(var(--bottom-inset)+0.75rem)] left-3 z-10 flex justify-center gap-2"
             data-testid="map-actions"
         >
+            <ImageryDateButton fetch={fetch} />
             <ProfileButton />
         </div>
     );

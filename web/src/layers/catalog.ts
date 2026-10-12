@@ -21,6 +21,11 @@ export const TERRARIUM_MAX_ZOOM = 15;
 export const CONTOUR_PROTOCOL = 'nakarte-contours';
 export const CONTOUR_MIN_ZOOM = 10;
 
+// Снимки по датам (design add-dated-imagery): токены в шаблонах тайлов и подписи слоя с dated, подставляет withDate
+// (src/layers/dated.ts). MapLibre таких токенов не знает — слой без подстановки в стиль не попадает (BaseMap)
+export const DATE_TOKEN = '{date}';
+export const YEAR_TOKEN = '{year}';
+
 export interface LayerDef {
     // код в l= и в leafletLayersSettings — тот же, что у старого клиента
     code: string;
@@ -35,6 +40,9 @@ export interface LayerDef {
     // зум карты MapLibre, с которого слой виден
     minZoom?: number;
     opacity?: number;
+    // снимки по датам: в source.tiles — по шаблону с DATE_TOKEN на слой GIBS снизу вверх, style.ts рисует каждый своим
+    // источником, а не чередует по тайлам, как поддомены
+    dated?: boolean;
 }
 
 export interface CatalogEnv {
@@ -77,6 +85,7 @@ const ORDER = [
     'Oso',
     'E',
     'S2',
+    'Hls',
     'L',
     'I',
     'G',
@@ -130,6 +139,21 @@ const SENTINEL_ATTRIBUTION =
     'EOxCloudless <a href="https://cloudless.eox.at">https://cloudless.eox.at</a> by EOX IT Services GmbH ' +
     `(Contains modified Copernicus Sentinel data ${SENTINEL_YEAR}), ` +
     '<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>';
+// HLS из NASA GIBS (design add-dated-imagery, «Подпись с годом даты»), сверено 2026-10-12: благодарность GIBS — дословно из
+// Data Use Guidance (https://nasa-gibs.github.io/gibs-api-docs/), Copernicus — «Contains modified Copernicus Sentinel data
+// [год]» (https://ads.atmosphere.copernicus.eu/licences/ec-sentinel), USGS — форма «… courtesy of the U.S. Geological
+// Survey» (https://www.usgs.gov/centers/eros/data-citation). Год — год даты снимка
+const HLS_ATTRIBUTION =
+    'We acknowledge the use of imagery provided by services from ' +
+    '<a href="https://nasa-gibs.github.io/gibs-api-docs/">NASA\'s Global Imagery Browse Services (GIBS)</a>, ' +
+    "part of NASA's Earth Science Data and Information System (ESDIS); " +
+    '<a href="https://www.earthdata.nasa.gov/data/projects/hls">HLS</a>: ' +
+    `contains modified Copernicus Sentinel data ${YEAR_TOKEN}, Landsat image courtesy of the U.S. Geological Survey`;
+// Слои GIBS снизу вверх: Landsat 8/9 (L30) и Sentinel-2 (S30), оба 30 м. Матрица GoogleMapsCompatible_Level12 — тайлы
+// 256 px до z12, z13 GIBS отвечает 400; порядок {y}/{x} — TileRow/TileCol шаблона из WMTSCapabilities
+// (https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml)
+const HLS_LAYERS = ['HLS_L30_Nadir_BRDF_Adjusted_Reflectance', 'HLS_S30_Nadir_BRDF_Adjusted_Reflectance'];
+const HLS_MAX_ZOOM = 12;
 const SLAZAV_ATTRIBUTION = '<a href="http://slazav.xyz/maps">Vladislav Zavjalov</a>';
 // Полный список источников DEM (11 пунктов) — по ссылке: joerd/docs/attribution.md требует атрибуцию «в разумном
 // для носителя месте», правила OSMF, на которые он ссылается, допускают ссылку на страницу с полной атрибуцией.
@@ -236,6 +260,25 @@ function definitions(env: CatalogEnv): Def[] {
                 [`https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${SENTINEL_YEAR}_3857/default/g/{z}/{y}/{x}.jpg`],
                 SENTINEL_ATTRIBUTION,
                 { maxzoom: 14 },
+            ),
+        },
+        {
+            code: 'Hls',
+            title: 'Satellite by date',
+            group: 'Default layers',
+            isOverlay: false,
+            isDefault: true,
+            dated: true,
+            // напрямую: GIBS отвечает Access-Control-Allow-Origin: *, ключа нет. Дата без съёмки над тайлом — 200 с прозрачным
+            // PNG, поэтому оба спутника вместе дают снимок там, где снимал хоть один
+            source: raster(
+                HLS_LAYERS.map(
+                    (layer) =>
+                        `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${DATE_TOKEN}` +
+                        '/GoogleMapsCompatible_Level12/{z}/{y}/{x}.png',
+                ),
+                HLS_ATTRIBUTION,
+                { maxzoom: HLS_MAX_ZOOM },
             ),
         },
         {

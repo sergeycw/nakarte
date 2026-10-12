@@ -223,6 +223,7 @@ flowchart LR
 | `nakarte-cors-proxy` → Tracestrack | тайлы `tile.tracestrack.com/topo__/…` с `key` из секрета `TRACESTRACK_KEY` | [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
 | браузер → тайловые провайдеры | `GET` тайлов напрямую (большинство слоёв) | [catalog.ts](../../web/src/layers/catalog.ts) |
+| браузер → Earth Search (Element 84) | `GET /v1/search` дат съёмки Sentinel-2 и Landsat над центром карты (снимки по датам `Hls`) | [dated.ts](../../web/src/layers/dated.ts) |
 | браузер → photon.komoot.io | `GET /api/` поиска (запасной к mapy.cz) | [photon.ts](../../web/src/search/photon.ts) |
 | браузер → Google | Maps JavaScript API для Street View, тайлы покрытия | [google.ts](../../web/src/streetview/google.ts), [coverage.ts](../../web/src/streetview/coverage.ts) |
 | dev-сервер 8769 → `wrangler dev` тайлов 8788 | прокси `/tiles/` | [vite.config.ts](../../web/vite.config.ts) (`server.proxy`) |

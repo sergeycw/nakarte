@@ -15,8 +15,9 @@ function quadkey(z: number, x: number, y: number) {
 }
 
 // подстановка токенов как в TileID.url MapLibre 6.13 (src/tile/tile_id.ts)
+// у слоя по датам каждый шаблон — свой источник (style.ts): образец — верхний, Sentinel-2
 function tileUrl(layer: LayerDef, z: number, x: number, y: number, pixelRatio = 1) {
-    const tiles = layer.source.tiles ?? [];
+    const tiles = layer.dated ? (layer.source.tiles ?? []).slice(-1) : (layer.source.tiles ?? []);
     return tiles[(x + y) % tiles.length]
         .replace('{z}', String(z))
         .replace('{x}', String(x))
@@ -34,6 +35,12 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
     ['Co', [8, 151, 87], 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/8/151/87.png'],
     ['E', [8, 151, 87], 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/8/87/151'],
     ['S2', [8, 151, 87], 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/8/87/151.jpg'],
+    [
+        'Hls',
+        [8, 151, 87],
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/HLS_S30_Nadir_BRDF_Adjusted_Reflectance/default/{date}' +
+            '/GoogleMapsCompatible_Level12/8/87/151.png',
+    ],
     ['G', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=m@169000000&hl=en&x=151&y=87&z=8'],
     ['Gh', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=h@169000000&hl=en&x=151&y=87&z=8'],
     ['L', [8, 151, 87], 'https://mt2.google.com/vt/lyrs=s&x=151&y=87&z=8'],
@@ -104,8 +111,8 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
 ];
 
 describe('Каталог слоёв', () => {
-    test('Список слоёв: 30 слоёв старого клиента, отмывка, горизонтали, Tracestrack и Sentinel-2, без Яндекса, Wikimapia и сетки', () => {
-        expect(catalog).toHaveLength(34);
+    test('Список слоёв: 30 слоёв старого клиента, отмывка, горизонтали, Tracestrack, Sentinel-2 и снимки по датам, без Яндекса, Wikimapia и сетки', () => {
+        expect(catalog).toHaveLength(35);
         expect([...catalog].sort((a, b) => a.order - b.order)[0].title).toBe('Tracestrack Topo');
         for (const code of ['Y', 'S', 'W', 'Ng']) {
             expect(byCode.has(code)).toBe(false);
@@ -131,7 +138,7 @@ describe('Каталог слоёв', () => {
 
     test('подложки — как в старом клиенте, остальное — оверлеи', () => {
         const bases = catalog.filter((layer) => !layer.isOverlay).map((layer) => layer.code);
-        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'S2', 'Tt']);
+        expect(bases.sort()).toEqual(['Co', 'E', 'G', 'Hls', 'I', 'L', 'O', 'Ocm', 'Oso', 'Otm', 'P', 'S2', 'Tt']);
     });
 
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
@@ -229,5 +236,21 @@ describe('Каталог слоёв', () => {
         expect(TERRARIUM_TILES).toBe(hs.source.tiles?.[0]);
         expect(ct.order).toBe(hs.order + 1);
         expect(ct.order).toBeLessThan(byCode.get('Sa')?.order ?? 0);
+    });
+
+    test('снимки по датам — HLS Landsat под Sentinel-2 из GIBS до z12, сразу после Sentinel-2 cloudless', () => {
+        const hls = byCode.get('Hls') as LayerDef;
+        expect(hls.title).toBe('Satellite by date');
+        expect(hls.dated).toBe(true);
+        expect(hls.isOverlay).toBe(false);
+        expect(hls.order).toBe((byCode.get('S2')?.order ?? 0) + 1);
+        expect(hls.source).toMatchObject({ type: 'raster', tileSize: 256, maxzoom: 12 });
+        expect(hls.source.tiles?.map((tile) => tile.match(/best\/(HLS_\w+?)\/default\/\{date\}\//)?.[1])).toEqual([
+            'HLS_L30_Nadir_BRDF_Adjusted_Reflectance',
+            'HLS_S30_Nadir_BRDF_Adjusted_Reflectance',
+        ]);
+        expect(hls.source.attribution).toContain("NASA's Global Imagery Browse Services (GIBS)</a>, part of NASA's");
+        expect(hls.source.attribution).toContain('Copernicus Sentinel data {year}');
+        expect(hls.source.attribution).toContain('Landsat image courtesy of the U.S. Geological Survey');
     });
 });

@@ -128,12 +128,13 @@ function escapeRegExp(text: string) {
 }
 
 // Шаблон адреса тайла → регулярка: токены MapLibre — числа и квадключ, {ratio} — необязательный @2x, язык
-// подписей Google — любой (в браузере теста navigator.language свой)
+// подписей Google — любой (в браузере теста navigator.language свой), {date} снимков по датам — любая дата
 function templateToRegExp(template: string) {
     const pattern = escapeRegExp(template)
         .replace(/\\\{[zxy]\\\}/g, '\\d+')
         .replace(/\\\{quadkey\\\}/g, '[0-3]*')
         .replace(/\\\{ratio\\\}/g, '(?:@2x)?')
+        .replace(/\\\{date\\\}/g, '\\d{4}-\\d{2}-\\d{2}')
         .replace(/hl=LANG/g, 'hl=[^&]*');
     return new RegExp(`^${pattern}$`);
 }

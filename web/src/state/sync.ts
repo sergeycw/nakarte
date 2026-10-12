@@ -1,4 +1,5 @@
 import type { LayerDef } from '@/layers/catalog';
+import { DATE_PARAM, parseDateParam } from '@/layers/dated';
 import { formatLayersParam, parseLayersParam } from '@/layers/selection';
 import { loadSettings, saveSettings } from '@/layers/settings';
 import { loadActivity } from '@/routing/activity';
@@ -46,6 +47,7 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
         // последний выбор — только если адрес не задаёт годный l= (ниже)
         selection: settings.selection ?? { base: '', overlays: [] },
         view: parseView(params.get('m')) ?? defaultView,
+        imageryDate: parseDateParam(params.get(DATE_PARAM)),
         routingActivity: loadActivity(storage),
         placemark: parsePlacemark(params.get(PLACEMARK_PARAM)),
         streetView: parseStreetView(params.get(STREET_VIEW_PARAM), params.get(LEGACY_STREET_VIEW_PARAM)),
@@ -106,12 +108,20 @@ export function bindAppStore(
         return formatLayersParam(savedSelection(state), state.layers);
     }
 
+    // d= — только пока подложка — снимки по датам (design add-dated-imagery): у других подложек дата ничего не значит
+    function dateParam() {
+        const state = store.getState();
+        const base = state.layers.get(savedSelection(state).base);
+        return base?.dated && state.imageryDate ? [state.imageryDate] : null;
+    }
+
     function writeAddress() {
         clearTimeout(viewTimer);
         viewTimer = undefined;
         let params = parseHash(win.location.hash);
         params = withParam(params, 'm', formatView(store.getState().view));
         params = withParam(params, 'l', layersParam());
+        params = withParam(params, DATE_PARAM, dateParam());
         const { placemark } = store.getState();
         params = withParam(params, PLACEMARK_PARAM, placemark ? formatPlacemark(placemark) : null);
         // старый n= после чтения заменяется на n2= (hashStateUpgrader старого клиента)
@@ -139,6 +149,11 @@ export function bindAppStore(
         const parsed = parseLayersParam(params.get('l'), new Map(state.catalog.map((layer) => [layer.code, layer])));
         if (parsed && params.get('l')?.join('/') !== layersParam().join('/')) {
             state.applyLayersParam(parsed);
+        }
+        // адрес без d= оставляет текущую дату: writeAddress ниже вернёт её в адрес
+        const date = parseDateParam(params.get(DATE_PARAM));
+        if (date && date !== state.imageryDate) {
+            state.setImageryDate(date);
         }
         const placemark = parsePlacemark(params.get(PLACEMARK_PARAM));
         if (!samePlacemark(placemark, state.placemark)) {
@@ -175,6 +190,7 @@ export function bindAppStore(
         const prevSv = prev.streetView;
         // метка, режим, открытие и закрытие панорамы, переход по клику — сразу
         if (
+            state.imageryDate !== prev.imageryDate ||
             state.placemark !== prev.placemark ||
             sv.enabled !== prevSv.enabled ||
             (sv.pano === null) !== (prevSv.pano === null) ||
