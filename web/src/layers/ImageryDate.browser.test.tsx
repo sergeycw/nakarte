@@ -211,4 +211,39 @@ describe('Снимки по датам', () => {
         expect(gibsTiles().length).toBeGreaterThan(0);
         expect(gibsTiles().every(([, , zoom]) => zoom === 12)).toBe(true);
     });
+
+    describe('Снимки по датам кнопкой справа', () => {
+        const quickButton = () => page.getByRole('button', { name: 'Satellite by date', exact: true });
+        const layersParam = () => new URLSearchParams(location.hash.slice(1)).get('l');
+        const quickBases = () =>
+            [...document.querySelectorAll('fieldset button[aria-pressed]')]
+                .map((button) => button.getAttribute('aria-label'))
+                .filter(
+                    (name) =>
+                        name !== 'Satellite by date' && name !== 'Strava heatmap (all)' && name !== 'Relief shading',
+                );
+
+        test('Снимки по датам кнопкой', async () => {
+            const search = fakeEarthSearch(ok);
+            await renderApp(tiles, `#m=12/${AT}&l=O`, { fetch: search.fetch, tracksOpen: false });
+            await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'false');
+            await quickButton().click();
+            await expect.poll(layersParam).toBe('Hls');
+            await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'true');
+            await expect.element(dateButton()).toBeVisible();
+            await quickButton().click();
+            await expect.poll(layersParam).toBe('O');
+            await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'false');
+            await expect.element(dateButton()).not.toBeInTheDocument();
+        });
+
+        test('Ссылка со снимками по датам', async () => {
+            const search = fakeEarthSearch(ok);
+            await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
+            await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'true');
+            expect(quickBases()).toEqual(['Tracestrack Topo', 'OpenStreetMap', 'CyclOSM', 'ESRI Satellite']);
+            await quickButton().click();
+            await expect.poll(layersParam).toBe('Tt');
+        });
+    });
 });

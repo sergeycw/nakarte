@@ -1,10 +1,11 @@
-import { FlameIcon, MountainSnowIcon } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { FlameIcon, MountainSnowIcon, SatelliteIcon } from 'lucide-react';
+import { type ComponentType, useEffect, useRef } from 'react';
 import { ROUND_BUTTON } from '@/components/round-button';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
 import type { LayerDef } from './catalog';
+import { DEFAULT_SELECTION } from './selection';
 
 // Быстрые слои справа (design layer-thumbnails): превью первых подложек списка и переключатели двух оверлеев. Полный
 // список — кнопка All layers в LayerSwitcher.
@@ -27,8 +28,10 @@ function thumbnailOf(code: string): string | undefined {
 
 // Подложки в превью: первые QUICK_BASES списка (listed — без скрытых в Configure layers) в порядке каталога, выбранная
 // вне их — последней, даже если скрыта (current). Порядок стабилен: выбор подложки круги не переставляет
-function quickBases(listed: LayerDef[], current: LayerDef | undefined): LayerDef[] {
-    const first = listed.slice(0, QUICK_BASES);
+// Снимки по датам в превью не попадают: у них своя кнопка QuickDated (design quick-dated-imagery)
+function quickBases(listed: LayerDef[], selected: LayerDef | undefined): LayerDef[] {
+    const current = selected?.dated ? undefined : selected;
+    const first = listed.filter((layer) => !layer.dated).slice(0, QUICK_BASES);
     if (!current || first.includes(current)) {
         return first;
     }
@@ -113,4 +116,45 @@ export function QuickOverlays({ overlays }: { overlays: LayerDef[] }) {
             </Button>
         );
     });
+}
+
+// Снимки по датам — своей кнопкой под превью (владелец 2026-10-12, design quick-dated-imagery): нажатие выбирает их,
+// повторное возвращает подложку, выбранную до них, а без неё (ссылка сразу с l=Hls) — подложку по умолчанию. Кнопка
+// есть, даже если слой скрыт в Configure layers: это функция, а не строка списка
+export function QuickDated() {
+    const layers = useAppStore((state) => state.layers);
+    const selected = useAppStore((state) => state.selection.base);
+    const selectBase = useAppStore((state) => state.selectBase);
+    const lastBase = useRef<string | null>(null);
+    const dated = [...layers.values()].find((layer) => layer.dated);
+    const active = dated !== undefined && selected === dated.code;
+    useEffect(() => {
+        if (!layers.get(selected)?.dated) {
+            lastBase.current = selected;
+        }
+    }, [layers, selected]);
+    if (!dated) {
+        return null;
+    }
+    return (
+        <Button
+            variant="ghost"
+            size="icon-lg"
+            className={cn(COLUMN_BUTTON, active && PRESSED)}
+            aria-label={dated.title}
+            title={dated.title}
+            aria-pressed={active}
+            onClick={() => {
+                if (!active) {
+                    selectBase(dated.code);
+                    return;
+                }
+                // прежняя подложка могла пропасть (удалённый свой слой) — тогда подложка по умолчанию
+                const previous = lastBase.current;
+                selectBase(previous && layers.has(previous) ? previous : DEFAULT_SELECTION.base);
+            }}
+        >
+            <SatelliteIcon />
+        </Button>
+    );
 }
