@@ -262,6 +262,42 @@ describe('метка поиска r=', () => {
     });
 });
 
+describe('снимки по датам d=', () => {
+    test('Снимок за дату из ссылки: дата в сторе, d= остаётся в адресе', () => {
+        const { win, store } = start('m=10/42.7/44.6&l=Hls&d=2026-10-05');
+        expect(store.getState().imageryDate).toBe('2026-10-05');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=Hls&d=2026-10-05');
+    });
+
+    test('Другая подложка: d= пропадает из адреса, дата не сохраняется в localStorage', () => {
+        const { win, store, storage } = start('m=10/42.7/44.6&l=Hls&d=2026-10-05');
+        store.getState().selectBase('O');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=O');
+        expect(storage.getItem(STORAGE_KEY)).not.toContain('2026-10-05');
+        store.getState().selectBase('Hls');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=Hls&d=2026-10-05');
+    });
+
+    test('новая дата пишется сразу, правка адреса меняет дату, неверная d= не сбрасывает её', () => {
+        const { win, store } = start('m=10/42.7/44.6&l=Hls');
+        expect(store.getState().imageryDate).toBeNull();
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=Hls');
+        store.getState().setImageryDate('2026-10-08');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=Hls&d=2026-10-08');
+        win.navigate('m=10/42.70000/44.60000&l=Hls&d=2026-09-14');
+        expect(store.getState().imageryDate).toBe('2026-09-14');
+        win.navigate('m=10/42.70000/44.60000&l=Hls&d=2026-02-30');
+        expect(store.getState().imageryDate).toBe('2026-09-14');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=Hls&d=2026-09-14');
+    });
+
+    test('d= при другой подложке читается, но в адресе не остаётся', () => {
+        const { win, store } = start('m=10/42.7/44.6&l=O&d=2026-10-05');
+        expect(store.getState().imageryDate).toBe('2026-10-05');
+        expect(win.location.hash).toBe('#m=10/42.70000/44.60000&l=O');
+    });
+});
+
 describe('Street View n2= и n=', () => {
     const PANO = { lat: 41.693, lng: 44.78, heading: 90, pitch: 0, zoom: 1 };
 

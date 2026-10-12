@@ -1,0 +1,195 @@
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { page } from 'vitest/browser';
+import { cleanup } from 'vitest-browser-react';
+import '@/index.css';
+import { renderApp } from '@/test/render-app';
+import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { isoDay } from './dated';
+
+const GIBS =
+    /^https:\/\/gibs\.earthdata\.nasa\.gov\/wmts\/epsg3857\/best\/HLS_([LS])30_Nadir_BRDF_Adjusted_Reflectance\/default\/([\d-]+)\/GoogleMapsCompatible_Level12\/(\d+)\//;
+const EARTH_SEARCH = 'https://earth-search.aws.element84.com/v1/search?';
+// Казбеги
+const AT = '42.7/44.6';
+
+// Даты сцен — от сегодняшнего дня: «не моложе 3 дней» считается от настоящих часов браузера
+function daysAgo(days: number): string {
+    return isoDay(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+}
+
+const SCENES: [days: number, platform: string, cloud: number][] = [
+    [2, 'sentinel-2b', 8.3],
+    [5, 'sentinel-2a', 97.7],
+    [5, 'sentinel-2b', 96.3],
+    [7, 'sentinel-2c', 1.6],
+];
+
+function searchBody(scenes = SCENES) {
+    return {
+        type: 'FeatureCollection',
+        features: scenes.map(([days, platform, cloud]) => ({
+            properties: { datetime: `${daysAgo(days)}T08:08:00Z`, platform, 'eo:cloud_cover': cloud },
+        })),
+    };
+}
+
+// Earth Search: ответ по очереди из responses (последний повторяется), запрошенные адреса — в calls
+function fakeEarthSearch(...responses: (() => Response)[]) {
+    const calls: string[] = [];
+    const fetch: typeof window.fetch = async (input) => {
+        const url = String(input);
+        if (!url.startsWith(EARTH_SEARCH)) {
+            throw new TypeError(`no network in tests: ${url}`);
+        }
+        calls.push(url);
+        return responses[Math.min(calls.length, responses.length) - 1]();
+    };
+    return { fetch, calls };
+}
+
+const ok = () => Response.json(searchBody());
+const failure = () => new Response('', { status: 502 });
+
+const dateButton = () => page.getByTestId('imagery-date');
+const hashDate = () => new URLSearchParams(location.hash.slice(1)).get('d');
+
+describe('Снимки по датам', () => {
+    let tiles: FixtureTiles;
+
+    // тайлы GIBS: [спутник, дата, зум]
+    const gibsTiles = () =>
+        tiles.requested.flatMap((url) => {
+            const match = GIBS.exec(url);
+            return match ? [[match[1], match[2], Number(match[3])] as const] : [];
+        });
+
+    beforeEach(() => {
+        tiles = fixtureTiles();
+    });
+
+    afterEach(async () => {
+        await cleanup();
+    });
+
+    test('Снимок за дату из ссылки', async () => {
+        const search = fakeEarthSearch(ok);
+        const { map } = await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, {
+            fetch: search.fetch,
+            tracksOpen: false,
+        });
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        const requested = gibsTiles();
+        expect(new Set(requested.map(([satellite]) => satellite))).toEqual(new Set(['L', 'S']));
+        expect(requested.every(([, date]) => date === '2026-10-05')).toBe(true);
+        expect(hashDate()).toBe('2026-10-05');
+        await expect.element(dateButton()).toHaveTextContent('Imagery date2026-10-05');
+        const attribution = document.querySelector('.maplibregl-ctrl-attrib-inner')?.textContent ?? '';
+        expect(attribution).toContain("NASA's Global Imagery Browse Services (GIBS)");
+        expect(attribution).toContain('Copernicus Sentinel data 2026');
+        expect(attribution).toContain('Landsat image courtesy of the U.S. Geological Survey');
+        await expect
+            .element(page.getByRole('link', { name: "NASA's Global Imagery Browse Services (GIBS)" }))
+            .toBeInTheDocument();
+        expect(search.calls).toEqual([]);
+        expect(tiles.external).toEqual([]);
+    });
+
+    test('Дата по умолчанию', async () => {
+        const search = fakeEarthSearch(ok);
+        const { map } = await renderApp(tiles, `#m=12/${AT}&l=Hls`, { fetch: search.fetch, tracksOpen: false });
+        // моложе 3 дней — пропущена, 97 % — облачно: самая свежая ясная — 7 дней назад
+        await expect.poll(hashDate).toBe(daysAgo(7));
+        expect(search.calls).toHaveLength(1);
+        const url = new URL(search.calls[0]);
+        expect(JSON.parse(url.searchParams.get('intersects') ?? '')).toEqual({
+            type: 'Point',
+            coordinates: [44.6, 42.7],
+        });
+        await expect.element(dateButton()).toHaveTextContent(`Imagery date${daysAgo(7)}2%`);
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        expect(gibsTiles().length).toBeGreaterThan(0);
+        expect(gibsTiles().every(([, date]) => date === daysAgo(7))).toBe(true);
+        expect(tiles.external).toEqual([]);
+    });
+
+    test('Даты недоступны', async () => {
+        const search = fakeEarthSearch(failure, ok);
+        const { map } = await renderApp(tiles, `#m=12/${AT}&l=Hls`, { fetch: search.fetch, tracksOpen: false });
+        await expect.element(dateButton()).toHaveTextContent('Imagery dateDates unavailable');
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        expect(gibsTiles()).toEqual([]);
+        expect(hashDate()).toBeNull();
+        // список открывается с повтором; открытие после ошибки само запрашивает снова
+        await dateButton().click();
+        await expect.poll(() => search.calls.length).toBe(2);
+        await expect.poll(hashDate).toBe(daysAgo(7));
+        await expect.poll(() => gibsTiles().length).toBeGreaterThan(0);
+    });
+
+    test('Даты недоступны: Retry повторяет запрос', async () => {
+        const search = fakeEarthSearch(failure, failure, ok);
+        await renderApp(tiles, `#m=12/${AT}&l=Hls`, { fetch: search.fetch, tracksOpen: false });
+        await expect.element(dateButton()).toHaveTextContent('Imagery dateDates unavailable');
+        await dateButton().click();
+        const list = page.getByTestId('imagery-dates');
+        await expect.element(list.getByRole('button', { name: 'Retry' })).toBeVisible();
+        expect(search.calls).toHaveLength(2);
+        await list.getByRole('button', { name: 'Retry' }).click();
+        await expect.poll(hashDate).toBe(daysAgo(7));
+        expect(search.calls).toHaveLength(3);
+    });
+
+    test('Выбор даты из списка', async () => {
+        const search = fakeEarthSearch(ok);
+        const { map } = await renderApp(tiles, `#m=12/${AT}&l=Hls&d=${daysAgo(7)}`, {
+            fetch: search.fetch,
+            tracksOpen: false,
+        });
+        await dateButton().click();
+        const list = page.getByTestId('imagery-dates');
+        await expect.element(list.getByRole('list', { name: 'Imagery dates' })).toBeVisible();
+        const rows = [...document.querySelectorAll<HTMLButtonElement>('[data-testid="imagery-dates"] [data-date]')];
+        expect(rows.map((row) => row.dataset.date)).toEqual([daysAgo(2), daysAgo(5), daysAgo(7)]);
+        expect(rows[0].textContent).toBe(`${daysAgo(2)}8%Sentinel-2 · may not be ready`);
+        expect(rows[1].textContent).toBe(`${daysAgo(5)}96%Sentinel-2`);
+        expect(rows[2].getAttribute('aria-current')).toBe('date');
+
+        await list.getByRole('button', { name: new RegExp(`^${daysAgo(5)}`) }).click();
+        expect(hashDate()).toBe(daysAgo(5));
+        await expect.element(list).not.toBeInTheDocument();
+        await expect.poll(() => gibsTiles().some(([, date]) => date === daysAgo(5))).toBe(true);
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        expect(tiles.external).toEqual([]);
+    });
+
+    test('Другая дата', async () => {
+        const search = fakeEarthSearch(ok);
+        await renderApp(tiles, `#m=12/${AT}&l=Hls&d=${daysAgo(7)}`, { fetch: search.fetch, tracksOpen: false });
+        await dateButton().click();
+        await page.getByLabelText('Other date').fill('2025-08-01');
+        await expect.poll(hashDate).toBe('2025-08-01');
+        await expect.poll(() => gibsTiles().some(([, date]) => date === '2025-08-01')).toBe(true);
+        await expect.element(dateButton()).toHaveTextContent('Imagery date2025-08-01');
+    });
+
+    test('Другая подложка', async () => {
+        const search = fakeEarthSearch(ok);
+        await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
+        await expect.element(dateButton()).toBeVisible();
+        await page.getByRole('button', { name: 'OpenStreetMap', exact: true }).click();
+        await expect.poll(hashDate).toBeNull();
+        expect(new URLSearchParams(location.hash.slice(1)).get('l')).toBe('O');
+        await expect.element(dateButton()).not.toBeInTheDocument();
+    });
+
+    test('Снимок на крупном зуме', async () => {
+        const search = fakeEarthSearch(ok);
+        const { map } = await renderApp(tiles, `#m=15/${AT}&l=Hls&d=2026-10-05`, {
+            fetch: search.fetch,
+            tracksOpen: false,
+        });
+        await expect.poll(() => map.areTilesLoaded()).toBe(true);
+        expect(gibsTiles().length).toBeGreaterThan(0);
+        expect(gibsTiles().every(([, , zoom]) => zoom === 12)).toBe(true);
+    });
+});

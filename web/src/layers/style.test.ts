@@ -12,7 +12,8 @@ import {
     TRACK_UNROUTED_CASING,
 } from '@/tracks/style';
 import { buildCatalog, type LayerDef } from './catalog';
-import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, overlaySources } from './style';
+import { withDate } from './dated';
+import { BACKGROUND_LAYER, buildStyle, HILLSHADE_PAINT, layerCodeOfSource, overlaySources } from './style';
 
 // слои треков и редактора над всеми слоями карты (есть всегда, пустые без треков)
 // выделенный участок профиля высот — под треками, треки — под редактируемой линией
@@ -80,6 +81,22 @@ test('Горизонтали над отмывкой: линии и подпис
         filter: ['>', ['get', 'level'], 0],
         layout: { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', 'ele']] },
     });
+});
+
+test('Снимок за дату из ссылки: Landsat и Sentinel-2 — по своему источнику, Sentinel-2 сверху', () => {
+    const [hls, hs] = pick('Hls', 'Hs');
+    const style = buildStyle([hs, withDate(hls, '2026-10-05')]);
+    expect(style.layers.map((layer) => layer.id)).toEqual(['background', 'Hls@0', 'Hls', 'Hs', ...TRACKS]);
+    const tiles = (id: string) => (style.sources[id] as { tiles: string[] }).tiles;
+    expect(tiles('Hls@0')).toEqual([
+        expect.stringContaining('/HLS_L30_Nadir_BRDF_Adjusted_Reflectance/default/2026-10-05/'),
+    ]);
+    expect(tiles('Hls')).toEqual([
+        expect.stringContaining('/HLS_S30_Nadir_BRDF_Adjusted_Reflectance/default/2026-10-05/'),
+    ]);
+    expect(style.sources.Hls).toMatchObject({ type: 'raster', maxzoom: 12, tileSize: 256 });
+    expect(layerCodeOfSource('Hls@0')).toBe('Hls');
+    expect(layerCodeOfSource('O')).toBe('O');
 });
 
 test('отмывка — слой hillshade поверх raster-dem', () => {

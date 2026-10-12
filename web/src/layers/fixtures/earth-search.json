@@ -1,0 +1,595 @@
+{
+    "type": "FeatureCollection",
+    "context": {
+        "limit": 200,
+        "matched": 65,
+        "returned": 65
+    },
+    "features": [
+        {
+            "id": "S2B_38TMN_20261010_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-10T08:07:59.252000Z",
+                "eo:cloud_cover": 8.272856,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20261008_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-10-08T07:43:19.615327Z",
+                "eo:cloud_cover": 7.65,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20261007_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-07T08:08:12.598000Z",
+                "eo:cloud_cover": 97.650415,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20261007_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-07T07:58:02.898000Z",
+                "eo:cloud_cover": 96.336126,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20261005_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-05T08:08:01.398000Z",
+                "eo:cloud_cover": 1.593734,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20261004_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-04T07:58:16.416000Z",
+                "eo:cloud_cover": 31.541041,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20261002_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-10-02T07:58:04.739000Z",
+                "eo:cloud_cover": 99.892408,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260930_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-30T08:07:59.604000Z",
+                "eo:cloud_cover": 88.025373,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC08_L2SP_170030_20260930_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-09-30T07:43:12.516896Z",
+                "eo:cloud_cover": 88.55,
+                "platform": "landsat-8"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260927_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-27T08:08:13.439000Z",
+                "eo:cloud_cover": 57.127953,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260927_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-27T07:58:02.927000Z",
+                "eo:cloud_cover": 51.9687,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260925_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-25T08:08:00.626000Z",
+                "eo:cloud_cover": 94.50717,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260924_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-24T07:58:17.561000Z",
+                "eo:cloud_cover": 53.271693,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260922_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-22T07:58:03.602000Z",
+                "eo:cloud_cover": 35.871801,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20260922_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-09-22T07:43:13.034598Z",
+                "eo:cloud_cover": 34.05,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260920_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-20T08:07:58.764000Z",
+                "eo:cloud_cover": 99.982733,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260917_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-17T08:08:13.057000Z",
+                "eo:cloud_cover": 74.860734,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260917_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-17T07:58:01.722000Z",
+                "eo:cloud_cover": 69.581926,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260915_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-15T08:07:58.698000Z",
+                "eo:cloud_cover": 85.985255,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260914_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-14T07:58:16.913000Z",
+                "eo:cloud_cover": 0.939446,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "LC08_L2SP_170030_20260914_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-09-14T07:43:04.084450Z",
+                "eo:cloud_cover": 5.82,
+                "platform": "landsat-8"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260912_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-12T07:58:01.349000Z",
+                "eo:cloud_cover": 6.591485,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260910_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-10T08:07:56.894000Z",
+                "eo:cloud_cover": 1.775777,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260907_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-07T08:08:14.464000Z",
+                "eo:cloud_cover": 99.521649,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260907_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-07T07:58:00.492000Z",
+                "eo:cloud_cover": 99.910051,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20260906_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-09-06T07:43:08.588789Z",
+                "eo:cloud_cover": 4.29,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260905_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-05T08:07:57.678000Z",
+                "eo:cloud_cover": 99.797744,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260904_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-04T07:58:18.712000Z",
+                "eo:cloud_cover": 24.632488,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260902_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-09-02T07:58:01.178000Z",
+                "eo:cloud_cover": 43.431854,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260831_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-31T08:07:57.142000Z",
+                "eo:cloud_cover": 99.99553,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC08_L2SP_170030_20260829_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-08-29T07:43:00.359097Z",
+                "eo:cloud_cover": 83.85,
+                "platform": "landsat-8"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260828_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-28T08:08:14.930000Z",
+                "eo:cloud_cover": 77.484483,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260828_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-28T07:58:00.384000Z",
+                "eo:cloud_cover": 77.521735,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260826_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-26T08:07:57.417000Z",
+                "eo:cloud_cover": 98.621279,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260825_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-25T07:58:18.220000Z",
+                "eo:cloud_cover": 46.989307,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260823_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-23T07:58:00.507000Z",
+                "eo:cloud_cover": 0.006726,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260821_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-21T08:07:56.095000Z",
+                "eo:cloud_cover": 25.833535,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20260821_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-08-21T07:43:00.296695Z",
+                "eo:cloud_cover": 13.49,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260818_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-18T08:08:14.859000Z",
+                "eo:cloud_cover": 53.462011,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260818_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-18T07:58:00.120000Z",
+                "eo:cloud_cover": 55.328071,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260816_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-16T08:07:58.009000Z",
+                "eo:cloud_cover": 96.56198,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260815_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-15T07:58:19.632000Z",
+                "eo:cloud_cover": 98.743212,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260813_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-13T07:58:02.237000Z",
+                "eo:cloud_cover": 51.405996,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "LC08_L2SP_170030_20260813_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-08-13T07:42:52.288767Z",
+                "eo:cloud_cover": 40.87,
+                "platform": "landsat-8"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260811_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-11T08:07:58.501000Z",
+                "eo:cloud_cover": 96.492952,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260808_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-08T08:08:16.855000Z",
+                "eo:cloud_cover": 19.907837,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260808_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-08T07:58:02.528000Z",
+                "eo:cloud_cover": 20.99085,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260806_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-06T08:08:00.318000Z",
+                "eo:cloud_cover": 68.665415,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260805_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-05T07:58:20.713000Z",
+                "eo:cloud_cover": 77.63508,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20260805_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-08-05T07:43:00.065991Z",
+                "eo:cloud_cover": 64.86,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260803_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-03T07:58:04.295000Z",
+                "eo:cloud_cover": 21.396306,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260801_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-08-01T08:08:00.229000Z",
+                "eo:cloud_cover": 57.314026,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260729_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-29T08:08:17.804000Z",
+                "eo:cloud_cover": 81.369764,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260729_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-29T07:58:03.892000Z",
+                "eo:cloud_cover": 72.40231,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC08_L2SP_170030_20260728_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-07-28T07:42:47.045288Z",
+                "eo:cloud_cover": 18.79,
+                "platform": "landsat-8"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260727_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-27T08:08:01.517000Z",
+                "eo:cloud_cover": 83.061737,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260726_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-26T07:58:22.181000Z",
+                "eo:cloud_cover": 11.903433,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260724_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-24T07:58:05.013000Z",
+                "eo:cloud_cover": 44.599804,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260722_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-22T08:08:00.447000Z",
+                "eo:cloud_cover": 24.828839,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "LC09_L2SP_170030_20260720_02_T1",
+            "collection": "landsat-c2-l2",
+            "properties": {
+                "datetime": "2026-07-20T07:42:52.228466Z",
+                "eo:cloud_cover": 24.48,
+                "platform": "landsat-9"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260719_1_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-19T08:08:17.115000Z",
+                "eo:cloud_cover": 96.069199,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2B_38TMN_20260719_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-19T07:58:03.617000Z",
+                "eo:cloud_cover": 95.25128,
+                "platform": "sentinel-2b"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260717_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-17T08:08:01.145000Z",
+                "eo:cloud_cover": 53.785819,
+                "platform": "sentinel-2c"
+            }
+        },
+        {
+            "id": "S2A_38TMN_20260716_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-16T07:58:20.054000Z",
+                "eo:cloud_cover": 97.553831,
+                "platform": "sentinel-2a"
+            }
+        },
+        {
+            "id": "S2C_38TMN_20260714_0_L2A",
+            "collection": "sentinel-2-l2a",
+            "properties": {
+                "datetime": "2026-07-14T07:58:04.236000Z",
+                "eo:cloud_cover": 79.731578,
+                "platform": "sentinel-2c"
+            }
+        }
+    ]
+}

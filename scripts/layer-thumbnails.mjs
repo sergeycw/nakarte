@@ -22,6 +22,8 @@ const {chromium} = createRequire(join(ROOT, 'web/package.json'))('playwright');
 const PLACE = {lat: 43.0467, lng: 42.7286, zoom: 12};
 const ORIGIN = 'https://nakarte-routing.pages.dev';
 const CORS_PROXY_URL = 'https://nakarte-cors-proxy.nakarte-routing.workers.dev/';
+// Снимки по датам (Hls): ясный день над Местиа — облачность квадратов 37TGH и 38TLN Sentinel-2 0.01 % (Earth Search)
+const THUMBNAIL_DATE = '2026-09-13';
 
 function tileOf({lat, lng, zoom}) {
     const n = 2 ** zoom;
@@ -48,7 +50,8 @@ function tileUrl(template, tile) {
         .replace('{x}', String(tile.x))
         .replace('{y}', String(tile.y))
         .replace('{quadkey}', quadkey(tile))
-        .replace('{ratio}', '');
+        .replace('{ratio}', '')
+        .replace('{date}', THUMBNAIL_DATE);
 }
 
 const only = new Set(process.argv.slice(2));
@@ -66,7 +69,8 @@ try {
     );
     await page.goto(`${ORIGIN}/__thumbnails`);
     for (const layer of bases) {
-        const url = tileUrl(layer.source.tiles[0], tile);
+        // у слоя по датам шаблоны — слои GIBS снизу вверх: превью — верхний, Sentinel-2
+        const url = tileUrl(layer.dated ? layer.source.tiles.at(-1) : layer.source.tiles[0], tile);
         // ошибка одной подложки (нет CORS, не картинка, сеть) не останавливает остальные
         const result = await page.evaluate(
             async ({src, fx, fy}) => {

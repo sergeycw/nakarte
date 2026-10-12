@@ -8,7 +8,7 @@ import type { LayerDef } from './catalog';
 import { CONTOUR_ELEVATION, CONTOUR_LAYER, CONTOUR_LEVEL } from './contours';
 
 // Стиль карты из включённых слоёв: подложка снизу, оверлеи — по порядку наложения каталога, а не по порядку
-// включения (titlesByOrder старого клиента). Один источник и один слой на код (у горизонталей ещё подписи), id = код: при смене выбора
+// включения (titlesByOrder старого клиента). Один источник и один слой на код (у горизонталей ещё подписи, у снимков по датам — по источнику на слой GIBS), id = код: при смене выбора
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
 // Под слоями — серый фон, как у старого клиента: пока тайлы грузятся или подложка сменилась, виден он, а не белая
 // страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts), над ними —
@@ -39,7 +39,7 @@ export function buildStyle(
     );
     return {
         version: 8,
-        sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...overlay },
+        sources: { ...Object.fromEntries(sorted.flatMap(layerSources)), ...overlay },
         layers: [BACKGROUND_LAYER, ...sorted.flatMap(layerSpecs), ...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS],
     };
 }
@@ -100,6 +100,26 @@ function contourLayers(code: string, zoom: { minzoom?: number }): LayerSpecifica
     ];
 }
 
+// Снимки по датам (design add-dated-imagery): каждый шаблон слоя с dated — свой источник и слой, снизу вверх; верхний
+// с id = код, нижние — код@номер. «@» нет ни в кодах каталога, ни в base64url своих слоёв (-cs…), поэтому код слоя по
+// id источника — часть до «@» (layerCodeOfSource: ошибки тайлов)
+function datedIds(layer: LayerDef): string[] {
+    const count = layer.source.tiles?.length ?? 0;
+    return Array.from({ length: count }, (_, index) => (index === count - 1 ? layer.code : `${layer.code}@${index}`));
+}
+
+export function layerCodeOfSource(sourceId: string): string {
+    return sourceId.split('@')[0];
+}
+
+function layerSources(layer: LayerDef): [string, LayerDef['source']][] {
+    if (!layer.dated) {
+        return [[layer.code, layer.source]];
+    }
+    const tiles = layer.source.tiles ?? [];
+    return datedIds(layer).map((id, index) => [id, { ...layer.source, tiles: [tiles[index]] }]);
+}
+
 // Векторный источник в каталоге один — горизонтали (свои слои растровые). Id подписей с суффиксом не пересекается с
 // кодами каталога и своих слоёв (-cs…)
 function layerSpecs(layer: LayerDef): LayerSpecification[] {
@@ -118,13 +138,12 @@ function layerSpecs(layer: LayerDef): LayerSpecification[] {
             },
         ];
     }
-    return [
-        {
-            id: layer.code,
-            type: 'raster',
-            source: layer.code,
-            ...zoom,
-            ...(layer.opacity === undefined ? {} : { paint: { 'raster-opacity': layer.opacity } }),
-        },
-    ];
+    const ids = layer.dated ? datedIds(layer) : [layer.code];
+    return ids.map((id) => ({
+        id,
+        type: 'raster',
+        source: id,
+        ...zoom,
+        ...(layer.opacity === undefined ? {} : { paint: { 'raster-opacity': layer.opacity } }),
+    }));
 }

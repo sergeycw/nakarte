@@ -26,6 +26,9 @@ export interface AppState {
     // с какой подложки карта откатилась на FALLBACK_BASE после ошибки её тайлов (design add-outdoor-basemap, «Откат на
     // OpenStreetMap»): откат — не выбор пользователя, в localStorage и l= уходит выбор с ней (savedSelection)
     basemapFallback: string | null;
+    // дата снимков по датам ГГГГ-ММ-ДД (design add-dated-imagery): в адресе d=, пока подложка — слой с dated; в
+    // localStorage не попадает. null — даты нет, слой не рисуется
+    imageryDate: string | null;
     // последний вид карты (пишет карта по moveend)
     view: View;
     // вид, на который карту надо перевести (пришёл из адреса); seq различает одинаковые запросы
@@ -68,6 +71,7 @@ export interface AppState {
     setView(view: View): void;
     requestView(view: View): void;
     selectBase(code: string): void;
+    setImageryDate(date: string | null): void;
     // откатить подложку code на FALLBACK_BASE; false — code уже не подложка (ошибки тайлов приходят и после смены слоя)
     fallBackBase(code: string): boolean;
     toggleOverlay(code: string): void;
@@ -181,6 +185,7 @@ export interface AppStoreInit {
     settings: LayerSettings;
     selection: Selection;
     view: View;
+    imageryDate?: string | null;
     routingActivity?: string | null;
     placemark?: Placemark | null;
     streetView?: { enabled: boolean; pano: PanoView | null };
@@ -221,6 +226,7 @@ export function createAppStore(init: AppStoreInit): AppStore {
             catalog: init.catalog,
             ...initial,
             basemapFallback: null,
+            imageryDate: init.imageryDate ?? null,
             view: init.view,
             viewRequest: null,
             boundsRequest: null,
@@ -249,6 +255,8 @@ export function createAppStore(init: AppStoreInit): AppStore {
 
             setView: (view) => set({ view }),
             requestView: (view) => set({ view, viewRequest: { view, seq: (get().viewRequest?.seq ?? 0) + 1 } }),
+
+            setImageryDate: (imageryDate) => set({ imageryDate }),
 
             selectBase: (code) => {
                 const { selection, layers } = get();

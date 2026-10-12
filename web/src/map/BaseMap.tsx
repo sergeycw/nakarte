@@ -4,7 +4,8 @@ import { type ReactNode, type Ref, useCallback, useEffect, useMemo, useRef } fro
 import { ProfileOnMap } from '@/elevation/ProfileOnMap';
 import { PROFILE_SOURCES } from '@/elevation/style';
 import type { LayerDef } from '@/layers/catalog';
-import { buildStyle } from '@/layers/style';
+import { withDate } from '@/layers/dated';
+import { buildStyle, layerCodeOfSource } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
 import { MapEditor } from '@/routing/MapEditor';
 import { ToolHintOnMap } from '@/routing/ToolHintOnMap';
@@ -33,6 +34,7 @@ interface BaseMapProps {
 export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMapProps) {
     const selection = useAppStore((state) => state.selection);
     const layers = useAppStore((state) => state.layers);
+    const imageryDate = useAppStore((state) => state.imageryDate);
     const initialView = useAppStore((state) => state.view);
     const viewRequest = useAppStore((state) => state.viewRequest);
     const boundsRequest = useAppStore((state) => state.boundsRequest);
@@ -77,9 +79,14 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
     const editData = useMemo(() => editSources(routeEdit, editColor, routeDrag), [routeEdit, editColor, routeDrag]);
     const ticks = useMemo(() => ticksData(tracks, ticksZoom), [tracks, ticksZoom]);
     const mapStyle = useMemo(() => {
-        const defs = [selection.base, ...selection.overlays]
-            .map((code) => layers.get(code))
-            .filter((layer): layer is LayerDef => Boolean(layer));
+        // слой снимков по датам без даты в стиль не попадает: тайлы за случайную дату не грузятся (design add-dated-imagery)
+        const defs = [selection.base, ...selection.overlays].flatMap((code): LayerDef[] => {
+            const layer = layers.get(code);
+            if (!layer?.dated) {
+                return layer ? [layer] : [];
+            }
+            return imageryDate ? [withDate(layer, imageryDate)] : [];
+        });
         // покрытие Street View — над слоями каталога, под профилем и треками (design add-web-search-panoramas)
         if (streetViewOn) {
             defs.push(COVERAGE_LAYER);
@@ -90,7 +97,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
             ...editData,
             ...PROFILE_SOURCES,
         });
-    }, [selection, layers, streetViewOn, trackData, ticks, editData]);
+    }, [selection, layers, imageryDate, streetViewOn, trackData, ticks, editData]);
 
     useEffect(() => {
         if (viewRequest) {
@@ -151,11 +158,11 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                     setView({ lat: center.lat, lng: center.lng, zoom: event.target.getZoom() });
                 }}
                 onError={(event) => {
-                    // ошибка тайла приходит событием карты с sourceId источника (= код слоя) и AJAXError со
-                    // status; прочие ошибки — в консоль MapLibre
+                    // ошибка тайла приходит событием карты с sourceId источника (= код слоя, у снимков по датам —
+                    // код@номер) и AJAXError со status; прочие ошибки — в консоль MapLibre
                     const { sourceId, error } = event as { sourceId?: string; error?: { status?: number } };
                     if (sourceId) {
-                        onTileError(sourceId, error?.status);
+                        onTileError(layerCodeOfSource(sourceId), error?.status);
                     }
                 }}
             >

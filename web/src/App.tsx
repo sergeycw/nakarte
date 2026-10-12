@@ -273,7 +273,7 @@ export function App({
                                         <MapButtons notify={notify} storage={localStorageOrNull()} />
                                     </BaseMap>
                                     <TopBar fetch={fetch} />
-                                    <MapActions />
+                                    <MapActions fetch={fetch} />
                                     <ElevationProfile />
                                     <StreetViewPanel />
                                     <MapMenu />
