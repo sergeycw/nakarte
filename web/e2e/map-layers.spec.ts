@@ -85,7 +85,7 @@ test('Список слоёв', async ({ page }) => {
     const switcher = await openSwitcher(page);
     await switcher.getByText('Configure layers').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(33);
+    await expect(dialog.getByRole('checkbox')).toHaveCount(34);
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }
@@ -179,6 +179,16 @@ test('Слой Strava', async ({ page, network }) => {
     for (const url of network.tilesOf('Sa')) {
         expect(url.startsWith(`${CORS_PROXY_URL}https/content-a.strava.com/`)).toBe(true);
     }
+});
+
+test('Горизонтали из рельефа', async ({ page, network }) => {
+    // боевой путь: рельеф грузит Blob-воркер maplibre-contour, его запросы перехватывает та же фикстура. Шаблон
+    // Terrarium общий с отмывкой, поэтому тайлы записаны за Hs; m=14 — тайлы горизонталей и рельефа z13
+    await page.goto('./#m=14/42.66000/44.64000&l=O/Ct');
+    await expect.poll(() => network.tilesOf('Hs').length).toBeGreaterThan(0);
+    expect(network.tilesOf('Hs').every((url) => url.includes('/terrarium/13/'))).toBe(true);
+    expect(hashOf(page)).toContain('l=O/Ct');
+    await expect(page.getByRole('link', { name: 'Terrain: Mapzen, sources' })).toBeAttached();
 });
 
 test('Региональный слой вне покрытия', async ({ page, network }) => {

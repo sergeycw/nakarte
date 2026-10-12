@@ -5,6 +5,9 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { App } from '@/App';
 import { PROFILE_LAYERS } from '@/elevation/style';
+import { CONTOUR_PROTOCOL } from '@/layers/catalog';
+import { contourProtocol } from '@/layers/contours';
+import { maplibre } from '@/map/maplibre';
 import { EDIT_LAYERS } from '@/routing/edit-style';
 import { TRACK_LAYERS } from '@/tracks/style';
 import { fakeStreetView } from './fake-street-view';
@@ -43,9 +46,16 @@ export async function openTracks() {
     await expect.element(page.getByTestId('track-list')).toBeVisible();
 }
 
+// Горизонтали в browser-тестах: боевой обработчик протокола грузит рельеф из Blob-воркера мимо transformRequest, то есть
+// в сеть, тестовый — на главном потоке через фикстуру. Протокол глобальный: ставить перед каждым рендером App
+export async function fixtureContours(tiles: FixtureTiles) {
+    (await maplibre).addProtocol(CONTOUR_PROTOCOL, contourProtocol(tiles.transformRequest));
+}
+
 // App с подменёнными тайлами и готовой картой. hash — адрес страницы до старта приложения (m=, l= …).
 export async function renderApp(tiles: FixtureTiles, hash = '', options: RenderOptions = {}) {
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+    await fixtureContours(tiles);
     const mapRef = createRef<MapRef>();
     const screen = await render(
         <App

@@ -6,6 +6,7 @@ import { render } from 'vitest-browser-react';
 import { App } from './App';
 // стили приложения нужны тесту целиком: проверяется, как Tailwind и CSS MapLibre уживаются на одной странице
 import './index.css';
+import { fixtureContours } from './test/render-app';
 import { type FixtureTiles, fixtureTiles } from './test/tiles';
 
 // Настоящая карта MapLibre в Chromium; тайлы всех слоёв — локальная фикстура (src/test/tiles.ts), в сеть тест
@@ -29,6 +30,7 @@ afterEach(() => {
 
 async function renderApp(hash = '') {
     history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+    await fixtureContours(tiles);
     const mapRef = createRef<MapRef>();
     const screen = await render(<App transformRequest={tiles.transformRequest} mapRef={mapRef} />);
     await expect.poll(() => mapRef.current?.getMap().loaded(), { timeout: 10_000 }).toBe(true);

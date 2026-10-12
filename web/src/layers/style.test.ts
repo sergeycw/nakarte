@@ -50,6 +50,38 @@ test('подложка снизу, оверлеи по порядку налож
     expect(Object.keys(style.sources).sort()).toEqual(['Hs', 'Nm', 'O', 'Sa', ...OVERLAY_SOURCES].sort());
 });
 
+test('Горизонтали над отмывкой: линии и подписи над отмывкой, под тепловой картой Strava', () => {
+    const style = buildStyle(pick('Sa', 'Ct', 'Hs', 'O'));
+    expect(style.layers.map((layer) => layer.id)).toEqual([
+        'background',
+        'O',
+        'Hs',
+        'Ct',
+        'Ct-labels',
+        'Sa',
+        ...TRACKS,
+    ]);
+    expect(Object.keys(style.sources)).toContain('Ct');
+    const [lines, labels] = style.layers.filter((layer) => layer.id.startsWith('Ct'));
+    // основные (level 1) толще промежуточных
+    expect(lines).toMatchObject({
+        type: 'line',
+        source: 'Ct',
+        'source-layer': 'contours',
+        minzoom: 10,
+        paint: { 'line-width': ['match', ['get', 'level'], 1, 1, 0.5] },
+    });
+    // подписи — только у основных горизонталей (level 1), высота числом
+    expect(labels).toMatchObject({
+        type: 'symbol',
+        source: 'Ct',
+        'source-layer': 'contours',
+        minzoom: 10,
+        filter: ['>', ['get', 'level'], 0],
+        layout: { 'symbol-placement': 'line', 'text-field': ['to-string', ['get', 'ele']] },
+    });
+});
+
 test('отмывка — слой hillshade поверх raster-dem', () => {
     const style = buildStyle(pick('O', 'Hs'));
     expect(style.sources.Hs).toMatchObject({ type: 'raster-dem', encoding: 'terrarium' });

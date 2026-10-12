@@ -5,9 +5,10 @@ import type { RouteEditState } from '@/state/store';
 import type { Track } from '@/tracks/model';
 import { TRACK_LAYERS, trackSources } from '@/tracks/style';
 import type { LayerDef } from './catalog';
+import { CONTOUR_ELEVATION, CONTOUR_LAYER, CONTOUR_LEVEL } from './contours';
 
 // Стиль карты из включённых слоёв: подложка снизу, оверлеи — по порядку наложения каталога, а не по порядку
-// включения (titlesByOrder старого клиента). Один источник и один слой на код, id = код: при смене выбора
+// включения (titlesByOrder старого клиента). Один источник и один слой на код (у горизонталей ещё подписи), id = код: при смене выбора
 // react-maplibre отдаёт новый стиль в setStyle с diff, и источники, которые остались, не перезагружаются.
 // Под слоями — серый фон, как у старого клиента: пока тайлы грузятся или подложка сменилась, виден он, а не белая
 // страница (решение владельца, change gray-map-background). Треки — над всеми слоями (src/tracks/style.ts), над ними —
@@ -39,7 +40,7 @@ export function buildStyle(
     return {
         version: 8,
         sources: { ...Object.fromEntries(sorted.map((layer) => [layer.code, layer.source])), ...overlay },
-        layers: [BACKGROUND_LAYER, ...sorted.map(layerSpec), ...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS],
+        layers: [BACKGROUND_LAYER, ...sorted.flatMap(layerSpecs), ...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS],
     };
 }
 
@@ -61,22 +62,69 @@ export const BACKGROUND_LAYER = {
     paint: { 'background-color': '#ddd' },
 } as const satisfies LayerSpecification;
 
-function layerSpec(layer: LayerDef): LayerSpecification {
+// Горизонтали (design add-contour-lines, «Вид»). Цвет рыже-коричневый: тёмно-коричневый топокарт не виден на спутнике в
+// лесу. Основные толще и подписаны числом без единиц; шрифт — CSS-семейство без glyphs, как у подписей точек треков
+// (src/tracks/style.ts)
+function contourLayers(code: string, zoom: { minzoom?: number }): LayerSpecification[] {
+    return [
+        {
+            id: code,
+            type: 'line',
+            source: code,
+            'source-layer': CONTOUR_LAYER,
+            ...zoom,
+            paint: {
+                'line-color': 'rgba(200, 105, 30, 0.75)',
+                'line-width': ['match', ['get', CONTOUR_LEVEL], 1, 1, 0.5],
+            },
+        },
+        {
+            id: `${code}-labels`,
+            type: 'symbol',
+            source: code,
+            'source-layer': CONTOUR_LAYER,
+            ...zoom,
+            filter: ['>', ['get', CONTOUR_LEVEL], 0],
+            layout: {
+                'symbol-placement': 'line',
+                'text-field': ['to-string', ['get', CONTOUR_ELEVATION]],
+                'text-font': ['sans-serif'],
+                'text-size': 10,
+            },
+            paint: {
+                'text-color': 'rgb(120, 65, 20)',
+                'text-halo-color': 'white',
+                'text-halo-width': 1,
+            },
+        },
+    ];
+}
+
+// Векторный источник в каталоге один — горизонтали (свои слои растровые). Id подписей с суффиксом не пересекается с
+// кодами каталога и своих слоёв (-cs…)
+function layerSpecs(layer: LayerDef): LayerSpecification[] {
     const zoom = layer.minZoom === undefined ? {} : { minzoom: layer.minZoom };
+    if (layer.source.type === 'vector') {
+        return contourLayers(layer.code, zoom);
+    }
     if (layer.source.type === 'raster-dem') {
-        return {
+        return [
+            {
+                id: layer.code,
+                type: 'hillshade',
+                source: layer.code,
+                ...zoom,
+                paint: HILLSHADE_PAINT,
+            },
+        ];
+    }
+    return [
+        {
             id: layer.code,
-            type: 'hillshade',
+            type: 'raster',
             source: layer.code,
             ...zoom,
-            paint: HILLSHADE_PAINT,
-        };
-    }
-    return {
-        id: layer.code,
-        type: 'raster',
-        source: layer.code,
-        ...zoom,
-        ...(layer.opacity === undefined ? {} : { paint: { 'raster-opacity': layer.opacity } }),
-    };
+            ...(layer.opacity === undefined ? {} : { paint: { 'raster-opacity': layer.opacity } }),
+        },
+    ];
 }

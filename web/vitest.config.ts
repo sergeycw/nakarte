@@ -70,6 +70,7 @@ export default mergeConfig(
                             'blueimp-md5',
                             'fflate',
                             'lucide-react',
+                            'maplibre-contour',
                             'pbf',
                             'zustand',
                             'zustand/vanilla',
