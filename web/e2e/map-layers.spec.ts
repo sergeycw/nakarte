@@ -48,7 +48,7 @@ test('Слой Tracestrack', async ({ page, network }) => {
     await page.goto('./');
     await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
     for (const url of network.tilesOf('Tt')) {
-        expect(url.startsWith(`${CORS_PROXY_URL}https/tile.tracestrack.com/topo__/`)).toBe(true);
+        expect(url.startsWith(`${CORS_PROXY_URL}https/tile.tracestrack.com/topo_en/`)).toBe(true);
         expect(url).not.toContain('key=');
     }
     await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();

@@ -1,5 +1,5 @@
 // Ключ Tracestrack (спека cors-proxy, «Ключ Tracestrack»): прокси подставляет секрет TRACESTRACK_KEY только в растровые
-// тайлы topo__ и не отдаёт его клиенту. Tracestrack — заглушка из vitest.config.js, отвечает эхом запроса. Названия
+// тайлы topo_<язык> и topo__ и не отдаёт его клиенту. Tracestrack — заглушка из vitest.config.js, отвечает эхом запроса. Названия
 // тестов — сценарии спеки.
 import {exports as workerExports} from 'cloudflare:workers';
 import {describe, expect, it} from 'vitest';
@@ -9,7 +9,7 @@ import worker from '../src/index.js';
 const ORIGIN = 'https://nakarte-routing.pages.dev';
 // то же значение — привязка TRACESTRACK_KEY в vitest.config.js
 const KEY = 'test-tracestrack-key';
-const TILE = '/https/tile.tracestrack.com/topo__/10/618/377.webp';
+const TILE = '/https/tile.tracestrack.com/topo_en/10/618/377.webp';
 
 function request(path, {method = 'GET', headers = {}} = {}) {
     return workerExports.default.fetch(`https://proxy.test${path}`, {
@@ -37,8 +37,15 @@ describe('Ключ Tracestrack', () => {
         const response = await request(TILE);
         expect(response.headers.get('Access-Control-Allow-Origin')).toBe(ORIGIN);
         expect((await upstreamUrl(response)).href).toBe(
-            `https://tile.tracestrack.com/topo__/10/618/377.webp?key=${KEY}`
+            `https://tile.tracestrack.com/topo_en/10/618/377.webp?key=${KEY}`
         );
+    });
+
+    it('Тайл на языке браузера', async () => {
+        for (const map of ['topo_ru', 'topo_zh-hant', 'topo__']) {
+            const url = await upstreamUrl(await request(`/https/tile.tracestrack.com/${map}/10/618/377.webp`));
+            expect(url.href, map).toBe(`https://tile.tracestrack.com/${map}/10/618/377.webp?key=${KEY}`);
+        }
     });
 
     it('тайл @2x тоже с ключом', async () => {
@@ -53,6 +60,9 @@ describe('Ключ Tracestrack', () => {
 
     it.each([
         '/https/tile.tracestrack.com/topo_ru/10/618/377.png',
+        // языка нет в списке Tracestrack
+        '/https/tile.tracestrack.com/topo_ka/10/618/377.webp',
+        '/https/tile.tracestrack.com/topo_/10/618/377.webp',
         '/https/tile.tracestrack.com/topo__/10/618/377.png',
         '/https/tile.tracestrack.com/v/10/618/377.pbf',
         '/https/api.tracestrack.com/v1/elevation',

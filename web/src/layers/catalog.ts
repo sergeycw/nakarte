@@ -173,6 +173,46 @@ function raster(
     return { type: 'raster', tiles, tileSize: 256, maxzoom: DEFAULT_MAX_ZOOM, attribution, ...options };
 }
 
+// Языки подписей растра Tracestrack — имена карт из документации (https://tracestrack.com/docs/, сверено 2026-10-12),
+// с префиксом topo_ — топостиль. Тот же список — в TILE_PATH прокси (workers/cors-proxy/src/tracestrack.js): ключ
+// тратится только на эти адреса. Правка одного — правка обоих
+export const TRACESTRACK_LANGUAGES = [
+    'ar',
+    'de',
+    'en',
+    'es',
+    'fi',
+    'fr',
+    'hu',
+    'he',
+    'it',
+    'ja',
+    'ko',
+    'nl',
+    'uk',
+    'pl',
+    'pt',
+    'ru',
+    'th',
+    'sv',
+    'tr',
+    'zh-hans',
+    'zh-hant',
+];
+
+// Подписи на языке браузера, а без него — английские (решение владельца 2026-10-12, design tracestrack-labels): в Грузии
+// местные названия грузинским письмом. Язык — в адресе, а не auto-en Tracestrack по Accept-Language: кеш браузера и
+// прокси хранит тайл по адресу, и язык одного пользователя достался бы другому
+export function tracestrackMap(language: string): string {
+    const [primary, ...rest] = language.toLowerCase().split('-');
+    let code = primary;
+    if (primary === 'zh') {
+        // китайский: традиционное письмо — Тайвань, Гонконг, Макао или явный Hant, иначе упрощённое
+        code = rest.some((part) => ['hant', 'tw', 'hk', 'mo'].includes(part)) ? 'zh-hant' : 'zh-hans';
+    }
+    return `topo_${TRACESTRACK_LANGUAGES.includes(code) ? code : 'en'}`;
+}
+
 function googleTiles(lyrs: string, language: string) {
     // Google с z={z} отдаёт те же тайлы, что старый zoom={17 - z} (проверено побайтно 2026-10-08), поэтому
     // хватает токенов MapLibre без transformRequest
@@ -209,9 +249,14 @@ function definitions(env: CatalogEnv): Def[] {
             isDefault: true,
             // подложка по умолчанию (design add-outdoor-basemap). Только через прокси: ключ API — секрет Worker'а прокси,
             // в адресе клиента его нет (workers/cors-proxy/src/tracestrack.js). Адрес и maxZoom 19 — как у слоя
-            // openstreetmap.org; topo__ — без перевода подписей; {ratio} — @2x на экранах от 2x, тот же кредит квоты
+            // openstreetmap.org; язык подписей — tracestrackMap; {ratio} — @2x на экранах от 2x, тот же кредит квоты
             source: raster(
-                [viaCorsProxy(env.corsProxyUrl, 'https://tile.tracestrack.com/topo__/{z}/{x}/{y}{ratio}.webp')],
+                [
+                    viaCorsProxy(
+                        env.corsProxyUrl,
+                        `https://tile.tracestrack.com/${tracestrackMap(env.language)}/{z}/{x}/{y}{ratio}.webp`,
+                    ),
+                ],
                 TRACESTRACK_ATTRIBUTION,
                 { maxzoom: 19 },
             ),

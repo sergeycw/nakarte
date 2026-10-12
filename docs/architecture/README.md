@@ -220,7 +220,7 @@ flowchart LR
 | `nakarte-elevation` → R2 `nakarte-elevation` | range-чтения `dem3/*` | [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [grid.rs](../../workers/elevation/core/src/grid.rs) |
 | браузер → `nakarte-cors-proxy` | `GET`/`HEAD /{http,https}/{host}/{path}` | [catalog.ts](../../web/src/layers/catalog.ts), [sources.ts](../../web/src/tracks/sources.ts), [mapycz.ts](../../web/src/search/mapycz.ts), [links.ts](../../web/src/search/links.ts) |
 | `nakarte-cors-proxy` → внешние сайты | `fetch(target, {redirect: 'manual'})` | [cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js) (`proxy`) |
-| `nakarte-cors-proxy` → Tracestrack | тайлы `tile.tracestrack.com/topo__/…` с `key` из секрета `TRACESTRACK_KEY` | [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
+| `nakarte-cors-proxy` → Tracestrack | тайлы `tile.tracestrack.com/topo_<язык>/…` (язык подписей — браузера или английский) с `key` из секрета `TRACESTRACK_KEY` | [tracestrack.js](../../workers/cors-proxy/src/tracestrack.js) |
 | `nakarte-cors-proxy` → Strava | `GET www.strava.com/maps/global-heatmap`, тайлы `content-*.strava.com`, `heatmap-external-{a,b,c}.strava.com` | [strava.js](../../workers/cors-proxy/src/strava.js) |
 | браузер → тайловые провайдеры | `GET` тайлов напрямую (большинство слоёв) | [catalog.ts](../../web/src/layers/catalog.ts) |
 | браузер → Earth Search (Element 84) | `GET /v1/search` дат съёмки Sentinel-2 и Landsat над центром карты (снимки по датам `Hls`) | [dated.ts](../../web/src/layers/dated.ts) |

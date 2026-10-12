@@ -108,7 +108,7 @@ describe('Тост при ошибке тайлов', () => {
 });
 
 describe('Подложка Tracestrack', () => {
-    const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo__\//;
+    const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo_[a-z-]+\//;
 
     test('Атрибуция Tracestrack', async () => {
         await renderApp();
