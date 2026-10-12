@@ -9,9 +9,22 @@ import { enginePaths } from './cheerpj-router';
 
 export type EngineStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
-// Движок не запустился ни в воркере, ни на главном потоке: для UI это «роутер недоступен».
+// Движок не запустился ни в воркере, ни на главном потоке (или завис на главном потоке): для UI это «роутер недоступен».
 export class EngineStartError extends Error {
     override name = 'EngineStartError';
+}
+
+// Расчёт не закончился за routeTimeout: для UI — ошибка отрезка, роутер жив (движок в воркере перезапустится)
+export class EngineTimeoutError extends Error {
+    override name = 'EngineTimeoutError';
+}
+
+// Таймаут расчёта (design add-engine-timeout): вдвое больше серверных 30 с — движок читает тайлы по сети и на
+// телефоне медленнее сервера. Отсчёт — с начала расчёта, очередь и холодный старт не входят
+export const ENGINE_ROUTE_TIMEOUT = 60_000;
+
+export interface EngineOptions {
+    routeTimeout?: number;
 }
 
 export interface Engine {
@@ -25,8 +38,14 @@ export interface Engine {
 
 // Бэкенды пробуются по порядку: первый поднявшийся становится движком. Неудачный выбрасывается
 // (воркер завершается), следующий запуск снова начинает с первого.
-export function createEngine(backends: Array<() => EngineBackend>): Engine {
+export function createEngine(
+    backends: Array<() => EngineBackend>,
+    { routeTimeout = ENGINE_ROUTE_TIMEOUT }: EngineOptions = {},
+): Engine {
     let current: EngineBackend | null = null;
+    // движок на главном потоке завис: его не выгрузить и не запустить заново (повторный cheerpjInit бросает), так что
+    // до перезагрузки страницы роутер недоступен
+    let hung = false;
     let starting: Promise<EngineBackend> | null = null;
     let status: EngineStatus = 'idle';
     // хвост очереди: запросы идут в движок строго по одному, хвост никогда не отклоняется
@@ -61,6 +80,9 @@ export function createEngine(backends: Array<() => EngineBackend>): Engine {
     }
 
     function ensureStarted(): Promise<EngineBackend> {
+        if (hung) {
+            return Promise.reject(new EngineStartError('BRouter engine stopped responding'));
+        }
         if (!starting) {
             starting = startBackends().catch((error: unknown) => {
                 // сбой запуска не залипает: следующий запрос маршрута пробует снова
@@ -69,6 +91,52 @@ export function createEngine(backends: Array<() => EngineBackend>): Engine {
             });
         }
         return starting;
+    }
+
+    // Зависший расчёт не прервать изнутри CheerpJ. Воркер завершается, и следующий запрос проходит ensureStarted с
+    // начала — новый воркер, чистый перезапуск; движок сразу прогревается, чтобы следующий клик не ждал холодный старт.
+    // Главный поток не выгрузить: движок помечается зависшим, пока расчёт не закончится (сработавший таймер значит,
+    // что CheerpJ отпускал поток, — скорее медленный маршрут, чем мёртвый)
+    function afterTimeout(backend: EngineBackend, route: Promise<string>) {
+        if (backend.name === 'main-thread') {
+            hung = true;
+            setStatus('failed');
+            route
+                .catch(() => {})
+                .finally(() => {
+                    hung = false;
+                    setStatus('ready');
+                });
+            return;
+        }
+        // dispose отклоняет зависший route — уже после таймаута, гонку выиграла ошибка таймаута (ревью диффа)
+        backend.dispose();
+        current = null;
+        starting = null;
+        setStatus('idle');
+        ensureStarted().catch(() => {});
+    }
+
+    async function routeWithTimeout(backend: EngineBackend, query: string): Promise<string> {
+        const route = backend.route(query);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+                reject(
+                    backend.name === 'main-thread'
+                        ? new EngineStartError('BRouter engine stopped responding')
+                        : new EngineTimeoutError(
+                              `BRouter engine did not answer in ${Math.round(routeTimeout / 1000)} s`,
+                          ),
+                );
+                afterTimeout(backend, route);
+            }, routeTimeout);
+        });
+        try {
+            return await Promise.race([route, timeout]);
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     return {
@@ -82,7 +150,7 @@ export function createEngine(backends: Array<() => EngineBackend>): Engine {
                     return;
                 }
                 // Отмена снимает запрос из очереди. Начатый расчёт CheerpJ не прервать: вызывающий
-                // получает отказ сразу, а следующий запрос ждёт, пока движок действительно освободится.
+                // получает отказ сразу, а следующий запрос ждёт, пока движок освободится или выйдет таймаут.
                 const onAbort = () => reject(signal?.reason);
                 signal?.addEventListener('abort', onAbort, { once: true });
                 const run = async () => {
@@ -91,7 +159,7 @@ export function createEngine(backends: Array<() => EngineBackend>): Engine {
                     }
                     try {
                         const backend = await ensureStarted();
-                        resolve(await backend.route(query));
+                        resolve(await routeWithTimeout(backend, query));
                     } catch (error) {
                         reject(error);
                     } finally {
