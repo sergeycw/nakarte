@@ -22,7 +22,7 @@ jobs:
       - name: Tracestrack tile through the proxy
         run: |
           # тайл Тбилиси z12, один кредит квоты; Origin — клон, иначе прокси ответит 403
-          url="https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/tile.tracestrack.com/topo__/12/2557/1514.webp"
+          url="https://nakarte-cors-proxy.nakarte-routing.workers.dev/https/tile.tracestrack.com/topo_en/12/2557/1514.webp"
           for _ in 1 2 3; do
             if curl -sS --max-time 30 -o body.txt -D headers.txt -H 'Origin: https://nakarte-routing.pages.dev' "$url"; then
               break

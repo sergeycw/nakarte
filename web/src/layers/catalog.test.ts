@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildCatalog, type LayerDef, TERRARIUM_TILES } from './catalog';
+import { buildCatalog, type LayerDef, TERRARIUM_TILES, tracestrackMap } from './catalog';
 
 const PROXY = 'https://proxy.test/';
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: PROXY });
@@ -30,7 +30,7 @@ function tileUrl(layer: LayerDef, z: number, x: number, y: number, pixelRatio = 
 // Отличия от старого клиента намеренные: Google — z= вместо zoom=17-z (те же тайлы), Slazav и Slovakia — конечные
 // адреса после редиректа, swisstopo — без прокси, Bing — статичный адрес из стиля.
 const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
-    ['Tt', [8, 151, 87], 'https://proxy.test/https/tile.tracestrack.com/topo__/8/151/87.webp'],
+    ['Tt', [8, 151, 87], 'https://proxy.test/https/tile.tracestrack.com/topo_en/8/151/87.webp'],
     ['O', [8, 151, 87], 'https://tile.openstreetmap.org/8/151/87.png'],
     ['Co', [8, 151, 87], 'https://b.tile-cyclosm.openstreetmap.fr/cyclosm/8/151/87.png'],
     ['E', [8, 151, 87], 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/8/87/151'],
@@ -170,7 +170,7 @@ describe('Каталог слоёв', () => {
         expect(tileUrl(ocm, 8, 151, 87, 2)).toBe('https://b.tile.thunderforest.com/cycle/8/151/87@2x.png');
         const tt = retina.find((layer) => layer.code === 'Tt') as LayerDef;
         expect(tileUrl(tt, 8, 151, 87, 2)).toBe(
-            'https://proxy.test/https/tile.tracestrack.com/topo__/8/151/87@2x.webp',
+            'https://proxy.test/https/tile.tracestrack.com/topo_en/8/151/87@2x.webp',
         );
     });
 
@@ -187,7 +187,7 @@ describe('Каталог слоёв', () => {
     test('Слой Tracestrack: через прокси без ключа, атрибуция Tracestrack и OSM', () => {
         const tt = byCode.get('Tt') as LayerDef;
         expect(tt.source.tiles).toEqual([
-            'https://proxy.test/https/tile.tracestrack.com/topo__/{z}/{x}/{y}{ratio}.webp',
+            'https://proxy.test/https/tile.tracestrack.com/topo_en/{z}/{x}/{y}{ratio}.webp',
         ]);
         expect(tt.source.maxzoom).toBe(19);
         expect(tt.source.attribution).toContain('<a href="https://www.tracestrack.com/">Maps &copy; Tracestrack</a>');
@@ -252,5 +252,21 @@ describe('Каталог слоёв', () => {
         expect(hls.source.attribution).toContain("NASA's Global Imagery Browse Services (GIBS)</a>, part of NASA's");
         expect(hls.source.attribution).toContain('Copernicus Sentinel data {year}');
         expect(hls.source.attribution).toContain('Landsat image courtesy of the U.S. Geological Survey');
+    });
+
+    test('Язык подписей Tracestrack: язык браузера, если Tracestrack его знает, иначе английский', () => {
+        expect(tracestrackMap('ru-RU')).toBe('topo_ru');
+        expect(tracestrackMap('ka-GE')).toBe('topo_en');
+        expect(tracestrackMap('en-US')).toBe('topo_en');
+        expect(tracestrackMap('DE')).toBe('topo_de');
+        expect(tracestrackMap('zh-TW')).toBe('topo_zh-hant');
+        expect(tracestrackMap('zh-Hant-HK')).toBe('topo_zh-hant');
+        expect(tracestrackMap('zh-CN')).toBe('topo_zh-hans');
+        const ru = buildCatalog({ pixelRatio: 1, language: 'ru', corsProxyUrl: PROXY }).find(
+            (layer) => layer.code === 'Tt',
+        );
+        expect(ru?.source.tiles?.[0]).toBe(
+            'https://proxy.test/https/tile.tracestrack.com/topo_ru/{z}/{x}/{y}{ratio}.webp',
+        );
     });
 });

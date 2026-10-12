@@ -19,7 +19,7 @@ flowchart TD
     method{"GET или HEAD?"}
     target{"targetUrl разобрался?"}
     own{"свой адрес:<br/>*.nakarte-routing.workers.dev,<br/>nakarte-routing.pages.dev и поддомены?"}
-    tt{"тайл Tracestrack<br/>tile.tracestrack.com/topo__/z/x/y(@2x).webp?"}
+    tt{"тайл Tracestrack<br/>tile.tracestrack.com/topo_‹язык›/z/x/y(@2x).webp?"}
     ttkey{"секрет TRACESTRACK_KEY задан?"}
     withkey["запрос клиента отброшен,<br/>?key=TRACESTRACK_KEY"]
     r503["503 Tracestrack key is not set"]

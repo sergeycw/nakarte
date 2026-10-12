@@ -16,7 +16,7 @@ function tileOf(lat: number, lng: number, zoom: number) {
 }
 
 // тайлы подложки по умолчанию — через прокси клона, без ключа (спека map-layers, «Слои через прокси»)
-const TRACESTRACK_TILES = `${CORS_PROXY_URL}https/tile.tracestrack.com/topo__/`;
+const TRACESTRACK_TILES = `${CORS_PROXY_URL}https/tile.tracestrack.com/topo_en/`;
 
 const canvas = '.maplibregl-canvas';
 
