@@ -4,6 +4,7 @@ import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { mapLayerIds, renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
+import { serializeCustomLayer } from './custom';
 import { STORAGE_KEY } from './settings';
 
 // Переключатель слоёв на настоящей карте; тайлы — фикстура. Названия тестов — сценарии спеки map-layers.
@@ -167,6 +168,53 @@ describe('Полный список слоёв', () => {
         await expect.element(switcher).not.toBeInTheDocument();
         await openSwitcher();
         await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
+    });
+});
+
+describe('Подписи под превью подложек', () => {
+    function quickLabels() {
+        const group = page.getByRole('group', { name: 'Quick layers' }).element();
+        // превью подложек — первые кнопки столбца, за ними кнопка снимков по датам и оверлеи без подписей; подпись —
+        // последний элемент кнопки (в круге своего слоя без картинки — буквы названия)
+        return [...group.querySelectorAll('button')].slice(0, 4).map((button) => button.lastElementChild?.textContent);
+    }
+
+    test('Подписи превью', async () => {
+        await renderApp(tiles);
+        await expect.poll(quickLabels).toEqual(['Topo', 'Outdoor', 'OSM', 'ESRI']);
+        const topo = page.getByRole('button', { name: 'Tracestrack Topo', exact: true });
+        await expect.element(topo).toHaveAttribute('aria-pressed', 'true');
+        await expect.element(page.getByText('Topo', { exact: true })).toBeVisible();
+        // подпись выбранной отмечена цветом акцента
+        const color = (text: string) => getComputedStyle(page.getByText(text, { exact: true }).element()).color;
+        expect(color('Topo')).not.toBe(color('OSM'));
+    });
+
+    test('Подложка по подписи', async () => {
+        const { map } = await renderApp(tiles);
+        await page.getByText('OSM', { exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['O']);
+        expect(location.hash).toMatch(/l=O(&|$)/);
+        await expect
+            .element(page.getByRole('button', { name: 'OpenStreetMap', exact: true }))
+            .toHaveAttribute('aria-pressed', 'true');
+    });
+
+    test('Подпись своего слоя', async () => {
+        const code = serializeCustomLayer({
+            name: 'My winter map',
+            url: 'https://tiles.example.test/{z}/{x}/{y}.png',
+            tms: false,
+            scaleDependent: false,
+            maxZoom: 18,
+            isOverlay: false,
+            isTop: false,
+        });
+        await renderApp(tiles, `#m=8/46/8&l=${code}`);
+        await expect.poll(quickLabels).toEqual(['Topo', 'Outdoor', 'OSM', 'My winter map']);
+        await expect
+            .element(page.getByRole('button', { name: 'My winter map', exact: true }))
+            .toHaveAttribute('aria-pressed', 'true');
     });
 });
 

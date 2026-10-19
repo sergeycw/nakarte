@@ -170,6 +170,21 @@ describe('Каталог слоёв', () => {
         expect(defaults.slice(0, 7)).toEqual(['Tt', 'Of', 'O', 'E', 'S2', 'Hls', 'Co']);
     });
 
+    test('У каждой подложки каталога короткое имя', () => {
+        const bases = catalog.filter((layer) => !layer.isOverlay);
+        const shorts = bases.map((layer) => layer.short);
+        expect(shorts.every((short) => short !== undefined && short.length > 0 && short.length <= 8)).toBe(true);
+        // превью в столбце различаются по подписи — одинаковых быть не должно
+        expect(new Set(shorts).size).toBe(bases.length);
+        expect(catalog.filter((layer) => layer.isOverlay && layer.short !== undefined)).toEqual([]);
+        expect(['Tt', 'Of', 'O', 'E'].map((code) => byCode.get(code)?.short)).toEqual([
+            'Topo',
+            'Outdoor',
+            'OSM',
+            'ESRI',
+        ]);
+    });
+
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
         const order = (code: string) => byCode.get(code)?.order ?? 0;
         expect(order('Nm')).toBeLessThan(order('Hs'));
