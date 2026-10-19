@@ -30,6 +30,9 @@ export interface LayerDef {
     // код в l= и в leafletLayersSettings — тот же, что у старого клиента
     code: string;
     title: string;
+    // подпись под превью в столбце быстрых слоёв (QuickLayers): у каждой подложки каталога, у оверлеев и своих слоёв
+    // нет. Правилом из title не вывести: OpenStreetMap, OpenTopoMap и OpenCycleMap по первому слову не различить
+    short?: string;
     group: string;
     // порядок наложения снизу вверх (titlesByOrder старого клиента)
     order: number;
@@ -257,6 +260,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Tt',
             title: 'Tracestrack Topo',
+            short: 'Topo',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -277,6 +281,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Of',
             title: 'OpenFreeMap Outdoor',
+            short: 'Outdoor',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -288,6 +293,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'O',
             title: 'OpenStreetMap',
+            short: 'OSM',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -296,6 +302,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Co',
             title: 'CyclOSM',
+            short: 'Cycle',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -307,6 +314,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'E',
             title: 'ESRI Satellite',
+            short: 'ESRI',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -319,6 +327,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'S2',
             title: 'Sentinel-2 cloudless',
+            short: 'Sentinel',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -334,6 +343,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Hls',
             title: 'Satellite by date',
+            short: 'By date',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -353,6 +363,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'G',
             title: 'Google Map',
+            short: 'Google',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -369,6 +380,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'L',
             title: 'Google Satellite',
+            short: 'G. Sat',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -380,6 +392,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'P',
             title: 'Google Terrain',
+            short: 'Terrain',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -391,6 +404,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'I',
             title: 'Bing Satellite',
+            short: 'Bing',
             group: 'Default layers',
             isOverlay: false,
             isDefault: true,
@@ -422,6 +436,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Otm',
             title: 'OpenTopoMap',
+            short: 'OTM',
             group: 'OpenStreetMap alternatives',
             isOverlay: false,
             isDefault: false,
@@ -434,6 +449,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Ocm',
             title: 'OpenCycleMap',
+            short: 'TF Cycle',
             group: 'OpenStreetMap alternatives',
             isOverlay: false,
             isDefault: false,
@@ -445,6 +461,7 @@ function definitions(env: CatalogEnv): Def[] {
         {
             code: 'Oso',
             title: 'OSM Outdoors',
+            short: 'TF Out',
             group: 'OpenStreetMap alternatives',
             isOverlay: false,
             isDefault: false,

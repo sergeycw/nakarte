@@ -53,6 +53,12 @@ export const COLUMN_BUTTON = cn(ROUND_BUTTON, 'hover:bg-white/90! active:bg-whit
 const PRESSED =
     'bg-primary! text-primary-foreground hover:bg-primary/90! hover:text-primary-foreground active:bg-primary/90!';
 
+// Превью с подписью под кругом (design quick-layer-labels): превью трёх топокарт на данных OSM на 36 px не различить.
+// Круг и подпись — одна кнопка: flex-wrap столбца (LayerSwitcher) переносит элементы по одному и оторвал бы подпись
+// от круга, а нажатие на подпись выбирает подложку. Сама кнопка прозрачная — стекло, картинка и обводка у круга;
+// фон кнопки на наведении и нажатии ставит CSS MapLibre вне @layer (.maplibregl-ctrl button) — отсюда bg-transparent!
+// Кнопка шире круга (w-full столбца): указатель ловят только круг и подпись, а поля по бокам и углы у узкой подписи
+// отдают карте, как промежутки между кругами; клик по span всплывает до кнопки
 export function QuickBases({ listed, all }: { listed: LayerDef[]; all: LayerDef[] }) {
     const selected = useAppStore((state) => state.selection.base);
     const selectBase = useAppStore((state) => state.selectBase);
@@ -61,33 +67,43 @@ export function QuickBases({ listed, all }: { listed: LayerDef[]; all: LayerDef[
         const thumbnail = thumbnailOf(layer.code);
         const active = layer.code === selected;
         return (
-            <Button
+            <button
                 key={layer.code}
-                variant="ghost"
-                size="icon-lg"
-                className={cn(
-                    COLUMN_BUTTON,
-                    'overflow-hidden p-0 font-semibold text-[11px] text-muted-foreground',
-                    // outline-solid: у Button outline-none, cn заменяет его только тем же свойством
-                    active && 'outline-solid outline-2 outline-primary outline-offset-2',
-                )}
+                type="button"
+                className="group pointer-events-none flex w-full cursor-pointer flex-col items-center gap-0.5 bg-transparent! p-0 outline-none"
                 aria-label={layer.title}
                 title={layer.title}
                 aria-pressed={active}
                 onClick={() => selectBase(layer.code)}
             >
-                {thumbnail ? (
-                    // без указателя: картинку иначе тащит мышь, и click не доходит до кнопки
-                    <img
-                        src={thumbnail}
-                        alt=""
-                        draggable={false}
-                        className="pointer-events-none size-full object-cover"
-                    />
-                ) : (
-                    initials(layer.title)
-                )}
-            </Button>
+                <span
+                    className={cn(
+                        'glass pointer-events-auto flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-[11px] text-muted-foreground group-hover:bg-white/90 group-focus-visible:ring-3 group-focus-visible:ring-ring/50',
+                        active && 'outline-2 outline-primary outline-offset-2',
+                    )}
+                >
+                    {thumbnail ? (
+                        // без указателя: картинку иначе тащит мышь, и click не доходит до кнопки
+                        <img
+                            src={thumbnail}
+                            alt=""
+                            draggable={false}
+                            className="pointer-events-none size-full object-cover"
+                        />
+                    ) : (
+                        initials(layer.title)
+                    )}
+                </span>
+                {/* свой слой без short — название целиком, не влезает — многоточие; полное — в title */}
+                <span
+                    className={cn(
+                        'glass pointer-events-auto max-w-full truncate rounded-full px-1.5 font-semibold text-[10px] leading-4',
+                        active ? 'text-primary' : 'text-foreground',
+                    )}
+                >
+                    {layer.short ?? layer.title}
+                </span>
+            </button>
         );
     });
 }
