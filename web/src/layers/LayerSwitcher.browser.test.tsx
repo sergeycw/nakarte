@@ -4,7 +4,6 @@ import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { mapLayerIds, renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
-import { serializeCustomLayer } from './custom';
 import { STORAGE_KEY } from './settings';
 
 // Переключатель слоёв на настоящей карте; тайлы — фикстура. Названия тестов — сценарии спеки map-layers.
@@ -171,50 +170,56 @@ describe('Полный список слоёв', () => {
     });
 });
 
-describe('Подписи под превью подложек', () => {
-    function quickLabels() {
+describe('Превью подложек справа', () => {
+    // превью подложек — первые кнопки столбца, за ними кнопка снимков по датам и переключатели оверлеев
+    function quickBases() {
         const group = page.getByRole('group', { name: 'Quick layers' }).element();
-        // превью подложек — первые кнопки столбца, за ними кнопка снимков по датам и оверлеи без подписей; подпись —
-        // последний элемент кнопки (в круге своего слоя без картинки — буквы названия)
-        return [...group.querySelectorAll('button')].slice(0, 4).map((button) => button.lastElementChild?.textContent);
+        return [...group.querySelectorAll('button')].slice(0, 3);
     }
+    const names = () => quickBases().map((button) => button.getAttribute('aria-label'));
+    const pressed = () => quickBases().map((button) => button.getAttribute('aria-pressed'));
 
-    test('Подписи превью', async () => {
+    test('Превью без настроек', async () => {
         await renderApp(tiles);
-        await expect.poll(quickLabels).toEqual(['Topo', 'Outdoor', 'OSM', 'ESRI']);
-        const topo = page.getByRole('button', { name: 'Tracestrack Topo', exact: true });
-        await expect.element(topo).toHaveAttribute('aria-pressed', 'true');
-        await expect.element(page.getByText('Topo', { exact: true })).toBeVisible();
-        // подпись выбранной отмечена цветом акцента
-        const color = (text: string) => getComputedStyle(page.getByText(text, { exact: true }).element()).color;
-        expect(color('Topo')).not.toBe(color('OSM'));
+        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        expect(pressed()).toEqual(['true', 'false', 'false']);
+        // у каждой из трёх подложек — картинка из сборки, а не пустой круг
+        expect(quickBases().map((button) => button.querySelector('img')?.getAttribute('src'))).toEqual([
+            expect.stringMatching(/thumbnails\/Tt\.webp/),
+            expect.stringMatching(/thumbnails\/G\.webp/),
+            expect.stringMatching(/thumbnails\/E\.webp/),
+        ]);
     });
 
-    test('Подложка по подписи', async () => {
+    test('Подложка по превью', async () => {
         const { map } = await renderApp(tiles);
-        await page.getByText('OSM', { exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['O']);
-        expect(location.hash).toMatch(/l=O(&|$)/);
-        await expect
-            .element(page.getByRole('button', { name: 'OpenStreetMap', exact: true }))
-            .toHaveAttribute('aria-pressed', 'true');
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
+        expect(location.hash).toMatch(/l=E(&|$)/);
+        expect(pressed()).toEqual(['false', 'false', 'true']);
     });
 
-    test('Подпись своего слоя', async () => {
-        const code = serializeCustomLayer({
-            name: 'My winter map',
-            url: 'https://tiles.example.test/{z}/{x}/{y}.png',
-            tms: false,
-            scaleDependent: false,
-            maxZoom: 18,
-            isOverlay: false,
-            isTop: false,
-        });
-        await renderApp(tiles, `#m=8/46/8&l=${code}`);
-        await expect.poll(quickLabels).toEqual(['Topo', 'Outdoor', 'OSM', 'My winter map']);
-        await expect
-            .element(page.getByRole('button', { name: 'My winter map', exact: true }))
-            .toHaveAttribute('aria-pressed', 'true');
+    test('Выбранная подложка вне превью', async () => {
+        await renderApp(tiles, '#m=8/46/8&l=P');
+        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        expect(pressed()).toEqual(['false', 'false', 'false']);
+    });
+
+    test('Превью без запросов тайлов', async () => {
+        const { map } = await renderApp(tiles, '#m=8/46/8&l=O');
+        await expect.poll(() => map.loaded(), { timeout: 10_000 }).toBe(true);
+        expect(names()).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
+        // картинки превью — из сборки: тайлов трёх подложек столбца нет
+        expect(tiles.requested.filter((url) => /tracestrack|google\.com|arcgisonline\.com/u.test(url))).toEqual([]);
+    });
+
+    test('Скрытая подложка в превью', async () => {
+        storedListed({ G: false });
+        const { map } = await renderApp(tiles);
+        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        await page.getByRole('button', { name: 'Google Map', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['G']);
     });
 });
 

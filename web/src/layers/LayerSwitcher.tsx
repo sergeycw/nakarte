@@ -155,14 +155,12 @@ export function LayerSwitcher() {
             {/* быстрые слои уступают место кнопкам карты над нижними панелями: что не влезает по высоте, уходит во
                 второй столбец обёртки и обрезается (flex-wrap + overflow-hidden), и Street View, зум и геолокация не
                 прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами; p-1 —
-                место под обводку выбранной подложки. w-16 — подписи превью («Outdoor», «Sentinel») шире круга;
-                -mx-3.5 возвращает ширину в раскладке к 36 px круга: контролы MapLibre прижаты вправо, и более широкий
-                столбец сдвинул бы круги влево от Street View и зума (design quick-layer-labels). min-w-0: у fieldset
-                браузер ставит min-inline-size: min-content, и длинная подпись раздвигала бы столбец вместо многоточия */}
-            <fieldset className="-mx-3.5 -my-1 flex min-w-0 max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-16 flex-col flex-wrap items-center gap-2 overflow-hidden p-1">
+                место под обводку выбранной подложки */}
+            <fieldset className="-m-1 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-11 flex-col flex-wrap items-center gap-2 overflow-hidden p-1">
                 <legend className="sr-only">Quick layers</legend>
-                {/* в столбце — только слои списка: скрытый, но включённый ссылкой — в All layers */}
-                <QuickBases listed={bases.filter((layer) => isListed(layer, settings))} all={bases} />
+                {/* три превью подложек и снимки по датам — функции столбца, есть всегда; оверлеи — только слои списка:
+                    скрытый, но включённый ссылкой — в All layers */}
+                <QuickBases />
                 <QuickDated />
                 <QuickOverlays overlays={overlays.filter((layer) => isListed(layer, settings))} />
             </fieldset>

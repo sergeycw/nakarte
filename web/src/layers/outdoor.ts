@@ -8,8 +8,7 @@ import type {
 
 // Туристический векторный стиль подложки OpenFreeMap Outdoor (design add-vector-outdoor-style): слои схемы OpenMapTiles
 // (https://openmaptiles.org/schema/) из тайлов OpenFreeMap. Стиль свой, а не Liberty: без glyphs и sprite — подписи
-// MapLibre 6 рисует шрифтом системы, как подписи треков (src/tracks/style.ts), значков POI нет. Модуль без импортов
-// приложения и без MapLibre (только типы): его читает scripts/layer-thumbnails.mjs через --experimental-strip-types.
+// MapLibre 6 рисует шрифтом системы, как подписи треков (src/tracks/style.ts), значков POI нет.
 //
 // id слоёв — <код>-<имя>: суффикс не пересекается с кодами каталога и своих слоёв (-cs…), как Ct-labels.
 
