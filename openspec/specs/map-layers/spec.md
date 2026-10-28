@@ -199,7 +199,7 @@
 
 ### Requirement: Превью подложек справа
 
-Справа сверху над кнопками карты приложение SHALL показывать круглые превью первых четырёх подложек списка слоёв в порядке каталога, кроме «Satellite by date» (у неё своя кнопка); выбранная подложка, если её среди них нет и это не «Satellite by date», SHALL быть четвёртой. Нажатие на превью SHALL выбирать подложку, выбранная SHALL быть отмечена. Превью SHALL NOT запрашивать тайлы: картинка — из сборки, подложка без картинки — круг с буквами названия. Название — подсказкой и в `aria-label`.
+Справа сверху над кнопками карты приложение SHALL показывать три круглых превью подложек — Tracestrack Topo, Google Map и ESRI Satellite, по одной на тип (топокарта, обычная карта, спутник), даже если подложка скрыта в Configure layers. Нажатие на превью SHALL выбирать подложку, выбранная SHALL быть отмечена; при подложке не из трёх не отмечено ни одно. Превью SHALL NOT запрашивать тайлы: картинки — из сборки. Название — подсказкой и в `aria-label`.
 
 #### Scenario: Подложка по превью
 
@@ -209,17 +209,22 @@
 #### Scenario: Превью без настроек
 
 - **WHEN** приложение открыто без настроек слоёв
-- **THEN** в превью — Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и ESRI Satellite
+- **THEN** в превью — Tracestrack Topo, Google Map и ESRI Satellite, отмечено Tracestrack Topo
 
 #### Scenario: Выбранная подложка вне превью
 
 - **WHEN** выбрана подложка «Google Terrain»
-- **THEN** в превью — Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и Google Terrain
+- **THEN** в превью — Tracestrack Topo, Google Map и ESRI Satellite, ни одно не отмечено
+
+#### Scenario: Скрытая подложка в превью
+
+- **WHEN** «Google Map» скрыта в Configure layers
+- **THEN** превью «Google Map» на месте, нажатие на него выбирает подложку
 
 #### Scenario: Превью без запросов тайлов
 
 - **WHEN** приложение открыто по адресу с `l=O`
-- **THEN** превью четырёх подложек видны, тайлы Tracestrack Topo и ESRI Satellite не запрашиваются, к `tiles.openfreemap.org` запросов нет
+- **THEN** три превью видны, тайлы Tracestrack Topo, Google Map и ESRI Satellite не запрашиваются
 
 ### Requirement: Переключатели оверлеев справа
 
@@ -377,7 +382,7 @@
 
 ### Requirement: Порядок подложек по умолчанию
 
-В группе `Default layers` подложка «OpenFreeMap Outdoor» (`Of`) SHALL идти сразу после «Tracestrack Topo», «ESRI Satellite» — сразу после «OpenStreetMap», а «CyclOSM» — после «Satellite by date», чтобы первые четыре подложки списка были Tracestrack Topo, OpenFreeMap Outdoor, OpenStreetMap и ESRI Satellite.
+В группе `Default layers` подложка «OpenFreeMap Outdoor» (`Of`) SHALL идти сразу после «Tracestrack Topo», «ESRI Satellite» — сразу после «OpenStreetMap», а «CyclOSM» — после «Satellite by date».
 
 #### Scenario: Подложки по умолчанию по порядку
 
@@ -426,22 +431,3 @@
 
 - **WHEN** приложение открыто с `l=Of` на зуме 15 (`m=15`) в Тбилиси
 - **THEN** названия улиц и районов подписаны в две строки, как на мелком зуме
-
-### Requirement: Подписи под превью подложек
-
-Под каждым превью подложки справа SHALL быть видна подпись: короткое имя подложки каталога, у своего слоя — его название, обрезанное, если не влезает. Подпись выбранной подложки SHALL быть отмечена; нажатие на подпись SHALL выбирать подложку, как нажатие на превью. Полное название остаётся подсказкой и в `aria-label`.
-
-#### Scenario: Подписи превью
-
-- **WHEN** приложение открыто без настроек слоёв
-- **THEN** под превью подписи `Topo`, `Outdoor`, `OSM` и `ESRI`, подпись `Topo` отмечена
-
-#### Scenario: Подложка по подписи
-
-- **WHEN** пользователь нажимает подпись `OSM` под превью
-- **THEN** подложка — OpenStreetMap, в адресе `l=O`
-
-#### Scenario: Подпись своего слоя
-
-- **WHEN** выбран свой слой по URL с названием «My winter map»
-- **THEN** четвёртое превью подписано «My winter map»
