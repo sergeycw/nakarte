@@ -181,7 +181,9 @@ describe('Снимки по датам', () => {
         const search = fakeEarthSearch(ok);
         await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
         await expect.element(dateButton()).toBeVisible();
-        await page.getByRole('button', { name: 'OpenStreetMap', exact: true }).click();
+        // OpenStreetMap в столбце справа нет (design three-quick-bases) — выбор через полный список
+        await page.getByTestId('layers-button').click();
+        await page.getByTestId('layer-switcher').getByText('OpenStreetMap', { exact: true }).click();
         await expect.poll(hashDate).toBeNull();
         expect(new URLSearchParams(location.hash.slice(1)).get('l')).toBe('O');
         await expect.element(dateButton()).not.toBeInTheDocument();
@@ -241,12 +243,7 @@ describe('Снимки по датам', () => {
             const search = fakeEarthSearch(ok);
             await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
             await expect.element(quickButton()).toHaveAttribute('aria-pressed', 'true');
-            expect(quickBases()).toEqual([
-                'Tracestrack Topo',
-                'OpenFreeMap Outdoor',
-                'OpenStreetMap',
-                'ESRI Satellite',
-            ]);
+            expect(quickBases()).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
             await quickButton().click();
             await expect.poll(layersParam).toBe('Tt');
         });
