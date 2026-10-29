@@ -80,7 +80,8 @@ export function LayerSwitcher() {
                 {layer.title} <LayerHint layer={layer} />
             </span>
         );
-        const labelClass = 'flex min-h-6 flex-1 cursor-pointer items-center gap-2 leading-tight';
+        // строка 24 px со шрифтом 14 px — как пункты меню (правило единообразия в AGENTS.md, design uniform-layer-menus)
+        const labelClass = 'flex min-h-6 flex-1 cursor-pointer items-center gap-2';
         return (
             <div key={layer.code} className="flex items-center gap-1 px-1">
                 {layer.isOverlay ? (
@@ -118,7 +119,7 @@ export function LayerSwitcher() {
         return (
             // без своих подложек секция — первая в панели, линия над ней лишняя
             <fieldset key={name} className="border-border border-t pt-0.5 first:border-t-0 first:pt-0">
-                {/* заголовок — как подпись DropdownMenuLabel: 12 px, приглушённый */}
+                {/* заголовок — как подпись DropdownMenuLabel: 12 px, приглушённый (правило единообразия в AGENTS.md) */}
                 <legend className="float-left w-full px-1 py-1 font-medium text-muted-foreground text-xs">
                     {name}
                 </legend>

@@ -169,6 +169,22 @@ describe('Полный список слоёв', () => {
     });
 });
 
+describe('Единый вид меню', () => {
+    test('Строки списка и пункты меню одной высоты', async () => {
+        await renderApp(tiles);
+        const switcher = await openSwitcher();
+        const row = switcher.element().querySelector('label[data-layer]') as HTMLElement;
+        // offsetHeight — в CSS-пикселях: окно browser-теста масштабируется, и getBoundingClientRect даёт меньше
+        const rowSize = [row.offsetHeight, getComputedStyle(row).fontSize];
+        await userEvent.keyboard('{Escape}');
+        await page.getByRole('button', { name: 'Topo layers', exact: true }).click();
+        const item = page.getByRole('menuitemradio').first().element() as HTMLElement;
+        // 14 px, строка 24 px — правило единообразия меню (AGENTS.md, design uniform-layer-menus)
+        expect(rowSize).toEqual([24, '14px']);
+        expect([item.offsetHeight, getComputedStyle(item).fontSize]).toEqual([24, '14px']);
+    });
+});
+
 // Круги подложек и кнопка хитмэпа — кнопки столбца с aria-pressed (у значков меню его нет): первые три — круги, за
 // ними кнопка хитмэпа и кнопка снимков по датам (design custom-bases-in-list)
 function columnButtons() {
