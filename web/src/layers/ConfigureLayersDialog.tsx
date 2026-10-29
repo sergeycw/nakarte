@@ -53,9 +53,9 @@ export function ConfigureLayersDialog({ open, onOpenChange }: ConfigureLayersDia
                         .filter(([, items]) => items.length > 0)
                         .map(([group, items]) => (
                             <section key={group} className="pb-3">
-                                <h3 className="pb-1 font-medium text-muted-foreground text-xs uppercase">{group}</h3>
+                                <h3 className="pb-1 font-medium text-muted-foreground text-xs">{group}</h3>
                                 {items.map((layer) => (
-                                    <label key={layer.code} className="flex min-h-7 cursor-pointer items-center gap-2">
+                                    <label key={layer.code} className="flex min-h-6 cursor-pointer items-center gap-2">
                                         <Checkbox
                                             checked={current[layer.code]}
                                             onCheckedChange={(checked) =>

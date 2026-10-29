@@ -118,7 +118,12 @@ export function LayerSwitcher() {
     function section([name, items]: [string, LayerDef[]]) {
         return (
             // без своих подложек секция — первая в панели, линия над ней лишняя
-            <fieldset key={name} className="border-border border-t pt-0.5 first:border-t-0 first:pt-0">
+            <fieldset
+                key={name}
+                // clear-left: без него w-max панели считает плавающий legend и первую строку одной линией, и панель
+                // шире нужного
+                className="border-border border-t pt-0.5 first:border-t-0 first:pt-0 [&>legend+*]:clear-left"
+            >
                 {/* заголовок — как подпись DropdownMenuLabel: 12 px, приглушённый (правило единообразия в AGENTS.md) */}
                 <legend className="float-left w-full px-1 py-1 font-medium text-muted-foreground text-xs">
                     {name}

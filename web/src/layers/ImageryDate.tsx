@@ -173,7 +173,7 @@ function DateButton({ fetch }: { fetch: typeof window.fetch }) {
                                         data-date={item.date}
                                         onClick={() => choose(item.date)}
                                         className={cn(
-                                            'flex min-h-7 w-full cursor-pointer items-center gap-3 rounded-md px-1.5 text-left tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50',
+                                            'flex min-h-6 w-full cursor-pointer items-center gap-3 rounded-md px-1.5 text-left tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50',
                                             selected && 'font-medium',
                                         )}
                                     >

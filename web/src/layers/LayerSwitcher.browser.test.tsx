@@ -159,6 +159,7 @@ describe('Полный список слоёв', () => {
         await renderApp(tiles, '#m=8/46/8&l=Tt/Hs');
         const switcher = await openSwitcher();
         // и обычные, и редкие группы раскрыты, свернуть нечего
+        await expect.element(switcher.getByRole('group', { name: 'Overlays' })).toBeVisible();
         await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeChecked();
         await expect.element(switcher.getByRole('group', { name: 'Norway' })).toBeVisible();
         await expect.element(switcher.getByRole('checkbox', { name: 'Norway topo' })).toBeVisible();
@@ -172,16 +173,28 @@ describe('Полный список слоёв', () => {
 describe('Единый вид меню', () => {
     test('Строки списка и пункты меню одной высоты', async () => {
         await renderApp(tiles);
-        const switcher = await openSwitcher();
-        const row = switcher.element().querySelector('label[data-layer]') as HTMLElement;
         // offsetHeight — в CSS-пикселях: окно browser-теста масштабируется, и getBoundingClientRect даёт меньше
-        const rowSize = [row.offsetHeight, getComputedStyle(row).fontSize];
-        await userEvent.keyboard('{Escape}');
+        const size = (element: Element) => [(element as HTMLElement).offsetHeight, getComputedStyle(element).fontSize];
+        const switcher = await openSwitcher();
+        const row = size(switcher.element().querySelector('label[data-layer]') as Element);
+        await switcher.getByText('Configure layers').click();
+        const dialog = page.getByRole('dialog');
+        await expect.element(dialog).toBeVisible();
+        const dialogRow = size(dialog.element().querySelector('label') as Element);
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await expect.element(dialog).not.toBeInTheDocument();
         await page.getByRole('button', { name: 'Topo layers', exact: true }).click();
-        const item = page.getByRole('menuitemradio').first().element() as HTMLElement;
-        // 14 px, строка 24 px — правило единообразия меню (AGENTS.md, design uniform-layer-menus)
-        expect(rowSize).toEqual([24, '14px']);
-        expect([item.offsetHeight, getComputedStyle(item).fontSize]).toEqual([24, '14px']);
+        const radioItem = size(page.getByRole('menuitemradio').first().element());
+        await userEvent.keyboard('{Escape}');
+        await page.getByRole('button', { name: 'Tracks menu', exact: true }).click();
+        const item = size(page.getByRole('menuitem').first().element());
+        // 14 px, строка 24 px — правило единообразия меню и списков (AGENTS.md, design uniform-layer-menus)
+        expect({ row, dialogRow, radioItem, item }).toEqual({
+            row: [24, '14px'],
+            dialogRow: [24, '14px'],
+            radioItem: [24, '14px'],
+            item: [24, '14px'],
+        });
     });
 });
 
