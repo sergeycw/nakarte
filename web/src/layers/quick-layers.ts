@@ -28,6 +28,11 @@ export const QUICK_OVERLAY_GROUPS: readonly QuickLayerGroup[] = [
 
 export const QUICK_BASES = QUICK_BASE_GROUPS.map((group) => group.codes[0]);
 
+// Первый слой группы — сама кнопка столбца: он в меню и в столбце всегда, галочка Configure layers на него не влияет
+export function isColumnButton(code: string): boolean {
+    return quickGroupOf(code)?.codes[0] === code;
+}
+
 export function quickGroupOf(code: string): QuickLayerGroup | undefined {
     return [...QUICK_BASE_GROUPS, ...QUICK_OVERLAY_GROUPS].find((group) => group.codes.includes(code));
 }

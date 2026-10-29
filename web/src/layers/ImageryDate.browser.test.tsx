@@ -183,9 +183,9 @@ describe('Снимки по датам', () => {
         const search = fakeEarthSearch(ok);
         await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
         await expect.element(dateButton()).toBeVisible();
-        // OpenStreetMap — не круг столбца, а пункт меню (design quick-layer-menus) — выбор через полный список
-        await page.getByTestId('layers-button').click();
-        await page.getByTestId('layer-switcher').getByText('OpenStreetMap', { exact: true }).click();
+        // OpenStreetMap — пункт меню круга обычной карты (design quick-layer-menus)
+        await page.getByRole('button', { name: 'Map layers', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: 'OpenStreetMap' }).click();
         await expect.poll(hashDate).toBeNull();
         expect(new URLSearchParams(location.hash.slice(1)).get('l')).toBe('O');
         await expect.element(dateButton()).not.toBeInTheDocument();

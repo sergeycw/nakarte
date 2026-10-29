@@ -1,5 +1,6 @@
 import type { LayerDef } from './catalog';
 import { isCustomLayerCode, parseCustomLayerCode, serializeCustomLayer } from './custom';
+import { quickGroupOf } from './quick-layers';
 
 // Настройки слоёв нового приложения в localStorage. Свой ключ: origin общий со старым клиентом, и его
 // leafletLayersSettings мы только читаем — один раз, пока своих настроек нет (design, «Настройки»).
@@ -14,7 +15,7 @@ export interface Selection {
 }
 
 export interface LayerSettings {
-    // показывать ли слой в переключателе; кода нет — умолчание каталога (isDefault), так новый слой по умолчанию
+    // показывать ли слой в переключателе; кода нет — умолчание (listedByDefault), так новый слой по умолчанию
     // появится и у тех, у кого настройки уже сохранены (как у старого клиента)
     listed: Record<string, boolean>;
     // коды своих слоёв -cs… в порядке добавления
@@ -26,8 +27,13 @@ export interface LayerSettings {
     quickLayers: Record<string, string>;
 }
 
+// Формат остаётся версией 1: код до custom-bases-in-list настройки другой версии не читает, и откат (revert) стёр бы
+// свои слои и выбор. Поле groupDefaults: true — listed записан, когда слои групп столбца по умолчанию уже в списке, и
+// «снят» у них — выбор пользователя. Без поля (раньше и у старого клиента) галочки писались разом, и «снят» у слоя
+// группы без isDefault — прежнее умолчание, а не выбор: при чтении такие записи отбрасываются (upgrade в loadSettings)
 interface StoredSettings extends LayerSettings {
     version: 1;
+    groupDefaults: true;
 }
 
 export const EMPTY_SETTINGS: LayerSettings = { listed: {}, custom: [], selection: null, quickLayers: {} };
@@ -53,13 +59,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseOwn(raw: unknown): LayerSettings | null {
+function parseOwn(
+    raw: unknown,
+    upgrade: (listed: Record<string, boolean>) => Record<string, boolean>,
+): LayerSettings | null {
     if (!isRecord(raw) || raw.version !== 1) {
         return null;
     }
+    const listed = isRecord(raw.listed) ? (raw.listed as Record<string, boolean>) : {};
     const selection = isRecord(raw.selection) && typeof raw.selection.base === 'string' ? raw.selection : null;
     return {
-        listed: isRecord(raw.listed) ? (raw.listed as Record<string, boolean>) : {},
+        listed: raw.groupDefaults === true ? listed : upgrade(listed),
         custom: Array.isArray(raw.custom) ? raw.custom.filter((code) => typeof code === 'string') : [],
         selection: selection
             ? {
@@ -111,15 +121,25 @@ export function loadSettings(storage: Storage | null, catalog: readonly LayerDef
         return EMPTY_SETTINGS;
     }
     const known = new Set(catalog.map((layer) => layer.code));
+    const byCode = new Map(catalog.map((layer) => [layer.code, layer]));
+    // «снят» у слоя группы столбца без isDefault в записи без groupDefaults — прежнее умолчание, а не выбор
+    // (StoredSettings)
+    const upgrade = (listed: Record<string, boolean>) =>
+        Object.fromEntries(
+            Object.entries(listed).filter(
+                ([code, shown]) => shown || !quickGroupOf(code) || byCode.get(code)?.isDefault !== false,
+            ),
+        );
+    const legacy = parseLegacy(readStorage(storage, LEGACY_STORAGE_KEY), (code) => known.has(code));
     return (
-        parseOwn(readStorage(storage, STORAGE_KEY)) ??
-        parseLegacy(readStorage(storage, LEGACY_STORAGE_KEY), (code) => known.has(code)) ??
+        parseOwn(readStorage(storage, STORAGE_KEY), upgrade) ??
+        (legacy && { ...legacy, listed: upgrade(legacy.listed) }) ??
         EMPTY_SETTINGS
     );
 }
 
 export function saveSettings(storage: Storage | null, settings: LayerSettings): void {
-    const stored: StoredSettings = { version: 1, ...settings };
+    const stored: StoredSettings = { version: 1, groupDefaults: true, ...settings };
     try {
         storage?.setItem(STORAGE_KEY, JSON.stringify(stored));
     } catch {
@@ -127,7 +147,12 @@ export function saveSettings(storage: Storage | null, settings: LayerSettings): 
     }
 }
 
+// Умолчание галочки Configure layers: свой слой пользователь добавил сам; слой группы столбца есть в её меню
+// (quick-layers.ts), и галочка — его место там (design custom-bases-in-list); остальное — isDefault каталога
+export function listedByDefault(layer: LayerDef): boolean {
+    return isCustomLayerCode(layer.code) || quickGroupOf(layer.code) !== undefined || layer.isDefault;
+}
+
 export function isListed(layer: LayerDef, settings: LayerSettings): boolean {
-    // свой слой пользователь добавил сам — он в списке, пока его не скрыли
-    return settings.listed[layer.code] ?? (isCustomLayerCode(layer.code) || layer.isDefault);
+    return settings.listed[layer.code] ?? listedByDefault(layer);
 }
