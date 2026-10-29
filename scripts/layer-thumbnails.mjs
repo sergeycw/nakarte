@@ -15,7 +15,7 @@ import {writeFile} from 'node:fs/promises';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildCatalog} from '../web/src/layers/catalog.ts';
-import {QUICK_BASES} from '../web/src/layers/quick-bases.ts';
+import {QUICK_BASES} from '../web/src/layers/quick-layers.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'web/src/layers/thumbnails');
@@ -65,7 +65,7 @@ const only = new Set(process.argv.slice(2));
 // код не из столбца раньше снимался молча (все подложки каталога), теперь его картинку некому показать
 const unknown = [...only].filter((code) => !QUICK_BASES.includes(code));
 if (unknown.length > 0) {
-    console.error(`not in QUICK_BASES (web/src/layers/quick-bases.ts): ${unknown.join(' ')}`);
+    console.error(`not in QUICK_BASES (web/src/layers/quick-layers.ts): ${unknown.join(' ')}`);
     process.exit(1);
 }
 const bases = buildCatalog({pixelRatio: 1, language: 'en', corsProxyUrl: CORS_PROXY_URL}).filter(

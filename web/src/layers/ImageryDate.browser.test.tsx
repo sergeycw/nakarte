@@ -64,6 +64,8 @@ describe('Снимки по датам', () => {
         });
 
     beforeEach(() => {
+        // настройки слоёв (выбор и память кругов столбца) иначе переходят из теста в тест
+        localStorage.clear();
         tiles = fixtureTiles();
     });
 
@@ -181,7 +183,7 @@ describe('Снимки по датам', () => {
         const search = fakeEarthSearch(ok);
         await renderApp(tiles, `#m=12/${AT}&l=Hls&d=2026-10-05`, { fetch: search.fetch, tracksOpen: false });
         await expect.element(dateButton()).toBeVisible();
-        // OpenStreetMap в столбце справа нет (design three-quick-bases) — выбор через полный список
+        // OpenStreetMap — не круг столбца, а пункт меню (design quick-layer-menus) — выбор через полный список
         await page.getByTestId('layers-button').click();
         await page.getByTestId('layer-switcher').getByText('OpenStreetMap', { exact: true }).click();
         await expect.poll(hashDate).toBeNull();
@@ -220,10 +222,7 @@ describe('Снимки по датам', () => {
         const quickBases = () =>
             [...document.querySelectorAll('fieldset button[aria-pressed]')]
                 .map((button) => button.getAttribute('aria-label'))
-                .filter(
-                    (name) =>
-                        name !== 'Satellite by date' && name !== 'Strava heatmap (all)' && name !== 'Relief shading',
-                );
+                .filter((name) => name !== 'Satellite by date' && name !== 'Strava heatmap (all)');
 
         test('Снимки по датам кнопкой', async () => {
             const search = fakeEarthSearch(ok);

@@ -53,7 +53,14 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
         streetView: parseStreetView(params.get(STREET_VIEW_PARAM), params.get(LEGACY_STREET_VIEW_PARAM)),
     });
     const parsed = parseLayersParam(params.get('l'), new Map(catalog.map((layer) => [layer.code, layer])));
-    if (parsed) {
+    // l=, совпадающий с сохранённым выбором, — свой адрес прошлого захода (приложение всегда пишет l=), а не ссылка:
+    // он не вносит слои в список и не переписывает память столбца. Иначе после перезагрузки слой, выбранный в меню
+    // столбца, навсегда вставал бы в All layers, а память группы менялась бы на последний слой по порядку l= (design
+    // quick-layer-menus)
+    const { selection, layers } = store.getState();
+    const own =
+        settings.selection !== null && params.get('l')?.join('/') === formatLayersParam(selection, layers).join('/');
+    if (parsed && !own) {
         store.getState().applyLayersParam(parsed);
     }
     return store;
