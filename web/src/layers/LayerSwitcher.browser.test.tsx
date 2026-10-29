@@ -293,6 +293,33 @@ describe('Превью подложек справа', () => {
     });
 });
 
+describe('Контраст кнопок столбца', () => {
+    test('Контраст кругов и значков', async () => {
+        await renderApp(tiles);
+        await expect.poll(names).toHaveLength(3);
+        for (const circle of circles()) {
+            // тёмное кольцо 1.5 px и тень (design quick-circle-contrast)
+            expect(getComputedStyle(circle).boxShadow).toMatch(/rgba\(0, 0, 0, 0\.45\) 0px 0px 0px 1\.5px/u);
+        }
+        const group = page.getByRole('group', { name: 'Quick layers' }).element();
+        const badges = [...group.querySelectorAll('button[aria-haspopup]')];
+        expect(badges.map((badge) => badge.getAttribute('aria-label'))).toEqual([
+            'Topo layers',
+            'Map layers',
+            'Satellite layers',
+            'Strava heatmaps',
+        ]);
+        for (const badge of badges) {
+            const style = getComputedStyle(badge);
+            expect(style.color).toBe('rgb(255, 255, 255)');
+            expect(style.borderTopColor).toBe('rgb(255, 255, 255)');
+            expect(style.borderTopWidth).toBe('2px');
+            // тёмно-серый фон neutral-700 Tailwind
+            expect(style.backgroundColor).toMatch(/^oklch\(0\.3\d/u);
+        }
+    });
+});
+
 describe('Переключатели оверлеев справа', () => {
     test('Оверлей кнопкой', async () => {
         const { map } = await renderApp(tiles);
