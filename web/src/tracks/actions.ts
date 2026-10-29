@@ -28,7 +28,13 @@ export interface TrackActionsDeps {
     restored?: Promise<unknown>;
     // сохранение файла (по умолчанию ссылка download): unit-тесты подставляют свою запись
     save?: typeof saveFile;
+    // сколько «Save as GPX» ждёт API высот, мс; unit-тесты ставят свои миллисекунды
+    elevationTimeout?: number;
 }
+
+// Ожидание высот для «Save as GPX» (агент, design trim-track-menus): API обычно отвечает за доли секунды, а без
+// таймаута зависший запрос оставлял бы пользователя без файла. По таймауту — GPX без высот, как при ошибке API
+const ELEVATION_TIMEOUT_MS = 10_000;
 
 // ClipboardItem с промисом: Safari сохраняет жест пользователя на время запроса к хранилищу, Chromium ждёт промис
 export function writeClipboardItem(text: Promise<string>): Promise<void> {
@@ -73,8 +79,11 @@ export function createTrackActions({
     writeClipboard = writeClipboardItem,
     restored = Promise.resolve(),
     save: saveToDisk = saveFile,
+    elevationTimeout = ELEVATION_TIMEOUT_MS,
 }: TrackActionsDeps) {
     const state = () => store.getState();
+    // треки, чей GPX ждёт API высот: повторное нажатие на «Save as GPX» второго файла не даёт
+    const savingGpx = new Set<string>();
 
     async function load(data: Promise<GeoData[]>, fitView = false): Promise<Track[]> {
         state().changeLoadingTracks(1);
@@ -280,12 +289,12 @@ export function createTrackActions({
         // отметки расстояния (switchMeasureTicksVisibility старого)
         setMeasureTicks: (track: Track, measureTicksShown: boolean) =>
             state().updateTrack(track.id, { measureTicksShown }),
-        // «Save as GPX» — всегда с высотами (владелец 2026-10-29, design trim-track-menus; GPX с высотами — спека
-        // track-files): пока идут запросы к API высот, крутится индикатор загрузки в заголовке списка. Ошибка API — тот
-        // же GPX без <ele> и без сообщения: файл нужен и без сети, а о высотах в меню не пишем
-        async saveTrack(track: Track, format: 'gpx' | 'kml') {
-            if (format === 'kml') {
-                save(() => exportTrack(track, 'kml'));
+        // «Save as GPX» — всегда с высотами (владелец 2026-10-29, design trim-track-menus; спека track-files, «GPX с
+        // высотами»): пока идут запросы к API высот, крутится индикатор загрузки на кнопке Tracks и на «Share track»
+        // редактора. Ошибка API или таймаут — тот же GPX без <ele> и без сообщения: файл нужен и без сети, а о высотах
+        // в меню не пишем
+        async saveGpx(track: Track) {
+            if (savingGpx.has(track.id)) {
                 return;
             }
             let file: ExportedFile;
@@ -298,20 +307,25 @@ export function createTrackActions({
                 notify(error.message, 'error');
                 return;
             }
+            savingGpx.add(track.id);
             state().changeLoadingTracks(1);
+            const signal = AbortSignal.timeout(elevationTimeout);
             try {
                 file = await exportGpxWithElevations(track, (points) =>
-                    fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }),
+                    fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }, signal),
                 );
             } catch (error) {
-                if (!(error instanceof ElevationError)) {
+                // прерванный signal fetchElevations отдаёт исходной ошибкой, а не ElevationError
+                if (!(error instanceof ElevationError) && !signal.aborted) {
                     throw error;
                 }
             } finally {
+                savingGpx.delete(track.id);
                 state().changeLoadingTracks(-1);
             }
             saveToDisk(file);
         },
+        saveKml: (track: Track) => save(() => exportTrack(track, 'kml')),
         copyTrackLink: (track: Track) => copyLink([track], true),
         copyAllLink: () => copyLink(state().tracks),
         copyVisibleLink: () => copyLink(state().tracks.filter((track) => track.visible)),

@@ -145,8 +145,8 @@ export function exportTrack(track: TrackData, format: Format): ExportedFile {
 }
 
 // GPX с высотами (exportTrackAsFile старого клиента с addElevations): высоты всех точек трека и отрезков — без выборки,
-// после деления у 180°, как в файле. elevations — запрос к API высот (elevation/api.ts); его ошибка уходит наверх, файла
-// нет (у старого после уведомления падал TypeError). Пустой трек — EmptyTrackError без запроса.
+// после деления у 180°, как в файле. elevations — запрос к API высот (elevation/api.ts); его ошибка уходит наверх, и
+// GPX без высот тогда собирает saveGpx в actions.ts. Пустой трек — EmptyTrackError без запроса.
 export async function exportGpxWithElevations(
     track: TrackData,
     elevations: (points: readonly LatLng[]) => Promise<(number | null)[]>,
@@ -174,7 +174,7 @@ export async function exportGpxWithElevations(
 
 // Сохранение файла: ссылка с download на Blob
 export function saveFile({ filename, content, mimeType }: ExportedFile): void {
-    const url = URL.createObjectURL(new Blob([content as BlobPart], { type: mimeType }));
+    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;

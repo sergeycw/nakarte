@@ -131,11 +131,17 @@ describe('Название трека в панели редактировани
     });
 });
 
-describe('Поделиться треком из панели редактирования', () => {
+describe('Меню «Share track»', () => {
     test('Экспорт из редактора', async () => {
         const saved: string[] = [];
+        const blobs: Blob[] = [];
         vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
             saved.push(this.download);
+        });
+        const createObjectURL = URL.createObjectURL.bind(URL);
+        vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+            blobs.push(blob as Blob);
+            return createObjectURL(blob);
         });
         try {
             const { map } = await render(`${VIEW}&nktk=${line('Kazbek', [A, C])}`);
@@ -144,6 +150,10 @@ describe('Поделиться треком из панели редактиро
             await page.getByRole('menuitem', { name: 'Save as GPX', exact: true }).click();
             // API высот в тесте недоступен — тот же GPX без высот (спека track-files, «GPX с высотами»)
             await expect.poll(() => saved).toEqual(['Kazbek.gpx']);
+            // в файле — линия трека: отрезок с точками
+            const gpx = await blobs[0].text();
+            expect(gpx).toContain('<name>Kazbek</name>');
+            expect(gpx.match(/<trkpt /gu)?.length).toBeGreaterThanOrEqual(2);
             await expect.element(editPanel()).toBeVisible();
         } finally {
             vi.restoreAllMocks();

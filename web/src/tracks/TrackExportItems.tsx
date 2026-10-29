@@ -9,8 +9,8 @@ export function TrackExportItems({ track }: { track: Track }) {
     return (
         <>
             {/* GPX — всегда с высотами, в подписи об этом не пишем (владелец 2026-10-29, design trim-track-menus) */}
-            <DropdownMenuItem onClick={() => void actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.saveTrack(track, 'kml')}>Save as KML</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void actions.saveGpx(track)}>Save as GPX</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => actions.saveKml(track)}>Save as KML</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.copyTrackLink(track)}>Copy link for track</DropdownMenuItem>
         </>
     );

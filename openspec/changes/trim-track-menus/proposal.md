@@ -22,6 +22,6 @@
 
 ## Impact
 
-- `web/src/tracks/TrackExportItems.tsx`, `TrackList.tsx`, `TrackDialogs.tsx` (без окна «Send to device»), `actions.ts` (`saveTrack` с высотами; без `saveAll`, `sendToDevice`, шторки), `export.ts` (без `exportZip`), `web/src/state/store.ts` (без `deviceFile`), `web/src/App.tsx` и `web/src/test/render-app.tsx` (без пропа `shareFiles`).
+- `web/src/tracks/TrackExportItems.tsx`, `TrackList.tsx`, `TrackDialogs.tsx` (без окна «Send to device»), `actions.ts` (`saveGpx` с высотами и `saveKml`; без `saveAll`, `sendToDevice`, шторки), `web/src/routing/EditPanel.tsx` (спиннер на «Share track»), `export.ts` (без `exportZip`), `web/src/state/store.ts` (без `deviceFile`), `web/src/App.tsx` и `web/src/test/render-app.tsx` (без пропа `shareFiles`).
 - Тесты: `web/src/tracks/actions.test.ts`, `export.test.ts`, `TrackList.browser.test.tsx`, `web/src/routing/RouteEditor.browser.test.tsx`, `web/e2e/elevation-profile.spec.ts`.
 - Документы: `AGENTS.md` (абзац треков), `docs/architecture/decisions.md` (строка маршрута на устройство), `openspec/backlog.md` (пункт отправки на устройство).

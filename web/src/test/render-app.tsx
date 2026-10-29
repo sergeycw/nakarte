@@ -22,7 +22,6 @@ const NO_NETWORK: typeof fetch = async (input) => {
 interface RenderOptions {
     fetch?: typeof fetch;
     writeClipboard?: ComponentProps<typeof App>['writeClipboard'];
-    // шторка «Поделиться»: по умолчанию её нет — Web Share headless Chromium тесты не трогают
     router?: ComponentProps<typeof App>['router'];
     // хранилище автосохранения; по умолчанию — своё пустое в памяти на каждый рендер: рендеры App в одной странице
     // не видят треков друг друга, а общий IndexedDB страницы тестов не засоряется

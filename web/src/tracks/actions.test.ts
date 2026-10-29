@@ -117,7 +117,7 @@ describe('Меню точки трека', () => {
 
 // Спека track-files, «GPX с высотами» («Save as GPX»): запросы к API — подставной fetch, файл — подставная запись
 describe('GPX с высотами', () => {
-    function withElevation(fetch: typeof globalThis.fetch) {
+    function withElevation(fetch: typeof globalThis.fetch, elevationTimeout?: number) {
         const store = createAppStore({
             catalog: buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' }),
             corsProxyUrl: 'https://proxy.test/',
@@ -133,6 +133,7 @@ describe('GPX с высотами', () => {
             notify: (title) => messages.push(title),
             location: () => ({ origin: '', pathname: '', hash: '' }),
             save: (file) => saved.push(file),
+            elevationTimeout,
         });
         return { store, actions, messages, saved };
     }
@@ -156,7 +157,7 @@ describe('GPX с высотами', () => {
             return new Response('100.00\n200.00\nNULL');
         });
         const [track] = store.getState().addTracks([walk]);
-        await actions.saveTrack(track, 'gpx');
+        await actions.saveGpx(track);
         expect(bodies).toEqual(['41.690000 44.770000\n41.700000 44.780000\n41.710000 44.790000']);
         expect(loadingDuringRequest).toBe(1);
         expect(store.getState().loadingTracks).toBe(0);
@@ -172,13 +173,61 @@ describe('GPX с высотами', () => {
             throw new TypeError('Failed to fetch');
         });
         const [track] = store.getState().addTracks([walk]);
-        await actions.saveTrack(track, 'gpx');
+        await actions.saveGpx(track);
         // файл нужен и без сети: тот же GPX без <ele>, сообщения нет (design trim-track-menus)
         expect(messages).toEqual([]);
         expect(saved.map((file) => file.filename)).toEqual(['Walk.gpx']);
         expect(saved[0].content).not.toContain('<ele>');
         expect(saved[0].content).toContain('<trkpt lat="41.700000" lon="44.780000">');
         expect(store.getState().loadingTracks).toBe(0);
+    });
+
+    test('ответ не 200 — тот же GPX без высот', async () => {
+        const { store, actions, saved, messages } = withElevation(async () => new Response('', { status: 503 }));
+        const [track] = store.getState().addTracks([walk]);
+        await actions.saveGpx(track);
+        expect(messages).toEqual([]);
+        expect(saved.map((file) => file.filename)).toEqual(['Walk.gpx']);
+        expect(saved[0].content).not.toContain('<ele>');
+    });
+
+    test('API высот завис — по таймауту GPX без высот', async () => {
+        const hanging: typeof fetch = (_url, init) =>
+            new Promise((_resolve, reject) => {
+                init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+            });
+        const { store, actions, saved, messages } = withElevation(hanging, 20);
+        const [track] = store.getState().addTracks([walk]);
+        await actions.saveGpx(track);
+        expect(messages).toEqual([]);
+        expect(saved.map((file) => file.filename)).toEqual(['Walk.gpx']);
+        expect(saved[0].content).not.toContain('<ele>');
+        expect(store.getState().loadingTracks).toBe(0);
+    });
+
+    test('повторное нажатие, пока GPX собирается, второго файла не даёт', async () => {
+        let answer!: () => void;
+        const { store, actions, saved } = withElevation(
+            () => new Promise((resolve) => (answer = () => resolve(new Response('1\n2\n3')))),
+        );
+        const [track] = store.getState().addTracks([walk]);
+        const first = actions.saveGpx(track);
+        await actions.saveGpx(track);
+        answer();
+        await first;
+        expect(saved).toHaveLength(1);
+    });
+
+    test('KML — без высот и без запросов', async () => {
+        let requests = 0;
+        const { store, actions, saved } = withElevation(async () => {
+            requests++;
+            return new Response('');
+        });
+        const [track] = store.getState().addTracks([walk]);
+        actions.saveKml(track);
+        expect(requests).toBe(0);
+        expect(saved.map((file) => file.filename)).toEqual(['Walk.kml']);
     });
 
     test('пустой трек — сообщение без запроса', async () => {
@@ -188,7 +237,7 @@ describe('GPX с высотами', () => {
             return new Response('');
         });
         const [track] = store.getState().addTracks([geoData('Empty')]);
-        await actions.saveTrack(track, 'gpx');
+        await actions.saveGpx(track);
         expect(messages).toEqual(['Track is empty, nothing to save']);
         expect(requests).toBe(0);
         expect(saved).toEqual([]);
