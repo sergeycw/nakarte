@@ -28,11 +28,6 @@ async function openSwitcher() {
     return switcher;
 }
 
-// секции оверлеев свёрнуты, пока в них ничего не включено
-async function openSection(switcher: ReturnType<typeof page.getByTestId>, name: string) {
-    await switcher.getByRole('button', { name, exact: true }).click();
-}
-
 function storedListed(listed: Record<string, boolean>) {
     localStorage.setItem(
         STORAGE_KEY,
@@ -75,7 +70,6 @@ describe('Подложка и оверлеи', () => {
         // хитмэп Strava — кнопкой столбца: в All layers хитмэпов нет (design custom-bases-in-list)
         await page.getByRole('button', { name: 'Strava heatmap (all)', exact: true }).click();
         const switcher = await openSwitcher();
-        await openSection(switcher, 'Norway');
         await switcher.getByText('Norway topo').click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Nm', 'Sa']);
         expect(location.hash).toContain('l=Tt/Nm/Sa');
@@ -84,7 +78,6 @@ describe('Подложка и оверлеи', () => {
     test('Включить отмывку', async () => {
         const { map } = await renderApp(tiles);
         const switcher = await openSwitcher();
-        await openSection(switcher, 'Overlays');
         await switcher.getByText('Relief shading').click();
         await expect.poll(() => map.getLayer('Hs')?.type).toBe('hillshade');
         await expect
@@ -125,12 +118,10 @@ describe('Полный список слоёв', () => {
         await expect.element(switcher.getByRole('button', { name: 'Configure layers' })).toBeVisible();
         expect(switcher.getByText('ESRI Satellite').elements()).toHaveLength(0);
         expect(switcher.getByRole('radiogroup').elements()).toHaveLength(0);
-        const overlays = switcher.getByRole('button', { name: 'Overlays', exact: true });
-        await expect.element(overlays).toHaveAttribute('aria-expanded', 'false');
-        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
-        await overlays.click();
-        await expect.element(overlays).toHaveAttribute('aria-expanded', 'true');
+        // оверлеи видны сразу, секция — заголовок, а не кнопка
+        await expect.element(switcher.getByRole('group', { name: 'Overlays' })).toBeVisible();
         await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
+        expect(switcher.getByRole('button', { name: 'Overlays' }).elements()).toHaveLength(0);
         await expect.element(switcher.getByRole('button', { name: 'Add custom layer' })).toBeVisible();
     });
 
@@ -138,7 +129,6 @@ describe('Полный список слоёв', () => {
         await renderApp(tiles, '#m=8/46/8&l=Tt/Sa');
         await expect.poll(() => heatmapButton()?.getAttribute('aria-pressed')).toBe('true');
         const switcher = await openSwitcher();
-        await openSection(switcher, 'Overlays');
         await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
         expect(switcher.getByText(/Strava/).elements()).toHaveLength(0);
     });
@@ -164,44 +154,47 @@ describe('Полный список слоёв', () => {
         await expect.poll(() => mapLayerIds(map)).toEqual([code]);
     });
 
-    test('Редкие группы свёрнуты', async () => {
+    test('Оверлеи без сворачивания', async () => {
         storedListed({ Nm: true, Gbt: true });
-        await renderApp(tiles);
+        await renderApp(tiles, '#m=8/46/8&l=Tt/Hs');
         const switcher = await openSwitcher();
-        const norway = switcher.getByRole('button', { name: 'Norway', exact: true });
-        await expect.element(norway).toHaveAttribute('aria-expanded', 'false');
-        await expect
-            .element(switcher.getByRole('button', { name: 'Topo maps', exact: true }))
-            .toHaveAttribute('aria-expanded', 'false');
-        await expect.element(switcher.getByText('Norway topo')).not.toBeVisible();
-        await norway.click();
-        await expect.element(switcher.getByRole('checkbox', { name: 'Norway topo' })).toBeVisible();
-        // соседняя редкая секция по-прежнему свёрнута
-        await expect
-            .element(switcher.getByRole('button', { name: 'Topo maps', exact: true }))
-            .toHaveAttribute('aria-expanded', 'false');
-    });
-
-    test('Секция с включённым оверлеем раскрыта', async () => {
-        await renderApp(tiles, '#l=O/Hs');
-        const switcher = await openSwitcher();
-        await expect
-            .element(switcher.getByRole('button', { name: 'Overlays 1 on' }))
-            .toHaveAttribute('aria-expanded', 'true');
+        // и обычные, и редкие группы раскрыты, свернуть нечего
+        await expect.element(switcher.getByRole('group', { name: 'Overlays' })).toBeVisible();
         await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeChecked();
-        // снятие последнего включённого секцию не сворачивает
-        await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
-        const overlays = switcher.getByRole('button', { name: 'Overlays', exact: true });
-        await expect.element(overlays).toHaveAttribute('aria-expanded', 'true');
-        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).not.toBeChecked();
-        await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
-        // свернуть можно и её; выбор держится, пока страница открыта
-        await switcher.getByRole('button', { name: 'Overlays 1 on' }).click();
-        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
-        await page.getByTestId('layers-button').click();
-        await expect.element(switcher).not.toBeInTheDocument();
-        await openSwitcher();
-        await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
+        await expect.element(switcher.getByRole('group', { name: 'Norway' })).toBeVisible();
+        await expect.element(switcher.getByRole('checkbox', { name: 'Norway topo' })).toBeVisible();
+        await expect.element(switcher.getByRole('group', { name: 'Topo maps' })).toBeVisible();
+        // у строки с минимальным зумом подпись — «Great Britain Topo zoom ≥ 12», а имя browser mode сравнивает целиком
+        await expect.element(switcher.getByRole('checkbox', { name: /^Great Britain Topo/u })).toBeVisible();
+        expect(switcher.element().querySelectorAll('[aria-expanded]')).toHaveLength(0);
+    });
+});
+
+describe('Единый вид меню', () => {
+    test('Строки списка и пункты меню одной высоты', async () => {
+        await renderApp(tiles);
+        // offsetHeight — в CSS-пикселях: окно browser-теста масштабируется, и getBoundingClientRect даёт меньше
+        const size = (element: Element) => [(element as HTMLElement).offsetHeight, getComputedStyle(element).fontSize];
+        const switcher = await openSwitcher();
+        const row = size(switcher.element().querySelector('label[data-layer]') as Element);
+        await switcher.getByText('Configure layers').click();
+        const dialog = page.getByRole('dialog');
+        await expect.element(dialog).toBeVisible();
+        const dialogRow = size(dialog.element().querySelector('label') as Element);
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await expect.element(dialog).not.toBeInTheDocument();
+        await page.getByRole('button', { name: 'Topo layers', exact: true }).click();
+        const radioItem = size(page.getByRole('menuitemradio').first().element());
+        await userEvent.keyboard('{Escape}');
+        await page.getByRole('button', { name: 'Tracks menu', exact: true }).click();
+        const item = size(page.getByRole('menuitem').first().element());
+        // 14 px, строка 24 px — правило единообразия меню и списков (AGENTS.md, design uniform-layer-menus)
+        expect({ row, dialogRow, radioItem, item }).toEqual({
+            row: [24, '14px'],
+            dialogRow: [24, '14px'],
+            radioItem: [24, '14px'],
+            item: [24, '14px'],
+        });
     });
 });
 
@@ -354,7 +347,6 @@ describe('Переключатели оверлеев справа', () => {
         await expect.poll(names).toHaveLength(3);
         expect(page.getByRole('button', { name: 'Relief shading' }).elements()).toHaveLength(0);
         const switcher = await openSwitcher();
-        await openSection(switcher, 'Overlays');
         await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Hs']);
     });

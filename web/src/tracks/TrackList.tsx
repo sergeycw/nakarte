@@ -37,7 +37,7 @@ function TrackRow({ track, onRename }: { track: Track; onRename: (track: Track) 
     return (
         // редактируемый трек подсвечен (класс edit строки старого клиента)
         <li
-            className={`-mx-1 flex min-h-8 items-center gap-1 rounded-md px-1 ${edited ? 'bg-muted' : ''}`}
+            className={`-mx-1 flex min-h-6 items-center gap-1 rounded-md px-1 ${edited ? 'bg-muted' : ''}`}
             data-track={track.name}
             data-editing={edited || undefined}
         >

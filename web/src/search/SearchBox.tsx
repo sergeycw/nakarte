@@ -241,7 +241,7 @@ export function SearchBox({ sources }: { sources: SearchSources }) {
                                     onMouseMove={() => setHighlighted(index)}
                                     onClick={() => choose(result)}
                                     onKeyDown={() => {}}
-                                    className={`cursor-pointer rounded-md px-2 py-1 ${index === highlighted ? 'bg-muted' : ''}`}
+                                    className={`cursor-pointer rounded-md px-2 py-0.5 ${index === highlighted ? 'bg-muted' : ''}`}
                                 >
                                     <div className="truncate font-medium">{result.title}</div>
                                     {result.subtitle && (
