@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
+import { config } from '@/config';
 import { P } from '@/test/map-events';
 import { renderApp } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
@@ -111,7 +112,8 @@ describe('Последнее положение при заходе', () => {
         const { map } = await renderApp(tiles, '');
         expect(calls.current).toBe(1);
         await expect.poll(() => near(map.getCenter(), P(41.8, 44.9))).toBe(true);
-        expect(map.getZoom()).toBe(7);
+        // зум по умолчанию — тот же, что у начального вида (config.ts)
+        expect(map.getZoom()).toBe(config.defaultZoom);
     });
 
     test('без ответа браузера — запомненное положение', async () => {

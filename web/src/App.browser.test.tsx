@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { App } from './App';
+import { config } from './config';
 // стили приложения нужны тесту целиком: проверяется, как Tailwind и CSS MapLibre уживаются на одной странице
 import './index.css';
 import { fixtureContours } from './test/render-app';
@@ -79,7 +80,7 @@ describe('Интерфейс поверх карты', () => {
         await userEvent.click(panelElement, { position: { x: 16, y: 16 } });
         await userEvent.dblClick(panelElement, { position: { x: 16, y: 16 } });
         expect(map.getCenter()).toEqual(before);
-        expect(map.getZoom()).toBe(7);
+        expect(map.getZoom()).toBe(config.defaultZoom);
     });
 });
 

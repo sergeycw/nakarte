@@ -28,11 +28,12 @@ export interface Config {
 export function makeConfig(mode: string, googleMapsApiKey = ''): Config {
     const clone = mode === 'clone';
     return {
-        // начальный вид старого клиента без параметров в адресе. Зум — в единицах MapLibre: у него мир на z0
-        // 512 px, у Leaflet 256 px, поэтому тот же масштаб на 1 меньше (Leaflet z8 = MapLibre 7, тайлы OSM z8).
-        // Разбор m= из старых ссылок обязан вычитать 1.
-        defaultLocation: [49.73868, 33.45886],
-        defaultZoom: 7,
+        // начальный вид без параметров в адресе — село Омало в Тушети (владелец 2026-10-29, design default-view-omalo;
+        // координаты — статья Omalo в Википедии, 42°22′44″N 45°37′48″E); раньше — вид старого клиента над Украиной.
+        // Зум — в единицах MapLibre: у него мир на z0 512 px, у Leaflet 256 px, поэтому тот же масштаб на 1 меньше
+        // (Leaflet z13 = MapLibre 12, m=13 в адресе). Разбор m= из старых ссылок обязан вычитать 1.
+        defaultLocation: [42.37889, 45.63],
+        defaultZoom: 12,
         corsProxyUrl: CORS_PROXY_URL,
         elevationsServer: ELEVATION_SERVER_URL,
         elevationsAttribution: {
