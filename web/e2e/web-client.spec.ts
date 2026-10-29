@@ -158,9 +158,7 @@ test.describe('старые ссылки', () => {
 test('Первый заход', async ({ page, network }) => {
     await page.goto('./');
     await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
-    await expect
-        .poll(() => network.tilesOf('Tt'))
-        .toContain(`${TRACESTRACK_TILES}${tileOf(49.73868, 33.45886, 8)}.webp`);
+    await expect.poll(() => network.tilesOf('Tt')).toContain(`${TRACESTRACK_TILES}${tileOf(42.37889, 45.63, 13)}.webp`);
     await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
     const box = await page.locator(canvas).boundingBox();
     const viewport = page.viewportSize();
@@ -233,11 +231,9 @@ test('Неверный вид в ссылке', async ({ page, network }) => {
     // второй адрес отличается только #: страница не перезагружается, приложение получает hashchange
     for (const hash of ['#m=99/49.44893/52.5547', '#m=11/49.44893/']) {
         await page.goto(`./${hash}`);
-        await expect.poll(() => new URL(page.url()).hash).toBe('#m=8/49.73868/33.45886&l=Tt');
+        await expect.poll(() => new URL(page.url()).hash).toBe('#m=13/42.37889/45.63000&l=Tt');
     }
-    await expect
-        .poll(() => network.tilesOf('Tt'))
-        .toContain(`${TRACESTRACK_TILES}${tileOf(49.73868, 33.45886, 8)}.webp`);
+    await expect.poll(() => network.tilesOf('Tt')).toContain(`${TRACESTRACK_TILES}${tileOf(42.37889, 45.63, 13)}.webp`);
 });
 
 test('Вид пишется в адрес', async ({ page, network }) => {

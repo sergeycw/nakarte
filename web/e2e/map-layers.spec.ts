@@ -33,7 +33,7 @@ async function openSwitcher(page: import('@playwright/test').Page) {
 
 test('Первый заход без настроек', async ({ page, network }) => {
     await page.goto('./');
-    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt');
+    await expect.poll(() => hashOf(page)).toBe('#m=13/42.37889/45.63000&l=Tt');
     await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
     expect(network.tiles.every((tile) => tile.code === 'Tt')).toBe(true);
 });
@@ -145,7 +145,7 @@ test('Перезагрузка без l=', async ({ page, network }) => {
     await expect.poll(() => hashOf(page)).toContain('l=E/Hs');
     await page.goto('about:blank');
     await page.goto('./');
-    await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=E/Hs');
+    await expect.poll(() => hashOf(page)).toBe('#m=13/42.37889/45.63000&l=E/Hs');
     await expect.poll(() => network.tilesOf('Hs').length).toBeGreaterThan(0);
 });
 
