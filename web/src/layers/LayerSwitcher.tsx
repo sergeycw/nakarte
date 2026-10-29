@@ -1,6 +1,5 @@
-import { cn } from 'cn';
-import { ChevronRightIcon, LayersIcon, PencilIcon, PlusIcon, Settings2Icon } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { LayersIcon, PencilIcon, PlusIcon, Settings2Icon } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,9 +21,10 @@ import { isListed } from './settings';
 // наложения каталога. Столбец — контрол MapLibre (ControlPortal): рендерится
 // внутри BaseMap до MapButtons, и кнопки карты встают под ним.
 //
-// Полный список компактный (design compact-all-layers): подложки раскрыты всегда, оверлеи — свёрнутыми секциями.
-// Секция «Overlays» — оверлеи групп каталога, где есть слой по умолчанию (Default layers, Miscellaneous, Routes and
-// traces); группы без слоёв по умолчанию (Topo maps, Norway, свои слои) — редкие, у каждой своя секция.
+// Оверлеи — секциями без сворачивания (design uniform-layer-menus; раньше свёрнутыми, design compact-all-layers): после
+// custom-bases-in-list в панели почти одни оверлеи, и свёрнутая секция прятала весь список. Секция «Overlays» —
+// оверлеи групп каталога, где есть слой по умолчанию (Default layers, Miscellaneous, Routes and traces); группы без
+// слоёв по умолчанию (Topo maps, Norway, свои слои) — редкие, у каждой своя секция с заголовком.
 
 const OVERLAYS_SECTION = 'Overlays';
 // своя группа слоёв по URL — как в custom.ts и ConfigureLayersDialog
@@ -59,11 +59,6 @@ export function LayerSwitcher() {
     const [configOpen, setConfigOpen] = useState(false);
     // null — диалог закрыт, '' — новый слой, код — правка своего слоя
     const [customCode, setCustomCode] = useState<string | null>(null);
-    // раскрытость секций оверлеев, пока страница открыта; без выбора пользователя раскрыта секция с включённым
-    // оверлеем: видно, что включено, и выключить можно сразу. Флажок в секции закрепляет её раскрытой: иначе снятие
-    // последнего включённого сворачивало бы секцию под курсором, а фокус с флажка терялся
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-    const sectionsId = useId();
 
     const listed = useMemo(() => {
         const visible = [...layers.values()].filter(
@@ -79,8 +74,7 @@ export function LayerSwitcher() {
     const overlays = listed.filter((layer) => layer.isOverlay && !quickGroupOf(layer.code));
     const sections = overlaySections(overlays, layers);
 
-    // section — секция оверлея; у подложек её нет
-    function row(layer: LayerDef, section?: string) {
+    function row(layer: LayerDef) {
         const text = (
             <span>
                 {layer.title} <LayerHint layer={layer} />
@@ -93,12 +87,7 @@ export function LayerSwitcher() {
                     <label className={labelClass} data-layer={layer.code}>
                         <Checkbox
                             checked={selection.overlays.includes(layer.code)}
-                            onCheckedChange={() => {
-                                toggleOverlay(layer.code);
-                                if (section !== undefined) {
-                                    setExpanded((current) => ({ ...current, [section]: true }));
-                                }
-                            }}
+                            onCheckedChange={() => toggleOverlay(layer.code)}
                         />
                         {text}
                     </label>
@@ -125,32 +114,16 @@ export function LayerSwitcher() {
         );
     }
 
-    function section([name, items]: [string, LayerDef[]], index: number) {
-        const enabled = items.filter((layer) => selection.overlays.includes(layer.code)).length;
-        const isOpen = expanded[name] ?? enabled > 0;
-        const panelId = `${sectionsId}-${index}`;
+    function section([name, items]: [string, LayerDef[]]) {
         return (
             // без своих подложек секция — первая в панели, линия над ней лишняя
-            <div key={name} className="border-border border-t pt-0.5 first:border-t-0 first:pt-0">
-                <button
-                    type="button"
-                    aria-expanded={isOpen}
-                    aria-controls={panelId}
-                    onClick={() => setExpanded((current) => ({ ...current, [name]: !isOpen }))}
-                    className="flex min-h-6 w-full cursor-pointer items-center gap-1 rounded-md px-1 text-left font-medium text-muted-foreground text-xs outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
-                >
-                    <ChevronRightIcon className={cn('size-3.5 shrink-0 transition-transform', isOpen && 'rotate-90')} />
+            <fieldset key={name} className="border-border border-t pt-0.5 first:border-t-0 first:pt-0">
+                {/* заголовок — как подпись DropdownMenuLabel: 12 px, приглушённый */}
+                <legend className="float-left w-full px-1 py-1 font-medium text-muted-foreground text-xs">
                     {name}
-                    {enabled > 0 && <span className="ml-auto pl-2 tabular-nums">{enabled} on</span>}
-                </button>
-                {/* свёрнутая секция остаётся в разметке невидимой и задаёт ширину панели: без неё панель при раскрытии
-                    становилась шире и наезжала на столбец кнопок (design compact-all-layers). invisible уже убирает
-                    строки из фокуса и дерева доступности, inert — на случай, если видимость перебьют стили */}
-                <fieldset id={panelId} inert={!isOpen} className={cn(!isOpen && 'invisible h-0 overflow-hidden')}>
-                    <legend className="sr-only">{name}</legend>
-                    {items.map((layer) => row(layer, name))}
-                </fieldset>
-            </div>
+                </legend>
+                {items.map((layer) => row(layer))}
+            </fieldset>
         );
     }
 
