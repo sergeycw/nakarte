@@ -24,6 +24,6 @@
 
 ## Impact
 
-- `web/src/layers/quick-layers.ts` (бывший `quick-bases.ts`: группы и память), `web/src/layers/QuickLayers.tsx` (значок и меню), `web/src/layers/LayerSwitcher.tsx` (поле столбца под значок), `web/src/layers/settings.ts` (поле `quickLayers`), `web/src/state/store.ts` (память, действие `setQuickOverlay`), `scripts/layer-thumbnails.mjs` (импорт).
+- `web/src/layers/quick-layers.ts` (бывший `quick-bases.ts`: группы и память), `web/src/layers/QuickLayers.tsx` (значок и меню), `web/src/layers/LayerSwitcher.tsx` (поле столбца под значок), `web/src/layers/settings.ts` (поле `quickLayers`), `web/src/state/store.ts` (память, действие `setQuickOverlay`), `web/src/state/sync.ts` (свой `l=` при старте — не ссылка), `scripts/layer-thumbnails.mjs` (импорт).
 - Тесты: `web/src/layers/LayerSwitcher.browser.test.tsx`, `web/src/layers/ImageryDate.browser.test.tsx`, `web/src/layers/quick-layers.test.ts`, `web/src/layers/settings.test.ts`, `web/src/state/store.test.ts`.
 - Документы: `AGENTS.md` («Раскладка»), `docs/architecture/decisions.md`, `openspec/backlog.md` (замена Google Map — первый код группы).

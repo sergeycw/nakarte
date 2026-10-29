@@ -272,12 +272,13 @@ describe('Переключатели оверлеев справа', () => {
     });
 
     test('Отмывки в столбце нет', async () => {
-        await renderApp(tiles);
+        const { map } = await renderApp(tiles);
         await expect.poll(names).toHaveLength(3);
         expect(page.getByRole('button', { name: 'Relief shading' }).elements()).toHaveLength(0);
         const switcher = await openSwitcher();
         await openSection(switcher, 'Overlays');
-        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
+        await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Hs']);
     });
 });
 
@@ -286,12 +287,12 @@ describe('Меню слоёв столбца', () => {
         await renderApp(tiles);
         const expected: [string, string[], string[]][] = [
             [
-                'Topo maps',
+                'Topo layers',
                 ['Tracestrack Topo', 'OpenFreeMap Outdoor', 'OpenTopoMap', 'OSM Outdoors', 'OpenCycleMap', 'CyclOSM'],
                 ['Tracestrack Topo'],
             ],
-            ['Maps', ['Google Map', 'OpenStreetMap', 'Google Terrain'], []],
-            ['Satellite', ['ESRI Satellite', 'Google Satellite', 'Bing Satellite', 'Sentinel-2 cloudless'], []],
+            ['Map layers', ['Google Map', 'OpenStreetMap', 'Google Terrain'], []],
+            ['Satellite layers', ['ESRI Satellite', 'Google Satellite', 'Bing Satellite', 'Sentinel-2 cloudless'], []],
             [
                 'Strava heatmaps',
                 ['Strava heatmap (all)', 'Strava heatmap (run)', 'Strava heatmap (ride)', 'Strava heatmap (winter)'],
@@ -309,7 +310,7 @@ describe('Меню слоёв столбца', () => {
 
     test('Подложка из меню', async () => {
         const { map } = await renderApp(tiles);
-        const menu = await openMenu('Satellite');
+        const menu = await openMenu('Satellite layers');
         await menu.getByRole('menuitemradio', { name: 'Bing Satellite' }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
         expect(location.hash).toMatch(/l=I(&|$)/);
@@ -331,7 +332,7 @@ describe('Меню слоёв столбца', () => {
     test('Скрытая подложка не в меню', async () => {
         storedListed({ Otm: false });
         await renderApp(tiles);
-        const menu = await openMenu('Topo maps');
+        const menu = await openMenu('Topo layers');
         expect(itemNames(menu)).toEqual([
             'Tracestrack Topo',
             'OpenFreeMap Outdoor',
@@ -342,9 +343,31 @@ describe('Меню слоёв столбца', () => {
     });
 });
 
+describe('Меню слоёв столбца: перезагрузка', () => {
+    test('Слой из меню после перезагрузки', async () => {
+        const first = await renderApp(tiles);
+        const menu = await openMenu('Topo layers');
+        await menu.getByRole('menuitemradio', { name: 'OpenTopoMap' }).click();
+        await expect.poll(() => mapLayerIds(first.map)).toEqual(['Otm']);
+        // перезагрузка — со своим адресом прошлого захода: приложение записало в него l=Otm
+        const hash = location.hash;
+        expect(hash).toMatch(/l=Otm(&|$)/);
+        await cleanup();
+        const { map } = await renderApp(tiles, hash);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Otm']);
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
+        const switcher = await openSwitcher();
+        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
+        expect(switcher.getByText('OpenTopoMap').elements()).toHaveLength(0);
+        await userEvent.keyboard('{Escape}');
+        expect(itemNames(await openMenu('Topo layers'))).toContain('OpenTopoMap');
+    });
+});
+
 describe('Круг помнит выбор типа', () => {
     async function pickBing(map: Awaited<ReturnType<typeof renderApp>>['map']) {
-        const menu = await openMenu('Satellite');
+        const menu = await openMenu('Satellite layers');
         await menu.getByRole('menuitemradio', { name: 'Bing Satellite' }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
         await page.getByRole('button', { name: 'Tracestrack Topo', exact: true }).click();
@@ -379,6 +402,19 @@ describe('Круг помнит выбор типа', () => {
         await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'Bing Satellite']);
         await page.getByRole('button', { name: 'Bing Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
+    });
+
+    test('Откат не меняет память', async () => {
+        tiles.respond(/tracestrack/, new URL('/__status__/503/tile.png', location.href).href);
+        const { map } = await renderApp(tiles);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['O']);
+        // на карте OpenStreetMap — отмечен круг обычной карты
+        expect(names()).toEqual(['Tracestrack Topo', 'OpenStreetMap', 'ESRI Satellite']);
+        expect(pressed()).toEqual(['false', 'true', 'false']);
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
+        await page.getByRole('button', { name: 'Google Map', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['G']);
     });
 
     test('Отмеченный круг не меняет подложку', async () => {

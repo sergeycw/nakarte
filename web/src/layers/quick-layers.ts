@@ -6,7 +6,7 @@
 // превью
 
 export interface QuickLayerGroup {
-    // имя значка меню и самого меню (aria-label)
+    // имя значка меню и самого меню (aria-label); не совпадает с секциями All layers (там есть оверлеи «Topo maps»)
     name: string;
     // первый код — сам круг (у подложек — и картинка превью), порядок — порядок пунктов меню
     codes: readonly string[];
@@ -15,9 +15,9 @@ export interface QuickLayerGroup {
 // Состав групп подложек — таблица владельца (design quick-layer-menus). Hls и свои слои ни в одну группу не входят; что
 // каждая подложка каталога, кроме слоя с dated, в какой-то группе есть, сверяет quick-layers.test.ts
 export const QUICK_BASE_GROUPS: readonly QuickLayerGroup[] = [
-    { name: 'Topo maps', codes: ['Tt', 'Of', 'Otm', 'Oso', 'Ocm', 'Co'] },
-    { name: 'Maps', codes: ['G', 'O', 'P'] },
-    { name: 'Satellite', codes: ['E', 'L', 'I', 'S2'] },
+    { name: 'Topo layers', codes: ['Tt', 'Of', 'Otm', 'Oso', 'Ocm', 'Co'] },
+    { name: 'Map layers', codes: ['G', 'O', 'P'] },
+    { name: 'Satellite layers', codes: ['E', 'L', 'I', 'S2'] },
 ];
 
 // Оверлеи с кнопкой в столбце: из группы на карте один слой (выбор в меню выключает остальные), кнопка включает и

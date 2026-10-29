@@ -15,7 +15,7 @@ const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'htt
 const byCode = new Map(catalog.map((layer) => [layer.code, layer]));
 const [topo, maps, satellite] = QUICK_BASE_GROUPS;
 
-describe('Меню подложек типа', () => {
+describe('Меню слоёв столбца', () => {
     test('группы подложек — подложки каталога, каждая подложка кроме снимков по датам в одной группе', () => {
         const codes = QUICK_BASE_GROUPS.flatMap((group) => group.codes);
         expect(new Set(codes).size).toBe(codes.length);

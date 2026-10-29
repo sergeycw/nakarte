@@ -169,9 +169,8 @@ describe('треки', () => {
 
 describe('Круг помнит выбор типа', () => {
     const maps = QUICK_BASE_GROUPS[1];
-    const heatmaps = QUICK_OVERLAY_GROUPS[0];
 
-    test('Откат не меняет память', () => {
+    test('откат не пишет память', () => {
         const s = store('Tt');
         s.getState().fallBackBase('Tt');
         expect(s.getState().settings.quickLayers).toEqual({});
@@ -191,6 +190,10 @@ describe('Круг помнит выбор типа', () => {
         s.getState().applyLayersParam({ selection: { base: 'P', overlays: ['Sr', 'Hs'] }, custom: [] });
         expect(s.getState().settings.quickLayers).toEqual({ E: 'I', Sa: 'Sr', G: 'P' });
     });
+});
+
+describe('Меню слоёв столбца', () => {
+    const heatmaps = QUICK_OVERLAY_GROUPS[0];
 
     test('оверлей группы столбца встаёт вместо остальных её оверлеев, null выключает группу', () => {
         const s = store('Tt');

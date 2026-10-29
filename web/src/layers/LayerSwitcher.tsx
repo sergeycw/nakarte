@@ -14,8 +14,8 @@ import { isCustomLayerCode } from './custom';
 import { COLUMN_BUTTON, QuickBases, QuickDated, QuickOverlays } from './QuickLayers';
 import { isListed } from './settings';
 
-// Переключатель слоёв справа сверху: столбец быстрых слоёв — превью подложек и переключатели оверлеев (QuickLayers,
-// design layer-thumbnails), под ними кнопка All layers с полным списком (design add-web-map-layers, «Переключатель»:
+// Переключатель слоёв справа сверху: столбец быстрых слоёв — круги подложек и кнопка хитмэпа с меню групп (QuickLayers,
+// design layer-thumbnails, design quick-layer-menus), под ними кнопка All layers с полным списком (design add-web-map-layers, «Переключатель»:
 // развёрнутый список старого клиента на телефоне закрывал пол-экрана). В полном списке подложки — радиокнопками,
 // оверлеи — чекбоксами, порядок — порядок наложения каталога. Столбец — контрол MapLibre (ControlPortal): рендерится
 // внутри BaseMap до MapButtons, и кнопки карты встают под ним.
@@ -154,10 +154,12 @@ export function LayerSwitcher() {
         <ControlPortal className="pointer-events-none! flex flex-col items-center gap-2" first>
             {/* быстрые слои уступают место кнопкам карты над нижними панелями: что не влезает по высоте, уходит во
                 второй столбец обёртки и обрезается (flex-wrap + overflow-hidden), и Street View, зум и геолокация не
-                прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами; py-1 —
-                место под обводку выбранной подложки, px-2 — под значок меню у левого края круга (QuickLayers); поля
-                съедены отрицательными отступами, и столбец остаётся шириной круга */}
-            <fieldset className="-mx-2 -my-1 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-13 flex-col flex-wrap items-center gap-2 overflow-hidden px-2 py-1">
+                прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами. Поля
+                съедены отрицательными отступами, и столбец остаётся шириной круга: py-1 и pr-1 — под обводку
+                отмеченного круга, pl-2.5 — под значок меню у левого края круга с его зоной нажатия (QuickLayers).
+                gap-x-4 уводит перенесённую часть целиком за обрезку: при gap-2 её значки и обводки торчали в правом
+                поле и нажимались */}
+            <fieldset className="-my-1 -mr-1 -ml-2.5 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-12.5 flex-col flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden py-1 pr-1 pl-2.5">
                 <legend className="sr-only">Quick layers</legend>
                 {/* три круга подложек и снимки по датам — функции столбца, есть всегда; кнопка оверлея — только при слое в
                     списке (QuickOverlays) */}

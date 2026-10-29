@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/state/context';
+import { savedSelection } from '@/state/store';
 import type { LayerDef } from './catalog';
 import { QUICK_BASE_GROUPS, QUICK_OVERLAY_GROUPS, type QuickLayerGroup, quickTarget } from './quick-layers';
 import { DEFAULT_SELECTION } from './selection';
@@ -41,8 +42,8 @@ const PRESSED =
 
 // Значок меню — своя кнопка Button у левого нижнего края круга, как значок у аватара Telegram (референс владельца
 // 2026-10-29, со стороны меню): у круга и меню разные действия и имена. Вид — стекло кнопок над картой (COLUMN_BUTTON),
-// иконка цветом текста. Видимая часть 16 px наполовину за краем круга: поле столбца для неё — px-2 в LayerSwitcher.
-// Зона нажатия (after) на 4 px шире: вниз она не доходит до следующего круга (gap-2)
+// иконка цветом текста. Видимая часть 16 px наполовину за краем круга: поле столбца для неё — pl-2.5 в LayerSwitcher.
+// Зона нажатия (after) на 4 px шире: вниз она не доходит до следующего круга (gap-y-2)
 const MENU_BADGE = cn(
     COLUMN_BUTTON,
     'absolute -bottom-0.5 -left-1.5 size-4 text-foreground after:absolute after:-inset-1',
@@ -218,15 +219,17 @@ function QuickOverlay({ group }: { group: QuickLayerGroup }) {
 export function QuickDated() {
     const layers = useAppStore((state) => state.layers);
     const selected = useAppStore((state) => state.selection.base);
+    // после отката Tracestrack на OSM вернуться — к Tracestrack: откат не выбор и в память кругов попадать не должен
+    const chosen = useAppStore((state) => savedSelection(state).base);
     const selectBase = useAppStore((state) => state.selectBase);
     const lastBase = useRef<string | null>(null);
     const dated = [...layers.values()].find((layer) => layer.dated);
     const active = dated !== undefined && selected === dated.code;
     useEffect(() => {
         if (!layers.get(selected)?.dated) {
-            lastBase.current = selected;
+            lastBase.current = chosen;
         }
-    }, [layers, selected]);
+    }, [layers, selected, chosen]);
     if (!dated) {
         return null;
     }
