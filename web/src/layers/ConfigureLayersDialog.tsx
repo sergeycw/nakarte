@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { useAppStore } from '@/state/context';
 import { GROUPS, type LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
-import { isListed } from './settings';
+import { isListed, listedByDefault } from './settings';
 
 // Настройка списка слоёв — как LayersConfigDialog старого клиента (leaflet.control.layers.configure): все слои по
 // группам с галочкой «в списке»; Reset — умолчания каталога, Cancel — без изменений, Ok — сохранить. Хоткеев слоёв
@@ -69,8 +69,16 @@ export function ConfigureLayersDialog({ open, onOpenChange }: ConfigureLayersDia
                     <Button
                         variant="outline"
                         onClick={() => {
-                            // умолчания каталога; свои слои не умолчание — скрываются, как Reset старого диалога
-                            setDraft(Object.fromEntries(all.map((layer) => [layer.code, layer.isDefault])));
+                            // умолчания каталога и групп столбца (listedByDefault); свои слои не умолчание —
+                            // скрываются, как Reset старого диалога
+                            setDraft(
+                                Object.fromEntries(
+                                    all.map((layer) => [
+                                        layer.code,
+                                        !isCustomLayerCode(layer.code) && listedByDefault(layer),
+                                    ]),
+                                ),
+                            );
                         }}
                     >
                         Reset

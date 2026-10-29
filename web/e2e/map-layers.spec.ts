@@ -135,8 +135,9 @@ test('Ссылка со своим слоем', async ({ page, network }) => {
 
 test('Перезагрузка без l=', async ({ page, network }) => {
     await page.goto('./');
+    // подложки каталога — в кругах столбца (design custom-bases-in-list)
+    await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
     const switcher = await openSwitcher(page);
-    await switcher.getByText('ESRI Satellite').click();
     await switcher.getByRole('button', { name: 'Overlays', exact: true }).click();
     await switcher.getByText('Relief shading').click();
     await expect.poll(() => hashOf(page)).toContain('l=E/Hs');
@@ -168,8 +169,12 @@ test('Сохранённые настройки со старыми кодами
     // свой слой не включён: его секция свёрнута
     await switcher.getByRole('button', { name: 'Custom layers', exact: true }).click();
     await expect(switcher.getByText('Custom overlay')).toBeVisible();
-    await expect(switcher.getByText('CyclOSM')).toHaveCount(0);
-    await expect(switcher.getByText('ESRI Satellite')).toBeVisible();
+    // скрытая подложка Co — не в меню своего круга (design custom-bases-in-list)
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Topo layers', exact: true }).click();
+    const menu = page.getByRole('menu', { name: 'Topo layers' });
+    await expect(menu.getByRole('menuitemradio', { name: 'OpenFreeMap Outdoor' })).toBeVisible();
+    await expect(menu.getByRole('menuitemradio', { name: 'CyclOSM' })).toHaveCount(0);
     expect(errors).toEqual([]);
 });
 

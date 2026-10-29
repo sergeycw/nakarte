@@ -90,7 +90,7 @@ describe('Выбор переживает перезагрузку', () => {
             quickLayers: { E: 'I', Sa: 'Sr' },
         };
         saveSettings(storage, settings);
-        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 1 });
+        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 2 });
         expect(loadSettings(storage, catalog)).toEqual(settings);
     });
 });
@@ -98,9 +98,17 @@ describe('Выбор переживает перезагрузку', () => {
 describe('умолчания каталога', () => {
     test('в списке — isDefault каталога, пока пользователь не решил иначе', () => {
         expect(isListed(layer('O'), EMPTY_SETTINGS)).toBe(true);
-        expect(isListed(layer('Otm'), EMPTY_SETTINGS)).toBe(false);
+        expect(isListed(layer('Gbt'), EMPTY_SETTINGS)).toBe(false);
         expect(isListed(layer('Hs'), EMPTY_SETTINGS)).toBe(true);
-        expect(isListed(layer('Otm'), { ...EMPTY_SETTINGS, listed: { Otm: true } })).toBe(true);
+        expect(isListed(layer('Gbt'), { ...EMPTY_SETTINGS, listed: { Gbt: true } })).toBe(true);
+    });
+
+    test('Слои меню отмечены по умолчанию', () => {
+        expect(layer('Otm').isDefault).toBe(false);
+        expect(isListed(layer('Otm'), EMPTY_SETTINGS)).toBe(true);
+        expect(isListed(layer('Sr'), EMPTY_SETTINGS)).toBe(true);
+        expect(isListed(layer('Nm'), EMPTY_SETTINGS)).toBe(false);
+        expect(isListed(layer('Otm'), { ...EMPTY_SETTINGS, listed: { Otm: false } })).toBe(false);
     });
 });
 
@@ -113,5 +121,30 @@ describe('Круг помнит выбор типа', () => {
         expect(loadSettings(stored(), catalog).quickLayers).toEqual({});
         expect(loadSettings(stored(['I']), catalog).quickLayers).toEqual({});
         expect(loadSettings(stored({ E: 'I', Tt: 5, G: null }), catalog).quickLayers).toEqual({ E: 'I' });
+    });
+});
+
+describe('Настройка списка слоёв', () => {
+    test('Старые настройки галочек', () => {
+        const listed = { Otm: false, Sr: false, Co: false, Gbt: false, Nm: true };
+        const v1 = memoryStorage({
+            [STORAGE_KEY]: JSON.stringify({ version: 1, listed, custom: [], selection: null }),
+        });
+        expect(loadSettings(v1, catalog).listed).toEqual({ Co: false, Gbt: false, Nm: true });
+        // в версии 2 «снят» — выбор пользователя
+        const v2 = memoryStorage({
+            [STORAGE_KEY]: JSON.stringify({ version: 2, listed, custom: [], selection: null }),
+        });
+        expect(loadSettings(v2, catalog).listed).toEqual(listed);
+        // настройки старого клиента писали галочки всех слоёв — тот же разбор
+        const legacy = memoryStorage({
+            [LEGACY_STORAGE_KEY]: JSON.stringify({
+                layers: [
+                    { code: 'Otm', enabled: false },
+                    { code: 'Co', enabled: false },
+                ],
+            }),
+        });
+        expect(loadSettings(legacy, catalog).listed).toEqual({ Co: false });
     });
 });

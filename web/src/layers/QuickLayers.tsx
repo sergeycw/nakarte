@@ -49,9 +49,8 @@ const MENU_BADGE = cn(
     'absolute -bottom-0.5 -left-1.5 size-4 text-foreground after:absolute after:-inset-1',
 );
 
-// Пункты меню группы: нет только слоя, который пользователь сам снял в Configure layers, кроме того, что сейчас на
-// карте, и первого слоя группы — это сам круг. Слои без isDefault (OpenTopoMap, хитмэпы кроме all) в меню есть, хотя
-// в All layers их нет: иначе меню хитмэпа было бы из одного пункта (design quick-layer-menus)
+// Пункты меню группы: нет слоя, снятого в Configure layers (галочка слоя группы по умолчанию стоит, listedByDefault),
+// кроме того, что сейчас на карте, и первого слоя группы — это сам круг
 function menuItems(
     group: QuickLayerGroup,
     layers: ReadonlyMap<string, LayerDef>,
@@ -60,7 +59,7 @@ function menuItems(
 ): LayerDef[] {
     return group.codes.flatMap((code) => {
         const layer = layers.get(code);
-        const shown = layer && (code === group.codes[0] || code === current || settings.listed[code] !== false);
+        const shown = layer && (code === group.codes[0] || code === current || isListed(layer, settings));
         return shown ? [layer] : [];
     });
 }
@@ -163,8 +162,8 @@ function QuickBase({ group }: { group: QuickLayerGroup }) {
 }
 
 // Кнопка оверлея — как круг подложки (design quick-layer-menus): включает слой группы, выбранный последним, и выключает
-// группу, меню под значком ставит на карту другой слой группы вместо прежнего. Кнопка есть, только если первый слой
-// группы в списке слоёв: скрытый, но включённый ссылкой оверлей — в All layers
+// группу, меню под значком ставит на карту другой слой группы вместо прежнего. Других мест у слоёв группы нет (в All
+// layers их нет, design custom-bases-in-list), поэтому кнопка есть всегда, как круги
 export function QuickOverlays() {
     return QUICK_OVERLAY_GROUPS.map((group) => <QuickOverlay key={group.codes[0]} group={group} />);
 }
@@ -177,7 +176,7 @@ function QuickOverlay({ group }: { group: QuickLayerGroup }) {
     const circle = useRef<HTMLDivElement>(null);
     const main = layers.get(group.codes[0]);
     const Icon = OVERLAY_ICONS[group.codes[0]];
-    if (!main || !Icon || !isListed(main, settings)) {
+    if (!main || !Icon) {
         return null;
     }
     const current = group.codes.find((code) => enabled.includes(code));

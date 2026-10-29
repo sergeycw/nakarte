@@ -12,12 +12,14 @@ import { CustomLayerDialog } from './CustomLayerDialog';
 import { GROUPS, type LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
 import { COLUMN_BUTTON, QuickBases, QuickDated, QuickOverlays } from './QuickLayers';
+import { quickGroupOf } from './quick-layers';
 import { isListed } from './settings';
 
 // Переключатель слоёв справа сверху: столбец быстрых слоёв — круги подложек и кнопка хитмэпа с меню групп (QuickLayers,
 // design layer-thumbnails, design quick-layer-menus), под ними кнопка All layers с полным списком (design add-web-map-layers, «Переключатель»:
-// развёрнутый список старого клиента на телефоне закрывал пол-экрана). В полном списке подложки — радиокнопками,
-// оверлеи — чекбоксами, порядок — порядок наложения каталога. Столбец — контрол MapLibre (ControlPortal): рендерится
+// развёрнутый список старого клиента на телефоне закрывал пол-экрана). В полном списке свои подложки — радиокнопками
+// (подложки каталога — в кругах столбца, design custom-bases-in-list), оверлеи — чекбоксами, порядок — порядок
+// наложения каталога. Столбец — контрол MapLibre (ControlPortal): рендерится
 // внутри BaseMap до MapButtons, и кнопки карты встают под ним.
 //
 // Полный список компактный (design compact-all-layers): подложки раскрыты всегда, оверлеи — свёрнутыми секциями.
@@ -70,8 +72,11 @@ export function LayerSwitcher() {
         );
         return visible.sort((a, b) => a.order - b.order || a.code.localeCompare(b.code));
     }, [layers, settings, selection]);
-    const bases = listed.filter((layer) => !layer.isOverlay);
-    const overlays = listed.filter((layer) => layer.isOverlay);
+    // подложки каталога выбирают круги столбца и их меню, снимки по датам — своя кнопка (QuickLayers): в списке только
+    // свои подложки, у них нет группы и другого места (design custom-bases-in-list)
+    const bases = listed.filter((layer) => !layer.isOverlay && isCustomLayerCode(layer.code));
+    // хитмэпы Strava — только кнопка столбца с меню (владелец 2026-10-29, design custom-bases-in-list)
+    const overlays = listed.filter((layer) => layer.isOverlay && !quickGroupOf(layer.code));
     const sections = overlaySections(overlays, layers);
 
     // section — секция оверлея; у подложек её нет
@@ -125,7 +130,8 @@ export function LayerSwitcher() {
         const isOpen = expanded[name] ?? enabled > 0;
         const panelId = `${sectionsId}-${index}`;
         return (
-            <div key={name} className="border-border border-t pt-0.5">
+            // без своих подложек секция — первая в панели, линия над ней лишняя
+            <div key={name} className="border-border border-t pt-0.5 first:border-t-0 first:pt-0">
                 <button
                     type="button"
                     aria-expanded={isOpen}
@@ -161,11 +167,11 @@ export function LayerSwitcher() {
                 поле и нажимались */}
             <fieldset className="-my-1 -mr-1 -ml-2.5 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-12.5 flex-col flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden py-1 pr-1 pl-2.5">
                 <legend className="sr-only">Quick layers</legend>
-                {/* три круга подложек и снимки по датам — функции столбца, есть всегда; кнопка оверлея — только при слое в
-                    списке (QuickOverlays) */}
+                {/* функции столбца, есть всегда: сверху кнопки с меню — три круга подложек и хитмэп, под ними снимки по
+                    датам (владелец 2026-10-29, design custom-bases-in-list) */}
                 <QuickBases />
-                <QuickDated />
                 <QuickOverlays />
+                <QuickDated />
             </fieldset>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger
@@ -191,14 +197,16 @@ export function LayerSwitcher() {
                     className="max-h-(--available-height) w-max max-w-[min(20rem,calc(100vw-4.5rem))] gap-0.5 overflow-y-auto overscroll-contain p-1.5"
                     data-testid="layer-switcher"
                 >
-                    <RadioGroup
-                        aria-label="Base layer"
-                        value={selection.base}
-                        onValueChange={(code) => selectBase(String(code))}
-                        className="gap-0"
-                    >
-                        {bases.map((layer) => row(layer))}
-                    </RadioGroup>
+                    {bases.length > 0 && (
+                        <RadioGroup
+                            aria-label="Base layer"
+                            value={selection.base}
+                            onValueChange={(code) => selectBase(String(code))}
+                            className="gap-0"
+                        >
+                            {bases.map((layer) => row(layer))}
+                        </RadioGroup>
+                    )}
                     {sections.map(section)}
                     <div className="flex flex-col border-border border-t pt-0.5">
                         <Button

@@ -34,14 +34,14 @@ async function openSection(switcher: ReturnType<typeof page.getByTestId>, name: 
 }
 
 function storedListed(listed: Record<string, boolean>) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, listed, custom: [], selection: null }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, listed, custom: [], selection: null }));
 }
 
 describe('Подложка и оверлеи', () => {
     test('Сменить подложку', async () => {
         const { map } = await renderApp(tiles);
-        const switcher = await openSwitcher();
-        await switcher.getByText('ESRI Satellite').click();
+        // подложки каталога — в кругах столбца (design custom-bases-in-list)
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
         tiles.requested.length = 0;
         map.jumpTo({ zoom: 9 });
@@ -60,8 +60,7 @@ describe('Подложка и оверлеи', () => {
             type: 'background',
             paint: { 'background-color': '#ddd' },
         });
-        const switcher = await openSwitcher();
-        await switcher.getByText('ESRI Satellite').click();
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
         // прежняя подложка уходит сразу, без ожидания загрузки новой
         await expect.poll(() => mapLayerIds(map), { timeout: 1000 }).toEqual(['E']);
         expect(map.getStyle().layers[0].id).toBe('background');
@@ -70,9 +69,9 @@ describe('Подложка и оверлеи', () => {
     test('Порядок оверлеев', async () => {
         storedListed({ Sa: true, Nm: true });
         const { map } = await renderApp(tiles);
+        // хитмэп Strava — кнопкой столбца: в All layers хитмэпов нет (design custom-bases-in-list)
+        await page.getByRole('button', { name: 'Strava heatmap (all)', exact: true }).click();
         const switcher = await openSwitcher();
-        await openSection(switcher, 'Overlays');
-        await switcher.getByText('Strava heatmap (all)').click();
         await openSection(switcher, 'Norway');
         await switcher.getByText('Norway topo').click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Nm', 'Sa']);
@@ -119,15 +118,47 @@ describe('Полный список слоёв', () => {
     test('Полный список', async () => {
         await renderApp(tiles);
         const switcher = await openSwitcher();
-        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
+        // без своих слоёв подложек в панели нет
+        await expect.element(switcher.getByRole('button', { name: 'Configure layers' })).toBeVisible();
+        expect(switcher.getByText('ESRI Satellite').elements()).toHaveLength(0);
+        expect(switcher.getByRole('radiogroup').elements()).toHaveLength(0);
         const overlays = switcher.getByRole('button', { name: 'Overlays', exact: true });
         await expect.element(overlays).toHaveAttribute('aria-expanded', 'false');
         await expect.element(switcher.getByText('Relief shading')).not.toBeVisible();
         await overlays.click();
         await expect.element(overlays).toHaveAttribute('aria-expanded', 'true');
         await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
-        await expect.element(switcher.getByRole('button', { name: 'Configure layers' })).toBeVisible();
         await expect.element(switcher.getByRole('button', { name: 'Add custom layer' })).toBeVisible();
+    });
+
+    test('Хитмэпов в списке нет', async () => {
+        await renderApp(tiles, '#m=8/46/8&l=Tt/Sa');
+        await expect.poll(() => heatmapButton()?.getAttribute('aria-pressed')).toBe('true');
+        const switcher = await openSwitcher();
+        await openSection(switcher, 'Overlays');
+        await expect.element(switcher.getByRole('checkbox', { name: 'Relief shading' })).toBeVisible();
+        expect(switcher.getByText(/Strava/).elements()).toHaveLength(0);
+    });
+
+    test('Своя подложка в списке', async () => {
+        const code = serializeCustomLayer({
+            name: 'My winter map',
+            url: 'https://tiles.example.test/{z}/{x}/{y}.png',
+            tms: false,
+            scaleDependent: false,
+            maxZoom: 18,
+            isOverlay: false,
+            isTop: false,
+        });
+        const { map } = await renderApp(tiles, `#m=8/46/8&l=${code}`);
+        await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
+        const switcher = await openSwitcher();
+        const radio = switcher.getByRole('radio', { name: 'My winter map' });
+        await expect.element(radio).not.toBeChecked();
+        expect(switcher.getByText('ESRI Satellite').elements()).toHaveLength(0);
+        await switcher.getByText('My winter map').click();
+        await expect.poll(() => mapLayerIds(map)).toEqual([code]);
     });
 
     test('Редкие группы свёрнуты', async () => {
@@ -172,7 +203,7 @@ describe('Полный список слоёв', () => {
 });
 
 // Круги подложек и кнопка хитмэпа — кнопки столбца с aria-pressed (у значков меню его нет): первые три — круги, за
-// ними кнопка снимков по датам и кнопка хитмэпа
+// ними кнопка хитмэпа и кнопка снимков по датам (design custom-bases-in-list)
 function columnButtons() {
     const group = page.getByRole('group', { name: 'Quick layers' }).element();
     return [...group.querySelectorAll('button[aria-pressed]')];
@@ -180,8 +211,7 @@ function columnButtons() {
 const circles = () => columnButtons().slice(0, 3);
 const names = () => circles().map((button) => button.getAttribute('aria-label'));
 const pressed = () => circles().map((button) => button.getAttribute('aria-pressed'));
-// кнопка хитмэпа — последняя кнопка столбца
-const heatmapButton = () => columnButtons().at(-1);
+const heatmapButton = () => columnButtons()[3];
 
 // меню значка у круга или кнопки: имя значка — имя группы (quick-layers.ts)
 async function openMenu(group: string) {
@@ -271,6 +301,19 @@ describe('Переключатели оверлеев справа', () => {
         expect(heatmapButton()?.getAttribute('aria-pressed')).toBe('false');
     });
 
+    test('Кнопка хитмэпа при снятом в Configure layers', async () => {
+        storedListed({ Sa: false });
+        await renderApp(tiles);
+        await expect.poll(() => heatmapButton()?.getAttribute('aria-label')).toBe('Strava heatmap (all)');
+    });
+
+    test('Снимки по датам под кнопками с меню', async () => {
+        await renderApp(tiles);
+        await expect
+            .poll(() => columnButtons().map((button) => button.getAttribute('aria-label')))
+            .toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite', 'Strava heatmap (all)', 'Satellite by date']);
+    });
+
     test('Отмывки в столбце нет', async () => {
         const { map } = await renderApp(tiles);
         await expect.poll(names).toHaveLength(3);
@@ -349,6 +392,13 @@ describe('Меню слоёв столбца: перезагрузка', () => {
         const menu = await openMenu('Topo layers');
         await menu.getByRole('menuitemradio', { name: 'OpenTopoMap' }).click();
         await expect.poll(() => mapLayerIds(first.map)).toEqual(['Otm']);
+        // снять галочку слоя, который сейчас на карте: он остаётся на карте и в меню, пока выбран
+        const switcher = await openSwitcher();
+        await switcher.getByText('Configure layers').click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByText('OpenTopoMap').click();
+        await dialog.getByRole('button', { name: 'Ok' }).click();
+        await expect.element(dialog).not.toBeInTheDocument();
         // перезагрузка — со своим адресом прошлого захода: приложение записало в него l=Otm
         const hash = location.hash;
         expect(hash).toMatch(/l=Otm(&|$)/);
@@ -357,11 +407,8 @@ describe('Меню слоёв столбца: перезагрузка', () => {
         await expect.poll(() => mapLayerIds(map)).toEqual(['Otm']);
         await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
-        const switcher = await openSwitcher();
-        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
-        expect(switcher.getByText('OpenTopoMap').elements()).toHaveLength(0);
-        await userEvent.keyboard('{Escape}');
-        expect(itemNames(await openMenu('Topo layers'))).toContain('OpenTopoMap');
+        // свой адрес прошлого захода снятую галочку не возвращает
+        expect(itemNames(await openMenu('Topo layers'))).not.toContain('OpenTopoMap');
     });
 });
 
@@ -434,22 +481,30 @@ describe('Круг помнит выбор типа', () => {
 describe('Настройка списка слоёв', () => {
     test('Скрыть слой из списка', async () => {
         await renderApp(tiles);
-        let switcher = await openSwitcher();
-        await expect.element(switcher.getByText('CyclOSM')).toBeVisible();
+        let menu = await openMenu('Topo layers');
+        expect(itemNames(menu)).toContain('CyclOSM');
+        await userEvent.keyboard('{Escape}');
+        const switcher = await openSwitcher();
         await switcher.getByText('Configure layers').click();
         const dialog = page.getByRole('dialog');
         await dialog.getByText('CyclOSM').click();
         await dialog.getByRole('button', { name: 'Ok' }).click();
-        switcher = await openSwitcher();
-        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
-        expect(switcher.getByText('CyclOSM').elements()).toHaveLength(0);
+        await expect.element(dialog).not.toBeInTheDocument();
+        menu = await openMenu('Topo layers');
+        expect(itemNames(menu)).toEqual([
+            'Tracestrack Topo',
+            'OpenFreeMap Outdoor',
+            'OpenTopoMap',
+            'OSM Outdoors',
+            'OpenCycleMap',
+        ]);
+        await userEvent.keyboard('{Escape}');
 
         // после перезагрузки — тоже скрыт
         await cleanup();
         await renderApp(tiles);
-        switcher = await openSwitcher();
-        await expect.element(switcher.getByText('ESRI Satellite')).toBeVisible();
-        expect(switcher.getByText('CyclOSM').elements()).toHaveLength(0);
+        menu = await openMenu('Topo layers');
+        expect(itemNames(menu)).not.toContain('CyclOSM');
     });
 });
 
