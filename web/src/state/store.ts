@@ -11,7 +11,6 @@ import type { LinePlace } from '@/routing/line-tools';
 import type { Placemark } from '@/search/placemark';
 import type { PanoView } from '@/streetview/hash';
 import { parseTrackColor } from '@/tracks/color';
-import type { ExportedFile } from '@/tracks/export';
 import type { Bounds } from '@/tracks/geometry';
 import { type GeoData, type LatLng, TRACK_COLORS, type Track, type Waypoint } from '@/tracks/model';
 import type { View } from './hash';
@@ -45,8 +44,6 @@ export interface AppState {
     loadingTracks: number;
     // текст, который не удалось положить в буфер обмена (ссылка на треки, координаты точки): показывается окном
     copyFallback: CopyFallback | null;
-    // окно «Send to device» (design send-route-to-device): файл собирается после ответа API высот
-    deviceFile: DeviceFile | null;
     // прокладка (design add-web-route-editor, «Связь со стором и картой»): выбранная активность или null («Off»),
     // жив ли роутер (красная кнопка), редактируемая линия и номер перетаскиваемой опорной точки — то, что рисует
     // карта. Само превью перетаскивания и резинку карта рисует в обход стора (routing/MapEditor.tsx).
@@ -102,7 +99,6 @@ export interface AppState {
     removeTracks(ids: readonly string[]): void;
     changeLoadingTracks(delta: number): void;
     setCopyFallback(fallback: CopyFallback | null): void;
-    setDeviceFile(deviceFile: DeviceFile | null): void;
     setRoutingActivity(id: string | null): void;
     setRouterReachable(reachable: boolean): void;
     setRouteEdit(edit: RouteEditState | null): void;
@@ -167,15 +163,6 @@ export type PointTool = { kind: 'add'; trackId: string } | { kind: 'move'; track
 export interface CopyFallback {
     title: string;
     text: string;
-}
-
-// file — null, пока собирается; request — номер сборки: ответ API высот после закрытия или повторного открытия окна
-// отбрасывается
-export interface DeviceFile {
-    request: number;
-    trackName: string;
-    file: ExportedFile | null;
-    elevationError: string | null;
 }
 
 export interface PointDialog {
@@ -250,7 +237,6 @@ export function createAppStore(init: AppStoreInit): AppStore {
             nextColor: 0,
             loadingTracks: 0,
             copyFallback: null,
-            deviceFile: null,
             routingActivity: init.routingActivity ?? null,
             routerReachable: true,
             routeEdit: null,
@@ -438,7 +424,6 @@ export function createAppStore(init: AppStoreInit): AppStore {
 
             changeLoadingTracks: (delta) => set({ loadingTracks: get().loadingTracks + delta }),
             setCopyFallback: (copyFallback) => set({ copyFallback }),
-            setDeviceFile: (deviceFile) => set({ deviceFile }),
             setRoutingActivity: (routingActivity) => set({ routingActivity }),
             setRouterReachable: (routerReachable) => set({ routerReachable }),
             setRouteEdit: (routeEdit) => set({ routeEdit }),

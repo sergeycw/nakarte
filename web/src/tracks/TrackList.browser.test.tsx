@@ -1,6 +1,6 @@
 import type { FeatureCollection, LineString } from 'geojson';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
@@ -496,111 +496,5 @@ describe('Ссылка на треки после ответа хранилищ�
         await renderApp(tiles);
         await listMenu('Copy link for all tracks');
         await expect.element(page.getByText('No tracks to copy')).toBeVisible();
-    });
-});
-
-// Спека track-files, «Файл для устройства», «Шторка “Поделиться” с откатом на скачивание», «Инструкция для приложений
-// устройств»: API высот — заглушка fetch, шторка — проп shareFiles, скачивание — перехват click ссылки download
-describe('Send to device', () => {
-    const heights: typeof fetch = async () => new Response('1700.00\n2950.00');
-    const dialog = () => page.getByRole('dialog', { name: 'Send to device' });
-
-    function downloads() {
-        const names: string[] = [];
-        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-            names.push(this.download);
-        });
-        return names;
-    }
-
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
-    async function openDialog(options: Parameters<typeof renderApp>[2]) {
-        await renderApp(tiles, `#nktk=${track('Kazbek')}`, options);
-        await trackMenu('Kazbek', 'Send to device');
-        await expect.element(dialog().getByRole('button', { name: 'Download' })).toBeEnabled();
-    }
-
-    test('Файл для устройства', async () => {
-        let answer!: () => void;
-        const slowHeights: typeof fetch = () =>
-            new Promise((resolve) => (answer = () => resolve(new Response('1700.00\n2950.00'))));
-        await renderApp(tiles, `#nktk=${track('Kazbek')}`, { fetch: slowHeights, shareFiles: async () => {} });
-        await trackMenu('Kazbek', 'Send to device');
-        await expect.element(dialog().getByText('Preparing GPX…')).toBeVisible();
-        await expect.element(dialog().getByRole('button', { name: 'Download' })).toBeDisabled();
-        await expect.element(dialog().getByRole('button', { name: 'Share' })).toBeDisabled();
-        await expect.poll(() => answer).toBeTypeOf('function');
-        answer();
-        await expect.element(dialog().getByRole('button', { name: 'Share' })).toBeEnabled();
-        await expect.element(dialog().getByText('GPX of “Kazbek”', { exact: false })).toBeVisible();
-    });
-
-    test('Отправить через шторку', async () => {
-        const shared: File[] = [];
-        await openDialog({ fetch: heights, shareFiles: async (files) => void shared.push(...files) });
-        await dialog().getByRole('button', { name: 'Share' }).click();
-        await expect
-            .poll(() => shared.map((file) => [file.name, file.type]))
-            .toEqual([['Kazbek.gpx', 'application/gpx+xml']]);
-        expect(await shared[0].text()).toContain('<ele>2950.0</ele>');
-        await expect.element(dialog()).not.toBeInTheDocument();
-    });
-
-    test('Браузер не отдаёт файл', async () => {
-        const saved = downloads();
-        await openDialog({
-            fetch: heights,
-            shareFiles: () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError')),
-        });
-        await dialog().getByRole('button', { name: 'Share' }).click();
-        await expect.poll(() => saved).toEqual(['Kazbek.gpx']);
-        await expect.element(dialog()).toBeVisible();
-    });
-
-    test('Шторку закрыли', async () => {
-        const saved = downloads();
-        let asked = 0;
-        await openDialog({
-            fetch: heights,
-            shareFiles: () => {
-                asked++;
-                return Promise.reject(new DOMException('Share canceled', 'AbortError'));
-            },
-        });
-        await dialog().getByRole('button', { name: 'Share' }).click();
-        await expect.poll(() => asked).toBe(1);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        expect(saved).toEqual([]);
-        await expect.element(dialog()).toBeVisible();
-    });
-
-    test('Нет Web Share', async () => {
-        const saved = downloads();
-        await openDialog({ fetch: heights, shareFiles: null });
-        expect(dialog().getByRole('button', { name: 'Share' }).query()).toBeNull();
-        await dialog().getByRole('button', { name: 'Download' }).click();
-        expect(saved).toEqual(['Kazbek.gpx']);
-    });
-
-    test('Высоты недоступны', async () => {
-        await openDialog({});
-        await expect
-            .element(dialog().getByText('Elevation data unavailable: network error. The file has no elevation.'))
-            .toBeVisible();
-    });
-
-    test('Инструкция для приложений', async () => {
-        await openDialog({ fetch: heights });
-        const help = (name: string) =>
-            dialog().getByRole('region', { name }).getByRole('link', { name: 'Help' }).element();
-        expect(help('Garmin Connect').getAttribute('href')).toMatch(/^https:\/\/support\.garmin\.com\//u);
-        expect(help('Wahoo').getAttribute('href')).toMatch(/^https:\/\/support\.wahoofitness\.com\//u);
-        expect(help('COROS').getAttribute('href')).toMatch(/^https:\/\/support\.coros\.com\//u);
-        for (const name of ['Garmin Connect', 'Wahoo', 'COROS']) {
-            expect(help(name).getAttribute('target')).toBe('_blank');
-        }
     });
 });

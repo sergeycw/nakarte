@@ -63,7 +63,8 @@ test('Профиль отрезка', async ({ page, network }) => {
 test('Сохранить с высотами', async ({ page, network }) => {
     await page.goto(`./#m=12/41.7/44.8&nktk=${TBILISI}`);
     const download = page.waitForEvent('download');
-    await trackMenu(page, 'Mtatsminda', 'Save as GPX with elevation');
+    // «Save as GPX» — всегда с высотами (design trim-track-menus)
+    await trackMenu(page, 'Mtatsminda', 'Save as GPX');
     const file = await download;
     expect(file.suggestedFilename()).toBe('Mtatsminda.gpx');
     const content = readFileSync(await file.path(), 'utf8');

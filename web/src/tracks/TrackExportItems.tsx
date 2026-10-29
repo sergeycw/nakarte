@@ -8,11 +8,8 @@ export function TrackExportItems({ track }: { track: Track }) {
     const actions = useTrackActions();
     return (
         <>
-            <DropdownMenuItem onClick={() => actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.saveTrackWithElevation(track)}>
-                Save as GPX with elevation
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => void actions.sendToDevice(track)}>Send to device</DropdownMenuItem>
+            {/* GPX — всегда с высотами, в подписи об этом не пишем (владелец 2026-10-29, design trim-track-menus) */}
+            <DropdownMenuItem onClick={() => void actions.saveTrack(track, 'gpx')}>Save as GPX</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.saveTrack(track, 'kml')}>Save as KML</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.copyTrackLink(track)}>Copy link for track</DropdownMenuItem>
         </>

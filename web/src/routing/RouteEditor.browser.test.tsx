@@ -1,5 +1,5 @@
 import type { LineString } from 'geojson';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
@@ -132,13 +132,38 @@ describe('Название трека в панели редактировани
 });
 
 describe('Поделиться треком из панели редактирования', () => {
-    test('Send to device из редактора', async () => {
+    test('Экспорт из редактора', async () => {
+        const saved: string[] = [];
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+            saved.push(this.download);
+        });
+        try {
+            const { map } = await render(`${VIEW}&nktk=${line('Kazbek', [A, C])}`);
+            await click(map, B);
+            await page.getByRole('button', { name: 'Share track' }).click();
+            await page.getByRole('menuitem', { name: 'Save as GPX', exact: true }).click();
+            // API высот в тесте недоступен — тот же GPX без высот (спека track-files, «GPX с высотами»)
+            await expect.poll(() => saved).toEqual(['Kazbek.gpx']);
+            await expect.element(editPanel()).toBeVisible();
+        } finally {
+            vi.restoreAllMocks();
+        }
+    });
+
+    test('Пункты меню Share track', async () => {
         const { map } = await render(`${VIEW}&nktk=${line('Kazbek', [A, C])}`);
         await click(map, B);
         await page.getByRole('button', { name: 'Share track' }).click();
-        await page.getByRole('menuitem', { name: 'Send to device' }).click();
-        const dialog = page.getByRole('dialog', { name: 'Send to device' });
-        await expect.element(dialog.getByText('GPX of “Kazbek”', { exact: false })).toBeVisible();
+        const menu = page.getByRole('menu');
+        await expect.element(menu).toBeVisible();
+        // GPX — с высотами без отдельного пункта, «Send to device» удалён (design trim-track-menus)
+        expect(
+            menu
+                .getByRole('menuitem')
+                .elements()
+                .map((item) => item.textContent),
+        ).toEqual(['Save as GPX', 'Save as KML', 'Copy link for track']);
+        await userEvent.keyboard('{Escape}');
         await expect.element(editPanel()).toBeVisible();
     });
 });

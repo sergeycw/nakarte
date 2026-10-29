@@ -1,6 +1,5 @@
-import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
-import { EmptyTrackError, exportGpxWithElevations, exportTrack, exportZip, fileBaseName } from './export';
+import { EmptyTrackError, exportGpxWithElevations, exportTrack, fileBaseName } from './export';
 import type { TrackData } from './model';
 import { parseGeoFile } from './parsers';
 
@@ -19,9 +18,8 @@ const track: TrackData = {
     points: [{ lat: 41.69, lng: 44.79, name: 'Хижина "Альфа" & Co' }],
 };
 
-function reparse(content: string | Uint8Array, filename: string) {
-    const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-    return parseGeoFile(filename, bytes);
+function reparse(content: string, filename: string) {
+    return parseGeoFile(filename, new TextEncoder().encode(content));
 }
 
 describe('экспорт → импорт', () => {
@@ -165,19 +163,4 @@ describe('имена файлов', () => {
     ])('%s → %s', (name, base) => {
         expect(fileBaseName(name)).toBe(base);
     });
-});
-
-test('Все треки в ZIP', () => {
-    const zip = exportZip([track, track, { name: 'a/b?', segments: [], points: [] }], new Date(2026, 0, 5, 7, 8));
-    expect(zip.filename).toBe('nakarte_tracks_05.01.2026_07.08.zip');
-    const files = unzipSync(zip.content as Uint8Array);
-    // символы, недопустимые в именах файлов, — `_`
-    expect(Object.keys(files)).toEqual(['Перевал _A & B_.gpx', 'Перевал _A & B_(1).gpx', 'a_b_.gpx']);
-    expect(strFromU8(files['Перевал _A & B_(1).gpx'])).toContain('<name>Хижина &quot;Альфа&quot; &amp; Co</name>');
-    // архив читается своим же импортом: имена с флагом UTF-8
-    expect(reparse(zip.content, zip.filename).map((data) => data.name)).toEqual([
-        'Перевал _A & B_.gpx',
-        'Перевал _A & B_(1).gpx',
-        'a_b_.gpx',
-    ]);
 });
