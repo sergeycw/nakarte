@@ -22,4 +22,4 @@
 
 - `web/src/layers/QuickLayers.tsx` (кольцо кругов, вид значка).
 - Тесты: `web/src/layers/LayerSwitcher.browser.test.tsx`.
-- Документы: `AGENTS.md` («Раскладка»).
+- Документы: `AGENTS.md` («Раскладка»: ссылка на требование).

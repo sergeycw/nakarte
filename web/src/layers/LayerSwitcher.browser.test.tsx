@@ -299,7 +299,9 @@ describe('Контраст кнопок столбца', () => {
         await expect.poll(names).toHaveLength(3);
         for (const circle of circles()) {
             // тёмное кольцо 1.5 px и тень (design quick-circle-contrast)
-            expect(getComputedStyle(circle).boxShadow).toMatch(/rgba\(0, 0, 0, 0\.45\) 0px 0px 0px 1\.5px/u);
+            const shadow = getComputedStyle(circle).boxShadow;
+            expect(shadow).toMatch(/rgba\(0, 0, 0, 0\.45\) 0px 0px 0px 1\.5px/u);
+            expect(shadow).toMatch(/rgba\(0, 0, 0, 0\.35\) 0px 1px 4px/u);
         }
         const group = page.getByRole('group', { name: 'Quick layers' }).element();
         const badges = [...group.querySelectorAll('button[aria-haspopup]')];
@@ -314,8 +316,11 @@ describe('Контраст кнопок столбца', () => {
             expect(style.color).toBe('rgb(255, 255, 255)');
             expect(style.borderTopColor).toBe('rgb(255, 255, 255)');
             expect(style.borderTopWidth).toBe('2px');
-            // тёмно-серый фон neutral-700 Tailwind
-            expect(style.backgroundColor).toMatch(/^oklch\(0\.3\d/u);
+            // тёмно-серый фон — neutral-700 палитры Tailwind; оттенок серого Chromium пишет то 0, то none
+            expect(style.backgroundColor).toMatch(/^oklch\(0\.371 0 (0|none)\)$/u);
+            // значок поверх круга: в его середине — он сам, а не круг
+            const box = badge.getBoundingClientRect();
+            expect(badge.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))).toBe(true);
         }
     });
 });
