@@ -64,6 +64,8 @@ describe('Снимки по датам', () => {
         });
 
     beforeEach(() => {
+        // настройки слоёв (выбор и память кругов столбца) иначе переходят из теста в тест
+        localStorage.clear();
         tiles = fixtureTiles();
     });
 
@@ -220,10 +222,7 @@ describe('Снимки по датам', () => {
         const quickBases = () =>
             [...document.querySelectorAll('fieldset button[aria-pressed]')]
                 .map((button) => button.getAttribute('aria-label'))
-                .filter(
-                    (name) =>
-                        name !== 'Satellite by date' && name !== 'Strava heatmap (all)' && name !== 'Relief shading',
-                );
+                .filter((name) => name !== 'Satellite by date' && name !== 'Strava heatmap (all)');
 
         test('Снимки по датам кнопкой', async () => {
             const search = fakeEarthSearch(ok);

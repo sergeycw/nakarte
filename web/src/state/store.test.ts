@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildCatalog } from '@/layers/catalog';
 import type { CustomLayerFields } from '@/layers/custom';
+import { QUICK_BASE_GROUPS, QUICK_OVERLAY_GROUPS, quickTarget } from '@/layers/quick-layers';
 import { EMPTY_SETTINGS } from '@/layers/settings';
 import { createAppStore, savedSelection } from './store';
 
@@ -163,5 +164,47 @@ describe('треки', () => {
         ]);
         store.getState().removeTracks([b.id]);
         expect(store.getState().tracks.map((t) => t.name)).toEqual(['renamed']);
+    });
+});
+
+describe('Круг помнит выбор типа', () => {
+    const maps = QUICK_BASE_GROUPS[1];
+    const heatmaps = QUICK_OVERLAY_GROUPS[0];
+
+    test('Откат не меняет память', () => {
+        const s = store('Tt');
+        s.getState().fallBackBase('Tt');
+        expect(s.getState().settings.quickLayers).toEqual({});
+        s.getState().selectBase('E');
+        // круг обычной карты: OpenStreetMap отката не запомнен — Google Map
+        expect(quickTarget(maps, s.getState().settings.quickLayers, undefined, maps.codes)).toBe('G');
+    });
+
+    test('выбор подложки, оверлея и слои ссылки запоминаются, повтор не пишет настройки заново', () => {
+        const s = store('Tt');
+        s.getState().selectBase('I');
+        s.getState().toggleOverlay('Sb');
+        expect(s.getState().settings.quickLayers).toEqual({ E: 'I', Sa: 'Sb' });
+        const settings = s.getState().settings;
+        s.getState().selectBase('I');
+        expect(s.getState().settings).toBe(settings);
+        s.getState().applyLayersParam({ selection: { base: 'P', overlays: ['Sr', 'Hs'] }, custom: [] });
+        expect(s.getState().settings.quickLayers).toEqual({ E: 'I', Sa: 'Sr', G: 'P' });
+    });
+
+    test('оверлей группы столбца встаёт вместо остальных её оверлеев, null выключает группу', () => {
+        const s = store('Tt');
+        s.getState().toggleOverlay('Hs');
+        s.getState().toggleOverlay('Sa');
+        s.getState().toggleOverlay('Sw');
+        s.getState().setQuickOverlay(heatmaps, 'Sr');
+        expect(s.getState().selection.overlays).toEqual(['Hs', 'Sr']);
+        expect(s.getState().settings.quickLayers).toEqual({ Sa: 'Sr' });
+        s.getState().setQuickOverlay(heatmaps, null);
+        expect(s.getState().selection.overlays).toEqual(['Hs']);
+        expect(s.getState().settings.quickLayers).toEqual({ Sa: 'Sr' });
+        // слой не из группы — ничего не меняется
+        s.getState().setQuickOverlay(heatmaps, 'Hs');
+        expect(s.getState().selection.overlays).toEqual(['Hs']);
     });
 });

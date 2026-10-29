@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { Elevation, ProfileSamples } from '@/elevation/profile';
 import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
+import { type QuickLayerGroup, rememberQuickLayer } from '@/layers/quick-layers';
 import { FALLBACK_BASE, type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
@@ -78,6 +79,8 @@ export interface AppState {
     // откатить подложку code на FALLBACK_BASE; false — code уже не подложка (ошибки тайлов приходят и после смены слоя)
     fallBackBase(code: string): boolean;
     toggleOverlay(code: string): void;
+    // оверлей группы столбца вместо остальных её оверлеев (меню и кнопка в QuickLayers); null — выключить группу
+    setQuickOverlay(group: QuickLayerGroup, code: string | null): void;
     applyLayersParam(parsed: ParsedLayers): void;
     updateSettings(patch: Partial<Pick<LayerSettings, 'listed'>>): void;
     // возвращают код слоя
@@ -273,18 +276,22 @@ export function createAppStore(init: AppStoreInit): AppStore {
             setImageryDate: (imageryDate) => set({ imageryDate }),
 
             selectBase: (code) => {
-                const { selection, layers } = get();
+                const { selection, layers, settings, basemapFallback } = get();
                 if (layers.get(code)?.isOverlay !== false) {
                     return;
                 }
+                // выбор пользователя запоминается кругом своей группы (design quick-layer-menus), и тогда, когда
+                // подложка уже на карте: нажатие на отмеченный круг после старых настроек без памяти
+                const quickLayers = rememberQuickLayer(settings.quickLayers, code);
                 // явный выбор подложки отката — уже выбор пользователя: откат сбрасывается, хотя подложка та же
-                if (selection.base === code) {
-                    if (get().basemapFallback) {
-                        set({ basemapFallback: null });
-                    }
+                if (selection.base === code && !basemapFallback && quickLayers === settings.quickLayers) {
                     return;
                 }
-                set({ selection: { ...selection, base: code }, basemapFallback: null });
+                set({
+                    selection: selection.base === code ? selection : { ...selection, base: code },
+                    basemapFallback: null,
+                    settings: quickLayers === settings.quickLayers ? settings : { ...settings, quickLayers },
+                });
             },
 
             fallBackBase: (code) => {
@@ -297,14 +304,34 @@ export function createAppStore(init: AppStoreInit): AppStore {
             },
 
             toggleOverlay: (code) => {
-                const { selection, layers } = get();
+                const { selection, layers, settings } = get();
                 if (!layers.get(code)?.isOverlay) {
                     return;
                 }
-                const overlays = selection.overlays.includes(code)
-                    ? selection.overlays.filter((item) => item !== code)
-                    : [...selection.overlays, code];
-                set({ selection: { ...selection, overlays } });
+                if (selection.overlays.includes(code)) {
+                    set({ selection: { ...selection, overlays: selection.overlays.filter((item) => item !== code) } });
+                    return;
+                }
+                // включённый оверлей группы столбца запоминается её кнопкой (design quick-layer-menus)
+                const quickLayers = rememberQuickLayer(settings.quickLayers, code);
+                set({
+                    selection: { ...selection, overlays: [...selection.overlays, code] },
+                    settings: quickLayers === settings.quickLayers ? settings : { ...settings, quickLayers },
+                });
+            },
+
+            setQuickOverlay: (group, code) => {
+                const { selection, layers, settings } = get();
+                if (code !== null && (!group.codes.includes(code) || !layers.get(code)?.isOverlay)) {
+                    return;
+                }
+                const others = selection.overlays.filter((item) => !group.codes.includes(item));
+                const quickLayers =
+                    code === null ? settings.quickLayers : rememberQuickLayer(settings.quickLayers, code);
+                set({
+                    selection: { ...selection, overlays: code === null ? others : [...others, code] },
+                    settings: quickLayers === settings.quickLayers ? settings : { ...settings, quickLayers },
+                });
             },
 
             // l= из адреса: свои слои из ссылки попадают в список, а все слои ссылки становятся видимыми в
@@ -316,7 +343,15 @@ export function createAppStore(init: AppStoreInit): AppStore {
                     listed[code] = true;
                 }
                 const merged = [...settings.custom, ...custom.filter((code) => !settings.custom.includes(code))];
-                set({ ...withCustom({ ...settings, listed, custom: merged }, selection), basemapFallback: null });
+                // слои ссылки — тоже последние выбранные в своих группах; откат (fallBackBase) память не трогает
+                const quickLayers = [selection.base, ...selection.overlays].reduce(
+                    rememberQuickLayer,
+                    settings.quickLayers,
+                );
+                set({
+                    ...withCustom({ ...settings, listed, custom: merged, quickLayers }, selection),
+                    basemapFallback: null,
+                });
             },
 
             updateSettings: (patch) => set({ settings: { ...get().settings, ...patch } }),

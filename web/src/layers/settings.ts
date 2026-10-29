@@ -21,13 +21,16 @@ export interface LayerSettings {
     custom: string[];
     // последний выбор; применяется, если в адресе нет годного l=
     selection: Selection | null;
+    // память столбца: первый код группы → слой группы, выбранный последним (quick-layers.ts, design quick-layer-menus).
+    // Настройки без поля (до quick-layer-menus) — пустая память, версия формата та же
+    quickLayers: Record<string, string>;
 }
 
 interface StoredSettings extends LayerSettings {
     version: 1;
 }
 
-export const EMPTY_SETTINGS: LayerSettings = { listed: {}, custom: [], selection: null };
+export const EMPTY_SETTINGS: LayerSettings = { listed: {}, custom: [], selection: null, quickLayers: {} };
 
 // Свой слой в настройках и ссылках хранится каноничным кодом: старый клиент перекодировал код при загрузке
 // (upgrade isTop), и сравнение дубликатов идёт по коду
@@ -66,6 +69,11 @@ function parseOwn(raw: unknown): LayerSettings | null {
                       : [],
               }
             : null,
+        quickLayers: isRecord(raw.quickLayers)
+            ? (Object.fromEntries(
+                  Object.entries(raw.quickLayers).filter(([, code]) => typeof code === 'string'),
+              ) as Record<string, string>)
+            : {},
     };
 }
 
@@ -76,7 +84,7 @@ function parseLegacy(raw: unknown, isKnown: (code: string) => boolean): LayerSet
     if (!isRecord(raw) || !Array.isArray(raw.layers)) {
         return null;
     }
-    const settings: LayerSettings = { listed: {}, custom: [], selection: null };
+    const settings: LayerSettings = { listed: {}, custom: [], selection: null, quickLayers: {} };
     for (const item of raw.layers) {
         if (!isRecord(item) || typeof item.code !== 'string') {
             continue;

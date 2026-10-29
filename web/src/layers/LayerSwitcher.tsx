@@ -154,15 +154,16 @@ export function LayerSwitcher() {
         <ControlPortal className="pointer-events-none! flex flex-col items-center gap-2" first>
             {/* быстрые слои уступают место кнопкам карты над нижними панелями: что не влезает по высоте, уходит во
                 второй столбец обёртки и обрезается (flex-wrap + overflow-hidden), и Street View, зум и геолокация не
-                прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами; p-1 —
-                место под обводку выбранной подложки */}
-            <fieldset className="-m-1 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-11 flex-col flex-wrap items-center gap-2 overflow-hidden p-1">
+                прячутся под профиль и панораму. 15rem — All layers, Street View, зум, геолокация с отступами; py-1 —
+                место под обводку выбранной подложки, px-2 — под значок меню у левого края круга (QuickLayers); поля
+                съедены отрицательными отступами, и столбец остаётся шириной круга */}
+            <fieldset className="-mx-2 -my-1 flex max-h-[calc(100dvh-var(--bottom-inset)-15rem)] w-13 flex-col flex-wrap items-center gap-2 overflow-hidden px-2 py-1">
                 <legend className="sr-only">Quick layers</legend>
-                {/* три превью подложек и снимки по датам — функции столбца, есть всегда; оверлеи — только слои списка:
-                    скрытый, но включённый ссылкой — в All layers */}
+                {/* три круга подложек и снимки по датам — функции столбца, есть всегда; кнопка оверлея — только при слое в
+                    списке (QuickOverlays) */}
                 <QuickBases />
                 <QuickDated />
-                <QuickOverlays overlays={overlays.filter((layer) => isListed(layer, settings))} />
+                <QuickOverlays />
             </fieldset>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger

@@ -87,6 +87,7 @@ describe('Выбор переживает перезагрузку', () => {
             listed: { Co: false },
             custom: [OLD_CUSTOM],
             selection: { base: 'E', overlays: ['Hs'] },
+            quickLayers: { E: 'I', Sa: 'Sr' },
         };
         saveSettings(storage, settings);
         expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 1 });
@@ -100,5 +101,17 @@ describe('умолчания каталога', () => {
         expect(isListed(layer('Otm'), EMPTY_SETTINGS)).toBe(false);
         expect(isListed(layer('Hs'), EMPTY_SETTINGS)).toBe(true);
         expect(isListed(layer('Otm'), { ...EMPTY_SETTINGS, listed: { Otm: true } })).toBe(true);
+    });
+});
+
+describe('Круг помнит выбор типа', () => {
+    test('память столбца: настройки без поля — пустая, значения не строки отбрасываются', () => {
+        const stored = (quickLayers?: unknown) =>
+            memoryStorage({
+                [STORAGE_KEY]: JSON.stringify({ version: 1, listed: {}, custom: [], selection: null, quickLayers }),
+            });
+        expect(loadSettings(stored(), catalog).quickLayers).toEqual({});
+        expect(loadSettings(stored(['I']), catalog).quickLayers).toEqual({});
+        expect(loadSettings(stored({ E: 'I', Tt: 5, G: null }), catalog).quickLayers).toEqual({ E: 'I' });
     });
 });

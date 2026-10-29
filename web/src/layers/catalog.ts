@@ -81,7 +81,7 @@ export const GROUPS = [
 // картами-оверлеями и под линейными, чтобы тени ложились на любую подложку и не закрывали тропы.
 // Подложки по умолчанию: Tt, Of, O, E — первыми в полном списке (решение владельца 2026-10-12: OpenFreeMap Outdoor
 // вместо CyclOSM, design add-vector-outdoor-style); CyclOSM — после снимков по датам. Превью справа от порядка не
-// зависят — их список QUICK_BASES (quick-bases.ts, design three-quick-bases)
+// зависят — их список QUICK_BASES (quick-layers.ts, design three-quick-bases)
 const ORDER = [
     'Tt',
     'Of',
