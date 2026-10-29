@@ -41,13 +41,21 @@ const PRESSED =
     'bg-primary! text-primary-foreground hover:bg-primary/90! hover:text-primary-foreground active:bg-primary/90!';
 
 // Значок меню — своя кнопка Button у левого нижнего края круга, как значок у аватара Telegram (референс владельца
-// 2026-10-29, со стороны меню): у круга и меню разные действия и имена. Вид — стекло кнопок над картой (COLUMN_BUTTON),
-// иконка цветом текста. Видимая часть 16 px наполовину за краем круга: поле столбца для неё — pl-2.5 в LayerSwitcher.
-// Зона нажатия (after) на 4 px шире: вниз она не доходит до следующего круга (gap-y-2)
+// 2026-10-29, со стороны меню): у круга и меню разные действия и имена. Вид (владелец 2026-10-29, design
+// quick-circle-contrast): тёмно-серый с белой стрелкой и белой обводкой — она вырезает значок из кольца круга. Стекло
+// на светлой карте терялось, а кольцо значка поверх кольца круга давало два пересекающихся круга. Видимая часть 16 px
+// наполовину за краем круга: поле столбца для неё — pl-2.5 в LayerSwitcher. Зона нажатия (after) на 4 px шире: вниз
+// она не доходит до следующего круга (gap-y-2). bg с !: CSS MapLibre вне @layer темнит фон кнопок .maplibregl-ctrl
 const MENU_BADGE = cn(
-    COLUMN_BUTTON,
-    'absolute -bottom-0.5 -left-1.5 size-4 text-foreground after:absolute after:-inset-1',
+    'pointer-events-auto absolute -bottom-0.5 -left-1.5 size-4 rounded-full border-2 border-white text-white',
+    'bg-neutral-700! hover:bg-neutral-600! active:bg-neutral-600! aria-expanded:bg-neutral-600!',
+    'after:absolute after:-inset-1',
 );
+
+// Кольцо и тень круга подложки (владелец 2026-10-29, вариант C, design quick-circle-contrast): светлое превью (Google
+// Map) иначе сливалось со светлой картой. Тень не шире поля столбца (py-1, pr-1 в LayerSwitcher): overflow-hidden
+// столбца срезал бы её ступенькой. С !: glass задаёт свою тень
+const CIRCLE_RING = 'shadow-[0_0_0_1.5px_rgb(0_0_0/0.45),0_1px_4px_rgb(0_0_0/0.35)]!';
 
 // Пункты меню группы: нет слоя, снятого в Configure layers (галочка слоя группы по умолчанию стоит, listedByDefault),
 // кроме того, что сейчас на карте, и первого слоя группы — это сам круг
@@ -77,15 +85,7 @@ function QuickMenu({ group, anchor, items, current, onSelect }: QuickMenuProps) 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                render={
-                    <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className={MENU_BADGE}
-                        aria-label={group.name}
-                        title={group.name}
-                    />
-                }
+                render={<Button size="icon-xs" className={MENU_BADGE} aria-label={group.name} title={group.name} />}
             >
                 <ChevronDownIcon className="size-2.5 stroke-3" />
             </DropdownMenuTrigger>
@@ -139,6 +139,7 @@ function QuickBase({ group }: { group: QuickLayerGroup }) {
                 size="icon-lg"
                 className={cn(
                     COLUMN_BUTTON,
+                    CIRCLE_RING,
                     'overflow-hidden p-0',
                     // outline-solid: у Button outline-none, cn заменяет его только тем же свойством
                     current && 'outline-solid outline-2 outline-primary outline-offset-2',
