@@ -53,7 +53,7 @@
 
 | Решение | Почему | Источник |
 |---|---|---|
-| Маршрут в приложение часов и велокомпьютера — файлом: GPX с высотами в окне «Send to device», шторка Web Share отдельной кнопкой, любой отказ шторки кроме отмены — скачивание; прямой отправки в облака Garmin, Wahoo, COROS нет | API Garmin и COROS закрыты для частного проекта, Wahoo — решение владельца «не сейчас»; `share()` требует свежего нажатия, а файл готов после ответа API высот; Chromium отклоняет `.gpx`, хотя `canShare` отвечает `true` | [send-route-to-device](../../openspec/changes/archive/2026-10-12-send-route-to-device/design.md#окно-а-не-сразу-шторка), [device-route-sync](../../openspec/research/device-route-sync.md#итог) |
+| Маршрут в приложение часов и велокомпьютера — файлом «Save as GPX», он всегда с высотами (ошибка API высот — GPX без них); окно «Send to device» со шторкой Web Share удалено; прямой отправки в облака Garmin, Wahoo, COROS нет | API Garmin и COROS закрыты для частного проекта, Wahoo — решение владельца «не сейчас»; окно с шторкой Web Share удалено — «тут много лишнего» (владелец 2026-10-29) | [send-route-to-device](../../openspec/changes/archive/2026-10-12-send-route-to-device/design.md#окно-а-не-сразу-шторка), [device-route-sync](../../openspec/research/device-route-sync.md#итог), [trim-track-menus](../../openspec/changes/archive/2026-10-29-trim-track-menus/design.md#send-to-device-удалён-целиком-владелец) |
 
 ## Хранилище треков
 

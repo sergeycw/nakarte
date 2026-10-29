@@ -1,4 +1,4 @@
-import { CheckIcon, Redo2Icon, Share2Icon, Undo2Icon, XIcon } from 'lucide-react';
+import { CheckIcon, LoaderCircleIcon, Redo2Icon, Share2Icon, Undo2Icon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/state/context';
@@ -20,6 +20,7 @@ export function EditPanel() {
     const edit = useAppStore((state) => state.routeEdit);
     const track = useAppStore((state) => state.tracks.find((item) => item.id === state.routeEdit?.trackId));
     const tool = useAppStore((state) => state.lineTool);
+    const loading = useAppStore((state) => state.loadingTracks > 0);
     if (!edit || !track) {
         return null;
     }
@@ -58,9 +59,19 @@ export function EditPanel() {
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        render={<Button variant="ghost" size="icon-sm" aria-label="Share track" title="Share track" />}
+                        render={
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Share track"
+                                title="Share track"
+                                aria-busy={loading || undefined}
+                            />
+                        }
                     >
-                        <Share2Icon />
+                        {/* «Save as GPX» ждёт API высот, а кнопки Tracks со спиннером в редакторе нет (design
+                            trim-track-menus) */}
+                        {loading ? <LoaderCircleIcon className="animate-spin" /> : <Share2Icon />}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-auto">
                         <TrackExportItems track={track} />

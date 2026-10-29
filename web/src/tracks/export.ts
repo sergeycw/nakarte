@@ -1,13 +1,13 @@
-import { strToU8, zipSync } from 'fflate';
 import { splitLinesAt180 } from './geometry';
 import type { LatLng, TrackData, Waypoint } from './model';
 
-// Экспорт треков (geo_file_exporters.js и exportTrackAsFile старого клиента): GPX 1.1, KML 2.2, ZIP из GPX. Строки —
-// обычные строки JS: в UTF-8 их переводит Blob при сохранении (старый клиент кодировал вручную через двоичную строку).
+// Экспорт треков (geo_file_exporters.js и exportTrackAsFile старого клиента): GPX 1.1 и KML 2.2; ZIP всех треков удалён
+// (design trim-track-menus). Строки — обычные строки JS: в UTF-8 их переводит Blob при сохранении (старый клиент
+// кодировал вручную через двоичную строку).
 
 export interface ExportedFile {
     filename: string;
-    content: string | Uint8Array;
+    content: string;
     mimeType: string;
 }
 
@@ -133,10 +133,10 @@ const FORMATS: Record<Format, { write: typeof toGpx; mimeType: string }> = {
     kml: { write: toKml, mimeType: 'application/vnd.google-earth.kml+xml' },
 };
 
-// Пустой трек — EmptyTrackError, кроме ZIP (allowEmpty): там пустой трек тоже файл, как у старого клиента
-export function exportTrack(track: TrackData, format: Format, allowEmpty = false): ExportedFile {
+// Пустой трек — EmptyTrackError
+export function exportTrack(track: TrackData, format: Format): ExportedFile {
     const segments = splitLinesAt180(track.segments);
-    if (!allowEmpty && segments.length === 0 && track.points.length === 0) {
+    if (segments.length === 0 && track.points.length === 0) {
         throw new EmptyTrackError();
     }
     const name = fileBaseName(track.name);
@@ -145,8 +145,8 @@ export function exportTrack(track: TrackData, format: Format, allowEmpty = false
 }
 
 // GPX с высотами (exportTrackAsFile старого клиента с addElevations): высоты всех точек трека и отрезков — без выборки,
-// после деления у 180°, как в файле. elevations — запрос к API высот (elevation/api.ts); его ошибка уходит наверх, файла
-// нет (у старого после уведомления падал TypeError). Пустой трек — EmptyTrackError без запроса.
+// после деления у 180°, как в файле. elevations — запрос к API высот (elevation/api.ts); его ошибка уходит наверх, и
+// GPX без высот тогда собирает saveGpx в actions.ts. Пустой трек — EmptyTrackError без запроса.
 export async function exportGpxWithElevations(
     track: TrackData,
     elevations: (points: readonly LatLng[]) => Promise<(number | null)[]>,
@@ -172,35 +172,9 @@ export async function exportGpxWithElevations(
     };
 }
 
-function uniqueName(name: string, seen: Set<string>): string {
-    let unique = name;
-    for (let i = 1; seen.has(unique); i++) {
-        unique = `${name}(${i})`;
-    }
-    seen.add(unique);
-    return unique;
-}
-
-const pad = (value: number) => String(value).padStart(2, '0');
-
-// saveAllTracksToZipFile старого клиента; месяц — с единицы (у старого getMonth() давал январь «00»)
-export function exportZip(tracks: readonly TrackData[], now = new Date()): ExportedFile {
-    const seen = new Set<string>();
-    const files: Record<string, Uint8Array> = {};
-    for (const track of tracks) {
-        const { content } = exportTrack(track, 'gpx', true);
-        const name = uniqueName(fileBaseName(track.name).replace(/[<>:"/\\|?*]/gu, '_'), seen);
-        files[`${name}.gpx`] = strToU8(content as string);
-    }
-    const date =
-        `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()}` +
-        `_${pad(now.getHours())}.${pad(now.getMinutes())}`;
-    return { filename: `nakarte_tracks_${date}.zip`, content: zipSync(files), mimeType: 'application/zip' };
-}
-
 // Сохранение файла: ссылка с download на Blob
 export function saveFile({ filename, content, mimeType }: ExportedFile): void {
-    const url = URL.createObjectURL(new Blob([content as BlobPart], { type: mimeType }));
+    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;

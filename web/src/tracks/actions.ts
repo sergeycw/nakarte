@@ -1,15 +1,8 @@
-import { ElevationError, errorReason, fetchElevations } from '@/elevation/api';
+import { ElevationError, fetchElevations } from '@/elevation/api';
 import { reverseRoute, settledRoute } from '@/routing/line';
 import type { AppStore } from '@/state/store';
 import type { TrackParams } from '@/state/sync';
-import {
-    EmptyTrackError,
-    type ExportedFile,
-    exportGpxWithElevations,
-    exportTrack,
-    exportZip,
-    saveFile,
-} from './export';
+import { EmptyTrackError, type ExportedFile, exportGpxWithElevations, exportTrack, saveFile } from './export';
 import { boundsOf, wrapLng } from './geometry';
 import { prepareImport } from './import-result';
 import { loadFromUrl } from './import-url';
@@ -35,20 +28,13 @@ export interface TrackActionsDeps {
     restored?: Promise<unknown>;
     // сохранение файла (по умолчанию ссылка download): unit-тесты подставляют свою запись
     save?: typeof saveFile;
-    // шторка «Поделиться» с файлами (Web Share); null — браузер не умеет, в окне «Send to device» только скачивание
-    shareFiles?: ShareFiles | null;
+    // сколько «Save as GPX» ждёт API высот, мс; unit-тесты ставят свои миллисекунды
+    elevationTimeout?: number;
 }
 
-export type ShareFiles = (files: File[]) => Promise<void>;
-
-// Web Share с файлами — только при navigator.canShare: без него (Firefox на Android) share() файлы не берёт. canShare
-// не зовём: Chromium отвечает true и на .gpx, а share() потом отклоняет его (design send-route-to-device)
-export function browserShareFiles(): ShareFiles | null {
-    if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') {
-        return null;
-    }
-    return (files) => navigator.share({ files });
-}
+// Ожидание высот для «Save as GPX» (агент, design trim-track-menus): API обычно отвечает за доли секунды, а без
+// таймаута зависший запрос оставлял бы пользователя без файла. По таймауту — GPX без высот, как при ошибке API
+const ELEVATION_TIMEOUT_MS = 10_000;
 
 // ClipboardItem с промисом: Safari сохраняет жест пользователя на время запроса к хранилищу, Chromium ждёт промис
 export function writeClipboardItem(text: Promise<string>): Promise<void> {
@@ -93,11 +79,11 @@ export function createTrackActions({
     writeClipboard = writeClipboardItem,
     restored = Promise.resolve(),
     save: saveToDisk = saveFile,
-    shareFiles = null,
+    elevationTimeout = ELEVATION_TIMEOUT_MS,
 }: TrackActionsDeps) {
     const state = () => store.getState();
-    // номер последней сборки файла окна «Send to device»
-    let deviceRequest = 0;
+    // треки, чей GPX ждёт API высот: повторное нажатие на «Save as GPX» второго файла не даёт
+    const savingGpx = new Set<string>();
 
     async function load(data: Promise<GeoData[]>, fitView = false): Promise<Track[]> {
         state().changeLoadingTracks(1);
@@ -303,34 +289,14 @@ export function createTrackActions({
         // отметки расстояния (switchMeasureTicksVisibility старого)
         setMeasureTicks: (track: Track, measureTicksShown: boolean) =>
             state().updateTrack(track.id, { measureTicksShown }),
-        saveTrack: (track: Track, format: 'gpx' | 'kml') => save(() => exportTrack(track, format)),
-        saveAll: () => save(() => exportZip(state().tracks)),
-        // GPX с высотами (спека track-files, «GPX с высотами»): пока идут запросы к API высот, крутится индикатор загрузки
-        // в заголовке списка; ошибка API — сообщение без файла
-        async saveTrackWithElevation(track: Track) {
-            state().changeLoadingTracks(1);
-            try {
-                saveToDisk(
-                    await exportGpxWithElevations(track, (points) =>
-                        fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }),
-                    ),
-                );
-            } catch (error) {
-                if (error instanceof EmptyTrackError) {
-                    notify(error.message, 'error');
-                } else if (error instanceof ElevationError) {
-                    notify(`Failed to get elevation data: ${errorReason(error)}`, 'error');
-                } else {
-                    throw error;
-                }
-            } finally {
-                state().changeLoadingTracks(-1);
+        // «Save as GPX» — всегда с высотами (владелец 2026-10-29, design trim-track-menus; спека track-files, «GPX с
+        // высотами»): пока идут запросы к API высот, крутится индикатор загрузки на кнопке Tracks и на «Share track»
+        // редактора. Ошибка API или таймаут — тот же GPX без <ele> и без сообщения: файл нужен и без сети, а о высотах
+        // в меню не пишем
+        async saveGpx(track: Track) {
+            if (savingGpx.has(track.id)) {
+                return;
             }
-        },
-        // окно «Send to device» (спека track-files, «Файл для устройства»): файл собирается сразу, а шторку открывает
-        // отдельная кнопка окна — share() требует свежего нажатия, а ответ API высот приходит позже (design
-        // send-route-to-device, «Окно, а не сразу шторка»). Без высот — обычный GPX: цель — маршрут на устройстве.
-        async sendToDevice(track: Track) {
             let file: ExportedFile;
             try {
                 file = exportTrack(track, 'gpx');
@@ -341,56 +307,25 @@ export function createTrackActions({
                 notify(error.message, 'error');
                 return;
             }
-            const request = ++deviceRequest;
-            const current = () => state().deviceFile?.request === request;
-            state().setDeviceFile({ request, trackName: track.name, file: null, elevationError: null });
-            let elevationError: string | null = null;
+            savingGpx.add(track.id);
+            state().changeLoadingTracks(1);
+            const signal = AbortSignal.timeout(elevationTimeout);
             try {
                 file = await exportGpxWithElevations(track, (points) =>
-                    fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }),
+                    fetchElevations(points, { fetch: sources.fetch, url: sources.elevationsServer }, signal),
                 );
             } catch (error) {
-                if (!(error instanceof ElevationError)) {
-                    if (current()) {
-                        state().setDeviceFile(null);
-                    }
+                // прерванный signal fetchElevations отдаёт исходной ошибкой, а не ElevationError
+                if (!(error instanceof ElevationError) && !signal.aborted) {
                     throw error;
                 }
-                elevationError = errorReason(error);
+            } finally {
+                savingGpx.delete(track.id);
+                state().changeLoadingTracks(-1);
             }
-            if (current()) {
-                state().setDeviceFile({ request, trackName: track.name, file, elevationError });
-            }
+            saveToDisk(file);
         },
-        canShareFiles: shareFiles !== null,
-        // зовётся прямо в обработчике нажатия, без await до share(): иначе активация нажатия теряется. AbortError —
-        // шторку закрыли; любой другой отказ (NotAllowedError Chromium на .gpx, TypeError) — скачивание того же файла
-        shareDeviceFile(): Promise<void> {
-            const device = state().deviceFile;
-            if (!device?.file || !shareFiles) {
-                return Promise.resolve();
-            }
-            const { file } = device;
-            const shared = new File([file.content as BlobPart], file.filename, { type: file.mimeType });
-            return shareFiles([shared]).then(
-                () => {
-                    if (state().deviceFile?.request === device.request) {
-                        state().setDeviceFile(null);
-                    }
-                },
-                (error: unknown) => {
-                    if ((error as { name?: unknown } | null)?.name !== 'AbortError') {
-                        saveToDisk(file);
-                    }
-                },
-            );
-        },
-        downloadDeviceFile() {
-            const file = state().deviceFile?.file;
-            if (file) {
-                saveToDisk(file);
-            }
-        },
+        saveKml: (track: Track) => save(() => exportTrack(track, 'kml')),
         copyTrackLink: (track: Track) => copyLink([track], true),
         copyAllLink: () => copyLink(state().tracks),
         copyVisibleLink: () => copyLink(state().tracks.filter((track) => track.visible)),

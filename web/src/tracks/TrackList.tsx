@@ -178,9 +178,6 @@ export function TrackList() {
                         <DropdownMenuItem onClick={actions.newTrackFromVisible}>
                             Create new track from all visible tracks
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled={tracks.length === 0} onClick={actions.saveAll}>
-                            Save all tracks to ZIP file
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={actions.removeAll}>Delete all tracks</DropdownMenuItem>
                         <DropdownMenuItem onClick={actions.removeHidden}>Delete hidden tracks</DropdownMenuItem>
