@@ -162,14 +162,6 @@ describe('Каталог слоёв', () => {
         ]);
     });
 
-    test('Подложки по умолчанию по порядку: OpenFreeMap после Tracestrack, ESRI сразу после OSM, CyclOSM после снимков по датам', () => {
-        const defaults = [...catalog]
-            .filter((layer) => layer.group === 'Default layers')
-            .sort((a, b) => a.order - b.order)
-            .map((layer) => layer.code);
-        expect(defaults.slice(0, 7)).toEqual(['Tt', 'Of', 'O', 'E', 'S2', 'Hls', 'Co']);
-    });
-
     test('порядок наложения: топокарты под отмывкой, отмывка под линейными слоями', () => {
         const order = (code: string) => byCode.get(code)?.order ?? 0;
         expect(order('Nm')).toBeLessThan(order('Hs'));

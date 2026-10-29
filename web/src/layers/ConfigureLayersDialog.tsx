@@ -5,11 +5,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { useAppStore } from '@/state/context';
 import { GROUPS, type LayerDef } from './catalog';
 import { isCustomLayerCode } from './custom';
+import { isColumnButton } from './quick-layers';
 import { isListed, listedByDefault } from './settings';
 
-// Настройка списка слоёв — как LayersConfigDialog старого клиента (leaflet.control.layers.configure): все слои по
-// группам с галочкой «в списке»; Reset — умолчания каталога, Cancel — без изменений, Ok — сохранить. Хоткеев слоёв
-// нет (решение владельца, design add-web-map-layers).
+// Настройка списка слоёв — как LayersConfigDialog старого клиента (leaflet.control.layers.configure): слои по группам с
+// галочкой «в списке»; Reset — умолчания (listedByDefault), Cancel — без изменений, Ok — сохранить. Хоткеев слоёв нет
+// (решение владельца, design add-web-map-layers). Кнопок столбца — первых слоёв групп и снимков по датам — в диалоге
+// нет: они в столбце всегда, и галочка на них не влияет (design custom-bases-in-list).
 
 type Draft = Record<string, boolean>;
 
@@ -32,9 +34,10 @@ export function ConfigureLayersDialog({ open, onOpenChange }: ConfigureLayersDia
         onOpenChange(false);
     }
 
+    const shown = all.filter((layer) => !isColumnButton(layer.code) && !layer.dated);
     const groups: [string, LayerDef[]][] = [...GROUPS, 'Custom layers'].map((group) => [
         group,
-        all
+        shown
             .filter((layer) => (isCustomLayerCode(layer.code) ? 'Custom layers' : layer.group) === group)
             .sort((a, b) => a.order - b.order),
     ]);

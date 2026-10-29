@@ -10,7 +10,7 @@
 - **BREAKING** Хитмэпов Strava в `All layers` нет: они только в кнопке хитмэпа и её меню. Кнопка хитмэпа в столбце есть всегда.
 - Пока своих подложек нет, раздела подложек в панели нет: сверху сразу секции оверлеев.
 - Кнопки с меню — сверху столбца: три круга, кнопка хитмэпа, под ними снимки по датам.
-- Configure layers остаётся: галочки слоёв групп управляют меню кругов и кнопки хитмэпа и по умолчанию стоят (раньше у OpenTopoMap, OSM Outdoors, OpenCycleMap и хитмэпов run, ride, winter их не было, и любое Ok в диалоге убирало эти слои из меню). Снятые галочки таких слоёв в старых настройках — прежнее умолчание и отбрасываются.
+- Configure layers остаётся: галочки слоёв групп управляют меню кругов и кнопки хитмэпа и по умолчанию стоят (раньше у OpenTopoMap, OSM Outdoors, OpenCycleMap и хитмэпов run, ride, winter их не было, и любое Ok в диалоге убирало эти слои из меню). Снятые галочки таких слоёв в старых настройках — прежнее умолчание и отбрасываются. Кнопок столбца (первых слоёв групп и снимков по датам) в Configure layers нет: их галочки ни на что не влияли.
 
 ## Capabilities
 
@@ -18,10 +18,10 @@
 
 ### Modified Capabilities
 
-- `map-layers`: «Полный список слоёв» — из подложек только свои, без хитмэпов; «Настройка списка слоёв» — слои групп в списке по умолчанию, старые настройки без прежних умолчаний; «Переключатели оверлеев справа» — кнопка хитмэпа всегда; «Снимки по датам кнопкой справа» — под кнопкой хитмэпа; «Меню слоёв столбца» — сценарий перезагрузки.
+- `map-layers`: «Полный список слоёв» — из подложек только свои, без хитмэпов; «Настройка списка слоёв» — слои групп в списке по умолчанию, старые настройки без прежних умолчаний; «Переключатели оверлеев справа» — кнопка хитмэпа всегда; «Снимки по датам кнопкой справа» — под кнопкой хитмэпа; «Меню слоёв столбца» — сценарий перезагрузки; «Круг помнит выбор типа» — без `All layers`; «Каталог слоёв» — сценарий «Список слоёв» без кнопок столбца; требование «Порядок подложек по умолчанию» удалено.
 
 ## Impact
 
-- `web/src/layers/LayerSwitcher.tsx` (список и порядок столбца), `web/src/layers/QuickLayers.tsx` (кнопка хитмэпа всегда), `web/src/layers/settings.ts` (умолчание галочек, версия 2), `web/src/layers/ConfigureLayersDialog.tsx` (Reset).
-- Тесты: `web/src/layers/LayerSwitcher.browser.test.tsx`, `web/src/layers/ImageryDate.browser.test.tsx`, `web/src/layers/settings.test.ts`, `web/e2e/map-layers.spec.ts` (подложки и хитмэп — кругами, кнопкой и меню вместо `All layers`).
+- `web/src/layers/LayerSwitcher.tsx` (список и порядок столбца), `web/src/layers/QuickLayers.tsx` (кнопка хитмэпа всегда), `web/src/layers/settings.ts` (умолчание галочек, поле `groupDefaults`), `web/src/layers/ConfigureLayersDialog.tsx` (Reset, без кнопок столбца), `web/src/layers/quick-layers.ts` (`isColumnButton`).
+- Тесты: `web/src/layers/LayerSwitcher.browser.test.tsx`, `web/src/layers/ImageryDate.browser.test.tsx`, `web/src/layers/settings.test.ts`, `web/src/layers/catalog.test.ts` (без теста порядка), `web/e2e/map-layers.spec.ts` (подложки и хитмэп — кругами, кнопкой и меню вместо `All layers`).
 - Документы: `AGENTS.md` («Раскладка»), `docs/architecture/decisions.md` (строка раскладки).

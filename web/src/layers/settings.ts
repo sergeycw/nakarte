@@ -15,7 +15,7 @@ export interface Selection {
 }
 
 export interface LayerSettings {
-    // показывать ли слой в переключателе; кода нет — умолчание каталога (isDefault), так новый слой по умолчанию
+    // показывать ли слой в переключателе; кода нет — умолчание (listedByDefault), так новый слой по умолчанию
     // появится и у тех, у кого настройки уже сохранены (как у старого клиента)
     listed: Record<string, boolean>;
     // коды своих слоёв -cs… в порядке добавления
@@ -27,11 +27,13 @@ export interface LayerSettings {
     quickLayers: Record<string, string>;
 }
 
-// Версия 2 (design custom-bases-in-list): слои групп столбца по умолчанию в списке, и «снят» у них — выбор пользователя.
-// Версия 1 и настройки старого клиента писали галочки всех слоёв разом, и у слоя группы без isDefault «снят» там —
-// прежнее умолчание, а не выбор: при чтении такие записи отбрасываются (upgrade в loadSettings)
+// Формат остаётся версией 1: код до custom-bases-in-list настройки другой версии не читает, и откат (revert) стёр бы
+// свои слои и выбор. Поле groupDefaults: true — listed записан, когда слои групп столбца по умолчанию уже в списке, и
+// «снят» у них — выбор пользователя. Без поля (раньше и у старого клиента) галочки писались разом, и «снят» у слоя
+// группы без isDefault — прежнее умолчание, а не выбор: при чтении такие записи отбрасываются (upgrade в loadSettings)
 interface StoredSettings extends LayerSettings {
-    version: 2;
+    version: 1;
+    groupDefaults: true;
 }
 
 export const EMPTY_SETTINGS: LayerSettings = { listed: {}, custom: [], selection: null, quickLayers: {} };
@@ -61,13 +63,13 @@ function parseOwn(
     raw: unknown,
     upgrade: (listed: Record<string, boolean>) => Record<string, boolean>,
 ): LayerSettings | null {
-    if (!isRecord(raw) || (raw.version !== 1 && raw.version !== 2)) {
+    if (!isRecord(raw) || raw.version !== 1) {
         return null;
     }
     const listed = isRecord(raw.listed) ? (raw.listed as Record<string, boolean>) : {};
     const selection = isRecord(raw.selection) && typeof raw.selection.base === 'string' ? raw.selection : null;
     return {
-        listed: raw.version === 1 ? upgrade(listed) : listed,
+        listed: raw.groupDefaults === true ? listed : upgrade(listed),
         custom: Array.isArray(raw.custom) ? raw.custom.filter((code) => typeof code === 'string') : [],
         selection: selection
             ? {
@@ -120,7 +122,8 @@ export function loadSettings(storage: Storage | null, catalog: readonly LayerDef
     }
     const known = new Set(catalog.map((layer) => layer.code));
     const byCode = new Map(catalog.map((layer) => [layer.code, layer]));
-    // «снят» у слоя группы столбца без isDefault в старом формате — прежнее умолчание, а не выбор (StoredSettings)
+    // «снят» у слоя группы столбца без isDefault в записи без groupDefaults — прежнее умолчание, а не выбор
+    // (StoredSettings)
     const upgrade = (listed: Record<string, boolean>) =>
         Object.fromEntries(
             Object.entries(listed).filter(
@@ -136,7 +139,7 @@ export function loadSettings(storage: Storage | null, catalog: readonly LayerDef
 }
 
 export function saveSettings(storage: Storage | null, settings: LayerSettings): void {
-    const stored: StoredSettings = { version: 2, ...settings };
+    const stored: StoredSettings = { version: 1, groupDefaults: true, ...settings };
     try {
         storage?.setItem(STORAGE_KEY, JSON.stringify(stored));
     } catch {

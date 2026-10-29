@@ -34,7 +34,10 @@ async function openSection(switcher: ReturnType<typeof page.getByTestId>, name: 
 }
 
 function storedListed(listed: Record<string, boolean>) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, listed, custom: [], selection: null }));
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ version: 1, groupDefaults: true, listed, custom: [], selection: null }),
+    );
 }
 
 describe('Подложка и оверлеи', () => {
@@ -301,7 +304,7 @@ describe('Переключатели оверлеев справа', () => {
         expect(heatmapButton()?.getAttribute('aria-pressed')).toBe('false');
     });
 
-    test('Кнопка хитмэпа при снятом в Configure layers', async () => {
+    test('Кнопка хитмэпа при снятом в настройках', async () => {
         storedListed({ Sa: false });
         await renderApp(tiles);
         await expect.poll(() => heatmapButton()?.getAttribute('aria-label')).toBe('Strava heatmap (all)');
@@ -505,6 +508,26 @@ describe('Настройка списка слоёв', () => {
         await renderApp(tiles);
         menu = await openMenu('Topo layers');
         expect(itemNames(menu)).not.toContain('CyclOSM');
+    });
+});
+
+describe('Настройка списка слоёв: кнопки столбца', () => {
+    test('Кнопок столбца в настройке нет', async () => {
+        await renderApp(tiles);
+        const switcher = await openSwitcher();
+        await switcher.getByText('Configure layers').click();
+        const dialog = page.getByRole('dialog');
+        await expect.element(dialog.getByRole('checkbox', { name: 'OpenTopoMap' })).toBeChecked();
+        for (const name of [
+            'Tracestrack Topo',
+            'Google Map',
+            'ESRI Satellite',
+            'Strava heatmap (all)',
+            'Satellite by date',
+        ]) {
+            expect(dialog.getByRole('checkbox', { name, exact: true }).elements(), name).toHaveLength(0);
+        }
+        await expect.element(dialog.getByRole('checkbox', { name: 'Strava heatmap (run)' })).toBeChecked();
     });
 });
 

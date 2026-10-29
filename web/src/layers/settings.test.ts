@@ -90,7 +90,7 @@ describe('Выбор переживает перезагрузку', () => {
             quickLayers: { E: 'I', Sa: 'Sr' },
         };
         saveSettings(storage, settings);
-        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 2 });
+        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 1, groupDefaults: true });
         expect(loadSettings(storage, catalog)).toEqual(settings);
     });
 });
@@ -127,20 +127,20 @@ describe('Круг помнит выбор типа', () => {
 describe('Настройка списка слоёв', () => {
     test('Старые настройки галочек', () => {
         const listed = { Otm: false, Sr: false, Co: false, Gbt: false, Nm: true };
-        const v1 = memoryStorage({
-            [STORAGE_KEY]: JSON.stringify({ version: 1, listed, custom: [], selection: null }),
-        });
-        expect(loadSettings(v1, catalog).listed).toEqual({ Co: false, Gbt: false, Nm: true });
-        // в версии 2 «снят» — выбор пользователя
-        const v2 = memoryStorage({
-            [STORAGE_KEY]: JSON.stringify({ version: 2, listed, custom: [], selection: null }),
-        });
-        expect(loadSettings(v2, catalog).listed).toEqual(listed);
+        const stored = (extra: object) =>
+            memoryStorage({
+                [STORAGE_KEY]: JSON.stringify({ version: 1, listed, custom: [], selection: null, ...extra }),
+            });
+        // запись без groupDefaults писала галочки разом: «снят» у слоя группы без isDefault — прежнее умолчание
+        expect(loadSettings(stored({}), catalog).listed).toEqual({ Co: false, Gbt: false, Nm: true });
+        // с groupDefaults «снят» — выбор пользователя
+        expect(loadSettings(stored({ groupDefaults: true }), catalog).listed).toEqual(listed);
         // настройки старого клиента писали галочки всех слоёв — тот же разбор
         const legacy = memoryStorage({
             [LEGACY_STORAGE_KEY]: JSON.stringify({
                 layers: [
                     { code: 'Otm', enabled: false },
+                    { code: 'Sr', enabled: false },
                     { code: 'Co', enabled: false },
                 ],
             }),

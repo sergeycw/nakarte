@@ -208,7 +208,8 @@ export function LayerSwitcher() {
                         </RadioGroup>
                     )}
                     {sections.map(section)}
-                    <div className="flex flex-col border-border border-t pt-0.5">
+                    {/* первая в панели — без своих подложек и оверлеев в списке: линия над ней лишняя */}
+                    <div className="flex flex-col border-border border-t pt-0.5 first:border-t-0 first:pt-0">
                         <Button
                             variant="ghost"
                             size="xs"

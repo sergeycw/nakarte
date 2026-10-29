@@ -85,7 +85,9 @@ test('Список слоёв', async ({ page }) => {
     const switcher = await openSwitcher(page);
     await switcher.getByText('Configure layers').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(36);
+    // 36 слоёв каталога без пяти кнопок столбца (design custom-bases-in-list)
+    await expect(dialog.getByRole('checkbox')).toHaveCount(31);
+    await expect(dialog.getByRole('checkbox').first()).toHaveAccessibleName('OpenFreeMap Outdoor');
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }

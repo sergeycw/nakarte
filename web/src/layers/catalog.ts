@@ -79,9 +79,9 @@ export const GROUPS = [
 
 // titlesByOrder старого клиента; места своих слоёв — CUSTOM_BOTTOM и CUSTOM_TOP. Отмывка рельефа — над непрозрачными
 // картами-оверлеями и под линейными, чтобы тени ложились на любую подложку и не закрывали тропы.
-// Подложки по умолчанию: Tt, Of, O, E — первыми в полном списке (решение владельца 2026-10-12: OpenFreeMap Outdoor
-// вместо CyclOSM, design add-vector-outdoor-style); CyclOSM — после снимков по датам. Превью справа от порядка не
-// зависят — их список QUICK_BASES (quick-layers.ts, design three-quick-bases)
+// Порядок подложек виден только в Configure layers: в полном списке их нет, круги и меню идут по группам quick-layers.ts
+// (design custom-bases-in-list). Tt, Of, O, E первыми — с решения владельца 2026-10-12 (design
+// add-vector-outdoor-style)
 const ORDER = [
     'Tt',
     'Of',
@@ -245,8 +245,9 @@ function stravaLayer(code: string, kind: string, title: string, env: CatalogEnv)
         title,
         group: 'Routes and traces',
         isOverlay: true,
-        // в списке по умолчанию только «all»: у него переключатель в столбце справа (design layer-thumbnails), у
-        // старого клиента — isDefault: false у всех четырёх
+        // хитмэпы — только кнопка столбца с меню (design custom-bases-in-list), галочки в списке у них по умолчанию и так
+        // стоят (listedByDefault). isDefault у «all» держит группу Routes and traces в секции Overlays списка
+        // (overlaySections в LayerSwitcher.tsx); у старого клиента — isDefault: false у всех четырёх
         isDefault: code === 'Sa',
         opacity: 0.75,
         source: raster([viaCorsProxy(env.corsProxyUrl, url)], STRAVA_ATTRIBUTION, { maxzoom: hiRes ? 15 : 16 }),

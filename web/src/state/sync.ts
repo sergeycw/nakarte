@@ -54,9 +54,9 @@ export function startAppStore({ catalog, corsProxyUrl, defaultView, hash, storag
     });
     const parsed = parseLayersParam(params.get('l'), new Map(catalog.map((layer) => [layer.code, layer])));
     // l=, совпадающий с сохранённым выбором, — свой адрес прошлого захода (приложение всегда пишет l=), а не ссылка:
-    // он не вносит слои в список и не переписывает память столбца. Иначе после перезагрузки слой, выбранный в меню
-    // столбца, навсегда вставал бы в All layers, а память группы менялась бы на последний слой по порядку l= (design
-    // quick-layer-menus)
+    // он не вносит слои в список и не переписывает память столбца. Иначе перезагрузка возвращала бы галочку, снятую у
+    // слоя на карте, а память группы менялась бы на последний слой по порядку l= (design quick-layer-menus, design
+    // custom-bases-in-list)
     const { selection, layers } = store.getState();
     const own =
         settings.selection !== null && params.get('l')?.join('/') === formatLayersParam(selection, layers).join('/');
