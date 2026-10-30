@@ -1,4 +1,4 @@
-import { ChevronDownIcon, LoaderCircleIcon, RouteIcon } from 'lucide-react';
+import { ChevronDownIcon, RouteIcon } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +17,14 @@ import { useAppStore } from '@/state/context';
 import { ACTIVITIES, getActivity } from './brouter';
 import { useRouteEditing } from './editing-context';
 import { tracksRouting } from './line';
+import { RouteThread } from './RouteThread';
 import { routerDownHint, routerDownStatus } from './router';
 
 // Кнопка и меню прокладки в строке списка треков, после «New track», как у старого клиента (спека routing, «Меню
-// активностей»): активна при выбранной активности, красная при недоступном роутере, со спиннером, пока движок
+// активностей»): активна при выбранной активности, красная при недоступном роутере, с ниткой ожидания, пока движок
 // загружается (спека routing, «Движок загружается на кнопке прокладки») и пока отрезок ждёт ответа (спека route-editing,
-// «Ожидание прокладки в верхней строке»). Открытие меню перепроверяет живость роутера.
+// «Ожидание прокладки в верхней строке»): оба — «прокладка ещё не готова», один знак (design route-thread-loader).
+// Открытие меню перепроверяет живость роутера.
 
 const OFF = 'off';
 
@@ -83,7 +85,7 @@ export function RoutingButton({ labeled = false }: { labeled?: boolean }) {
                     />
                 }
             >
-                {loading || routing ? <LoaderCircleIcon className="animate-spin" /> : <RouteIcon />}
+                {loading || routing ? <RouteThread variant="icon" /> : <RouteIcon />}
                 {labeled && (
                     <>
                         <span className="hidden max-w-24 truncate sm:inline">{activity?.title ?? 'Off'}</span>

@@ -16,6 +16,7 @@ import { useElevationProfile } from '@/elevation/context';
 import { cn } from '@/lib/utils';
 import { useRouteEditing } from '@/routing/editing-context';
 import { tracksRouting } from '@/routing/line';
+import { RouteThread } from '@/routing/RouteThread';
 import { RoutingButton } from '@/routing/RoutingButton';
 import { useAppStore } from '@/state/context';
 import { useTrackActions } from './actions-context';
@@ -110,8 +111,12 @@ export function TracksButton({ open, onToggle }: { open: boolean; onToggle: () =
             aria-busy={loading || routing || undefined}
             onClick={onToggle}
         >
-            {loading || routing ? (
-                <LoaderCircleIcon className="animate-spin" aria-label={loading ? 'Loading tracks' : undefined} />
+            {/* загрузка по ссылке — не прокладка: свой спиннер, нитка — только ожидание маршрута (design
+                route-thread-loader) */}
+            {loading ? (
+                <LoaderCircleIcon className="animate-spin" aria-label="Loading tracks" />
+            ) : routing ? (
+                <RouteThread variant="icon" />
             ) : (
                 <ListIcon />
             )}

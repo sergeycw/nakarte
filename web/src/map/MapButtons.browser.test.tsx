@@ -104,6 +104,52 @@ describe('Где я', () => {
     });
 });
 
+describe('Вид кнопки геолокации', () => {
+    // цвет токена так, как его отдаёт getComputedStyle: пробный элемент с тем же фоном
+    function tokenColor(token: string) {
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = `var(${token})`;
+        document.body.append(probe);
+        const color = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return color;
+    }
+    const button = () => page.getByRole('button', { name: 'Find my location' });
+    const icon = () => {
+        const element = button().element().querySelector('.maplibregl-ctrl-icon');
+        if (!element) {
+            throw new Error('нет значка');
+        }
+        return getComputedStyle(element);
+    };
+
+    test('Слежение включено', async () => {
+        fakeGeolocation({ position: { lat: 41.7, lng: 44.8, accuracy: 30 } });
+        await renderApp(tiles, '#m=10/41/44&l=O');
+        await button().click();
+        await expect.element(button()).toHaveClass('maplibregl-ctrl-geolocate-active');
+        expect(getComputedStyle(button().element()).backgroundColor).toBe(tokenColor('--primary'));
+        expect(icon().backgroundColor).toBe(tokenColor('--primary-foreground'));
+        // форма значка — маска: без неё вместо значка был бы белый квадрат
+        expect(icon().backgroundImage).toBe('none');
+        expect(icon().maskImage).toContain('data:image/svg+xml');
+    });
+
+    test('Слежение в фоне', async () => {
+        fakeGeolocation({ position: { lat: 41.7, lng: 44.8, accuracy: 30 } });
+        const { map } = await renderApp(tiles, '#m=10/41/44&l=O');
+        await button().click();
+        // слежение начинается с ответом браузера: до перелёта к положению сдвиг карты состояние не меняет
+        await expect.poll(() => near(map.getCenter(), P(41.7, 44.8)), { timeout: 5000 }).toBe(true);
+        await expect.element(button()).not.toHaveClass('maplibregl-ctrl-geolocate-waiting');
+        // сдвиг карты не от геолокации уводит слежение в фон
+        map.panBy([100, 0], { duration: 0 });
+        await expect.element(button()).toHaveClass('maplibregl-ctrl-geolocate-background');
+        expect(getComputedStyle(button().element()).backgroundColor).not.toBe(tokenColor('--primary'));
+        expect(icon().backgroundColor).toBe(tokenColor('--primary'));
+    });
+});
+
 describe('Последнее положение при заходе', () => {
     test('Заход с запомненным положением', async () => {
         // браузер отвечает другим положением чуть позже — карта переходит к нему
