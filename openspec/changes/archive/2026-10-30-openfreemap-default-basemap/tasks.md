@@ -21,11 +21,11 @@
 
 ## 5. Документы
 
-- [ ] 5.1 `AGENTS.md`: подложка по умолчанию — `Of`, откат цепочкой (`BASEMAP_FALLBACKS`), круг топокарты — `Of`; подвох «у браузера, открывавшего сайт до смены умолчания, остаётся сохранённая подложка» — переписать про `Tt`. `docs/architecture/decisions.md` — строка решения со ссылкой на design. `openspec/backlog.md` — пункт Tracestrack (теперь не по умолчанию) и новый риск «OpenFreeMap без SLA: ежедневная проверка `Of`». Шапка `openspec/research/load-capacity.md` — первый вариант сделан, ссылка на архив. Проверка: проверка ссылок (`links.py`) — битых нет.
+- [x] 5.1 `AGENTS.md`: подложка по умолчанию — `Of`, откат цепочкой (`BASEMAP_FALLBACKS`), круг топокарты — `Of`; подвох «у браузера, открывавшего сайт до смены умолчания, остаётся сохранённая подложка» — переписать про `Tt`. `docs/architecture/decisions.md` — строка решения со ссылкой на design. `openspec/backlog.md` — пункт Tracestrack (теперь не по умолчанию) и новый риск «OpenFreeMap без SLA: ежедневная проверка `Of`». Шапка `openspec/research/load-capacity.md` — первый вариант сделан, ссылка на архив. Проверка: проверка ссылок (`links.py`) — битых нет.
 
 ## 6. Проверка
 
-- [ ] 6.1 Полный прогон: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` с поддельным DSN, `npm run e2e` в `web/`, `openspec validate --all --strict`. Проверка: всё зелёное.
+- [x] 6.1 Полный прогон: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` с поддельным DSN, `npm run e2e` в `web/`, `openspec validate --all --strict`. Проверка: всё зелёное.
 
 ## Workflow follow-up
 
