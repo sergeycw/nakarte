@@ -10,6 +10,7 @@ import { ElevationProfileContext } from '@/elevation/context';
 import { createElevationProfile } from '@/elevation/controller';
 import { ElevationProfile, PROFILE_HEIGHT } from '@/elevation/ElevationProfile';
 import { getEngine } from '@/engine/engine';
+import { createFallbackGate } from '@/layers/basemap-fallback';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
 import { BASEMAP_FALLBACKS } from '@/layers/selection';
@@ -126,6 +127,8 @@ export function App({
 }: AppProps) {
     const [store] = useState(startStore);
     const [atPosition] = useState(() => startsAtPosition(window.location.hash));
+    // откатывать ли подложку по ошибке её источника (layers/basemap-fallback.ts): помнит, какие подложки уже показали тайлы
+    const [fallbackGate] = useState(() => createFallbackGate());
     useEffect(() => {
         if (atPosition) {
             refreshPosition(navigator.geolocation, localStorageOrNull(), (position) =>
@@ -215,22 +218,14 @@ export function App({
     // синглтон, повторный вызов в Strict Mode его не создаёт второй раз
     useEffect(() => routeEditing.warmUp(), [routeEditing]);
 
-    function showTileError(code: string, status: number | undefined) {
-        // 404 — «тайла нет» у региональных и разреженных слоёв (Slazav внутри района), это не ошибка
-        if (status === 404) {
-            return;
-        }
-        // GIBS на пустой тайл даты (над тайлом в этот день не снимали) то отвечает прозрачным PNG, то 500 — вперемешку,
-        // проверено curl 2026-10-12 (design add-dated-imagery): тост на каждый такой тайл был бы ложным. Пустой слой виден и так
-        if (store.getState().layers.get(code)?.dated) {
-            return;
-        }
+    function showTileError(code: string, status: number | undefined, tile: boolean) {
         // подложка с откатом (OpenFreeMap Outdoor без SLA, Tracestrack Topo без ключа или квоты) при сбое оставила бы
         // серый фон — вместо тоста ошибки откат на следующую в цепочке Of → Tt → O (спека map-layers, «Откат подложки при
-        // ошибке тайлов»). Ошибки её тайлов, пришедшие уже после смены подложки, молча отбрасываются
+        // ошибке тайлов»). Когда откатывать, решает fallbackGate: разовый сбой сети уже показанной подложки её не
+        // откатывает. Ошибки её тайлов, пришедшие уже после смены подложки, молча отбрасываются
         const next = BASEMAP_FALLBACKS[code];
         if (next) {
-            if (store.getState().fallBackBase(code)) {
+            if (fallbackGate.shouldFallBack(code, { status, tile }) && store.getState().fallBackBase(code)) {
                 const { layers } = store.getState();
                 toast.add({
                     id: `basemap-fallback:${code}`,
@@ -239,6 +234,15 @@ export function App({
                     type: 'error',
                 });
             }
+            return;
+        }
+        // 404 — «тайла нет» у региональных и разреженных слоёв (Slazav внутри района), это не ошибка
+        if (status === 404) {
+            return;
+        }
+        // GIBS на пустой тайл даты (над тайлом в этот день не снимали) то отвечает прозрачным PNG, то 500 — вперемешку,
+        // проверено curl 2026-10-12 (design add-dated-imagery): тост на каждый такой тайл был бы ложным. Пустой слой виден и так
+        if (store.getState().layers.get(code)?.dated) {
             return;
         }
         // постоянный id на слой: Base UI обновляет тост с тем же id на месте, серия ошибок даёт один тост
@@ -271,6 +275,7 @@ export function App({
                                 >
                                     <BaseMap
                                         onTileError={showTileError}
+                                        onTileLoad={fallbackGate.tileLoaded}
                                         transformRequest={transformRequest}
                                         ref={mapRef}
                                     >

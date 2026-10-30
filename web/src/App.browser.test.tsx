@@ -192,6 +192,15 @@ describe('Подложка OpenFreeMap Outdoor', () => {
         await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
     });
 
+    test('Описание тайлов пропало: 404 на TileJSON — тоже откат', async () => {
+        // закрытый или переименованный адрес OpenFreeMap ответит 404: это не «тайла нет», источника нет вовсе
+        tiles.respond(OPENFREEMAP_TILEJSON, MISSING_URL);
+        const { map } = await renderApp('#m=8/41.7/44.8&l=Of');
+        await expect.element(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
+        await expect.poll(() => map.getLayer('Tt')).toBeDefined();
+        expect(location.hash).toContain('l=Of');
+    });
+
     test('Недоступны обе', async () => {
         tiles.respond(OPENFREEMAP_TILEJSON, UNAVAILABLE_URL);
         tiles.respond(TRACESTRACK, UNAVAILABLE_URL);
@@ -203,6 +212,7 @@ describe('Подложка OpenFreeMap Outdoor', () => {
         await expect.poll(() => tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
     });
 
+    // 404 векторного тайла MapLibre считает пустым тайлом и ошибкой не шлёт: тест держит это поведение, а не логику App
     test('Тайла нет', async () => {
         tiles.respond(OPENFREEMAP_TILES, MISSING_URL);
         const { map } = await renderApp('#l=Of');
