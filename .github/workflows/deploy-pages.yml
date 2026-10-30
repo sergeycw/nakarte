@@ -267,3 +267,5 @@ jobs:
       || needs.changes.outputs.cors_proxy == 'true' || needs.changes.outputs.tracks == 'true'
       || needs.changes.outputs.elevation == 'true' || needs.changes.outputs.guard == 'true') }}
     uses: ./.github/workflows/prod-check.yml
+    with:
+      settle_seconds: 60
