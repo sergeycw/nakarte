@@ -52,10 +52,16 @@ afterEach(() => {
 });
 
 describe('старт', () => {
-    test('Первый заход без настроек: Tracestrack Topo и вид по умолчанию сразу в адресе', () => {
+    test('Первый заход без настроек: OpenFreeMap Outdoor и вид по умолчанию сразу в адресе', () => {
         const { win, store } = start('');
-        expect(store.getState().selection).toEqual({ base: 'Tt', overlays: [] });
-        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt');
+        expect(store.getState().selection).toEqual({ base: 'Of', overlays: [] });
+        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Of');
+    });
+
+    test('Tracestrack до смены умолчания: сохранённый выбор важнее нового умолчания', () => {
+        const storage = memoryStorage();
+        start('', storage).store.getState().selectBase('Tt');
+        expect(start('', storage).store.getState().selection).toEqual({ base: 'Tt', overlays: [] });
     });
 
     test('Ссылка с видом и слоями: прочие параметры остаются на местах', () => {
@@ -90,27 +96,30 @@ describe('старт', () => {
         const storage = memoryStorage();
         const first = start('', storage);
         first.store.getState().toggleOverlay('Hs');
+        // откат по всей цепочке: OpenFreeMap → Tracestrack → OSM
+        first.store.getState().fallBackBase('Of');
         first.store.getState().fallBackBase('Tt');
+        expect(first.store.getState().selection.base).toBe('O');
         // в адресе — выбор, а не подложка отката
-        expect(first.win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt/Hs');
+        expect(first.win.location.hash).toBe('#m=8/49.73868/33.45886&l=Of/Hs');
         first.unbind();
-        expect(start('', storage).store.getState().selection).toEqual({ base: 'Tt', overlays: ['Hs'] });
+        expect(start('', storage).store.getState().selection).toEqual({ base: 'Of', overlays: ['Hs'] });
     });
 
-    test('перезагрузка вкладки после отката снова пробует Tracestrack и не сохраняет OSM', () => {
+    test('перезагрузка вкладки после отката снова пробует OpenFreeMap и не сохраняет Tracestrack', () => {
         const storage = memoryStorage();
         const first = start('', storage);
-        first.store.getState().fallBackBase('Tt');
+        first.store.getState().fallBackBase('Of');
         first.unbind();
         const reload = start(first.win.location.hash.slice(1), storage);
-        expect(reload.store.getState().selection.base).toBe('Tt');
-        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '').selection.base).toBe('Tt');
+        expect(reload.store.getState().selection.base).toBe('Of');
+        expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '').selection.base).toBe('Of');
     });
 
     test('l= из адреса после отката — выбор пользователя', () => {
         const storage = memoryStorage();
         const { store, win, unbind } = start('', storage);
-        store.getState().fallBackBase('Tt');
+        store.getState().fallBackBase('Of');
         win.navigate('m=8/49.73868/33.45886&l=O');
         expect(store.getState().basemapFallback).toBeNull();
         unbind();
@@ -126,7 +135,7 @@ describe('старт', () => {
     test('Выбор после отката сохраняется', () => {
         const storage = memoryStorage();
         const first = start('', storage);
-        first.store.getState().fallBackBase('Tt');
+        first.store.getState().fallBackBase('Of');
         first.store.getState().selectBase('E');
         first.unbind();
         expect(start('', storage).store.getState().selection.base).toBe('E');
@@ -168,16 +177,16 @@ describe('запись в адрес', () => {
         const { win, store } = start('m=10/41/44&p=1');
         store.getState().setView({ lat: 41.5, lng: 44.5, zoom: 10 });
         store.getState().setView({ lat: 41.6, lng: 44.6, zoom: 10.5 });
-        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Of');
         vi.advanceTimersByTime(300);
-        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&p=1&l=Tt');
+        expect(win.location.hash).toBe('#m=11.5/41.60000/44.60000&p=1&l=Of');
     });
 
     test('смена слоёв пишется сразу, оверлеи — по порядку наложения', () => {
         const { win, store } = start('');
         store.getState().toggleOverlay('Sa');
         store.getState().toggleOverlay('Nm');
-        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Tt/Nm/Sa');
+        expect(win.location.hash).toBe('#m=8/49.73868/33.45886&l=Of/Nm/Sa');
     });
 });
 
@@ -193,7 +202,7 @@ describe('адрес поменяли руками', () => {
         const { win, store } = start('');
         win.navigate('p=key');
         expect(store.getState().viewRequest).toBeNull();
-        expect(win.location.hash).toBe('#p=key&m=8/49.73868/33.45886&l=Tt');
+        expect(win.location.hash).toBe('#p=key&m=8/49.73868/33.45886&l=Of');
     });
 });
 
@@ -215,7 +224,7 @@ describe('параметры треков', () => {
             ],
             false,
         );
-        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Tt');
+        expect(win.location.hash).toBe('#m=10/41.00000/44.00000&p=1&l=Of');
     });
 
     test('Ссылка вставлена в адрес: параметр с hashchange тоже грузится и стирается', () => {

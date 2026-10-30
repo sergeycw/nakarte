@@ -12,7 +12,7 @@ import { ElevationProfile, PROFILE_HEIGHT } from '@/elevation/ElevationProfile';
 import { getEngine } from '@/engine/engine';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
-import { DEFAULT_SELECTION, FALLBACK_BASE } from '@/layers/selection';
+import { BASEMAP_FALLBACKS } from '@/layers/selection';
 import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
@@ -225,16 +225,17 @@ export function App({
         if (store.getState().layers.get(code)?.dated) {
             return;
         }
-        // подложка по умолчанию (Tracestrack Topo) без ключа, квоты или при сбое оставила бы серый фон — вместо тоста
-        // ошибки откат на OpenStreetMap (спека map-layers, «Откат подложки Tracestrack на OpenStreetMap»). Ошибки её
-        // тайлов, пришедшие уже после смены подложки, молча отбрасываются
-        if (code === DEFAULT_SELECTION.base) {
+        // подложка с откатом (OpenFreeMap Outdoor без SLA, Tracestrack Topo без ключа или квоты) при сбое оставила бы
+        // серый фон — вместо тоста ошибки откат на следующую в цепочке Of → Tt → O (спека map-layers, «Откат подложки при
+        // ошибке тайлов»). Ошибки её тайлов, пришедшие уже после смены подложки, молча отбрасываются
+        const next = BASEMAP_FALLBACKS[code];
+        if (next) {
             if (store.getState().fallBackBase(code)) {
                 const { layers } = store.getState();
                 toast.add({
                     id: `basemap-fallback:${code}`,
                     title: `${layers.get(code)?.title ?? code} is unavailable`,
-                    description: `Switched to ${layers.get(FALLBACK_BASE)?.title ?? FALLBACK_BASE}`,
+                    description: `Switched to ${layers.get(next)?.title ?? next}`,
                     type: 'error',
                 });
             }

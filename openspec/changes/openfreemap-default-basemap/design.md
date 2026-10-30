@@ -34,7 +34,7 @@
 
 ### Ошибка векторного источника
 
-Описание тайлов (TileJSON) и `.pbf` приходят тем же событием `error` карты с `sourceId = 'Of'`; `layerCodeOfSource` даёт `Of`. Что MapLibre шлёт на отказ TileJSON (статус, есть ли `sourceId`) — проверить browser-тестом с подменённым ответом TileJSON (`/__status__/503/…` dev-сервера Vitest или `transformRequest`); если `sourceId` нет — ловить по адресу запроса в ошибке. `404` `.pbf` у OpenFreeMap не бывает в покрытии (пустой тайл), но правило «`404` — не откат» общее.
+Описание тайлов (TileJSON) и `.pbf` приходят тем же событием `error` карты с `sourceId = 'Of'`; `layerCodeOfSource` даёт `Of`. Проверено в apply browser-тестом «OpenFreeMap недоступен: описание тайлов» (TileJSON подменён на `/__status__/503/…` dev-сервера Vitest, фикстура `src/test/tiles.ts` научилась подменять и его): MapLibre 6 шлёт отказ TileJSON событием `error` с `sourceId = 'Of'`, отдельной ловли по адресу не нужно. `404` `.pbf` у OpenFreeMap не бывает в покрытии (пустой тайл), но правило «`404` — не откат» общее.
 
 ### Круг топокарты — `Of`
 

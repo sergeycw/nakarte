@@ -3,7 +3,7 @@ import oldLinksText from '../state/fixtures/old-links.txt?raw';
 import { parseHash } from '../state/hash';
 import { buildCatalog, type LayerDef } from './catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from './custom';
-import { DEFAULT_SELECTION, formatLayersParam, parseLayersParam, validSelection } from './selection';
+import { BASEMAP_FALLBACKS, DEFAULT_SELECTION, formatLayersParam, parseLayersParam, validSelection } from './selection';
 
 const catalog = buildCatalog({ pixelRatio: 1, language: 'en', corsProxyUrl: 'https://proxy.test/' });
 const byCode = new Map(catalog.map((layer) => [layer.code, layer]));
@@ -105,13 +105,24 @@ describe('Слои в адресе', () => {
     });
 });
 
+describe('Откат подложки при ошибке тайлов', () => {
+    test('цепочка OpenFreeMap Outdoor → Tracestrack Topo → OpenStreetMap, дальше отката нет', () => {
+        expect(BASEMAP_FALLBACKS).toEqual({ Of: 'Tt', Tt: 'O' });
+        for (const code of Object.values(BASEMAP_FALLBACKS)) {
+            expect(byCode.get(code)?.isOverlay, code).toBe(false);
+        }
+        expect(BASEMAP_FALLBACKS.O).toBeUndefined();
+        expect(BASEMAP_FALLBACKS.E).toBeUndefined();
+    });
+});
+
 describe('сохранённый выбор', () => {
     test('пропавшие слои отбрасываются, без подложки — по умолчанию', () => {
-        // подложка по умолчанию — Tracestrack Topo (спека map-layers, «Подложка по умолчанию»)
-        expect(DEFAULT_SELECTION).toEqual({ base: 'Tt', overlays: [] });
+        // подложка по умолчанию — OpenFreeMap Outdoor (спека map-layers, «Подложка по умолчанию»)
+        expect(DEFAULT_SELECTION).toEqual({ base: 'Of', overlays: [] });
         expect(validSelection(null, byCode)).toEqual(DEFAULT_SELECTION);
         expect(validSelection({ base: 'Y', overlays: ['W', 'Hs', 'Hs', 'O'] }, byCode)).toEqual({
-            base: 'Tt',
+            base: 'Of',
             overlays: ['Hs'],
         });
         expect(validSelection({ base: 'E', overlays: [] }, byCode)).toEqual({ base: 'E', overlays: [] });

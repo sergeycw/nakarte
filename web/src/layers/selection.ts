@@ -2,10 +2,16 @@ import type { LayerDef } from './catalog';
 import { isCustomLayerCode, parseCustomLayerCode } from './custom';
 import { canonicalCustomCode, type Selection } from './settings';
 
-// Подложка по умолчанию — Tracestrack Topo (решение владельца, design add-outdoor-basemap); до этого был OpenStreetMap,
-// первый слой списка старого клиента. При ошибке её тайлов — откат на FALLBACK_BASE (App, стор basemapFallback)
-export const DEFAULT_SELECTION: Selection = { base: 'Tt', overlays: [] };
-export const FALLBACK_BASE = 'O';
+// Подложка по умолчанию — векторная OpenFreeMap Outdoor (владелец 2026-10-30, design openfreemap-default-basemap): у
+// публичного OpenFreeMap нет лимита запросов, а бесплатной квоты Tracestrack Topo (умолчание с add-outdoor-basemap)
+// хватало на ≈ 900 активных заходов в месяц (openspec/research/load-capacity.md). До Tracestrack был OpenStreetMap,
+// первый слой списка старого клиента
+export const DEFAULT_SELECTION: Selection = { base: 'Of', overlays: [] };
+
+// Откат подложки при ошибке её тайлов (App, стор basemapFallback): следующая в цепочке Of → Tt → O. У OpenFreeMap нет
+// SLA — откат на Tracestrack тратит её квоту только во время сбоя; OSM — последний: правила OSMF не дают нагружать его
+// приложением. У O и прочих подложек следующей нет — их ошибки дают обычный тост
+export const BASEMAP_FALLBACKS: Readonly<Record<string, string>> = { Of: 'Tt', Tt: 'O' };
 
 export interface ParsedLayers {
     selection: Selection;

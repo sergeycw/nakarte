@@ -46,7 +46,9 @@ export function fixtureTiles(): FixtureTiles {
             // описание тайлов векторной подложки — не тайл, но и не утечка: записывается вместе с тайлами
             if (url === OPENFREEMAP_TILEJSON) {
                 tiles.requested.push(url);
-                return { url: OPENFREEMAP_TILEJSON_FIXTURE };
+                // respond подменяет и описание тайлов: так тест роняет OpenFreeMap целиком (откат Of → Tt)
+                const override = overrides.find(([pattern]) => pattern.test(url));
+                return { url: override ? override[1] : OPENFREEMAP_TILEJSON_FIXTURE };
             }
             if (resourceType !== 'Tile') {
                 tiles.external.push(url);

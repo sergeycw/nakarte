@@ -6,9 +6,9 @@
 
 ## 2. Умолчание и цепочка отката
 
-- [ ] 2.1 `selection.ts`: `DEFAULT_SELECTION.base = 'Of'`, таблица `BASEMAP_FALLBACKS = { Of: 'Tt', Tt: 'O' }` вместо `FALLBACK_BASE`; комментарий — почему `Of` и откуда цепочка. Проверка: unit `selection.test.ts` — умолчание `Of`, следующая подложка для `Of`, `Tt`, у `O` и прочих — нет.
-- [ ] 2.2 `store.ts`: `fallBackBase` по таблице, `basemapFallback` — первая подложка цепочки; `savedSelection` сохраняет её, пока текущая подложка — звено цепочки после неё. Проверка: unit `store.test.ts` — «OpenFreeMap недоступен», «Недоступны обе» (`Of` → `Tt` → `O`, `basemapFallback` = `Of`, сохраняется `Of`), «Нет ключа или квоты» (`Tt` → `O`), «Выбор после отката»; `sync.test.ts` — «Первый заход без настроек» (`l=Of`), «Следующий заход после отката» (пробует `Of`), «Tracestrack до смены умолчания».
-- [ ] 2.3 `App.tsx` `showTileError`: откат для любого кода из таблицы, тост `<подложка> is unavailable` / `Switched to <следующая>`. Проверить, с каким `sourceId` и статусом MapLibre шлёт отказ TileJSON `Of`, и ловить его (design, «Ошибка векторного источника»). Проверка: browser `App.browser.test.tsx` — «OpenFreeMap недоступен» (TileJSON и тайлы `Of` — `503`), «Недоступны обе», «Нет ключа или квоты» (`l=Tt`), «Тайла нет» (`404` у `Of` и `Tt`).
+- [x] 2.1 `selection.ts`: `DEFAULT_SELECTION.base = 'Of'`, таблица `BASEMAP_FALLBACKS = { Of: 'Tt', Tt: 'O' }` вместо `FALLBACK_BASE`; комментарий — почему `Of` и откуда цепочка. Проверка: unit `selection.test.ts` — умолчание `Of`, следующая подложка для `Of`, `Tt`, у `O` и прочих — нет.
+- [x] 2.2 `store.ts`: `fallBackBase` по таблице, `basemapFallback` — первая подложка цепочки; `savedSelection` сохраняет её, пока текущая подложка — звено цепочки после неё. Проверка: unit `store.test.ts` — «OpenFreeMap недоступен», «Недоступны обе» (`Of` → `Tt` → `O`, `basemapFallback` = `Of`, сохраняется `Of`), «Нет ключа или квоты» (`Tt` → `O`), «Выбор после отката»; `sync.test.ts` — «Первый заход без настроек» (`l=Of`), «Следующий заход после отката» (пробует `Of`), «Tracestrack до смены умолчания».
+- [x] 2.3 `App.tsx` `showTileError`: откат для любого кода из таблицы, тост `<подложка> is unavailable` / `Switched to <следующая>`. Проверить, с каким `sourceId` и статусом MapLibre шлёт отказ TileJSON `Of`, и ловить его (design, «Ошибка векторного источника»). Проверка: browser `App.browser.test.tsx` — «OpenFreeMap недоступен» (TileJSON и тайлы `Of` — `503`), «Недоступны обе», «Нет ключа или квоты» (`l=Tt`), «Тайла нет» (`404` у `Of` и `Tt`).
 
 ## 3. Круг топокарты
 
