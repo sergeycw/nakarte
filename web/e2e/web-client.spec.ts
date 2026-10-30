@@ -171,6 +171,12 @@ test('Иконка сайта', async ({ page }) => {
         expect(response.status(), path).toBe(200);
         expect(response.headers()['content-type'], path).toContain(type);
     }
+    // содержимое: в ICO три картинки 16, 32 и 48 px (поле ширины каждой записи каталога), PNG — 180×180 по заголовку IHDR
+    const ico = await (await page.request.get('favicon.ico')).body();
+    const count = ico.readUInt16LE(4);
+    expect(Array.from({ length: count }, (_, i) => ico.readUInt8(6 + 16 * i))).toEqual([16, 32, 48]);
+    const touch = await (await page.request.get('apple-touch-icon.png')).body();
+    expect([touch.readUInt32BE(16), touch.readUInt32BE(20)]).toEqual([180, 180]);
 });
 
 test('Первый заход', async ({ page, network }) => {

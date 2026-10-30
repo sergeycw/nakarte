@@ -7,7 +7,7 @@
 ## What Changes
 
 - Иконка сайта — векторная копия картинки владельца, `web/public/favicon.svg`: скруглённый квадрат `#3662a4` и белая тропа плавной кривой Безье вместо ступенчатого растра.
-- `favicon.ico` (16, 32 и 48 px) для браузеров без SVG-иконок и `apple-touch-icon.png` (180 px, без скругления: iOS скругляет сам) — из того же SVG скриптом `scripts/favicon.mjs`.
+- `favicon.ico` (16, 32 и 48 px) для браузеров без SVG-иконок и `apple-touch-icon.png` (180 px, квадрат во весь размер без прозрачности) — из того же SVG скриптом `scripts/favicon.mjs`.
 - `web/index.html` ссылается на все три.
 
 ## Capabilities
@@ -22,4 +22,4 @@
 
 - `web/public/favicon.svg`, `web/public/favicon.ico`, `web/public/apple-touch-icon.png`, `web/index.html`, `scripts/favicon.mjs`.
 - Тесты: `web/e2e/web-client.spec.ts` («Иконка сайта»).
-- Документы: `AGENTS.md` (карта репозитория, `scripts/`).
+- Документы: `AGENTS.md` (карта репозитория, `scripts/`), `docs/architecture/client.md` (файлы `web/public/`).

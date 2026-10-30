@@ -1,7 +1,8 @@
 // Иконки сайта из web/public/favicon.svg (change site-favicon): favicon.ico с картинками 16, 32 и 48 px для браузеров
-// без SVG-иконок и apple-touch-icon.png 180 px для iOS. iOS сам скругляет углы и не любит прозрачность, поэтому у
-// apple-touch-icon квадрат без скругления (rx="0" вместо rx="174"). Сам favicon.svg — векторная копия картинки
-// владельца 2026-10-30: средняя линия белой полосы снята с растра 1024 px и сглажена кривой Безье.
+// без SVG-иконок и apple-touch-icon.png 180 px для экрана iPhone. У apple-touch-icon — квадрат во весь размер с синим
+// фоном, без своего скругления и без прозрачности (rx="0" вместо rx="174", рендер без omitBackground). Сам favicon.svg —
+// векторная копия картинки владельца 2026-10-30: средняя линия белой полосы снята с растра 1024 px и сглажена кривой
+// Безье (design site-favicon).
 //
 // Запуск из корня: PATH=/usr/local/bin:$PATH node scripts/favicon.mjs. Нужен Chromium Playwright из web/node_modules
 // (npm ci в web/); сеть не нужна.
@@ -23,19 +24,21 @@ if (square === svg) {
 }
 
 const browser = await chromium.launch();
-async function render(source, size) {
+// transparent — прозрачный фон вне скругления (картинки ICO); без него углы — белый фон страницы, поэтому для
+// apple-touch-icon квадрат рисуется без скругления
+async function render(source, size, transparent) {
     const page = await browser.newPage({viewport: {width: size, height: size}});
     const url = `data:image/svg+xml;base64,${Buffer.from(source).toString('base64')}`;
     await page.setContent(
         `<body style="margin:0"><img src="${url}" width="${size}" height="${size}" style="display:block"></body>`,
     );
     await page.locator('img').evaluate((img) => img.decode());
-    const png = await page.screenshot({omitBackground: true});
+    const png = await page.screenshot({omitBackground: transparent});
     await page.close();
     return png;
 }
 
-// ICO с картинками PNG внутри (так умеют все браузеры с поддержкой ICO): заголовок 6 байт, по 16 байт на картинку
+// ICO с картинками PNG внутри: заголовок 6 байт, по 16 байт на картинку (размер, 32 бита на пиксель, длина, смещение)
 function ico(images) {
     const header = Buffer.alloc(6 + 16 * images.length);
     header.writeUInt16LE(0, 0);
@@ -58,10 +61,10 @@ function ico(images) {
 try {
     const images = [];
     for (const size of [16, 32, 48]) {
-        images.push({size, png: await render(svg, size)});
+        images.push({size, png: await render(svg, size, true)});
     }
     await writeFile(join(PUBLIC, 'favicon.ico'), ico(images));
-    await writeFile(join(PUBLIC, 'apple-touch-icon.png'), await render(square, 180));
+    await writeFile(join(PUBLIC, 'apple-touch-icon.png'), await render(square, 180, false));
     console.log('favicon.ico (16, 32, 48) and apple-touch-icon.png (180) written to web/public');
 } finally {
     await browser.close();
