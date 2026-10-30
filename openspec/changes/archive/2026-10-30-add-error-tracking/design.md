@@ -27,7 +27,7 @@
 
 ### SDK: `@sentry/react`, запуск до рендера, статический импорт
 
-`main.tsx` вызывает `startErrorTracking(dsn)` из нового модуля `web/src/errors/` до `createRoot`, а `createRoot` получает `onUncaughtError` и `onRecoverableError` из `Sentry.reactErrorHandler()` (React 19 даёт эти колбэки у корня, отдельный Error Boundary не нужен). Глобальные `error` и `unhandledrejection` SDK ловит сам (интеграция `GlobalHandlers` по умолчанию).
+`main.tsx` вызывает `startErrorTracking(dsn)` из нового модуля `web/src/errors/` до `createRoot`, а `createRoot` получает `onUncaughtError` и `onRecoverableError` из `Sentry.reactErrorHandler()` без колбэка (React 19 даёт эти колбэки у корня, отдельный Error Boundary не нужен; с колбэком SDK пометил бы ошибку `handled`) и сам печатает ошибку в консоль: со своим обработчиком React её больше не пишет. Глобальные `error` и `unhandledrejection` SDK ловит сам (интеграция `GlobalHandlers` по умолчанию).
 
 - Импорт статический: самые важные ошибки — при запуске (пустая карта, WebGL), и динамический импорт SDK их бы пропускал. Цена — размер: SDK лёг в общий чанк `engine-*.js` (его делят приложение и стенд движка, страница грузит его сразу через `modulepreload`). Замер apply 2026-10-30, gzip: до — `index` 236.26 КБ + `engine` 2.15 КБ (деплой `e89ef337`), после — `index` 233.52 КБ + `engine` 36.39 КБ, то есть +31.5 КБ к коду приложения (≈ +13 %; с MapLibre 289 КБ и CSS 24 КБ — ≈ +6 % к загрузке страницы). Принято. Альтернатива — свой маленький буфер ранних ошибок до динамической загрузки SDK — сложнее, отклонена.
 - Пустой DSN: `startErrorTracking` выходит до `Sentry.init`, обработчиков нет, запросов нет.
@@ -35,15 +35,17 @@
 
 ### Что уходит и что вырезается
 
-- `integrations`: из стандартных убирается `BrowserSession` (сессия на каждый заход — запрос без ошибки, против требования «Заход без ошибок»); трассировка и Replay не подключаются.
+- `integrations`: стандартные v11 — EventFilters, FunctionToString, ConversationId, BrowserApiErrors, Breadcrumbs, Console, GlobalHandlers, LinkedErrors, Dedupe, HttpContext, CultureContext, BrowserSession; трассировка, Replay и Feedback не подключаются.
 - `beforeSend`: адрес страницы в `request.url` и в `request` — только `origin + pathname`; `request.headers` и `request.query_string` удаляются. Это чистая функция в `web/src/errors/`, unit-тест на ссылках из фикстуры старых ссылок `src/state/fixtures/old-links.txt`.
-- `beforeBreadcrumb`: остаются только `ui.click` и `ui.input` (селектор элемента, без значения поля). `fetch`, `xhr`, `navigation` и `console` отбрасываются целиком: в их адресах и текстах координаты, номера тайлов и треки. Обрезать адреса по частям ненадёжно (`/tiles/E40_N40.rd5`, путь тайла `z/x/y`), список разрешённых категорий надёжнее списка запрещённых.
+- `beforeBreadcrumb`: остаются только `ui.click` и `ui.input`. `fetch`, `xhr`, `navigation` и `console` отбрасываются целиком: в их адресах и текстах координаты, номера тайлов и треки. Обрезать адреса по частям ненадёжно (`/tiles/E40_N40.rd5`, путь тайла `z/x/y`), список разрешённых категорий надёжнее списка запрещённых. Селектор клика SDK (`htmlTreeAsString`) всегда дописывает значения `aria-label`, `title`, `name` и `alt`, а у нас там названия треков (`Actions for <трек>`) и метка с координатами (найдено ревью диффа). Поэтому селектор собирается заново из цели события (`hint.event.target`): тег и `data-testid` до пяти предков — их пишет код, а не пользователь.
+- `scrubEvent` удаляет `extra`: туда SDK кладёт брошенный не-`Error` целиком (`__serialized__`). Из заголовков SDK берёт только `User-Agent` (`httpHeaders.request: { allow: ['user-agent'] }`; прочие он заменяет на `[Filtered]`, `scrubEvent` их удаляет).
+- Убраны интеграции `BrowserSession` (сессия на каждый заход) и `CultureContext` (часовой пояс — регион); `sendClientReports: false` — отчёт клиента об отброшенных событиях (ошибки расширений вне `allowUrls`) уходил бы при скрытии вкладки без нашей ошибки; `enhanceFetchErrorMessages: 'report-only'` — по умолчанию `'always'` SDK дописывал бы хост в `error.message` каждого упавшего `fetch`, а сообщения приложение показывает в тостах.
 - `allowUrls` — только скрипты своего origin: ошибки расширений браузера и чужих скриптов (Google Maps, CheerpJ с CDN) не тратят лимит. Ошибки CheerpJ доходят своим путём (ниже), не через стек чужого скрипта.
 - `environment` — `production`; версию сборки задают Debug ID карт исходников (ниже), отдельный `release` не нужен.
 
 ### Отказ движка
 
-`EngineOptions` в `engine.ts` получает необязательный колбэк `onBackendError(name, error)`; `startBackends` зовёт его в своём `catch` для каждого бэкенда. Колбэк трекера передаёт только синглтон приложения (`createEngine(defaultBackends(), …)` в том же файле); стенд `/engine-bench.html` и unit-тесты собирают движок без него, тест проверяет колбэк поддельными бэкендами без Sentry. Отчёт — `captureException` с тегом `engine.backend`.
+`EngineOptions` в `engine.ts` получает необязательный колбэк `onBackendError(name, error)`; `startBackends` зовёт его в своём `catch` для каждого бэкенда. Колбэк трекера передаёт только синглтон приложения (`createEngine(defaultBackends(), …)` в том же файле); стенд `/engine-bench.html` и unit-тесты собирают движок без него, тест проверяет колбэк поддельными бэкендами без Sentry. Отчёт — `captureException` своей ошибки `BRouter engine <бэкенд> failed to start: <текст>` с тегом `engine.backend`: исходную ошибку создаёт код CheerpJ с CDN, и `allowUrls` по её последнему кадру отбросил бы отчёт, а исключение Java — вовсе не `Error` (ревью диффа).
 
 - Повтор запуска при каждом клике отправлял бы один и тот же отказ снова: отчёт об отказе бэкенда — не чаще раза за загрузку страницы на бэкенд (набор отправленных имён в модуле трекера).
 - `route-failed` не отправляется: это ответ роутера («маршрута нет»), он уже показан пользователю тостом (требование «Маршрута нет»).
@@ -61,6 +63,7 @@ DSN не секрет — он попадает в бандл и виден лю
 2. `sentry-cli sourcemaps inject build` (точная версия через `npx`) — без токена: дописывает Debug ID в бандл и карты. Шаг идёт до e2e, чтобы e2e проверяли ровно то, что выкатится.
 3. e2e.
 4. `sentry-cli sourcemaps upload build` с `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` — только если токен заведён.
+   Шаг с `continue-on-error`: упавшая загрузка (сбой Sentry, нет `SENTRY_ORG`) деплой не останавливает — стек в Sentry тогда без исходников, а сайт выкатывается.
 5. `find build -name '*.map' -delete` и проверка, что карт нет, — всегда, до `wrangler pages deploy`.
 
 Сборка `check-web` и локальная `npm run build` тоже дают карты; в `build/` они безвредны (не публикуются), но `check-no-author-hosts` и прочие проверки бандла не должны на них спотыкаться — проверить в apply.
@@ -70,6 +73,7 @@ DSN не секрет — он попадает в бандл и виден лю
 - unit (Node): очистка события (`beforeSend`) на ссылках с `m=`, `nktk`, `nktl`, `r=`, `?` и `#`; фильтр хлебных крошек по категориям; повтор отказа бэкенда отправляется один раз.
 - unit движка (`engine.test.ts`): `onBackendError` вызван для каждого упавшего бэкенда, не вызван при успешном запуске и при `route-failed`.
 - unit «Сборка без DSN» (`errors/tracking.test.ts`, SDK подменён): без DSN `Sentry.init` и `captureException` не вызываются, `fetch` не тронут. Без `init` у SDK нет клиента и транспорта, так что этого достаточно; настоящее брошенное исключение в browser mode Vitest засчитал бы как упавший тест.
+- e2e, все тесты: фикстура `network` в конце каждого теста требует, чтобы отчётов Sentry не было, если тест их не забрал (`takeSentryEnvelopes`) — на сборке с DSN это сценарий «Заход без ошибок» для прокладки, профиля, слоёв и поиска.
 - e2e: заглушка приёма Sentry в `network` (`*.ingest.sentry.io` и регион `*.ingest.de.sentry.io` — ответ `200`, тела сохраняются, как `FAKE_GOOGLE_MAPS`); сценарии «Ошибка на странице» (исключение из `page.evaluate` через `setTimeout`, в конверте нет `#`, `m=`, координат и адресов запросов) и «Заход без ошибок» (открыть ссылку с треком — ноль конвертов). Без DSN в сборке эти тесты пропускаются (`test.skip` с причиной): локальная `npm run build` без секрета. В `check-web.yml` сборка получает поддельный DSN (`https://public@o0.ingest.sentry.io/0` — формат DSN, не секрет), чтобы e2e шли всегда; в деплое — настоящий, приём подменён той же заглушкой.
 
 ## Risks / Trade-offs

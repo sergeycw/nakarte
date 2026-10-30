@@ -5,6 +5,8 @@ import { keepBreadcrumb, scrubEvent } from './scrub';
 // «Запросы к Sentry только с ошибкой»; design add-error-tracking). Включается только адресом проекта (DSN) из сборки
 // прода: без него Sentry.init не зовётся, и ни обработчиков, ни запросов нет — dev-сервер, тесты, форки.
 
+const DROPPED_INTEGRATIONS = new Set(['BrowserSession', 'CultureContext']);
+
 let started = false;
 // бэкенды движка, об отказе которых уже отправлен отчёт: движок перезапускается на каждом запросе маршрута, и один
 // сломанный браузер иначе выбрал бы месячный лимит повторами
@@ -18,8 +20,13 @@ export function startErrorTracking(dsn: string, origin = window.location.origin)
     Sentry.init({
         dsn,
         environment: 'production',
-        // BrowserSession шлёт сессию на каждый заход, даже без ошибки
-        integrations: (defaults) => defaults.filter((integration) => integration.name !== 'BrowserSession'),
+        // BrowserSession шлёт сессию на каждый заход, даже без ошибки; CultureContext — часовой пояс, то есть регион
+        integrations: (defaults) => defaults.filter((integration) => !DROPPED_INTEGRATIONS.has(integration.name)),
+        // отчёт клиента об отброшенных событиях (ошибки расширений вне allowUrls) уходит при скрытии вкладки — запрос без
+        // нашей ошибки (ревью диффа)
+        sendClientReports: false,
+        // 'always' дописывает хост в error.message каждого упавшего fetch, а сообщения приложение показывает в тостах
+        enhanceFetchErrorMessages: 'report-only',
         // только свои скрипты: ошибки расширений и чужих скриптов (Google Maps, CheerpJ с CDN) не тратят лимит.
         // Отчёт без адреса в кадрах SDK пропускает (eventFilters, _isAllowedUrl)
         allowUrls: [origin],
@@ -28,7 +35,8 @@ export function startErrorTracking(dsn: string, origin = window.location.origin)
         dataCollection: {
             userInfo: false,
             cookies: false,
-            httpHeaders: { request: false, response: false },
+            // User-Agent — браузер и ОС отчёта; прочие заголовки SDK заменяет на [Filtered], scrubEvent их удаляет
+            httpHeaders: { request: { allow: ['user-agent'] }, response: false },
             httpBodies: [],
             urlQueryParams: false,
             graphQL: { document: false, variables: false },
@@ -51,7 +59,12 @@ export function reportEngineBackendError(backend: string, error: unknown): void 
         return;
     }
     reportedBackends.add(backend);
-    Sentry.captureException(error, { tags: { 'engine.backend': backend } });
+    // своя ошибка, а не исходная: исходную создаёт код CheerpJ с CDN, и allowUrls по её последнему кадру отбросил бы
+    // отчёт; исключение Java — вовсе не Error (ревью диффа). Текст исходной — в сообщении
+    const text = error instanceof Error ? error.message : String(error);
+    Sentry.captureException(new Error(`BRouter engine ${backend} failed to start: ${text}`), {
+        tags: { 'engine.backend': backend },
+    });
 }
 
 // Обработчик ошибок рендера для createRoot: со стеком компонентов. Без трекера — undefined, и React ведёт себя как
@@ -60,6 +73,11 @@ export function rootErrorHandler(): ((error: unknown, errorInfo: { componentStac
     if (!started) {
         return undefined;
     }
-    // React со своим onUncaughtError консоль больше не пишет: печатаем сами, чтобы ошибка была видна и при трекере
-    return Sentry.reactErrorHandler((error) => console.error(error));
+    // без колбэка: с колбэком SDK помечает ошибку handled, а упавший рендер снимает всё приложение. React со своим
+    // onUncaughtError консоль больше не пишет — печатаем сами, чтобы ошибка была видна и при трекере
+    const capture = Sentry.reactErrorHandler();
+    return (error, errorInfo) => {
+        capture(error, errorInfo);
+        console.error(error);
+    };
 }

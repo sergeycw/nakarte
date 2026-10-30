@@ -47,10 +47,32 @@ describe('Отчёт без места и треков пользователя'
     });
 
     test('хлебные крошки: только клики и ввод', () => {
-        expect(keepBreadcrumb({ category: 'ui.click', message: 'button.track' })).not.toBeNull();
-        expect(keepBreadcrumb({ category: 'ui.input', message: 'input.name' })).not.toBeNull();
         for (const category of ['fetch', 'xhr', 'navigation', 'console', undefined]) {
             expect(keepBreadcrumb({ category, data: { url: `${PAGE}#m=13/43.27/42.49` } }), category).toBeNull();
         }
+    });
+
+    test('селектор клика без подписей элементов', () => {
+        // кнопка меню трека в списке: aria-label и title несут название трека, SDK пишет их в селектор
+        const node = (tagName: string, attributes: Record<string, string>, parentElement: unknown = null) => ({
+            tagName,
+            parentElement,
+            getAttribute: (name: string) => attributes[name] ?? null,
+        });
+        const list = node('DIV', { 'data-testid': 'track-list' });
+        const button = node('BUTTON', { 'aria-label': 'Actions for Kazbek', title: 'Kazbek' }, list);
+        const sdkMessage = 'div > button[aria-label="Actions for Kazbek"][title="Kazbek"]';
+        for (const category of ['ui.click', 'ui.input']) {
+            const kept = keepBreadcrumb({ category, message: sdkMessage }, { event: { target: button } });
+            expect(kept?.message).toBe('div[data-testid="track-list"] > button');
+        }
+        // цели нет — нет и селектора
+        expect(keepBreadcrumb({ category: 'ui.click', message: sdkMessage })?.message).toBeUndefined();
+    });
+
+    test('брошенный не-Error не уходит целиком', () => {
+        const event = eventFrom(PAGE);
+        event.extra = { __serialized__: { track: 'Kazbek', lat: 43.27 } };
+        expect(scrubEvent(event).extra).toBeUndefined();
     });
 });
