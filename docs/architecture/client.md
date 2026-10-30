@@ -49,12 +49,13 @@ flowchart LR
 | `search/` | mapy.cz и короткие ссылки через `corsProxyUrl`, photon.komoot.io напрямую | спека [map-search](../../openspec/specs/map-search/spec.md) |
 | `streetview/` | Maps JavaScript API Google, тайлы покрытия | спека [street-view](../../openspec/specs/street-view/spec.md) |
 | `map/` | — | спека [web-client](../../openspec/specs/web-client/spec.md) |
+| `errors/` | приём Sentry (`o….ingest.sentry.io`) — только у сборки с `sentryDsn` и только с ошибкой: необработанные исключения, ошибки рендера, отказ бэкенда движка (`onBackendError` в `engine/`); отчёт без адреса с `#…`, адресов запросов и консоли | спека [clone-monitoring](../../openspec/specs/clone-monitoring/spec.md), design [add-error-tracking](../../openspec/changes/archive/2026-10-30-add-error-tracking/design.md) |
 
 Связь «клик по карте» общая для редактора, метки и Street View — `routing/MapEditor.tsx` (`onClick`); на телефоне долгое нажатие открывает меню на карте ([route-editor.md](route-editor.md)).
 
 ## Как собираются адреса сервисов
 
-Один модуль [config.ts](../../web/src/config.ts): `makeConfig(mode, googleMapsApiKey)` от режима Vite. Режим `clone` (`vite build --mode clone`, скрипт `build` и деплой) включает движок в браузере; любой другой (`npm run dev`) — серверный BRouter из `docker-compose.yml`. Ключ Google — переменная сборки `VITE_GOOGLE_MAPS_API_KEY`: деплой передаёт секрет `GOOGLE_MAPS_API_KEY` только шагу сборки ([deploy-pages.yml](../../.github/workflows/deploy-pages.yml)), без него — режим без ключа.
+Один модуль [config.ts](../../web/src/config.ts): `makeConfig(mode, googleMapsApiKey, sentryDsn)` от режима Vite. Режим `clone` (`vite build --mode clone`, скрипт `build` и деплой) включает движок в браузере; любой другой (`npm run dev`) — серверный BRouter из `docker-compose.yml`. Ключ Google — переменная сборки `VITE_GOOGLE_MAPS_API_KEY`: деплой передаёт секрет `GOOGLE_MAPS_API_KEY` только шагу сборки ([deploy-pages.yml](../../.github/workflows/deploy-pages.yml)), без него — режим без ключа.
 
 ```mermaid
 flowchart LR
@@ -77,10 +78,11 @@ flowchart LR
 | `routingServer` | `routing/` | `http://localhost:17777`, в клоне не используется |
 | `routingTilesPath` | `engine/` | `'/tiles/'` (иначе `'/brouter-wasm/segments4/'`) |
 | `googleMapsApiKey` | `streetview/` | секрет или пустая строка |
+| `sentryDsn` | `errors/` | секрет `SENTRY_DSN` (`check-web` — поддельный DSN) или пустая строка — трекер выключен |
 
 ## Сборка и раздача
 
-`vite build --mode clone` кладёт приложение и стенд движка (`engine-bench.html`) в корень `build/`; плагин `engineFiles` ([vite/engine-files.ts](../../web/vite/engine-files.ts)) докладывает файлы движка в `build/brouter-wasm/`, файлы `web/public/` (`_redirects`, иконки сайта `favicon.svg`, `favicon.ico` и `apple-touch-icon.png` из [scripts/favicon.mjs](../../scripts/favicon.mjs)) копируются как есть. `build/` публикуется в Pages вместе с [functions/](../../functions/) ([ci-cd.md](ci-cd.md)).
+`vite build --mode clone` кладёт приложение и стенд движка (`engine-bench.html`) в корень `build/`; плагин `engineFiles` ([vite/engine-files.ts](../../web/vite/engine-files.ts)) докладывает файлы движка в `build/brouter-wasm/`, файлы `web/public/` (`_redirects`, иконки сайта `favicon.svg`, `favicon.ico` и `apple-touch-icon.png` из [scripts/favicon.mjs](../../scripts/favicon.mjs)) копируются как есть. Сборка кладёт рядом с файлами бандла карты исходников (`sourcemap: 'hidden'`, без ссылки в бандле): деплой загружает их в Sentry и удаляет до публикации. `build/` публикуется в Pages вместе с [functions/](../../functions/) ([ci-cd.md](ci-cd.md)).
 
 ## Сверено по
 
