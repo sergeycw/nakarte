@@ -81,10 +81,18 @@ const ALWAYS_THERE = new Set([
     ...[...PROFILE_LAYERS, ...TRACK_LAYERS, ...EDIT_LAYERS].map((layer) => layer.id),
 ]);
 
-// id слоёв карты снизу вверх, без серого фона, слоёв профиля высот, треков и редактора (они есть всегда, layers/style.ts)
+// слой стиля векторной подложки или горизонталей — `<код>-<имя>` (Of-water, Ct-labels; layers/outdoor.ts, style.ts):
+// тесты слоёв проверяют, какие слои каталога на карте, а не устройство их стиля. Код каталога — с заглавной буквы: свои
+// слои (-cs…) и служебные (street-view-coverage) правило не трогает
+const STYLE_LAYER_OF_CODE = /^([A-Z][A-Za-z0-9]*)-[a-z]/;
+
+// коды слоёв карты снизу вверх, без серого фона, слоёв профиля высот, треков и редактора (они есть всегда,
+// layers/style.ts); слои стиля одного кода подряд — один код
 export function mapLayerIds(map: { getStyle(): { layers: { id: string }[] } }) {
-    return map
+    const codes = map
         .getStyle()
         .layers.map((layer) => layer.id)
-        .filter((id) => !ALWAYS_THERE.has(id));
+        .filter((id) => !ALWAYS_THERE.has(id))
+        .map((id) => STYLE_LAYER_OF_CODE.exec(id)?.[1] ?? id);
+    return codes.filter((code, index) => code !== codes[index - 1]);
 }
