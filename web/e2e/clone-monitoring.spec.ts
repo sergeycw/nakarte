@@ -42,12 +42,22 @@ test.describe('Ошибки в браузере пользователей', () 
             content: "setTimeout(() => { throw new Error('e2e crash at ' + location.href); }, 0);",
         });
         await expect.poll(() => network.sentryEnvelopes.length).toBe(1);
-        const event = eventOf(network.sentryEnvelopes[0]);
+        const event = eventOf(network.takeSentryEnvelopes()[0]);
         const origin = new URL(page.url()).origin;
         expect(event.request.url).toBe(`${origin}/`);
         expect(event.exception.values[0].value).toBe(`e2e crash at ${origin}`);
         const text = JSON.stringify(event);
-        for (const leak of ['41.692', '44.788', 'm=15', TBILISI.slice(0, 20), new URL(ELEVATION_SERVER).hostname]) {
+        // Mtatsminda — название трека: кнопка «Actions for Mtatsminda» попадает в крошку клика
+        const leaks = [
+            '41.692',
+            '44.788',
+            'm=15',
+            'Mtatsminda',
+            TBILISI.slice(0, 20),
+            new URL(ELEVATION_SERVER).hostname,
+        ];
+        expect(event.breadcrumbs?.length, 'клики по меню трека есть в крошках').toBeGreaterThan(0);
+        for (const leak of leaks) {
             expect(text, leak).not.toContain(leak);
         }
         for (const breadcrumb of event.breadcrumbs ?? []) {
@@ -56,10 +66,21 @@ test.describe('Ошибки в браузере пользователей', () 
         expect(event.user?.ip_address).toBeUndefined();
     });
 
+    // остальные e2e проверяют то же в конце каждого теста (фикстура network); здесь — со скрытием вкладки: при нём SDK
+    // отправил бы отчёт клиента и сессию, если бы они были включены. Ошибку ResizeObserver SDK отбрасывает по умолчанию
+    // (DEFAULT_IGNORE_ERRORS), но включённый отчёт клиента сообщил бы о ней при скрытии
     test('Заход без ошибок', async ({ page, network }) => {
         await page.goto(LINK);
         await openProfile(page);
-        // SDK шлёт конверт сразу; сессии выключены, так что за это время конвертов быть не должно
+        await page.addScriptTag({
+            content:
+                "setTimeout(() => { throw new Error('ResizeObserver loop completed with undelivered notifications.'); }, 0);",
+        });
+        await page.waitForTimeout(300);
+        await page.evaluate(() => {
+            Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+            document.dispatchEvent(new Event('visibilitychange'));
+        });
         await page.waitForTimeout(1500);
         expect(network.sentryEnvelopes).toEqual([]);
     });

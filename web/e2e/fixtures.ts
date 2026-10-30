@@ -182,6 +182,8 @@ interface Network {
     googleApiLoads: string[];
     // тела конвертов, принятых вместо Sentry (сборка с DSN, спека clone-monitoring)
     sentryEnvelopes: string[];
+    // забрать принятые конверты: тест, который ждёт отчёт, забирает его, остальные к концу обязаны остаться без отчётов
+    takeSentryEnvelopes(): string[];
 }
 
 // приём отчётов Sentry: o<организация>.ingest.sentry.io, с регионом — o<…>.ingest.us.sentry.io, o<…>.ingest.de.sentry.io.
@@ -251,6 +253,7 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
                 },
                 googleApiLoads: [],
                 sentryEnvelopes: [],
+                takeSentryEnvelopes: () => network.sentryEnvelopes.splice(0),
                 engineLoads: 0,
                 cdnRequests: [],
                 storage: new Map(),
@@ -387,6 +390,9 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
             await use(network);
             expect(network.external, 'запросы мимо localhost и подменённых тайлов').toEqual([]);
             expect(network.cdnRequests, 'запросы к CDN CheerpJ мимо заглушки').toEqual([]);
+            // на сборке с DSN — сценарий «Заход без ошибок» спеки clone-monitoring во всех e2e: прокладка, профиль,
+            // слои, поиск не дают отчётов
+            expect(network.sentryEnvelopes, 'отчёты Sentry, которых тест не ждал').toEqual([]);
         },
         { auto: true },
     ],
