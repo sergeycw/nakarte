@@ -246,6 +246,30 @@
 .maplibregl-ctrl-attrib a {
     color: inherit;
 }
+/* Геолокация, пока следит за положением (-active, с -waiting — ждёт ответа), — как включённые Street View и хитмэп:
+   заливка --primary и белый значок; слежение в фоне после сдвига карты (-background) — значок --primary без заливки
+   (design route-thread-loader). MapLibre рисует значок картинкой с зашитым голубым #33b5e5, а переменную в data: URL не
+   подставить, поэтому форма значка — маска (копия путей из maplibre-gl.css: у -background нет центральной точки), цвет —
+   фоном. Выключенная, неактивная и ошибочная кнопки — картинки MapLibre. Три класса и элемент: равная специфичность с
+   :hover MapLibre (.maplibregl-ctrl button:not(:disabled):hover) и правило позже — заливка держится и под мышью. В режиме
+   высокой контрастности — картинки MapLibre для него: там фон значка система перекрасила бы в цвет фона, и он пропал бы */
+@media not (forced-colors: active) {
+    .maplibregl-ctrl-group button.maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active {
+        background-color: var(--primary);
+    }
+    .maplibregl-ctrl button.maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon,
+    .maplibregl-ctrl button.maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-background .maplibregl-ctrl-icon {
+        background-image: none;
+        background-color: var(--primary-foreground);
+        mask:
+            url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1m0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7'/%3E%3Ccircle cx='10' cy='10' r='2'/%3E%3C/svg%3E")
+            center / 29px 29px no-repeat;
+    }
+    .maplibregl-ctrl button.maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-background .maplibregl-ctrl-icon {
+        background-color: var(--primary);
+        mask-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1m0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7'/%3E%3C/svg%3E");
+    }
+}
 @media (prefers-reduced-transparency: reduce) {
     .maplibregl-ctrl-scale::before,
     .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact,
