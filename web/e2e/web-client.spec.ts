@@ -155,6 +155,24 @@ test.describe('старые ссылки', () => {
     });
 });
 
+test('Иконка сайта', async ({ page }) => {
+    await page.goto('./');
+    const href = (selector: string) => page.locator(selector).getAttribute('href');
+    expect(await href('link[rel="icon"][type="image/svg+xml"]')).toBe('/favicon.svg');
+    expect(await href('link[rel="icon"][sizes]')).toBe('/favicon.ico');
+    expect(await href('link[rel="apple-touch-icon"]')).toBe('/apple-touch-icon.png');
+    // файлы из web/public отдаёт сервер сборки (vite preview, на проде — Pages)
+    for (const [path, type] of [
+        ['favicon.svg', 'image/svg+xml'],
+        ['favicon.ico', 'image/'],
+        ['apple-touch-icon.png', 'image/png'],
+    ]) {
+        const response = await page.request.get(path);
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['content-type'], path).toContain(type);
+    }
+});
+
 test('Первый заход', async ({ page, network }) => {
     await page.goto('./');
     await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();
