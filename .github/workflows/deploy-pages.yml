@@ -217,8 +217,10 @@ jobs:
         working-directory: web
         run: npm run e2e
       # Токен Sentry — только этому шагу: плагин Vite загружал бы карты из сборки, где исполняется код зависимостей
-      # (design add-error-tracking, «Карты исходников»). Без токена загрузка пропускается, деплой идёт дальше
+      # (design add-error-tracking, «Карты исходников»). Без токена загрузка пропускается; упавшая загрузка (сбой Sentry,
+      # нет SENTRY_ORG) деплой не останавливает — стек в Sentry тогда без исходников, а сайт выкатывается
       - name: upload source maps to sentry
+        continue-on-error: true
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then
             echo 'no SENTRY_AUTH_TOKEN: source maps are not uploaded'
