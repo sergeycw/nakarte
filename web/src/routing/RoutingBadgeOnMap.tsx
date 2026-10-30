@@ -54,11 +54,13 @@ export function RoutingBadgeOnMap() {
     if (!routing || !over) {
         return null;
     }
-    // положение при появлении — из последнего движения, дальше его пишет onPointer
+    // положение при появлении — из последнего движения, дальше его пишет onPointer. 27 px — ×1.5 от первых 18 px:
+    // владелец 2026-10-30 выбрал по листу размеров на живой карте (на 18 нитку почти не видно, 36 — как круглые
+    // кнопки и закрывает место следующей точки)
     return (
         <div
             ref={ref}
-            className="pointer-events-none absolute top-0 left-0 z-10 size-[18px]"
+            className="pointer-events-none absolute top-0 left-0 z-10 size-[27px]"
             style={{ transform: badgeTransform(at.current) }}
             data-testid="routing-badge"
         >
