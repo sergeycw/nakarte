@@ -129,6 +129,7 @@
 
 Ресурсы Cloudflare (своего домена нет; аккаунт `S.m.lukashev@gmail.com's Account`, id `1f81a3ec34abfc6581cdd0484bbf56a9`), все бакеты R2 — EEUR:
 - Pages-проект `nakarte-routing` (корневой `wrangler.toml`), production-ветка `master`. R2-бакет `nakarte-tiles`: тайлы `*.rd5` и `manifest.json` синхронизации.
+- Счётчик посещений — Cloudflare Web Analytics, включён в дашборде (проект → Metrics → Web Analytics, владелец 2026-10-30; в API — `web_analytics_tag` и `web_analytics_token` в `build_config` проекта). Скрипт `static.cloudflareinsights.com/beacon.min.js` Pages вставляет в HTML при каждом деплое: в репозитории, `build/`, `vite preview` и e2e его нет. Визиты и просмотры — там же или в Web Analytics аккаунта; людей поштучно он не считает.
 - Worker'ы на поддомене `nakarte-routing.workers.dev`, адреса — `web/src/config.ts`: `nakarte-cors-proxy`; `nakarte-tracks` (объекты `tracks/{key}` в бакете `nakarte-tracks`); `nakarte-elevation` (в бакете `nakarte-elevation` объекты градусов `dem3/N43E042`, 26 157 штук ≈ 13 ГБ; архив тайлов высот `tiles/elevation-z0-9` ≈ 3.8 ГБ Worker с change `retire-old-client-services` не читает, удаление — решение владельца).
 - Нужен Workers Paid: на Free потолок CPU 10 мс на вызов. План включает и оплачивает владелец.
 - Локально wrangler залогинен через OAuth (`wrangler login`), у Claude есть MCP `plugin:cloudflare:cloudflare` для API.
