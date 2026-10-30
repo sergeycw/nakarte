@@ -176,6 +176,37 @@ describe('Расчёт маршрута вне главного потока', (
     });
 });
 
+// спека clone-monitoring, «Ошибки в браузере пользователей»: отказ каждого бэкенда уходит в трекер через onBackendError
+describe('Ошибки в браузере пользователей', () => {
+    test('Движок не запустился', async () => {
+        const onBackendError = vi.fn();
+        const engine = createEngine(
+            [
+                () => fakeBackend('worker', { failStart: true }).backend,
+                () => fakeBackend('main-thread', { failStart: true }).backend,
+            ],
+            { onBackendError },
+        );
+        await expect(engine.start()).rejects.toThrow(EngineStartError);
+        expect(onBackendError.mock.calls).toEqual([
+            ['worker', new Error('worker failed')],
+            ['main-thread', new Error('main-thread failed')],
+        ]);
+    });
+
+    test('Маршрута нет', async () => {
+        const onBackendError = vi.fn();
+        const fake = fakeBackend('worker');
+        const engine = createEngine([() => fake.backend], { onBackendError });
+        const result = engine.route('a');
+        await flush();
+        fake.calls[0].reject(new Error('no route found'));
+        await expect(result).rejects.toThrow('no route found');
+        // успешный запуск и отказ маршрута — не ошибки трекера
+        expect(onBackendError).not.toHaveBeenCalled();
+    });
+});
+
 describe('Таймаут расчёта', () => {
     // короткий таймаут вместо 60 с: поддельный бэкенд «считает», пока тест не ответит
     const TIMEOUT = 30;

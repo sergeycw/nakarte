@@ -37,4 +37,10 @@ describe('Адреса сервисов клона', () => {
         expect(makeConfig('clone').googleMapsApiKey).toBe('');
         expect(makeConfig('clone', 'AIza-test').googleMapsApiKey).toBe('AIza-test');
     });
+
+    test('Сборка без DSN и с DSN Sentry', () => {
+        expect(makeConfig('clone').sentryDsn).toBe('');
+        const dsn = 'https://public@o0.ingest.sentry.io/0';
+        expect(makeConfig('clone', '', dsn).sentryDsn).toBe(dsn);
+    });
 });

@@ -1,4 +1,5 @@
 import { config } from '@/config';
+import { reportEngineBackendError } from '@/errors/tracking';
 import { type EngineBackend, mainThreadBackend, workerBackend } from './backends';
 import { enginePaths } from './cheerpj-router';
 
@@ -25,6 +26,9 @@ export const ENGINE_ROUTE_TIMEOUT = 60_000;
 
 export interface EngineOptions {
     routeTimeout?: number;
+    // отказ запуска одного бэкенда, до перехода к следующему: трекер ошибок (спека clone-monitoring, «Движок не
+    // запустился»). Итоговый EngineStartError и отказ маршрута сюда не приходят
+    onBackendError?: (backend: EngineBackend['name'], error: unknown) => void;
 }
 
 export interface Engine {
@@ -40,7 +44,7 @@ export interface Engine {
 // (воркер завершается), следующий запуск снова начинает с первого.
 export function createEngine(
     backends: Array<() => EngineBackend>,
-    { routeTimeout = ENGINE_ROUTE_TIMEOUT }: EngineOptions = {},
+    { routeTimeout = ENGINE_ROUTE_TIMEOUT, onBackendError }: EngineOptions = {},
 ): Engine {
     let current: EngineBackend | null = null;
     // движок на главном потоке завис: его не выгрузить и не запустить заново (повторный cheerpjInit бросает), так что
@@ -72,6 +76,7 @@ export function createEngine(
             } catch (error) {
                 backend.dispose();
                 lastError = error;
+                onBackendError?.(backend.name, error);
             }
         }
         setStatus('failed');
@@ -187,7 +192,8 @@ function defaultBackends(): Array<() => EngineBackend> {
 let engine: Engine | null = null;
 
 export function getEngine(): Engine {
-    engine ??= createEngine(defaultBackends());
+    // отчёт трекера — только у движка приложения: стенд /engine-bench.html и тесты собирают свой без него
+    engine ??= createEngine(defaultBackends(), { onBackendError: reportEngineBackendError });
     return engine;
 }
 
