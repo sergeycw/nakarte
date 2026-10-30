@@ -14,6 +14,8 @@ concurrency:
 # новую 4.x на каждом деплое; обновлять здесь.
 env:
   WRANGLER: wrangler@4.148.0
+  # sentry-cli для карт исходников (design add-error-tracking): точная версия по той же причине
+  SENTRY_CLI: '@sentry/cli@3.8.2'
 
 permissions:
   contents: read
@@ -197,16 +199,41 @@ jobs:
       # Ключ Maps JavaScript API для окна Street View — только этому шагу (установка зависимостей и тесты идут без него;
       # спека clone-deploy, «Ключ Google только шагу сборки»). Без секрета — пустой ключ, режим без ключа; с секретом ключ
       # окажется в бандле, защищают его ограничения по referrer и API в Google Cloud.
+      # DSN Sentry — тоже только этому шагу (спека clone-deploy, «Секреты Sentry только своим шагам»): DSN виден в бандле,
+      # секрет — выключатель трекера; без него сборка к Sentry не обращается
       - name: web build
         working-directory: web
         run: npm run build
         env:
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
       - name: check engine files are in the build
         run: test -f build/brouter-wasm/lib/brouter.jar && test -f build/brouter-wasm/profiles/lookups.dat
+      # Debug ID связывает файл бандла с его картой в Sentry. Внедряется до e2e — e2e проверяют ровно то, что выкатится;
+      # токен не нужен. Только build/assets: файлы движка в brouter-wasm без карт
+      - name: inject sentry debug ids
+        run: npx --yes $SENTRY_CLI sourcemaps inject build/assets
       - name: web e2e
         working-directory: web
         run: npm run e2e
+      # Токен Sentry — только этому шагу: плагин Vite загружал бы карты из сборки, где исполняется код зависимостей
+      # (design add-error-tracking, «Карты исходников»). Без токена загрузка пропускается, деплой идёт дальше
+      - name: upload source maps to sentry
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo 'no SENTRY_AUTH_TOKEN: source maps are not uploaded'
+            exit 0
+          fi
+          npx --yes $SENTRY_CLI sourcemaps upload build/assets
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+      # карты в Pages не попадают в любом случае (спека clone-deploy, «Карты исходников не публикуются»)
+      - name: remove source maps from the build
+        run: |
+          find build -name '*.map' -delete
+          test -z "$(find build -name '*.map')"
       # Адрес *.nakarte.me в бандле — обращение к инфраструктуре автора: деплой стоп
       # (требование «Бандл без адресов автора» в openspec/specs/clone-deploy). В PR то же проверяет check-web.yml.
       - name: check no author hosts in the build

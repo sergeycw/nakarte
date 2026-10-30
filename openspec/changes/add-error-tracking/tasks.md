@@ -24,8 +24,8 @@
 
 ## 5. Деплой
 
-- [ ] 5.1 `vite.config.ts`: `build.sourcemap: 'hidden'`. Проверка: после `npm run build` карты есть в `build/assets/`, в `.js` нет `sourceMappingURL`; `node scripts/check-no-author-hosts.mjs build` проходит с картами.
-- [ ] 5.2 `deploy-pages.yml`, job `pages`: `VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}` только шагу `web build`; после сборки и до e2e — `npx --yes @sentry/cli@<точная версия> sourcemaps inject build` без токена; после e2e — `sourcemaps upload build` с `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` только при заведённом токене; затем всегда удаление `build/**/*.map` и проверка, что их нет, до `wrangler pages deploy`. Проверка: `actionlint`; локально `inject` на сборке и удаление карт отрабатывают; токен не стоит ни у одного шага, кроме загрузки.
+- [x] 5.1 `vite.config.ts`: `build.sourcemap: 'hidden'`. Проверка: после `npm run build` карты есть в `build/assets/`, в `.js` нет `sourceMappingURL`; `node scripts/check-no-author-hosts.mjs build` проходит с картами.
+- [x] 5.2 `deploy-pages.yml`, job `pages`: `VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}` только шагу `web build`; после сборки и до e2e — `npx --yes @sentry/cli@<точная версия> sourcemaps inject build` без токена; после e2e — `sourcemaps upload build` с `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` только при заведённом токене; затем всегда удаление `build/**/*.map` и проверка, что их нет, до `wrangler pages deploy`. Проверка: `actionlint`; локально `inject` на сборке и удаление карт отрабатывают; токен не стоит ни у одного шага, кроме загрузки.
 
 ## 6. Документы
 

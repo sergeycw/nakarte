@@ -16,6 +16,9 @@ export default defineConfig({
         outDir: '../build',
         // каталог вне корня проекта Vite без флага не чистит
         emptyOutDir: true,
+        // карты исходников для стека в Sentry: рядом с файлами, но без ссылки sourceMappingURL в бандле. Деплой загружает
+        // их в Sentry и удаляет до публикации (design add-error-tracking, «Карты исходников»)
+        sourcemap: 'hidden',
         // maplibre-gl ≈ 1.1 МБ (≈ 290 КБ gzip) отдельным чанком: react-maplibre грузит его динамическим import()
         chunkSizeWarningLimit: 1200,
         // лицензии зависимостей бандла одним файлом /licenses.md: BSD-3 (MapLibre, maplibre-contour) требует копирайт и
