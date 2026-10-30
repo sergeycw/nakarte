@@ -67,6 +67,7 @@ export default mergeConfig(
                             '@base-ui/react/popover',
                             '@base-ui/react/radio',
                             '@base-ui/react/radio-group',
+                            '@sentry/react',
                             'blueimp-md5',
                             'fflate',
                             'lucide-react',

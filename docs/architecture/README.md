@@ -39,6 +39,7 @@ flowchart LR
         maps["Тайлы карт, Street View, поиск photon"]
         sites["Strava, Tracestrack, сайты треков, поиск mapy.cz"]
         cdn["CDN CheerpJ"]
+        sentry["Sentry: ошибки браузера,<br/>карты исходников"]
     end
 
     local["⑧ Локальный режим<br/>маршрут на BRouter в docker"]
@@ -57,6 +58,8 @@ flowchart LR
     ui -->|"тайлы, панорамы, поиск"| maps
     proxy --> sites
     engine -->|"рантайм"| cdn
+    ui -->|"ошибка без адреса и треков,<br/>только сборка с DSN"| sentry
+    deploy -->|"карты исходников"| sentry
     ui -.->|"режим без clone"| local
 ```
 

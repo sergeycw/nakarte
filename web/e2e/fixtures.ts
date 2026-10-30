@@ -180,7 +180,15 @@ interface Network {
     searchResponds(service: 'mapycz' | 'photon', response: { status: number }): void;
     // адреса загрузки Maps JavaScript API (заглушка FAKE_GOOGLE_MAPS)
     googleApiLoads: string[];
+    // тела конвертов, принятых вместо Sentry (сборка с DSN, спека clone-monitoring)
+    sentryEnvelopes: string[];
+    // забрать принятые конверты: тест, который ждёт отчёт, забирает его, остальные к концу обязаны остаться без отчётов
+    takeSentryEnvelopes(): string[];
 }
+
+// приём отчётов Sentry: o<организация>.ingest.sentry.io, с регионом — o<…>.ingest.us.sentry.io, o<…>.ingest.de.sentry.io.
+// Сборка деплоя несёт настоящий DSN, check-web — поддельный o0: заглушка принимает оба
+const SENTRY_INGEST = /^o\d+\.ingest\.(?:[a-z]+\.)?sentry\.io$/;
 
 // Сеть теста: localhost — как есть, хранилище треков — в памяти, сервис высот — заглушка, прокси — заданные ответы, тайлы слоёв каталога и
 // своего слоя — фикстура с CORS (или ошибка), всё остальное обрывается и валит тест в конце. Так e2e не ходит к
@@ -244,6 +252,8 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
                     searchStatus[service] = response.status;
                 },
                 googleApiLoads: [],
+                sentryEnvelopes: [],
+                takeSentryEnvelopes: () => network.sentryEnvelopes.splice(0),
                 engineLoads: 0,
                 cdnRequests: [],
                 storage: new Map(),
@@ -296,6 +306,13 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
                     if (url.startsWith(GOOGLE_MAPS_API)) {
                         network.googleApiLoads.push(url);
                         return route.fulfill({ status: 200, body: FAKE_GOOGLE_MAPS, contentType: 'text/javascript' });
+                    }
+                    if (SENTRY_INGEST.test(new URL(url).hostname)) {
+                        // preflight тоже сюда: ответ с CORS, тело конверта — только у POST
+                        if (route.request().method() === 'POST') {
+                            network.sentryEnvelopes.push(route.request().postData() ?? '');
+                        }
+                        return route.fulfill({ status: 200, body: '{}', headers: cors });
                     }
                     const searchService = url.startsWith(`${CORS_PROXY_URL}https/pro.mapy.cz/suggest/`)
                         ? 'mapycz'
@@ -373,6 +390,9 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
             await use(network);
             expect(network.external, 'запросы мимо localhost и подменённых тайлов').toEqual([]);
             expect(network.cdnRequests, 'запросы к CDN CheerpJ мимо заглушки').toEqual([]);
+            // на сборке с DSN — сценарий «Заход без ошибок» спеки clone-monitoring во всех e2e: прокладка, профиль,
+            // слои, поиск не дают отчётов
+            expect(network.sentryEnvelopes, 'отчёты Sentry, которых тест не ждал').toEqual([]);
         },
         { auto: true },
     ],
