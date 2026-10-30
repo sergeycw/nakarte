@@ -80,7 +80,7 @@ flowchart LR
 
 ## Сборка и раздача
 
-`vite build --mode clone` кладёт приложение и стенд движка (`engine-bench.html`) в корень `build/`; плагин `engineFiles` ([vite/engine-files.ts](../../web/vite/engine-files.ts)) докладывает файлы движка в `build/brouter-wasm/`, файлы `web/public/` (`_redirects`, `favicon.ico`) копируются как есть. `build/` публикуется в Pages вместе с [functions/](../../functions/) ([ci-cd.md](ci-cd.md)).
+`vite build --mode clone` кладёт приложение и стенд движка (`engine-bench.html`) в корень `build/`; плагин `engineFiles` ([vite/engine-files.ts](../../web/vite/engine-files.ts)) докладывает файлы движка в `build/brouter-wasm/`, файлы `web/public/` (`_redirects`, иконки сайта `favicon.svg`, `favicon.ico` и `apple-touch-icon.png` из [scripts/favicon.mjs](../../scripts/favicon.mjs)) копируются как есть. `build/` публикуется в Pages вместе с [functions/](../../functions/) ([ci-cd.md](ci-cd.md)).
 
 ## Сверено по
 

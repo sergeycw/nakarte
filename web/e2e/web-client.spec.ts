@@ -155,6 +155,30 @@ test.describe('старые ссылки', () => {
     });
 });
 
+test('Иконка сайта', async ({ page }) => {
+    await page.goto('./');
+    const href = (selector: string) => page.locator(selector).getAttribute('href');
+    expect(await href('link[rel="icon"][type="image/svg+xml"]')).toBe('/favicon.svg');
+    expect(await href('link[rel="icon"][sizes]')).toBe('/favicon.ico');
+    expect(await href('link[rel="apple-touch-icon"]')).toBe('/apple-touch-icon.png');
+    // файлы из web/public отдаёт сервер сборки (vite preview, на проде — Pages)
+    for (const [path, type] of [
+        ['favicon.svg', 'image/svg+xml'],
+        ['favicon.ico', 'image/'],
+        ['apple-touch-icon.png', 'image/png'],
+    ]) {
+        const response = await page.request.get(path);
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['content-type'], path).toContain(type);
+    }
+    // содержимое: в ICO три картинки 16, 32 и 48 px (поле ширины каждой записи каталога), PNG — 180×180 по заголовку IHDR
+    const ico = await (await page.request.get('favicon.ico')).body();
+    const count = ico.readUInt16LE(4);
+    expect(Array.from({ length: count }, (_, i) => ico.readUInt8(6 + 16 * i))).toEqual([16, 32, 48]);
+    const touch = await (await page.request.get('apple-touch-icon.png')).body();
+    expect([touch.readUInt32BE(16), touch.readUInt32BE(20)]).toEqual([180, 180]);
+});
+
 test('Первый заход', async ({ page, network }) => {
     await page.goto('./');
     await expect(page.getByRole('link', { name: 'Maps © Tracestrack' })).toBeVisible();

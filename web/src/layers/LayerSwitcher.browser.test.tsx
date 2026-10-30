@@ -183,11 +183,17 @@ describe('Единый вид меню', () => {
         const dialogRow = size(dialog.element().querySelector('label') as Element);
         await dialog.getByRole('button', { name: 'Cancel' }).click();
         await expect.element(dialog).not.toBeInTheDocument();
+        // меню открывается не в том же такте, что нажатие: под нагрузкой полного прогона пункта ещё нет — сначала ждём
         await page.getByRole('button', { name: 'Topo layers', exact: true }).click();
-        const radioItem = size(page.getByRole('menuitemradio').first().element());
+        const radio = page.getByRole('menuitemradio').first();
+        await expect.element(radio).toBeVisible();
+        const radioItem = size(radio.element());
         await userEvent.keyboard('{Escape}');
+        await expect.element(radio).not.toBeInTheDocument();
         await page.getByRole('button', { name: 'Tracks menu', exact: true }).click();
-        const item = size(page.getByRole('menuitem').first().element());
+        const menuItem = page.getByRole('menuitem').first();
+        await expect.element(menuItem).toBeVisible();
+        const item = size(menuItem.element());
         // 14 px, строка 24 px — правило единообразия меню и списков (AGENTS.md, design uniform-layer-menus)
         expect({ row, dialogRow, radioItem, item }).toEqual({
             row: [24, '14px'],
