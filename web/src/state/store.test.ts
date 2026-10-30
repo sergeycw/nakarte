@@ -83,12 +83,33 @@ describe('свои слои', () => {
         const s = store();
         const code = s.getState().addCustomLayer({ ...OVERLAY, isOverlay: false });
         s.getState().removeCustomLayer(code);
-        expect(s.getState().selection).toEqual({ base: 'Tt', overlays: [] });
+        expect(s.getState().selection).toEqual({ base: 'Of', overlays: [] });
         expect(s.getState().layers.has(code)).toBe(false);
     });
 });
 
 describe('откат подложки', () => {
+    test('OpenFreeMap недоступен: подложка OpenFreeMap уступает Tracestrack, оверлеи остаются', () => {
+        const s = store('Of');
+        s.getState().toggleOverlay('Hs');
+        expect(s.getState().fallBackBase('Of')).toBe(true);
+        expect(s.getState().selection).toEqual({ base: 'Tt', overlays: ['Hs'] });
+        expect(s.getState().basemapFallback).toBe('Of');
+        expect(savedSelection(s.getState())).toEqual({ base: 'Of', overlays: ['Hs'] });
+    });
+
+    test('Недоступны обе: дальше OpenStreetMap, сохраняется подложка, с которой начался откат', () => {
+        const s = store('Of');
+        s.getState().fallBackBase('Of');
+        expect(s.getState().fallBackBase('Tt')).toBe(true);
+        expect(s.getState().selection.base).toBe('O');
+        expect(s.getState().basemapFallback).toBe('Of');
+        expect(savedSelection(s.getState())).toEqual({ base: 'Of', overlays: [] });
+        // у OpenStreetMap отката нет: её ошибки — обычный тост
+        expect(s.getState().fallBackBase('O')).toBe(false);
+        expect(s.getState().selection.base).toBe('O');
+    });
+
     test('Нет ключа или квоты: подложка Tracestrack уступает OpenStreetMap, оверлеи остаются', () => {
         const s = store('Tt');
         s.getState().toggleOverlay('Hs');

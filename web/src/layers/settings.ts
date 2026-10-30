@@ -80,11 +80,28 @@ function parseOwn(
               }
             : null,
         quickLayers: isRecord(raw.quickLayers)
-            ? (Object.fromEntries(
-                  Object.entries(raw.quickLayers).filter(([, code]) => typeof code === 'string'),
-              ) as Record<string, string>)
+            ? renameQuickKeys(
+                  Object.fromEntries(
+                      Object.entries(raw.quickLayers).filter(([, code]) => typeof code === 'string'),
+                  ) as Record<string, string>,
+              )
             : {},
     };
+}
+
+// Память кругов (quickLayers) — по первому коду группы. Первый код топокарты сменился с Tt на Of (design
+// openfreemap-default-basemap): запомненный там слой иначе потерялся бы, а старый ключ остался бы в хранилище навсегда
+const RENAMED_QUICK_KEYS: Readonly<Record<string, string>> = { Tt: 'Of' };
+
+function renameQuickKeys(memory: Record<string, string>): Record<string, string> {
+    const renamed = { ...memory };
+    for (const [from, to] of Object.entries(RENAMED_QUICK_KEYS)) {
+        if (from in renamed) {
+            renamed[to] ??= renamed[from];
+            delete renamed[from];
+        }
+    }
+    return renamed;
 }
 
 // leafletLayersSettings старого клиента: {layers: [{code, isCustom, enabled, hotkey}]} (saveSettings в

@@ -122,6 +122,16 @@ describe('Круг помнит выбор типа', () => {
         expect(loadSettings(stored(['I']), catalog).quickLayers).toEqual({});
         expect(loadSettings(stored({ E: 'I', Tt: 5, G: null }), catalog).quickLayers).toEqual({ E: 'I' });
     });
+
+    test('память круга топокарты из-под прежнего первого кода Tt переезжает под Of', () => {
+        const stored = (quickLayers: unknown) =>
+            memoryStorage({
+                [STORAGE_KEY]: JSON.stringify({ version: 1, listed: {}, custom: [], selection: null, quickLayers }),
+            });
+        expect(loadSettings(stored({ Tt: 'Otm', E: 'I' }), catalog).quickLayers).toEqual({ Of: 'Otm', E: 'I' });
+        // новая память важнее старой
+        expect(loadSettings(stored({ Tt: 'Otm', Of: 'Co' }), catalog).quickLayers).toEqual({ Of: 'Co' });
+    });
 });
 
 describe('Настройка списка слоёв', () => {

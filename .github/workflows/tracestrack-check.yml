@@ -1,7 +1,8 @@
 name: tracestrack check
 
-# Раз в день проверяет, что прокси отдаёт тайл Tracestrack Topo — подложки по умолчанию приложения — с ключом из
-# секрета TRACESTRACK_KEY Worker'а nakarte-cors-proxy (design add-outdoor-basemap).
+# Раз в день проверяет, что прокси отдаёт тайл Tracestrack Topo — подложки, выбранной пользователем, и запасной при сбое
+# OpenFreeMap (design openfreemap-default-basemap) — с ключом из секрета TRACESTRACK_KEY Worker'а nakarte-cors-proxy
+# (design add-outdoor-basemap).
 # 503 — ключ ещё не заведён: предупреждение, прогон зелёный (шаг владельца: npx wrangler@4 secret put TRACESTRACK_KEY
 # из workers/cors-proxy). Остальное — красный прогон и письмо: 403 — ключ отклонён или кончилась бесплатная квота
 # (100 тыс. тайлов в месяц), 429 — лимит частоты. Пока ключ не работает, приложение показывает OpenStreetMap с тостом.

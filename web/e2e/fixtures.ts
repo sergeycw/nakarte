@@ -1,10 +1,20 @@
 import { fileURLToPath } from 'node:url';
 import { type BrowserContext, test as base, expect, type Page } from '@playwright/test';
 import { makeConfig } from '../src/config.ts';
-import { buildCatalog } from '../src/layers/catalog.ts';
+import { buildCatalog, OPENFREEMAP_TILEJSON } from '../src/layers/catalog.ts';
 import { COVERAGE_CODE, COVERAGE_TILES } from '../src/streetview/coverage.ts';
 
 const TILE_FIXTURE = fileURLToPath(new URL('../src/test/tile.png', import.meta.url));
+// векторная подложка по умолчанию OpenFreeMap Outdoor (Of): описание тайлов (TileJSON) — свой ответ с адресом тайлов,
+// как у настоящего (с версией сборки), тайлы — фикстура browser-тестов, настоящий тайл z12 (src/test/tiles.ts)
+const VECTOR_TILE_FIXTURE = fileURLToPath(new URL('../src/test/openfreemap-tile.pbf', import.meta.url));
+const OPENFREEMAP_TILES = 'https://tiles.openfreemap.org/planet/fixture/';
+const OPENFREEMAP_TILEJSON_BODY = JSON.stringify({
+    tilejson: '3.0.0',
+    tiles: [`${OPENFREEMAP_TILES}{z}/{x}/{y}.pbf`],
+    minzoom: 0,
+    maxzoom: 14,
+});
 // сохранённые ответы поисковиков (src/search/fixtures/, 2026-10-09)
 const MAPYCZ_FIXTURE = fileURLToPath(new URL('../src/search/fixtures/mapycz-mtatsminda.json', import.meta.url));
 const PHOTON_FIXTURE = fileURLToPath(new URL('../src/search/fixtures/photon-mtatsminda.json', import.meta.url));
@@ -352,6 +362,24 @@ export const test = base.extend<{ network: Network; tracksOpen: boolean }>({
                             contentType: 'text/plain',
                             headers: cors,
                         });
+                    }
+                    // OpenFreeMap: описание и тайлы — один слой Of; failTiles('Of') роняет оба, как недоступный сервис
+                    if (url === OPENFREEMAP_TILEJSON || url.startsWith(OPENFREEMAP_TILES)) {
+                        network.tiles.push({ code: 'Of', url });
+                        if (failing.has('Of')) {
+                            return route.fulfill({ status: 503, body: 'unavailable', headers: cors });
+                        }
+                        return url === OPENFREEMAP_TILEJSON
+                            ? route.fulfill({
+                                  body: OPENFREEMAP_TILEJSON_BODY,
+                                  contentType: 'application/json',
+                                  headers: cors,
+                              })
+                            : route.fulfill({
+                                  path: VECTOR_TILE_FIXTURE,
+                                  contentType: 'application/x-protobuf',
+                                  headers: cors,
+                              });
                     }
                     const proxiedResponse = proxied.get(url);
                     if (proxiedResponse) {

@@ -3,7 +3,7 @@ import type { Elevation, ProfileSamples } from '@/elevation/profile';
 import type { LayerDef } from '@/layers/catalog';
 import { type CustomLayerFields, customLayerDef, parseCustomLayerCode, serializeCustomLayer } from '@/layers/custom';
 import { type QuickLayerGroup, rememberQuickLayer } from '@/layers/quick-layers';
-import { FALLBACK_BASE, type ParsedLayers, validSelection } from '@/layers/selection';
+import { BASEMAP_FALLBACKS, type ParsedLayers, validSelection } from '@/layers/selection';
 import type { LayerSettings, Selection } from '@/layers/settings';
 import type { End } from '@/routing/editor';
 import type { RouteLine } from '@/routing/line';
@@ -24,8 +24,9 @@ export interface AppState {
     layers: ReadonlyMap<string, LayerDef>;
     settings: LayerSettings;
     selection: Selection;
-    // с какой подложки карта откатилась на FALLBACK_BASE после ошибки её тайлов (design add-outdoor-basemap, «Откат на
-    // OpenStreetMap»): откат — не выбор пользователя, в localStorage и l= уходит выбор с ней (savedSelection)
+    // с какой подложки начался откат по цепочке BASEMAP_FALLBACKS после ошибки её тайлов (design add-outdoor-basemap,
+    // «Откат на OpenStreetMap»; цепочка — design openfreemap-default-basemap): откат — не выбор пользователя, в
+    // localStorage и l= уходит выбор с ней (savedSelection). При Of → Tt → O остаётся Of
     basemapFallback: string | null;
     // дата снимков по датам ГГГГ-ММ-ДД (design add-dated-imagery): в адресе d=, пока подложка — слой с dated; в
     // localStorage не попадает. null — даты нет, слой не рисуется
@@ -73,7 +74,8 @@ export interface AppState {
     requestView(view: View): void;
     selectBase(code: string): void;
     setImageryDate(date: string | null): void;
-    // откатить подложку code на FALLBACK_BASE; false — code уже не подложка (ошибки тайлов приходят и после смены слоя)
+    // откатить подложку code на следующую в BASEMAP_FALLBACKS; false — code уже не подложка (ошибки тайлов приходят и
+    // после смены слоя) или у неё нет отката
     fallBackBase(code: string): boolean;
     toggleOverlay(code: string): void;
     // оверлей группы столбца вместо остальных её оверлеев (меню и кнопка в QuickLayers); null — выключить группу
@@ -281,11 +283,12 @@ export function createAppStore(init: AppStoreInit): AppStore {
             },
 
             fallBackBase: (code) => {
-                const { selection } = get();
-                if (selection.base !== code || code === FALLBACK_BASE) {
+                const { selection, basemapFallback } = get();
+                const next = BASEMAP_FALLBACKS[code];
+                if (selection.base !== code || !next) {
                     return false;
                 }
-                set({ selection: { ...selection, base: FALLBACK_BASE }, basemapFallback: code });
+                set({ selection: { ...selection, base: next }, basemapFallback: basemapFallback ?? code });
                 return true;
             },
 
@@ -475,8 +478,17 @@ export function createAppStore(init: AppStoreInit): AppStore {
 // следующий заход и перезагрузка снова попробуют её. Другая подложка (свой слой, удаление подложки) значит, что откат уже ни при чём
 export function savedSelection(state: Pick<AppState, 'selection' | 'basemapFallback'>): Selection {
     const { selection, basemapFallback } = state;
-    if (!basemapFallback || selection.base !== FALLBACK_BASE) {
+    if (!basemapFallback || !fallbackChain(basemapFallback).includes(selection.base)) {
         return selection;
     }
     return { ...selection, base: basemapFallback };
+}
+
+// подложки, на которые откатывается code по цепочке BASEMAP_FALLBACKS, по порядку: Of → [Tt, O]
+function fallbackChain(code: string): string[] {
+    const chain: string[] = [];
+    for (let next = BASEMAP_FALLBACKS[code]; next && !chain.includes(next); next = BASEMAP_FALLBACKS[next]) {
+        chain.push(next);
+    }
+    return chain;
 }

@@ -20,8 +20,11 @@ import { ticksData } from '@/tracks/ticks';
 import { maplibre } from './maplibre';
 
 interface BaseMapProps {
-    // тайлы ошибкой: код слоя и HTTP-статус, если он есть
-    onTileError: (code: string, status: number | undefined) => void;
+    // ошибка источника слоя: код слоя, HTTP-статус, если он есть, и ошибка ли это тайла (иначе — самого источника,
+    // описания тайлов TileJSON у векторной подложки)
+    onTileError: (code: string, status: number | undefined, tile: boolean) => void;
+    // тайл слоя загрузился (откат подложки: разовые сбои уже показанной подложки её не откатывают)
+    onTileLoad?: (code: string) => void;
     // тесты подменяют адреса тайлов фикстурой (в сеть тесты не ходят)
     transformRequest?: RequestTransformFunction;
     ref?: Ref<MapRef>;
@@ -32,7 +35,7 @@ interface BaseMapProps {
 // Карта на весь контейнер. isolate: z-index контролов MapLibre (2) остаётся внутри контекста наложения
 // карты, и панели приложения лежат над ними без гонки z-index (design add-web-skeleton, «Проверки»).
 // Карта неуправляемая: вид пишется в стор по moveend, а запрос из адреса (viewRequest) переводит её jumpTo.
-export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMapProps) {
+export function BaseMap({ onTileError, onTileLoad, transformRequest, ref, children }: BaseMapProps) {
     const selection = useAppStore((state) => state.selection);
     const layers = useAppStore((state) => state.layers);
     const imageryDate = useAppStore((state) => state.imageryDate);
@@ -160,10 +163,20 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 }}
                 onError={(event) => {
                     // ошибка тайла приходит событием карты с sourceId источника (= код слоя, у снимков по датам —
-                    // код@номер) и AJAXError со status; прочие ошибки — в консоль MapLibre
-                    const { sourceId, error } = event as { sourceId?: string; error?: { status?: number } };
+                    // код@номер), tile и AJAXError со status; ошибка описания тайлов (TileJSON) — без tile; прочие
+                    // ошибки — в консоль MapLibre
+                    const { sourceId, error, tile } = event as {
+                        sourceId?: string;
+                        error?: { status?: number };
+                        tile?: unknown;
+                    };
                     if (sourceId) {
-                        onTileError(layerCodeOfSource(sourceId), error?.status);
+                        onTileError(layerCodeOfSource(sourceId), error?.status, tile !== undefined);
+                    }
+                }}
+                onSourceData={(event) => {
+                    if (event.tile && event.sourceId) {
+                        onTileLoad?.(layerCodeOfSource(event.sourceId));
                     }
                 }}
             >

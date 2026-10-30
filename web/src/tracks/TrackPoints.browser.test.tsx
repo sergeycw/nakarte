@@ -39,7 +39,10 @@ afterEach(async () => {
     expect(tiles.external, 'запросы мимо localhost и тайлов').toEqual([]);
 });
 
-const VIEW = '#m=15/41.69/44.785';
+// подложка — растровый OpenStreetMap: тесту она не важна, а векторная по умолчанию (OpenFreeMap) с фикстурой —
+// настоящим тайлом z12 — рисуется во всех тайлах экрана и под общей нагрузкой браузерных тестов не укладывалась в
+// таймауты (change openfreemap-default-basemap)
+const VIEW = '#m=15/41.69/44.785&l=O';
 const SPOT = P(41.6912345, 44.7812345);
 const ELSEWHERE = P(41.688, 44.789);
 const FAR = P(41.692, 44.776);

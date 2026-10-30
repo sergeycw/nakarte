@@ -55,7 +55,8 @@ describe('Интерфейс поверх карты', () => {
         const zoomIn = document.querySelector('.maplibregl-ctrl-zoom-in') as HTMLElement;
         const { x, y } = centerOf(zoomIn);
         expect(zoomIn.contains(document.elementFromPoint(x, y))).toBe(true);
-        await expect.element(page.getByRole('link', { name: '© OpenStreetMap contributors' })).toBeVisible();
+        // атрибуция подложки по умолчанию (OpenFreeMap Outdoor) видна
+        await expect.element(page.getByRole('link', { name: 'OpenFreeMap' })).toBeVisible();
     });
 
     test('Клик по панели', async () => {
@@ -112,7 +113,7 @@ describe('Подложка Tracestrack', () => {
     const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo_[a-z-]+\//;
 
     test('Атрибуция Tracestrack', async () => {
-        await renderApp();
+        await renderApp('#l=Tt');
         await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
         expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(false);
         expect(tiles.requested.some((url) => url.includes('key='))).toBe(false);
@@ -147,7 +148,7 @@ describe('Подложка Tracestrack', () => {
 
     test('Тайла нет', async () => {
         tiles.respond(TRACESTRACK, MISSING_URL);
-        const { map } = await renderApp();
+        const { map } = await renderApp('#l=Tt');
         await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
         await expect.poll(() => map.loaded(), { timeout: 10_000 }).toBe(true);
         expect(map.getLayer('Tt')).toBeDefined();
@@ -158,6 +159,69 @@ describe('Подложка Tracestrack', () => {
 
 describe('Подложка OpenFreeMap Outdoor', () => {
     const OPENFREEMAP = 'https://tiles.openfreemap.org/';
+    const OPENFREEMAP_TILEJSON = /^https:\/\/tiles\.openfreemap\.org\/planet$/;
+    const OPENFREEMAP_TILES = /\/planet\/fixture\/\d+\/\d+\/\d+\.pbf$/;
+    const TRACESTRACK = /\/https\/tile\.tracestrack\.com\/topo_[a-z-]+\//;
+
+    test('Первый заход без настроек', async () => {
+        const { map } = await renderApp();
+        await expect.poll(() => map.getLayer('Of-peaks')).toBeDefined();
+        await expect.poll(() => tiles.requested.some((url) => OPENFREEMAP_TILES.test(url))).toBe(true);
+        expect(tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(false);
+        expect(location.hash).toContain('l=Of');
+    });
+
+    // описание тайлов или сами тайлы: откат на Tracestrack Topo, выбор не меняется (спека map-layers, «Откат подложки
+    // при ошибке тайлов»)
+    test.each([
+        ['описание тайлов', OPENFREEMAP_TILEJSON],
+        ['тайлы', OPENFREEMAP_TILES],
+    ])('OpenFreeMap недоступен: %s', async (_what, pattern) => {
+        tiles.respond(pattern, UNAVAILABLE_URL);
+        const { map } = await renderApp('#m=8/41.7/44.8&l=Of/Hs');
+        await expect.element(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
+        await expect.element(page.getByText('Switched to Tracestrack Topo')).toBeVisible();
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+        await expect.poll(() => map.getLayer('Tt')).toBeDefined();
+        expect(map.getLayer('Hs')).toBeDefined();
+        expect(location.hash).toContain('l=Of/Hs');
+        expect(JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '').selection).toEqual({
+            base: 'Of',
+            overlays: ['Hs'],
+        });
+        await expect.poll(() => tiles.requested.some((url) => TRACESTRACK.test(url))).toBe(true);
+    });
+
+    test('Описание тайлов пропало: 404 на TileJSON — тоже откат', async () => {
+        // закрытый или переименованный адрес OpenFreeMap ответит 404: это не «тайла нет», источника нет вовсе
+        tiles.respond(OPENFREEMAP_TILEJSON, MISSING_URL);
+        const { map } = await renderApp('#m=8/41.7/44.8&l=Of');
+        await expect.element(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
+        await expect.poll(() => map.getLayer('Tt')).toBeDefined();
+        expect(location.hash).toContain('l=Of');
+    });
+
+    test('Недоступны обе', async () => {
+        tiles.respond(OPENFREEMAP_TILEJSON, UNAVAILABLE_URL);
+        tiles.respond(TRACESTRACK, UNAVAILABLE_URL);
+        const { map } = await renderApp('#m=8/41.7/44.8&l=Of');
+        await expect.element(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+        await expect.poll(() => map.getLayer('O')).toBeDefined();
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+        expect(location.hash).toContain('l=Of');
+        await expect.poll(() => tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
+    });
+
+    // 404 векторного тайла MapLibre считает пустым тайлом и ошибкой не шлёт: тест держит это поведение, а не логику App
+    test('Тайла нет', async () => {
+        tiles.respond(OPENFREEMAP_TILES, MISSING_URL);
+        const { map } = await renderApp('#l=Of');
+        await expect.poll(() => tiles.requested.some((url) => OPENFREEMAP_TILES.test(url))).toBe(true);
+        await expect.poll(() => map.loaded(), { timeout: 10_000 }).toBe(true);
+        expect(map.getLayer('Tt')).toBeUndefined();
+        expect(page.getByText('OpenFreeMap Outdoor is unavailable').all()).toHaveLength(0);
+        expect(page.getByText('Map tiles failed to load').all()).toHaveLength(0);
+    });
 
     test('Ссылка с OpenFreeMap Outdoor', async () => {
         const { map } = await renderApp('#m=12/42.69/44.52&l=Of');

@@ -33,19 +33,21 @@ async function openSwitcher(page: import('@playwright/test').Page) {
 
 test('Первый заход без настроек', async ({ page, network }) => {
     await page.goto('./');
-    await expect.poll(() => hashOf(page)).toBe('#m=13/42.37889/45.63000&l=Tt');
-    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
-    expect(network.tiles.every((tile) => tile.code === 'Tt')).toBe(true);
+    await expect.poll(() => hashOf(page)).toBe('#m=13/42.37889/45.63000&l=Of');
+    await expect.poll(() => network.tilesOf('Of').some((url) => url.endsWith('.pbf'))).toBe(true);
+    // только OpenFreeMap: квоту Tracestrack первый заход не тратит
+    expect(network.tiles.every((tile) => tile.code === 'Of')).toBe(true);
 });
 
 test('Старая ссылка с OpenStreetMap', async ({ page, network }) => {
     await page.goto('./#m=8/49.73868/33.45886&l=O');
     await expect.poll(() => network.tilesOf('O').length).toBeGreaterThan(0);
     expect(network.tilesOf('Tt')).toEqual([]);
+    expect(network.tilesOf('Of')).toEqual([]);
 });
 
 test('Слой Tracestrack', async ({ page, network }) => {
-    await page.goto('./');
+    await page.goto('./#m=8/49.73868/33.45886&l=Tt');
     await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
     for (const url of network.tilesOf('Tt')) {
         expect(url.startsWith(`${CORS_PROXY_URL}https/tile.tracestrack.com/topo_en/`)).toBe(true);
@@ -65,19 +67,30 @@ test('Нет ключа или квоты', async ({ page, network }) => {
     await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
 });
 
+test('OpenFreeMap недоступен', async ({ page, network }) => {
+    network.failTiles('Of');
+    await page.goto('./#m=8/49.73868/33.45886&l=Of/Hs');
+    await expect(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
+    await expect(page.getByText('Switched to Tracestrack Topo')).toBeVisible();
+    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
+    // в адресе — подложка, с которой начался откат
+    expect(hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Of/Hs');
+    await expect(page.getByText('Map tiles failed to load')).toHaveCount(0);
+});
+
 test('Следующий заход после отката', async ({ page, network }) => {
-    network.failTiles('Tt');
+    network.failTiles('Of');
     await page.goto('./');
-    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await expect(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
     await page.reload();
-    await expect(page.getByText('Tracestrack Topo is unavailable')).toBeVisible();
+    await expect(page.getByText('OpenFreeMap Outdoor is unavailable')).toBeVisible();
     await page.goto('about:blank');
     const before = network.tiles.length;
     await page.goto('./');
-    // сохранённый выбор — по-прежнему Tracestrack: и перезагрузка, и новый заход снова запрашивают его тайлы
-    await expect.poll(() => network.tiles.slice(before).some((tile) => tile.code === 'Tt')).toBe(true);
+    // сохранённый выбор — по-прежнему OpenFreeMap: и перезагрузка, и новый заход снова запрашивают её
+    await expect.poll(() => network.tiles.slice(before).some((tile) => tile.code === 'Of')).toBe(true);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nakarte-web:layers') ?? '{}'));
-    expect(saved.selection.base).toBe('Tt');
+    expect(saved.selection.base).toBe('Of');
 });
 
 test('Список слоёв', async ({ page }) => {
@@ -87,7 +100,7 @@ test('Список слоёв', async ({ page }) => {
     const dialog = page.getByRole('dialog');
     // 36 слоёв каталога без пяти кнопок столбца (design custom-bases-in-list)
     await expect(dialog.getByRole('checkbox')).toHaveCount(31);
-    await expect(dialog.getByRole('checkbox').first()).toHaveAccessibleName('OpenFreeMap Outdoor');
+    await expect(dialog.getByRole('checkbox').first()).toHaveAccessibleName('Tracestrack Topo');
     for (const title of ['Yandex map', 'Yandex Satellite', 'Wikimapia', 'Soviet topo maps grid']) {
         await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
     }
@@ -122,9 +135,9 @@ test('Ссылка с удалённым слоем', async ({ page, network }) 
 test('Ссылка только с удалённым слоем', async ({ page, network }) => {
     for (const layers of ['F', 'Y']) {
         await page.goto(`./#m=8/49.73868/33.45886&l=${layers}`);
-        await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Tt');
+        await expect.poll(() => hashOf(page)).toBe('#m=8/49.73868/33.45886&l=Of');
     }
-    await expect.poll(() => network.tilesOf('Tt').length).toBeGreaterThan(0);
+    await expect.poll(() => network.tilesOf('Of').length).toBeGreaterThan(0);
 });
 
 test('Ссылка со своим слоем', async ({ page, network }) => {

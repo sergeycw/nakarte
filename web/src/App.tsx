@@ -10,9 +10,10 @@ import { ElevationProfileContext } from '@/elevation/context';
 import { createElevationProfile } from '@/elevation/controller';
 import { ElevationProfile, PROFILE_HEIGHT } from '@/elevation/ElevationProfile';
 import { getEngine } from '@/engine/engine';
+import { createFallbackGate } from '@/layers/basemap-fallback';
 import { buildCatalog } from '@/layers/catalog';
 import { LayerSwitcher } from '@/layers/LayerSwitcher';
-import { DEFAULT_SELECTION, FALLBACK_BASE } from '@/layers/selection';
+import { BASEMAP_FALLBACKS } from '@/layers/selection';
 import { createRouteEditing } from '@/routing/editing';
 import { RouteEditingContext } from '@/routing/editing-context';
 import { MapMenu } from '@/routing/MapMenu';
@@ -126,6 +127,8 @@ export function App({
 }: AppProps) {
     const [store] = useState(startStore);
     const [atPosition] = useState(() => startsAtPosition(window.location.hash));
+    // откатывать ли подложку по ошибке её источника (layers/basemap-fallback.ts): помнит, какие подложки уже показали тайлы
+    const [fallbackGate] = useState(() => createFallbackGate());
     useEffect(() => {
         if (atPosition) {
             refreshPosition(navigator.geolocation, localStorageOrNull(), (position) =>
@@ -215,7 +218,24 @@ export function App({
     // синглтон, повторный вызов в Strict Mode его не создаёт второй раз
     useEffect(() => routeEditing.warmUp(), [routeEditing]);
 
-    function showTileError(code: string, status: number | undefined) {
+    function showTileError(code: string, status: number | undefined, tile: boolean) {
+        // подложка с откатом (OpenFreeMap Outdoor без SLA, Tracestrack Topo без ключа или квоты) при сбое оставила бы
+        // серый фон — вместо тоста ошибки откат на следующую в цепочке Of → Tt → O (спека map-layers, «Откат подложки при
+        // ошибке тайлов»). Когда откатывать, решает fallbackGate: разовый сбой сети уже показанной подложки её не
+        // откатывает. Ошибки её тайлов, пришедшие уже после смены подложки, молча отбрасываются
+        const next = BASEMAP_FALLBACKS[code];
+        if (next) {
+            if (fallbackGate.shouldFallBack(code, { status, tile }) && store.getState().fallBackBase(code)) {
+                const { layers } = store.getState();
+                toast.add({
+                    id: `basemap-fallback:${code}`,
+                    title: `${layers.get(code)?.title ?? code} is unavailable`,
+                    description: `Switched to ${layers.get(next)?.title ?? next}`,
+                    type: 'error',
+                });
+            }
+            return;
+        }
         // 404 — «тайла нет» у региональных и разреженных слоёв (Slazav внутри района), это не ошибка
         if (status === 404) {
             return;
@@ -223,21 +243,6 @@ export function App({
         // GIBS на пустой тайл даты (над тайлом в этот день не снимали) то отвечает прозрачным PNG, то 500 — вперемешку,
         // проверено curl 2026-10-12 (design add-dated-imagery): тост на каждый такой тайл был бы ложным. Пустой слой виден и так
         if (store.getState().layers.get(code)?.dated) {
-            return;
-        }
-        // подложка по умолчанию (Tracestrack Topo) без ключа, квоты или при сбое оставила бы серый фон — вместо тоста
-        // ошибки откат на OpenStreetMap (спека map-layers, «Откат подложки Tracestrack на OpenStreetMap»). Ошибки её
-        // тайлов, пришедшие уже после смены подложки, молча отбрасываются
-        if (code === DEFAULT_SELECTION.base) {
-            if (store.getState().fallBackBase(code)) {
-                const { layers } = store.getState();
-                toast.add({
-                    id: `basemap-fallback:${code}`,
-                    title: `${layers.get(code)?.title ?? code} is unavailable`,
-                    description: `Switched to ${layers.get(FALLBACK_BASE)?.title ?? FALLBACK_BASE}`,
-                    type: 'error',
-                });
-            }
             return;
         }
         // постоянный id на слой: Base UI обновляет тост с тем же id на месте, серия ошибок даёт один тост
@@ -270,6 +275,7 @@ export function App({
                                 >
                                     <BaseMap
                                         onTileError={showTileError}
+                                        onTileLoad={fallbackGate.tileLoaded}
                                         transformRequest={transformRequest}
                                         ref={mapRef}
                                     >

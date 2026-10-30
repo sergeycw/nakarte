@@ -12,7 +12,7 @@
 #### Scenario: Список слоёв
 
 - **WHEN** пользователь открывает настройку списка слоёв
-- **THEN** в ней 31 слой по группам старого клиента — 36 слоёв каталога без пяти кнопок столбца, первые — «OpenFreeMap Outdoor», «OpenStreetMap», «Sentinel-2 cloudless»; слоёв Яндекса, Wikimapia и сетки советских топокарт нет
+- **THEN** в ней 31 слой по группам старого клиента — 36 слоёв каталога без пяти кнопок столбца, первые — «Tracestrack Topo», «OpenStreetMap», «Sentinel-2 cloudless»; слоёв Яндекса, Wikimapia и сетки советских топокарт нет
 
 #### Scenario: Атрибуция слоя
 
@@ -40,22 +40,27 @@
 
 ### Requirement: Подложка по умолчанию
 
-Без годного `l=` в адресе и без сохранённого выбора приложение SHALL показывать подложку Tracestrack Topo без оверлеев. `l=` и сохранённый выбор SHALL быть важнее умолчания, в том числе `l=O` старых ссылок.
+Без годного `l=` в адресе и без сохранённого выбора приложение SHALL показывать подложку OpenFreeMap Outdoor без оверлеев. `l=` и сохранённый выбор SHALL быть важнее умолчания, в том числе `l=O` старых ссылок и Tracestrack Topo, сохранённая до смены умолчания.
 
 #### Scenario: Первый заход без настроек
 
 - **WHEN** приложение открыто впервые без параметров в адресе
-- **THEN** включена подложка Tracestrack Topo, оверлеев нет, в адресе `l=Tt`
+- **THEN** включена подложка OpenFreeMap Outdoor, оверлеев нет, в адресе `l=Of`, тайлы Tracestrack Topo не запрашиваются
 
 #### Scenario: Старая ссылка с OpenStreetMap
 
 - **WHEN** приложение открыто по адресу с `l=O`
-- **THEN** включена подложка OpenStreetMap, тайлы Tracestrack не запрашиваются
+- **THEN** включена подложка OpenStreetMap, тайлы OpenFreeMap и Tracestrack не запрашиваются
 
 #### Scenario: Сохранённый выбор OpenStreetMap
 
 - **WHEN** пользователь выбрал подложку OpenStreetMap, затем открыл `/` без параметров
 - **THEN** включена подложка OpenStreetMap
+
+#### Scenario: Tracestrack до смены умолчания
+
+- **WHEN** у пользователя сохранён выбор Tracestrack Topo с прежних заходов, и он открывает `/` без параметров
+- **THEN** включена подложка Tracestrack Topo
 
 ### Requirement: Слои в адресе
 
@@ -111,7 +116,7 @@
 #### Scenario: Кнопок столбца в настройке нет
 
 - **WHEN** пользователь открывает Configure layers без настроек
-- **THEN** в нём нет Tracestrack Topo, Google Map, ESRI Satellite, «Strava heatmap (all)» и «Satellite by date»; OpenTopoMap и «Strava heatmap (run)» отмечены
+- **THEN** в нём нет OpenFreeMap Outdoor, Google Map, ESRI Satellite, «Strava heatmap (all)» и «Satellite by date»; Tracestrack Topo, OpenTopoMap и «Strava heatmap (run)» отмечены
 
 #### Scenario: Слои меню отмечены по умолчанию
 
@@ -188,9 +193,24 @@
 - **WHEN** пользователь включает «Relief shading» поверх OpenStreetMap
 - **THEN** на карте появляются тени рельефа, в подписи карты — ссылка на атрибуцию Terrain Tiles
 
-### Requirement: Откат подложки Tracestrack на OpenStreetMap
+### Requirement: Откат подложки при ошибке тайлов
 
-Если тайл подложки Tracestrack Topo не загрузился с любым ответом, кроме `404`, или без ответа, приложение SHALL показать вместо неё OpenStreetMap, оставить оверлеи и показать один тост `Tracestrack Topo is unavailable` с пояснением `Switched to OpenStreetMap` вместо тоста ошибки тайлов. Откат SHALL NOT менять выбор: в `l=` и в сохранённом выборе остаётся Tracestrack Topo, перезагрузка и следующий заход снова пробуют её.
+При сбое подложки OpenFreeMap Outdoor или Tracestrack Topo приложение SHALL показать следующую подложку цепочки OpenFreeMap Outdoor → Tracestrack Topo → OpenStreetMap с прежними оверлеями и один тост `<подложка> is unavailable` с пояснением `Switched to <следующая>`. Сбой — не загрузилось описание её тайлов, отказ в доступе (`401`, `403`, `429`, `503`) или не загрузился её первый тайл (ответ, кроме `404`, или без ответа). Откат SHALL NOT менять выбор в `l=` и в сохранённом выборе.
+
+#### Scenario: OpenFreeMap недоступен
+
+- **WHEN** открыта подложка OpenFreeMap Outdoor, а описание её тайлов или её тайлы не загружаются
+- **THEN** карта показывает Tracestrack Topo с прежними оверлеями, в адресе остаётся `l=Of`, виден тост `OpenFreeMap Outdoor is unavailable` с пояснением `Switched to Tracestrack Topo`, тоста `Map tiles failed to load` нет
+
+#### Scenario: Описание тайлов пропало
+
+- **WHEN** описание тайлов OpenFreeMap Outdoor отвечает `404`
+- **THEN** карта показывает Tracestrack Topo, виден тост `OpenFreeMap Outdoor is unavailable`, в адресе остаётся `l=Of`
+
+#### Scenario: Недоступны обе
+
+- **WHEN** после отката с OpenFreeMap Outdoor прокси отвечает на тайлы Tracestrack Topo `503`
+- **THEN** карта показывает OpenStreetMap, в адресе остаётся `l=Of`, виден тост `Tracestrack Topo is unavailable`
 
 #### Scenario: Нет ключа или квоты
 
@@ -200,7 +220,7 @@
 #### Scenario: Следующий заход после отката
 
 - **WHEN** после отката пользователь перезагружает вкладку или открывает `/` без параметров
-- **THEN** приложение снова запрашивает тайлы Tracestrack Topo
+- **THEN** приложение снова запрашивает подложку, с которой начался откат
 
 #### Scenario: Выбор после отката
 
@@ -209,12 +229,30 @@
 
 #### Scenario: Тайла нет
 
-- **WHEN** прокси отвечает `404` на часть тайлов Tracestrack Topo
-- **THEN** подложка остаётся Tracestrack Topo, тоста нет
+- **WHEN** сервер отвечает `404` на часть тайлов OpenFreeMap Outdoor или Tracestrack Topo
+- **THEN** подложка остаётся прежней, тоста нет
+
+### Requirement: Разовый сбой подложки
+
+Сбой тайлов подложки OpenFreeMap Outdoor или Tracestrack Topo, которая уже показала свои тайлы, SHALL давать откат, только если повторился не меньше трёх раз за минуту и длится не меньше 5 секунд. Пока у браузера нет сети, отката SHALL NOT быть.
+
+#### Scenario: Сеть пропала на секунду
+
+- **WHEN** подложка OpenFreeMap Outdoor уже показала тайлы, а потом разом не загрузились несколько её тайлов без ответа
+- **THEN** подложка остаётся OpenFreeMap Outdoor, тоста отката нет
+
+### Requirement: Круг во время отката
+
+Пока на карте подложка отката, круг группы подложки, с которой начался откат, SHALL выбирать её, а не подложку отката.
+
+#### Scenario: Круг во время отката
+
+- **WHEN** после отката с OpenFreeMap Outdoor на Tracestrack Topo пользователь нажимает круг топокарты
+- **THEN** приложение снова пробует OpenFreeMap Outdoor, в адресе, в сохранённом выборе и в памяти круга Tracestrack Topo не появляется
 
 ### Requirement: Превью подложек справа
 
-Справа сверху над кнопками карты приложение SHALL показывать три круга по типу подложек — топокарта, обычная карта, спутник — с картинками Tracestrack Topo, Google Map и ESRI Satellite, даже если подложка скрыта в Configure layers. Круг SHALL быть отмечен, когда выбрана подложка его группы; при подложке вне групп не отмечен ни один. Превью SHALL NOT запрашивать тайлы: картинки — из сборки. Название подложки, которую выберет нажатие, — подсказкой и в `aria-label`.
+Справа сверху над кнопками карты приложение SHALL показывать три круга по типу подложек — топокарта, обычная карта, спутник — с картинками OpenFreeMap Outdoor, Google Map и ESRI Satellite, даже если подложка скрыта в Configure layers. Круг SHALL быть отмечен, когда выбрана подложка его группы; при подложке вне групп не отмечен ни один. Превью SHALL NOT запрашивать тайлы: картинки — из сборки. Название подложки, которую выберет нажатие, — подсказкой и в `aria-label`.
 
 #### Scenario: Подложка по превью
 
@@ -224,7 +262,7 @@
 #### Scenario: Превью без настроек
 
 - **WHEN** приложение открыто без настроек слоёв
-- **THEN** в превью — Tracestrack Topo, Google Map и ESRI Satellite, отмечено Tracestrack Topo
+- **THEN** в превью — OpenFreeMap Outdoor, Google Map и ESRI Satellite, отмечено OpenFreeMap Outdoor
 
 #### Scenario: Подложка группы отмечает круг
 
@@ -244,7 +282,7 @@
 #### Scenario: Превью без запросов тайлов
 
 - **WHEN** приложение открыто по адресу с `l=O`
-- **THEN** три превью видны, тайлы Tracestrack Topo, Google Map и ESRI Satellite не запрашиваются
+- **THEN** три превью видны, тайлы OpenFreeMap Outdoor, Google Map и ESRI Satellite не запрашиваются
 
 ### Requirement: Переключатели оверлеев справа
 

@@ -71,8 +71,8 @@ describe('Подложка и оверлеи', () => {
         await page.getByRole('button', { name: 'Strava heatmap (all)', exact: true }).click();
         const switcher = await openSwitcher();
         await switcher.getByText('Norway topo').click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Nm', 'Sa']);
-        expect(location.hash).toContain('l=Tt/Nm/Sa');
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of', 'Nm', 'Sa']);
+        expect(location.hash).toContain('l=Of/Nm/Sa');
     });
 
     test('Включить отмывку', async () => {
@@ -235,11 +235,11 @@ const checkedItems = (menu: ReturnType<typeof page.getByRole>) =>
 describe('Превью подложек справа', () => {
     test('Превью без настроек', async () => {
         await renderApp(tiles);
-        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        await expect.poll(names).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'ESRI Satellite']);
         expect(pressed()).toEqual(['true', 'false', 'false']);
         // у каждой из трёх подложек — картинка из сборки, а не пустой круг
         expect(circles().map((button) => button.querySelector('img')?.getAttribute('src'))).toEqual([
-            expect.stringMatching(/thumbnails\/Tt\.webp/),
+            expect.stringMatching(/thumbnails\/Of\.webp/),
             expect.stringMatching(/thumbnails\/G\.webp/),
             expect.stringMatching(/thumbnails\/E\.webp/),
         ]);
@@ -255,7 +255,7 @@ describe('Превью подложек справа', () => {
 
     test('Подложка группы отмечает круг', async () => {
         await renderApp(tiles, '#m=8/46/8&l=P');
-        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Terrain', 'ESRI Satellite']);
+        await expect.poll(names).toEqual(['OpenFreeMap Outdoor', 'Google Terrain', 'ESRI Satellite']);
         expect(pressed()).toEqual(['false', 'true', 'false']);
     });
 
@@ -270,7 +270,7 @@ describe('Превью подложек справа', () => {
             isTop: false,
         });
         await renderApp(tiles, `#m=8/46/8&l=${code}`);
-        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        await expect.poll(names).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'ESRI Satellite']);
         expect(pressed()).toEqual(['false', 'false', 'false']);
     });
 
@@ -280,13 +280,15 @@ describe('Превью подложек справа', () => {
         expect(circles()).toHaveLength(3);
         expect(tiles.requested.some((url) => url.includes('tile.openstreetmap.org'))).toBe(true);
         // картинки превью — из сборки: тайлов трёх подложек столбца нет
-        expect(tiles.requested.filter((url) => /tracestrack|google\.com|arcgisonline\.com/u.test(url))).toEqual([]);
+        expect(
+            tiles.requested.filter((url) => /openfreemap|tracestrack|google\.com|arcgisonline\.com/u.test(url)),
+        ).toEqual([]);
     });
 
     test('Скрытая подложка в превью', async () => {
         storedListed({ G: false });
         const { map } = await renderApp(tiles);
-        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite']);
+        await expect.poll(names).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'ESRI Satellite']);
         await page.getByRole('button', { name: 'Google Map', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['G']);
     });
@@ -328,10 +330,10 @@ describe('Переключатели оверлеев справа', () => {
     test('Оверлей кнопкой', async () => {
         const { map } = await renderApp(tiles);
         await page.getByRole('button', { name: 'Strava heatmap (all)', exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Sa']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of', 'Sa']);
         expect(heatmapButton()?.getAttribute('aria-pressed')).toBe('true');
         await page.getByRole('button', { name: 'Strava heatmap (all)', exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of']);
         expect(heatmapButton()?.getAttribute('aria-pressed')).toBe('false');
     });
 
@@ -345,7 +347,13 @@ describe('Переключатели оверлеев справа', () => {
         await renderApp(tiles);
         await expect
             .poll(() => columnButtons().map((button) => button.getAttribute('aria-label')))
-            .toEqual(['Tracestrack Topo', 'Google Map', 'ESRI Satellite', 'Strava heatmap (all)', 'Satellite by date']);
+            .toEqual([
+                'OpenFreeMap Outdoor',
+                'Google Map',
+                'ESRI Satellite',
+                'Strava heatmap (all)',
+                'Satellite by date',
+            ]);
     });
 
     test('Отмывки в столбце нет', async () => {
@@ -354,7 +362,7 @@ describe('Переключатели оверлеев справа', () => {
         expect(page.getByRole('button', { name: 'Relief shading' }).elements()).toHaveLength(0);
         const switcher = await openSwitcher();
         await switcher.getByRole('checkbox', { name: 'Relief shading' }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Hs']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of', 'Hs']);
     });
 });
 
@@ -364,8 +372,8 @@ describe('Меню слоёв столбца', () => {
         const expected: [string, string[], string[]][] = [
             [
                 'Topo layers',
-                ['Tracestrack Topo', 'OpenFreeMap Outdoor', 'OpenTopoMap', 'OSM Outdoors', 'OpenCycleMap', 'CyclOSM'],
-                ['Tracestrack Topo'],
+                ['OpenFreeMap Outdoor', 'Tracestrack Topo', 'OpenTopoMap', 'OSM Outdoors', 'OpenCycleMap', 'CyclOSM'],
+                ['OpenFreeMap Outdoor'],
             ],
             ['Map layers', ['Google Map', 'OpenStreetMap', 'Google Terrain'], []],
             ['Satellite layers', ['ESRI Satellite', 'Google Satellite', 'Bing Satellite', 'Sentinel-2 cloudless'], []],
@@ -410,8 +418,8 @@ describe('Меню слоёв столбца', () => {
         await renderApp(tiles);
         const menu = await openMenu('Topo layers');
         expect(itemNames(menu)).toEqual([
-            'Tracestrack Topo',
             'OpenFreeMap Outdoor',
+            'Tracestrack Topo',
             'OSM Outdoors',
             'OpenCycleMap',
             'CyclOSM',
@@ -450,14 +458,14 @@ describe('Круг помнит выбор типа', () => {
         const menu = await openMenu('Satellite layers');
         await menu.getByRole('menuitemradio', { name: 'Bing Satellite' }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
-        await page.getByRole('button', { name: 'Tracestrack Topo', exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt']);
+        await page.getByRole('button', { name: 'OpenFreeMap Outdoor', exact: true }).click();
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of']);
     }
 
     test('Круг возвращает выбор', async () => {
         const { map } = await renderApp(tiles);
         await pickBing(map);
-        expect(names()).toEqual(['Tracestrack Topo', 'Google Map', 'Bing Satellite']);
+        expect(names()).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'Bing Satellite']);
         await page.getByRole('button', { name: 'Bing Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
     });
@@ -466,11 +474,11 @@ describe('Круг помнит выбор типа', () => {
         const { map } = await renderApp(tiles);
         const menu = await openMenu('Strava heatmaps');
         await menu.getByRole('menuitemradio', { name: 'Strava heatmap (run)' }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Sr']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of', 'Sr']);
         await page.getByRole('button', { name: 'Strava heatmap (run)', exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of']);
         await page.getByRole('button', { name: 'Strava heatmap (run)', exact: true }).click();
-        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt', 'Sr']);
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Of', 'Sr']);
         expect(heatmapButton()?.getAttribute('aria-label')).toBe('Strava heatmap (run)');
     });
 
@@ -479,22 +487,43 @@ describe('Круг помнит выбор типа', () => {
         await pickBing(first.map);
         await cleanup();
         const { map } = await renderApp(tiles);
-        await expect.poll(names).toEqual(['Tracestrack Topo', 'Google Map', 'Bing Satellite']);
+        await expect.poll(names).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'Bing Satellite']);
         await page.getByRole('button', { name: 'Bing Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['I']);
     });
 
     test('Откат не меняет память', async () => {
-        tiles.respond(/tracestrack/, new URL('/__status__/503/tile.png', location.href).href);
+        // недоступны обе подложки цепочки: OpenFreeMap → Tracestrack → OpenStreetMap
+        const unavailable = new URL('/__status__/503/tile.png', location.href).href;
+        tiles.respond(/^https:\/\/tiles\.openfreemap\.org\/planet$/, unavailable);
+        tiles.respond(/tracestrack/, unavailable);
         const { map } = await renderApp(tiles);
         await expect.poll(() => mapLayerIds(map)).toEqual(['O']);
         // на карте OpenStreetMap — отмечен круг обычной карты
-        expect(names()).toEqual(['Tracestrack Topo', 'OpenStreetMap', 'ESRI Satellite']);
+        expect(names()).toEqual(['OpenFreeMap Outdoor', 'OpenStreetMap', 'ESRI Satellite']);
         expect(pressed()).toEqual(['false', 'true', 'false']);
         await page.getByRole('button', { name: 'ESRI Satellite', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['E']);
         await page.getByRole('button', { name: 'Google Map', exact: true }).click();
         await expect.poll(() => mapLayerIds(map)).toEqual(['G']);
+    });
+
+    test('круг во время отката выбирает подложку пользователя, а не подложку отката', async () => {
+        tiles.respond(
+            /^https:\/\/tiles\.openfreemap\.org\/planet$/,
+            new URL('/__status__/503/tile.png', location.href).href,
+        );
+        const { map } = await renderApp(tiles);
+        // OpenFreeMap недоступна — на карте Tracestrack, круг топокарты отмечен, но его цель — OpenFreeMap
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt']);
+        expect(pressed()).toEqual(['true', 'false', 'false']);
+        expect(names()).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'ESRI Satellite']);
+        await page.getByRole('button', { name: 'OpenFreeMap Outdoor', exact: true }).click();
+        // нажатие пробует OpenFreeMap снова; Tracestrack выбором не становится ни в адресе, ни в памяти круга
+        await expect.poll(() => location.hash).toContain('l=Of');
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+        expect(saved.selection.base).toBe('Of');
+        expect(saved.quickLayers?.Of).not.toBe('Tt');
     });
 
     test('Отмеченный круг не меняет подложку', async () => {
@@ -525,8 +554,8 @@ describe('Настройка списка слоёв', () => {
         await expect.element(dialog).not.toBeInTheDocument();
         menu = await openMenu('Topo layers');
         expect(itemNames(menu)).toEqual([
-            'Tracestrack Topo',
             'OpenFreeMap Outdoor',
+            'Tracestrack Topo',
             'OpenTopoMap',
             'OSM Outdoors',
             'OpenCycleMap',
@@ -548,8 +577,9 @@ describe('Настройка списка слоёв: кнопки столбц�
         await switcher.getByText('Configure layers').click();
         const dialog = page.getByRole('dialog');
         await expect.element(dialog.getByRole('checkbox', { name: 'OpenTopoMap' })).toBeChecked();
+        await expect.element(dialog.getByRole('checkbox', { name: 'Tracestrack Topo' })).toBeChecked();
         for (const name of [
-            'Tracestrack Topo',
+            'OpenFreeMap Outdoor',
             'Google Map',
             'ESRI Satellite',
             'Strava heatmap (all)',
@@ -597,7 +627,7 @@ describe('Свои слои по URL', () => {
         await expect
             .poll(() => tiles.requested.some((url) => url.startsWith('https://tiles.example.test/')))
             .toBe(true);
-        expect(location.hash).toMatch(/l=Tt\/-cs[A-Za-z0-9_=-]+/);
+        expect(location.hash).toMatch(/l=Of\/-cs[A-Za-z0-9_=-]+/);
         const switcher = await openSwitcher();
         await expect.element(switcher.getByRole('checkbox', { name: /Custom layer/ })).toBeChecked();
     });
