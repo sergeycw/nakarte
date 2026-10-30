@@ -12,8 +12,8 @@
 
 ## 3. Круг топокарты
 
-- [ ] 3.1 `quick-layers.ts`: группа `Topo layers` — `['Of', 'Tt', 'Otm', 'Oso', 'Ocm', 'Co']`. Проверка: unit `quick-layers.test.ts` — круг топокарты `Of`; browser `LayerSwitcher.browser.test.tsx` — «Превью без настроек» (OpenFreeMap Outdoor, Google Map, ESRI Satellite, отмечен OpenFreeMap Outdoor), «Кнопок столбца в настройке нет» (нет OpenFreeMap Outdoor, Tracestrack Topo отмечен); unit `catalog.test.ts` — «Список слоёв» (первые — Tracestrack Topo, OpenStreetMap, Sentinel-2 cloudless).
-- [ ] 3.2 `scripts/layer-thumbnails.mjs`: снимать векторную `Of` (отрисовка MapLibre стилем `Of`, способ — история change `add-vector-outdoor-style`) на месте и зуме прежнего `Tt`; `Of.webp` в `web/src/layers/thumbnails/`, `Tt.webp` и место `Tt` удалить; шапку скрипта поправить. Проверка: `node --experimental-strip-types scripts/layer-thumbnails.mjs Of` даёт картинку 72 px; скриншот столбца справа — владельцу до merge; `npm run build` проходит без `Tt.webp`.
+- [x] 3.1 `quick-layers.ts`: группа `Topo layers` — `['Of', 'Tt', 'Otm', 'Oso', 'Ocm', 'Co']`. Проверка: unit `quick-layers.test.ts` — круг топокарты `Of`; browser `LayerSwitcher.browser.test.tsx` — «Превью без настроек» (OpenFreeMap Outdoor, Google Map, ESRI Satellite, отмечен OpenFreeMap Outdoor), «Кнопок столбца в настройке нет» (нет OpenFreeMap Outdoor, Tracestrack Topo отмечен); unit `catalog.test.ts` — «Список слоёв» (первые — Tracestrack Topo, OpenStreetMap, Sentinel-2 cloudless).
+- [x] 3.2 `scripts/layer-thumbnails.mjs`: снимать векторную `Of` (отрисовка MapLibre стилем `Of`, способ — история change `add-vector-outdoor-style`) на месте и зуме прежнего `Tt`; `Of.webp` в `web/src/layers/thumbnails/`, `Tt.webp` и место `Tt` удалить; шапку скрипта поправить. Проверка: `node --experimental-strip-types scripts/layer-thumbnails.mjs Of` даёт картинку 72 px; скриншот столбца справа — владельцу до merge; `npm run build` проходит без `Tt.webp`.
 
 ## 4. e2e
 

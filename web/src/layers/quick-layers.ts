@@ -13,9 +13,11 @@ export interface QuickLayerGroup {
 }
 
 // Состав групп подложек — таблица владельца (design quick-layer-menus). Hls и свои слои ни в одну группу не входят; что
-// каждая подложка каталога, кроме слоя с dated, в какой-то группе есть, сверяет quick-layers.test.ts
+// каждая подложка каталога, кроме слоя с dated, в какой-то группе есть, сверяет quick-layers.test.ts. Круг топокарты —
+// OpenFreeMap Outdoor, подложка по умолчанию (design openfreemap-default-basemap): с Tracestrack первым круг показывал бы
+// его картинку при включённой Of и после смены группы возвращал бы на Tracestrack, тратя его квоту
 export const QUICK_BASE_GROUPS: readonly QuickLayerGroup[] = [
-    { name: 'Topo layers', codes: ['Tt', 'Of', 'Otm', 'Oso', 'Ocm', 'Co'] },
+    { name: 'Topo layers', codes: ['Of', 'Tt', 'Otm', 'Oso', 'Ocm', 'Co'] },
     { name: 'Map layers', codes: ['G', 'O', 'P'] },
     { name: 'Satellite layers', codes: ['E', 'L', 'I', 'S2'] },
 ];

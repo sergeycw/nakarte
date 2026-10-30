@@ -33,7 +33,7 @@ describe('Меню слоёв столбца', () => {
     });
 
     test('круги — первые подложки групп, у них есть превью', () => {
-        expect(QUICK_BASES).toEqual(['Tt', 'G', 'E']);
+        expect(QUICK_BASES).toEqual(['Of', 'G', 'E']);
     });
 });
 
@@ -55,7 +55,7 @@ describe('Круг помнит выбор типа', () => {
         expect(quickTarget(satellite, { E: 'I' }, 'L', menu)).toBe('L');
         // запомненного нет в меню (снят в Configure layers) — первый слой группы
         expect(quickTarget(satellite, { E: 'I' }, undefined, ['E', 'L', 'S2'])).toBe('E');
-        expect(quickTarget(topo, { E: 'I' }, undefined, topo.codes)).toBe('Tt');
+        expect(quickTarget(topo, { E: 'I' }, undefined, topo.codes)).toBe('Of');
         expect(quickTarget(maps, { G: 'P' }, undefined, maps.codes)).toBe('P');
     });
 });
