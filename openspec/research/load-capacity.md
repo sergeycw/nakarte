@@ -1,6 +1,6 @@
 # Нагрузка: что клон выдержит и что сломается первым
 
-Ресёрч 2026-10-30 по вопросу владельца «насколько хорошо приложение будет держать нагрузку». Код не менялся. Цены и лимиты Cloudflare здесь не повторяются: [security-audit.md](security-audit.md), «Цены и как считаем», п. 1 и п. 7; схема лимитов — [protection.md](../../docs/architecture/protection.md).
+Ресёрч 2026-10-30 по вопросу владельца «насколько хорошо приложение будет держать нагрузку». Код не менялся. Из вариантов сделан первый для квоты Tracestrack — подложка по умолчанию OpenFreeMap Outdoor с откатом на Tracestrack: архив [openfreemap-default-basemap](../changes/archive/2026-10-30-openfreemap-default-basemap/design.md). Цены и лимиты Cloudflare здесь не повторяются: [security-audit.md](security-audit.md), «Цены и как считаем», п. 1 и п. 7; схема лимитов — [protection.md](../../docs/architecture/protection.md).
 
 ## Коротко
 
