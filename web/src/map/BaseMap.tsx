@@ -8,6 +8,7 @@ import { withDate } from '@/layers/dated';
 import { buildStyle, layerCodeOfSource } from '@/layers/style';
 import { editSources } from '@/routing/edit-style';
 import { MapEditor } from '@/routing/MapEditor';
+import { RoutingBadgeOnMap } from '@/routing/RoutingBadgeOnMap';
 import { ToolHintOnMap } from '@/routing/ToolHintOnMap';
 import { PlacemarkOnMap } from '@/search/PlacemarkOnMap';
 import { useAppStore } from '@/state/context';
@@ -169,6 +170,7 @@ export function BaseMap({ onTileError, transformRequest, ref, children }: BaseMa
                 {children}
                 <MapEditor />
                 <ToolHintOnMap />
+                <RoutingBadgeOnMap />
                 <ProfileOnMap />
                 <PlacemarkOnMap />
                 <StreetViewOnMap />

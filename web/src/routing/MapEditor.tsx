@@ -15,7 +15,7 @@ import { EDIT_PREVIEW, EDIT_WAYPOINTS, previewData, toolPreviewData, waypointRol
 import type { RouteEditing } from './editing';
 import { useRouteEditing } from './editing-context';
 import type { End } from './editor';
-import { legPath, tracksRouting } from './line';
+import { legPath } from './line';
 import { type LinePlace, placePoint, shortcutRemoved, toolOrigin } from './line-tools';
 
 // События карты для редактора (design add-web-route-editor, «События карты»). Компонент внутри <Map>: обработчики
@@ -264,11 +264,6 @@ function bind(
         let cursor = '';
         if (overWaypoint || dragging) {
             cursor = 'move';
-        } else if (tracksRouting(state().tracks)) {
-            // пока идут запросы, курсор показывает ожидание (спека route-editing, «Клик при рисовании»). По трекам, а
-            // не по редактору: Finish editing запрос не отменяет, отрезок ждёт ответа и после правки, а спиннера на
-            // карте больше нет (design drop-route-spinner)
-            cursor = 'progress';
         } else if (edit?.drawing || state().lineTool || state().pointTool) {
             cursor = 'crosshair';
         }
@@ -768,17 +763,13 @@ function bind(
         return false;
     }
 
-    // курсор следует за состоянием: рисование, ожидание маршрутов
+    // курсор следует за состоянием: рисование, инструменты. Ожидание маршрутов курсор не меняет — его показывает бейдж
+    // у указателя (RoutingBadgeOnMap, design route-thread-loader)
     const unsubscribe = store.subscribe((next, prev) => {
         if (next.lineTool !== prev.lineTool && !next.lineTool) {
             setPreview(null);
         }
-        if (
-            next.routeEdit !== prev.routeEdit ||
-            next.tracks !== prev.tracks ||
-            next.lineTool !== prev.lineTool ||
-            next.pointTool !== prev.pointTool
-        ) {
+        if (next.routeEdit !== prev.routeEdit || next.lineTool !== prev.lineTool || next.pointTool !== prev.pointTool) {
             updateCursor(false);
         }
     });

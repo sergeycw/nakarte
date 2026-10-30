@@ -30,19 +30,24 @@ export function idle(map: MaplibreMap) {
     });
 }
 
+// mousemove идёт вслед за pointermove мыши, как у настоящей мыши: по нему бейдж ожидания прокладки встаёт у указателя
+// (RoutingBadgeOnMap). pointerdown не шлётся: он на холсте закрывает список треков (TopBar), а тесты после кликов по
+// карте работают с открытым списком
 export function fire(map: MaplibreMap, type: string, at: LatLng, init: MouseEventInit = {}) {
     const rect = map.getCanvasContainer().getBoundingClientRect();
     const point = map.project([at.lng, at.lat]);
-    map.getCanvas().dispatchEvent(
-        new MouseEvent(type, {
-            bubbles: true,
-            cancelable: true,
-            button: 0,
-            clientX: rect.left + point.x,
-            clientY: rect.top + point.y,
-            ...init,
-        }),
-    );
+    const event = {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: rect.left + point.x,
+        clientY: rect.top + point.y,
+        ...init,
+    };
+    if (type === 'mousemove') {
+        map.getCanvas().dispatchEvent(new PointerEvent('pointermove', { ...event, pointerType: 'mouse' }));
+    }
+    map.getCanvas().dispatchEvent(new MouseEvent(type, event));
 }
 
 export async function click(map: MaplibreMap, at: LatLng, init: MouseEventInit = {}) {

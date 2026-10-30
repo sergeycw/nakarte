@@ -1,6 +1,6 @@
 import type { LineString } from 'geojson';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup } from 'vitest-browser-react';
 import '@/index.css';
 import { type FakeRouter, fakeRouter } from '@/test/fake-router';
@@ -20,7 +20,7 @@ import {
     pressEscape,
     waypoints,
 } from '@/test/map-events';
-import { openTracks, renderApp } from '@/test/render-app';
+import { openTracks, renderApp, tracksButton } from '@/test/render-app';
 import { type FixtureTiles, fixtureTiles } from '@/test/tiles';
 import { type LatLng, TRACK_COLORS } from '@/tracks/model';
 import { saveNktk } from '@/tracks/nktk';
@@ -46,6 +46,7 @@ afterEach(() => {
 
 // Тбилиси, зум старого клиента 15: между точками ≈ 100 px
 const VIEW = '#m=15/41.69/44.785';
+const badge = () => page.getByTestId('routing-badge');
 const A = P(41.687, 44.78);
 const B = P(41.69, 44.785);
 const C = P(41.693, 44.79);
@@ -245,18 +246,26 @@ describe('Клик при рисовании', () => {
     test('Ожидание маршрута', async () => {
         const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
         await newTrack(map, [A, B]);
-        // между опорными точками разрыв, ожидание — курсором
-        await expect.poll(() => map.getCanvas().style.cursor).toBe('progress');
+        // между опорными точками разрыв, ожидание — бейджем у указателя
+        await expect.element(badge()).toBeInTheDocument();
         expect(legs(map)).toHaveLength(0);
-        // конец правки запрос не отменяет: курсор ждёт, пока отрезок не проложен
+        // конец правки запрос не отменяет: бейдж ждёт, пока отрезок не проложен
         await page.getByRole('button', { name: 'Finish editing' }).click();
         await expect.poll(() => page.getByRole('button', { name: 'Finish editing' }).query()).toBeNull();
-        expect(map.getCanvas().style.cursor).toBe('progress');
+        fire(map, 'mousemove', C);
+        await expect.element(badge()).toBeInTheDocument();
         expect(features(map, TRACK_LINES)).toHaveLength(0);
         router.live()[0].resolve([]);
         // ответ пришёл после правки — отрезок рисует уже слой треков
         await expect.poll(() => features(map, TRACK_LINES)).toHaveLength(1);
-        expect(map.getCanvas().style.cursor).not.toBe('progress');
+        await expect.element(badge()).not.toBeInTheDocument();
+    });
+
+    test('Курсор рисования во время ожидания', async () => {
+        const { map } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(badge()).toBeInTheDocument();
+        expect(map.getCanvas().style.cursor).toBe('crosshair');
     });
 
     test('резинка от последней точки к курсору', async () => {
@@ -285,14 +294,69 @@ describe('Ошибка прокладки', () => {
         // между опорными точками помеченная прямая, уведомление с причиной, курсор больше не ждёт
         await expect.element(page.getByText('Routing failed: no route found')).toBeVisible();
         await expect.poll(() => legs(map).map((f) => f.properties?.unrouted)).toEqual([true]);
-        expect(map.getCanvas().style.cursor).not.toBe('progress');
+        await expect.element(badge()).not.toBeInTheDocument();
+    });
+});
+
+describe('Бейдж ожидания у указателя', () => {
+    test('Указатель ушёл с карты', async () => {
+        const { map } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(badge()).toBeInTheDocument();
+        map.getCanvas().dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+        await expect.element(badge()).not.toBeInTheDocument();
+        fire(map, 'mousemove', C);
+        await expect.element(badge()).toBeInTheDocument();
+        // бейдж правее и ниже острия
+        const canvas = map.getCanvas().getBoundingClientRect();
+        const point = map.project([C.lng, C.lat]);
+        const box = badge().element().getBoundingClientRect();
+        expect(box.left - (canvas.left + point.x)).toBeGreaterThan(0);
+        expect(box.top - (canvas.top + point.y)).toBeGreaterThan(0);
+        // бейдж на месте едет за указателем
+        fire(map, 'mousemove', D);
+        const to = map.project([D.lng, D.lat]);
+        const moved = badge().element().getBoundingClientRect();
+        expect(moved.left - box.left).toBeCloseTo(to.x - point.x, 0);
+        expect(moved.top - box.top).toBeCloseTo(to.y - point.y, 0);
+    });
+
+    test('Клик сквозь бейдж', async () => {
+        const { map } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(badge()).toBeInTheDocument();
+        // нажатие на бейдж попадает в холст: синтетический клик ниже идёт в холст напрямую и этого не проверяет
+        const box = badge().element().getBoundingClientRect();
+        expect(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)).toBe(map.getCanvas());
+        await click(map, C);
+        await expect.poll(() => waypoints(map)).toHaveLength(3);
+        expect(near(waypoints(map)[2], C)).toBe(true);
+    });
+
+    test('Касание без бейджа', async () => {
+        const { map } = await render(VIEW, fakeRouter(), 'hiking');
+        await page.getByRole('button', { name: 'New track' }).first().click();
+        // касание: указатель типа touch, за ним совместимые события мыши — mousemove без pointermove мыши (fire его
+        // добавил бы), бейдж по нему вставать не должен
+        for (const point of [A, B]) {
+            await idle(map);
+            const rect = map.getCanvas().getBoundingClientRect();
+            const at = map.project([point.lng, point.lat]);
+            const client = { bubbles: true, clientX: rect.left + at.x, clientY: rect.top + at.y };
+            map.getCanvas().dispatchEvent(new PointerEvent('pointerdown', { ...client, pointerType: 'touch' }));
+            map.getCanvas().dispatchEvent(new MouseEvent('mousemove', client));
+            fire(map, 'mousedown', point);
+            fire(map, 'mouseup', point);
+            fire(map, 'click', point);
+        }
+        await expect.poll(() => waypoints(map)).toHaveLength(2);
+        expect(page.getByTestId('routing-badge').query()).toBeNull();
     });
 });
 
 describe('Ожидание прокладки в верхней строке', () => {
     // в строке редактора: открытый список треков под ней показывает свою кнопку прокладки
     const routingButton = () => editPanel().getByRole('button', { name: /^Routing/ });
-    const tracksButton = () => page.getByRole('button', { name: /^Tracks( \d+)?$/ });
 
     test('Ожидание в строке редактора', async () => {
         const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
@@ -346,6 +410,50 @@ describe('Ожидание прокладки в верхней строке', (
         router.live()[0].reject(new RoutingError('no route found'));
         await expect.element(routingButton()).not.toHaveAttribute('aria-busy');
         await expect.element(routingButton()).toHaveAttribute('title', 'Routing: Hiking');
+    });
+});
+
+describe('Вид ожидания прокладки', () => {
+    const routingButton = () => editPanel().getByRole('button', { name: /^Routing/ });
+    const thread = () => routingButton().getByTestId('route-thread');
+    const stroke = () => {
+        const path = thread().element().querySelector('path');
+        if (!path) {
+            throw new Error('нет нитки');
+        }
+        return getComputedStyle(path);
+    };
+
+    test('Нитка на кнопке прокладки', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B]);
+        await expect.element(thread()).toBeInTheDocument();
+        expect(routingButton().element().querySelector('.animate-spin')).toBeNull();
+        expect(stroke().animationName).toBe('route-thread');
+        // после конца правки — на Tracks
+        await page.getByRole('button', { name: 'Finish editing' }).click();
+        await expect.element(tracksButton().getByTestId('route-thread')).toBeInTheDocument();
+        router.live()[0].resolve([]);
+        await expect.element(tracksButton().getByTestId('route-thread')).not.toBeInTheDocument();
+    });
+
+    test('Меньше движения', async () => {
+        // настройку системы подменяет Chromium: тест и его iframe — в одной странице
+        const reduce = (value: string) =>
+            cdp().send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
+        await reduce('reduce');
+        try {
+            const { map } = await render(VIEW, fakeRouter(), 'hiking');
+            await newTrack(map, [A, B]);
+            await expect.element(thread()).toBeInTheDocument();
+            // нитка стоит целой: без анимации, штрих на видимом участке — и на кнопке, и на бейдже
+            expect(stroke().animationName).toBe('none');
+            expect(stroke().strokeDashoffset).toBe('-270px');
+            const onBadge = badge().element().querySelector('path');
+            expect(onBadge && getComputedStyle(onBadge).animationName).toBe('none');
+        } finally {
+            await reduce('');
+        }
     });
 });
 
@@ -524,9 +632,10 @@ describe('Меню активностей', () => {
     test('Движок загружается', async () => {
         const router = fakeRouter({ status: 'loading' });
         await render(VIEW, router, 'hiking');
-        await expect
-            .element(page.getByRole('button', { name: 'Routing: Hiking. BRouter engine is loading' }))
-            .toBeVisible();
+        const loading = page.getByRole('button', { name: 'Routing: Hiking. BRouter engine is loading' });
+        await expect.element(loading).toBeVisible();
+        // индикатор загрузки — нитка ожидания, как у ожидания маршрута (спека route-editing, «Вид ожидания прокладки»)
+        await expect.element(loading.getByTestId('route-thread')).toBeInTheDocument();
         router.setStatus('ready');
         // Движок готов
         await expect.element(page.getByRole('button', { name: 'Routing: Hiking', exact: true })).toBeVisible();

@@ -415,6 +415,31 @@ describe('Импорт', () => {
     });
 });
 
+describe('Вид ожидания прокладки', () => {
+    test('Загрузка треков по ссылке', async () => {
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const gpx = '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="3" lon="4"/></trkseg></trk></gpx>';
+        await renderApp(tiles, '', {
+            fetch: async () => {
+                await released;
+                return new Response(gpx);
+            },
+        });
+        await page.getByRole('combobox', { name: 'Search' }).fill('https://example.test/files/route.gpx');
+        await expect.element(page.getByRole('option').getByText('route.gpx')).toBeVisible();
+        await userEvent.keyboard('{Enter}');
+        // пока файл грузится — спиннер, а не нитка прокладки
+        await expect.element(tracksButton().getByLabelText('Loading tracks')).toBeInTheDocument();
+        expect(tracksButton().element().querySelector('[data-testid="route-thread"]')).toBeNull();
+        release();
+        await expect.element(page.getByRole('button', { name: 'route.gpx' })).toBeVisible();
+        await expect.element(tracksButton().getByLabelText('Loading tracks')).not.toBeInTheDocument();
+    });
+});
+
 describe('Ссылка на треки после ответа хранилища', () => {
     function deferredStorage(response: () => Response | Promise<Response>) {
         let release!: () => void;
