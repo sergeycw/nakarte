@@ -171,7 +171,8 @@ describe('Профиль высот трека и отрезка', () => {
     test('закрыть профиль', async () => {
         await render(trackLink('Walk', [SOUTH]));
         await openTrackProfile('Walk');
-        await page.getByRole('button', { name: 'Close elevation profile' }).click();
+        // закрывает кнопка профиля под картой: своего крестика у панели нет
+        await page.getByRole('button', { name: /^Elevation profile/ }).click();
         await expect.poll(() => profilePanel().query()).toBeNull();
     });
 });

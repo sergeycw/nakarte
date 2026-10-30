@@ -1,4 +1,4 @@
-import { LoaderCircleIcon, RotateCwIcon, XIcon } from 'lucide-react';
+import { LoaderCircleIcon, RotateCwIcon } from 'lucide-react';
 import { Fragment, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -152,15 +152,9 @@ export function ElevationProfile() {
                     {updating && (
                         <LoaderCircleIcon className="size-3.5 shrink-0 animate-spin" aria-label="Loading elevation" />
                     )}
-                    <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Close elevation profile"
-                        title="Close"
-                        onClick={profile.close}
-                    >
-                        <XIcon />
-                    </Button>
+                    {/* своего закрытия у панели нет: закрывает кнопка профиля над ней (MapActions), она есть всегда,
+                        пока профиль открыт. Крестик убран по отзыву пользователя (владелец 2026-10-30): на широком
+                        экране он висел посреди панели, а открывают профиль стрелкой вверх на той же кнопке */}
                 </div>
                 <div className="order-last min-w-0 basis-full sm:order-none sm:basis-auto">
                     {data && <Stats data={data} />}
