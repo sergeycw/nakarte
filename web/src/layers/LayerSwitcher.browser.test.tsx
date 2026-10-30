@@ -508,6 +508,24 @@ describe('Круг помнит выбор типа', () => {
         await expect.poll(() => mapLayerIds(map)).toEqual(['G']);
     });
 
+    test('круг во время отката выбирает подложку пользователя, а не подложку отката', async () => {
+        tiles.respond(
+            /^https:\/\/tiles\.openfreemap\.org\/planet$/,
+            new URL('/__status__/503/tile.png', location.href).href,
+        );
+        const { map } = await renderApp(tiles);
+        // OpenFreeMap недоступна — на карте Tracestrack, круг топокарты отмечен, но его цель — OpenFreeMap
+        await expect.poll(() => mapLayerIds(map)).toEqual(['Tt']);
+        expect(pressed()).toEqual(['true', 'false', 'false']);
+        expect(names()).toEqual(['OpenFreeMap Outdoor', 'Google Map', 'ESRI Satellite']);
+        await page.getByRole('button', { name: 'OpenFreeMap Outdoor', exact: true }).click();
+        // нажатие пробует OpenFreeMap снова; Tracestrack выбором не становится ни в адресе, ни в памяти круга
+        await expect.poll(() => location.hash).toContain('l=Of');
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+        expect(saved.selection.base).toBe('Of');
+        expect(saved.quickLayers?.Of).not.toBe('Tt');
+    });
+
     test('Отмеченный круг не меняет подложку', async () => {
         localStorage.setItem(
             STORAGE_KEY,

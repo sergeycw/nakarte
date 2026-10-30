@@ -117,6 +117,8 @@ function QuickBase({ group }: { group: QuickLayerGroup }) {
     const layers = useAppStore((state) => state.layers);
     const settings = useAppStore((state) => state.settings);
     const selected = useAppStore((state) => state.selection.base);
+    // выбор пользователя: во время отката подложки (Of → Tt) на карте подложка отката, а выбор — та, с которой откатились
+    const chosen = useAppStore((state) => savedSelection(state).base);
     const selectBase = useAppStore((state) => state.selectBase);
     const circle = useRef<HTMLDivElement>(null);
     const main = layers.get(group.codes[0]);
@@ -125,10 +127,13 @@ function QuickBase({ group }: { group: QuickLayerGroup }) {
     }
     const current = group.codes.includes(selected) ? selected : undefined;
     const items = menuItems(group, layers, settings, current);
+    // цель нажатия — выбор пользователя, а не подложка отката: иначе нажатие на отмеченный круг топокарты во время
+    // отката OpenFreeMap записало бы Tracestrack выбором и тратило бы его квоту и дальше (ревью диффа
+    // openfreemap-default-basemap)
     const target = quickTarget(
         group,
         settings.quickLayers,
-        current,
+        group.codes.includes(chosen) ? chosen : current,
         items.map((layer) => layer.code),
     );
     const title = layers.get(target)?.title ?? main.title;
