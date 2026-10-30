@@ -9,6 +9,12 @@ on:
     - cron: '40 5 * * *'
   workflow_dispatch:
   workflow_call:
+    inputs:
+      # пауза перед проверкой, с: первые десятки секунд после публикации Pages отвечает 500 и на статике,
+      # и в функциях (деплои 2026-10-29 и 2026-10-30, AGENTS.md, «Подвохи клона»)
+      settle_seconds:
+        type: number
+        default: 0
 
 jobs:
   check:
@@ -16,4 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: inputs.settle_seconds > 0
+        run: sleep ${{ inputs.settle_seconds }}
       - run: sh scripts/prod-check.sh
