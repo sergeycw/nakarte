@@ -180,6 +180,8 @@ export interface RouteEditState {
     drawing: End | null;
     canUndo: boolean;
     canRedo: boolean;
+    // номер правки редактора (RouteEditor.revision): ответ роутера его не меняет
+    revision: number;
 }
 
 export type AppStore = StoreApi<AppState>;

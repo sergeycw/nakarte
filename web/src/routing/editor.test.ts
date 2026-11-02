@@ -462,3 +462,55 @@ describe('Разворот отрезка', () => {
         expect(router.live()[0].to).toEqual(A);
     });
 });
+
+describe('Опорная точка у поворота', () => {
+    // перекрёсток J; улица на запад и север, точка W в 8 м за перекрёстком на восток, следующая — на юге
+    const J = P(41.69, 44.78);
+    const meters = (x: number, y: number) =>
+        P(J.lat + y / 111195, J.lng + x / (111195 * Math.cos((J.lat * Math.PI) / 180)));
+    const WEST = meters(-200, 0);
+    const W = meters(8, 0);
+    const SOUTH = meters(0, -200);
+    const MIDDLE = meters(0, -100);
+
+    test('Точка чуть дальше перекрёстка', async () => {
+        const { editor, router } = setup();
+        editor.addWaypoint('end', WEST, 'hiking');
+        editor.addWaypoint('end', W, 'hiking');
+        editor.addWaypoint('end', SOUTH, 'hiking');
+        // второй отрезок отвечает первым: ус появляется, только когда проложены оба
+        router.calls[1].resolve([J, MIDDLE]);
+        await flush();
+        expect(editor.line().waypoints[1]).toBe(W);
+        const revision = editor.revision();
+        router.calls[0].resolve([J]);
+        await flush();
+        expect(editor.revision()).toBe(revision);
+        const line = editor.line();
+        expect(line.waypoints).toEqual([WEST, J, SOUTH]);
+        expect(line.legs).toEqual([
+            { state: 'routed', activity: 'hiking', points: [] },
+            { state: 'routed', activity: 'hiking', points: [MIDDLE] },
+        ]);
+    });
+
+    test('Undo после сдвига', async () => {
+        const { editor, router } = setup();
+        editor.addWaypoint('end', WEST, 'hiking');
+        editor.addWaypoint('end', W, 'hiking');
+        router.calls[0].resolve([J]);
+        await flush();
+        editor.addWaypoint('end', SOUTH, 'hiking');
+        router.calls[1].resolve([J, MIDDLE]);
+        await flush();
+        expect(editor.line().waypoints).toEqual([WEST, J, SOUTH]);
+        // сдвиг — часть ответа: номер правки тот же, что после клика
+        const revision = editor.revision();
+        expect(revision).toBeGreaterThan(0);
+        editor.undo();
+        expect(editor.revision()).toBe(revision + 1);
+        // отменяется клик, а не сдвиг: точка W снова конец линии
+        expect(editor.line().waypoints).toEqual([WEST, W]);
+        expect(states(editor.line())).toEqual(['routed:hiking']);
+    });
+});

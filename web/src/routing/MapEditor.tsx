@@ -290,6 +290,8 @@ function bind(
             return;
         }
         dragging = true;
+        // линия в начале жеста: finish сверяет с ней (объявление функции поднимается, и сужение edit туда не доходит)
+        const { trackId, segment, revision } = edit;
         const { waypoints } = edit.line;
         const role = waypointRole(index, waypoints.length);
         const color = editColor(store);
@@ -353,9 +355,11 @@ function bind(
             dragging = false;
             setPreview(null);
             state().setRouteDrag(null);
-            // точка всё ещё та же: за время жеста линию могли поменять (ответ роутера не меняет опорные точки, а
-            // undo с клавиатуры клавиши редактора во время перетаскивания не пускают — проверка на всякий случай)
-            if (moved && state().routeEdit?.line.waypoints[index] === origin) {
+            // за время жеста линию не правили: undo с клавиатуры клавиши редактора во время перетаскивания не пускают —
+            // проверка на всякий случай. Сверка по номеру правки, а не по точке: ответ роутера может сдвинуть эту же
+            // точку в поворот (ус у поворота, spur.ts), и перетаскивание тогда пропало бы
+            const now = state().routeEdit;
+            if (moved && now?.trackId === trackId && now.segment === segment && now.revision === revision) {
                 editing.moveWaypoint(index, latlng);
             }
             if (moved || inserted) {
