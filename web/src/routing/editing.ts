@@ -57,6 +57,7 @@ export function createRouteEditing({ store, router, engine, notify, storage }: R
             drawing,
             canUndo: current.editor.canUndo(),
             canRedo: current.editor.canRedo(),
+            revision: current.editor.revision(),
         });
     }
 

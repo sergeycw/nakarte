@@ -472,6 +472,28 @@ describe('Перетаскивание опорной точки', () => {
         expect(near(toMoved.from, A) && near(toMoved.to, moved)).toBe(true);
         expect(near(fromMoved.from, moved) && near(fromMoved.to, C)).toBe(true);
     });
+
+    test('ответ роутера во время перетаскивания его не отменяет', async () => {
+        const { map, router } = await render(VIEW, fakeRouter(), 'hiking');
+        await newTrack(map, [A, B, C]);
+        pressEscape();
+        // оба отрезка проходят перекрёсток J в ≈ 8 м от B: когда проложен второй, B переезжает в J (ус у поворота)
+        const J = P(B.lat, B.lng - 0.0001);
+        router.live()[0].resolve([J]);
+        await idle(map);
+        const moved = P(41.6915, 44.783);
+        fire(map, 'mousemove', B);
+        fire(map, 'mousedown', B);
+        fire(map, 'mousemove', P((B.lat + moved.lat) / 2, (B.lng + moved.lng) / 2));
+        router.live()[0].resolve([J, P(41.6915, 44.785)]);
+        await expect.poll(() => router.live()).toHaveLength(0);
+        fire(map, 'mousemove', moved);
+        fire(map, 'mouseup', moved);
+        fire(map, 'click', moved);
+        await expect.poll(() => router.calls.length).toBe(4);
+        const [toMoved, fromMoved] = router.calls.slice(-2);
+        expect(near(toMoved.to, moved) && near(fromMoved.from, moved)).toBe(true);
+    });
 });
 
 describe('Удаление опорной точки двойным кликом', () => {

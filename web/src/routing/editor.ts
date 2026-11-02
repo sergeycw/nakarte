@@ -1,6 +1,7 @@
 import type { LatLng } from '@/tracks/model';
 import { hasActivity, type Leg, type RouteLine, STRAIGHT } from './line';
 import { type LinePlace, reverseLine, shortcutLine, splitLeg } from './line-tools';
+import { trimSpur } from './spur';
 
 // Редактор одной линии без карты (design add-web-route-editor, «Редактор — модель с очередью и историей»; спека
 // route-editing). Правки ставят опорные точки сразу, а отрезки с активностью уходят в роутер асинхронно: отрезок ждёт
@@ -43,6 +44,9 @@ export interface RouteEditor {
     canRedo(): boolean;
     // сколько отрезков ждут маршрута (курсор «ожидание»)
     pending(): number;
+    // номер правки: растёт на каждой правке, undo и redo, но не на ответе роутера. Ответ тоже двигает опорную точку
+    // (ус у поворота, spur.ts), поэтому жест MapEditor сверяет по номеру, а не по точке, не поменялась ли линия под ним
+    revision(): number;
     // отменить все запросы: редактор больше не нужен
     dispose(): void;
 }
@@ -94,6 +98,7 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
     let redoStack: RouteLine[] = [];
     // номер точки, только что вставленной на отрезок: её перетаскивание — тот же шаг истории (_justInsertedNode)
     let justInserted: number | null = null;
+    let revision = 0;
     const requests = new Map<number, AbortController>();
 
     function pendingRequests(target: RouteLine): Set<number> {
@@ -147,7 +152,9 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
         );
     }
 
-    // Ответ меняет только свой отрезок и в историю не пишется: undo отменяет правку, а не приход маршрута
+    // Ответ меняет только свой отрезок и в историю не пишется: undo отменяет правку, а не приход маршрута. Проложенный
+    // отрезок может дать ус у своих концов с соседним проложенным: опорная точка переезжает в поворот (spur.ts) —
+    // тоже без шага истории, это часть ответа
     function applyResponse(id: number, leg: Leg) {
         const index = line.legs.findIndex((item) => item.state === 'pending' && item.request === id);
         if (index < 0) {
@@ -155,13 +162,19 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
         }
         const legs = line.legs.slice();
         legs[index] = leg;
-        line = { waypoints: line.waypoints, legs };
+        let next: RouteLine = { waypoints: line.waypoints, legs };
+        if (leg.state === 'routed') {
+            next = trimSpur(next, index) ?? next;
+            next = trimSpur(next, index + 1) ?? next;
+        }
+        line = next;
         options.onChange?.(line);
     }
 
     // Правка: прежняя линия — в историю, redo очищается
     function edit(next: RouteLine) {
         justInserted = null;
+        revision += 1;
         undoStack.push(line);
         if (undoStack.length > HISTORY_LIMIT) {
             undoStack.shift();
@@ -173,6 +186,7 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
     // Снимок из истории: ожидающие в нём отрезки запрашиваются заново («Отмена при ожидающем запросе»)
     function restore(snapshot: RouteLine) {
         justInserted = null;
+        revision += 1;
         setLine({
             waypoints: snapshot.waypoints,
             legs: snapshot.legs.map((leg) => (leg.state === 'pending' ? pendingLeg(leg.activity) : leg)),
@@ -301,6 +315,7 @@ export function createRouteEditor(initial: RouteLine, options: RouteEditorOption
         canUndo: () => undoStack.length > 0,
         canRedo: () => redoStack.length > 0,
         pending: () => line.legs.filter((leg) => leg.state === 'pending').length,
+        revision: () => revision,
 
         dispose() {
             for (const controller of requests.values()) {
