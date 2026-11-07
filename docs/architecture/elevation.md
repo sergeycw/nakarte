@@ -1,18 +1,18 @@
-# Сервис высот
+# Elevation service
 
-Уровень выше: [общая схема](README.md#общая-схема), блок ⑥.
+One level up: [overview](README.md#overview), block ⑥.
 
-Worker `nakarte-elevation` ([workers/elevation](../../workers/elevation/)) отвечает на один запрос: API высот (`POST /`, список точек → высоты) для профиля трека и экспорта. Данные и арифметика — как у автора (DEM 3″ viewfinderpanoramas). Поведение — спека [elevation-api](../../openspec/specs/elevation-api/spec.md); решения — архив [add-elevation-api](../../openspec/changes/archive/2026-10-07-add-elevation-api/design.md); сборка, проверки и подвохи — `AGENTS.md`, [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation). Тайлов высот больше нет — раздел [«Тайлы высот выведены»](#тайлы-высот-выведены).
+The Worker `nakarte-elevation` ([workers/elevation](../../workers/elevation/)) answers one request: the elevation API (`POST /`, a list of points → elevations) for the track profile and the export. The data and the arithmetic are the same as the author's (DEM 3″ viewfinderpanoramas). Behavior: spec [elevation-api](../../openspec/specs/elevation-api/spec.md). Decisions: archive [add-elevation-api](../../openspec/changes/archive/2026-10-07-add-elevation-api/design.md). Build, checks and pitfalls: `AGENTS.md`, ["Elevation service"](../../AGENTS.md#сервис-высот-workerselevation). The elevation tiles do not exist anymore: section ["Elevation tiles are retired"](#elevation-tiles-are-retired).
 
-## Крейты Rust-воркспейса
+## Rust workspace crates
 
 ```mermaid
 flowchart LR
-    core["elevation-core<br/>разбор, интерполяция,<br/>HTTP-ответы, формат dem3"]
-    worker["elevation-worker<br/>workers-rs, R2, кеш изолята"]
-    server["elevation-server<br/>axum + файлы, запасной путь"]
-    repack["elevation-repack<br/>HGT → объект градуса"]
-    zstd["фича encode<br/>нативный zstd"]
+    core["elevation-core<br/>parsing, interpolation,<br/>HTTP responses, dem3 format"]
+    worker["elevation-worker<br/>workers-rs, R2, isolate cache"]
+    server["elevation-server<br/>axum + files, fallback"]
+    repack["elevation-repack<br/>HGT → degree object"]
+    zstd["feature encode<br/>native zstd"]
 
     worker --> core
     server --> core
@@ -21,51 +21,59 @@ flowchart LR
     zstd -.-> core
 ```
 
-- `core` без ввода-вывода: источник данных — трейт `Source` с чтением диапазона байт объекта ([lib.rs](../../workers/elevation/core/src/lib.rs)); каждый адаптер подставляет свой: R2 в `worker`, файлы в `server`.
-- Распаковка кусков в wasm — чистый Rust (`ruzstd`), упаковка — нативный `zstd` за фичей `encode`, поэтому она включена только у `repack` ([Cargo.toml](../../workers/elevation/repack/Cargo.toml)).
-- `worker` собирается `worker-build` в `worker/build/index.js` (`[build]` в [wrangler.toml](../../workers/elevation/wrangler.toml)).
+- `core` has no I/O. The data source is the trait `Source`, which reads a byte range of an object ([lib.rs](../../workers/elevation/core/src/lib.rs)). Each adapter gives its own source: R2 in `worker`, files in `server`.
+- In wasm, the decompression of the parts is pure Rust (`ruzstd`). The compression is the native `zstd` behind the feature `encode`, so only `repack` turns this feature on ([Cargo.toml](../../workers/elevation/repack/Cargo.toml)).
+- `worker-build` builds `worker` to `worker/build/index.js` (`[build]` in [wrangler.toml](../../workers/elevation/wrangler.toml)).
 
-## Данные в R2 `nakarte-elevation`
+## Data in R2 `nakarte-elevation`
 
 ```mermaid
 flowchart LR
-    vfp["viewfinderpanoramas.org<br/>zip с HGT 3″"]
+    vfp["viewfinderpanoramas.org<br/>zip with HGT 3″"]
     data["workflow elevation data<br/>elevation-data.sh + elevation-repack"]
-    dem3[("dem3/N43E042 …<br/>объект на градус: заголовок NKE1,<br/>16 кусков 301×301, zstd от дельт")]
+    dem3[("dem3/N43E042 …<br/>one object per degree: header NKE1,<br/>16 parts 301×301, zstd of deltas")]
 
     vfp -->|"curl zip"| data
     data -->|"S3 API, aws s3 cp"| dem3
 ```
 
-Формат объектов — [format.rs](../../workers/elevation/core/src/format.rs) и [grid.rs](../../workers/elevation/core/src/grid.rs); почему такой — design `add-elevation-api` («Формат: объект на градус, куски автора»). Workflow и токены — [ci-cd.md](ci-cd.md). Архив тайлов высот `tiles/elevation-z0-9` в R2 остаётся до решения владельца, Worker его не читает.
+The object format is in [format.rs](../../workers/elevation/core/src/format.rs) and [grid.rs](../../workers/elevation/core/src/grid.rs). The reason for this format: design `add-elevation-api`, ["Format: one object per degree, the author's parts"](../../openspec/changes/archive/2026-10-07-add-elevation-api/design.md#формат-объект-на-градус-куски-автора). Workflow and tokens: [ci-cd.md](ci-cd.md). The elevation tile archive `tiles/elevation-z0-9` in R2 stays until the owner decides, and the Worker does not read it.
 
-## Запрос к Worker'у
+## Request to the Worker
 
 ```mermaid
 flowchart TD
-    req["Запрос"]
-    rl{"частота с IP: API_RATE_LIMITER<br/>(запрос с чужим Origin или без него не считается)"}
-    api["POST /<br/>Origin из ALLOWED_ORIGINS, иначе 403;<br/>не POST — 405, другой путь — 404;<br/>≤ 10 000 точек, ≤ 250 000 байт,<br/>≤ 512 чтений R2, бюджет чтений по IP"]
-    pts["индекс куска по точке → чтение кусков dem3<br/>(каждый кусок один раз) → интерполяция"]
-    cache[("ByteCache изолята, до 32 МБ:<br/>заголовки и куски")]
+    req["Request"]
+    rl{"rate from one IP: API_RATE_LIMITER<br/>(a request with a third-party Origin or without Origin is not counted)"}
+    api["POST /<br/>Origin from ALLOWED_ORIGINS, else 403;<br/>not POST: 405, another path: 404;<br/>≤ 10 000 points, ≤ 250 000 bytes,<br/>≤ 512 R2 reads, read budget by IP"]
+    pts["part index for each point → read of the dem3 parts<br/>(each part one time) → interpolation"]
+    cache[("isolate ByteCache, up to 32 MB:<br/>headers and parts")]
     r2[("R2 nakarte-elevation")]
-    apiresp["высоты построчно, CORS для origin"]
+    apiresp["elevations, one per line, CORS for the origin"]
     r429["429, Retry-After: 60"]
 
     req --> rl
-    rl -->|"превышен"| r429
-    rl -->|"ок"| api --> pts --> apiresp
+    rl -->|"exceeded"| r429
+    rl -->|"ok"| api --> pts --> apiresp
     pts --> cache
-    cache -->|"промах: range-чтение"| r2
+    cache -->|"miss: range read"| r2
 ```
 
-- Cache API на `*.workers.dev` не работает, поэтому кеш — в памяти изолята.
-- Клиент: API — [web/src/elevation/api.ts](../../web/src/elevation/api.ts) (профиль высот, GPX с высотами; атрибуция `elevationsAttribution` в [config.ts](../../web/src/config.ts)), [client.md](client.md).
+- The Cache API does not work on `*.workers.dev`, so the cache is in the isolate memory.
+- Client: the API is in [web/src/elevation/api.ts](../../web/src/elevation/api.ts) (elevation profile, GPX with elevations; attribution `elevationsAttribution` in [config.ts](../../web/src/config.ts)), [client.md](client.md).
 
-## Тайлы высот выведены
+## Elevation tiles are retired
 
-Тайлы высот (`GET /tiles/{z}/{x}/{y}`: z0–9 из архива, z10–11 на лету) показывал только старый клиент — высоту и уклон под курсором. Change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) их убрал: нет маршрута `/tiles/`, счётчика `TILES_RATE_LIMITER` (`namespace_id` `1001` свободен), расчёта тайлов в ядре, генератора архива `elevation-tiles` и workflow `elevation tiles`. `GET /tiles/…` теперь обычный запрос к API: без `Origin` — `403`, с разрешённым — `405`. Архив `tiles/elevation-z0-9` в R2 остаётся до решения владельца, Worker его не читает. Как тайлы были устроены — архив [add-elevation-tiles](../../openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md).
+Only the old nakarte client showed the elevation tiles (`GET /tiles/{z}/{x}/{y}`: z0–9 from an archive, z10–11 on request). It used them for the elevation and the slope under the cursor. Change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) removed them, together with these items:
 
-## Сверено по
+- the route `/tiles/`;
+- the counter `TILES_RATE_LIMITER` (`namespace_id` `1001` is free);
+- the tile calculation in the core;
+- the archive generator `elevation-tiles`;
+- the workflow `elevation tiles`.
 
-[workers/elevation/Cargo.toml](../../workers/elevation/Cargo.toml) и `Cargo.toml` крейтов, [core/src/http.rs](../../workers/elevation/core/src/http.rs) (`handle`, `counts_toward_limit`), [core/src/request.rs](../../workers/elevation/core/src/request.rs) (`MAX_POINTS`, `MAX_BODY_BYTES`), [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [wrangler.toml](../../workers/elevation/wrangler.toml), [scripts/](../../workers/elevation/scripts/), [elevation-data.yml](../../.github/workflows/elevation-data.yml).
+`GET /tiles/…` is now a usual API request: without `Origin` it gets `403`, with an allowed `Origin` it gets `405`. The archive `tiles/elevation-z0-9` in R2 stays until the owner decides, and the Worker does not read it. How the tiles worked: archive [add-elevation-tiles](../../openspec/changes/archive/2026-10-07-add-elevation-tiles/design.md).
+
+## Checked against
+
+[workers/elevation/Cargo.toml](../../workers/elevation/Cargo.toml) and the `Cargo.toml` of the crates, [core/src/http.rs](../../workers/elevation/core/src/http.rs) (`handle`, `counts_toward_limit`), [core/src/request.rs](../../workers/elevation/core/src/request.rs) (`MAX_POINTS`, `MAX_BODY_BYTES`), [worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [wrangler.toml](../../workers/elevation/wrangler.toml), [scripts/](../../workers/elevation/scripts/), [elevation-data.yml](../../.github/workflows/elevation-data.yml).

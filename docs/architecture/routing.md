@@ -1,50 +1,56 @@
-# Прокладка отрезка
+# Routing a leg
 
-Уровень выше: [общая схема](README.md#общая-схема), блоки ②, ③ и ⑧.
+One level up: [overview](README.md#overview), blocks ②, ③ and ⑧.
 
-Как отрезок между двумя опорными точками превращается в точки маршрута. Движок выбирает ключ `routingEngine` в [config.ts](../../web/src/config.ts) по режиму Vite ([client.md](client.md)): режим `clone` — `'browser'`, BRouter на CheerpJ в браузере; остальные — `'server'`, BRouter в docker. Оба движка спрятаны за интерфейсом `Router` в [router.ts](../../web/src/routing/router.ts), и для редактора результат одинаковый: точки отрезка или `RoutingError`.
+How a leg between two waypoints becomes route points. The key `routingEngine` in [config.ts](../../web/src/config.ts) selects the engine by the Vite mode ([client.md](client.md)). Mode `clone` gives `'browser'`: BRouter on CheerpJ in the browser. The other modes give `'server'`: BRouter in docker. Both engines are behind the interface `Router` in [router.ts](../../web/src/routing/router.ts), and the editor gets the same result from both: the leg points or a `RoutingError`.
 
-Поведение — спеки [routing](../../openspec/specs/routing/spec.md) и [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md). Код — [web/src/routing/](../../web/src/routing/) (запрос и ответ — `brouter.ts`, роутер — `router.ts`) и [web/src/engine/](../../web/src/engine/); как редактор зовёт роутер и отбрасывает устаревшие ответы — [route-editor.md](route-editor.md).
+Behavior: specs [routing](../../openspec/specs/routing/spec.md) and [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md). Code: [web/src/routing/](../../web/src/routing/) (request and response in `brouter.ts`, router in `router.ts`) and [web/src/engine/](../../web/src/engine/). How the editor calls the router and drops stale responses: [route-editor.md](route-editor.md).
 
-## Общая часть
+## Shared steps
 
-1. Редактор ([route-editor.md](route-editor.md)) на каждый отрезок в состоянии `pending` вызывает `router.route(from, to, activity, signal)`; отрезок, который правка убрала, отменяется через `AbortSignal`, и отказ с `signal.reason` редактор молча отбрасывает.
-2. `routeQuery` в [brouter.ts](../../web/src/routing/brouter.ts) собирает строку запроса: `lonlats` (долгота приведена к [−180, 180]), `profile` по активности, `profile:<переменная>` из `params` активности, `alternativeidx=0`, `format=geojson`. Строка одна для сервера и движка.
-3. Ответ — GeoJSON; `parseRoute` сдвигает его в копию мира точки `from`, упрощает линию допуском импорта (≈ 2.4 м) и отбрасывает концы ближе 20 м к опорным точкам. Пустой маршрут — ошибка `no route found`.
-4. `RoutingError` с `unreachable` (сервер не ответил, движок не запустился) красит кнопку и один раз на переход «работал → упал» показывает предупреждение; остальные ошибки — уведомление `Routing failed`. Отрезок остаётся прямым (спека [routing](../../openspec/specs/routing/spec.md), «Ошибка прокладки даёт прямой отрезок», «Недоступный роутер»). Перепроверка живости — `isReachable` при открытии меню прокладки.
+1. For each leg in the state `pending`, the editor ([route-editor.md](route-editor.md)) calls `router.route(from, to, activity, signal)`. When an edit removes a leg, an `AbortSignal` cancels its request, and the editor drops the rejection with `signal.reason` without a message.
+2. `routeQuery` in [brouter.ts](../../web/src/routing/brouter.ts) builds the query string: `lonlats` (the longitude is brought to [−180, 180]), `profile` by the activity, `profile:<variable>` from the `params` of the activity, `alternativeidx=0`, `format=geojson`. The server and the engine use the same string.
+3. The response is GeoJSON. `parseRoute` moves it to the world copy of the point `from`. Then it simplifies the line with the import tolerance (≈ 2.4 m) and drops the ends that are nearer than 20 m to the waypoints. An empty route is the error `no route found`.
+4. A `RoutingError` with `unreachable` means that the server did not answer or the engine did not start. Then the button changes color, and a warning shows one time per change from "works" to "failed". Other errors give the notice `Routing failed`. The leg stays straight (spec routing, requirements ["A routing error gives a straight leg"](../../openspec/specs/routing/spec.md#requirement-ошибка-прокладки-даёт-прямой-отрезок) and ["Unreachable router"](../../openspec/specs/routing/spec.md#requirement-недоступный-роутер)). `isReachable` checks again if the router is alive when the routing menu opens.
 
-Отсутствие тайла BRouter называет `datafile … not found`, `RoutingError` подменяет текст на `no routing data for this area` для обоих движков (архив [explain-missing-routing-data](../../openspec/changes/archive/2026-10-07-explain-missing-routing-data/proposal.md)).
+When a BRouter tile is missing, BRouter says `datafile … not found`. `RoutingError` replaces this text with `no routing data for this area` for both engines (archive [explain-missing-routing-data](../../openspec/changes/archive/2026-10-07-explain-missing-routing-data/proposal.md)).
 
-## Серверный BRouter
+## Server BRouter
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant ED as editor.ts
     participant RT as router.ts (server)
-    participant SRV as BRouter в docker :17777
+    participant SRV as BRouter in docker :17777
     participant FS as brouter/segments4, brouter/profiles
 
     ED->>RT: route(from, to, activity, signal)
     RT->>SRV: GET /brouter?lonlats=…&profile=…&format=geojson
-    SRV->>FS: читает *.rd5 и профиль
-    alt маршрут найден
+    SRV->>FS: reads *.rd5 and the profile
+    alt route found
         SRV-->>RT: 200, GeoJSON
-        RT-->>ED: parseRoute(...) — точки маршрута
-    else сеть или таймаут 30 с
-        RT-->>ED: RoutingError, unreachable — отрезок прямой
-    else BRouter вернул ошибку
-        SRV-->>RT: не 2xx, текст ошибки
-        RT-->>ED: RoutingError с этим текстом — отрезок прямой
+        RT-->>ED: parseRoute(...) — route points
+    else network or timeout 30 s
+        RT-->>ED: RoutingError, unreachable — leg straight
+    else BRouter returned an error
+        SRV-->>RT: not 2xx, error text
+        RT-->>ED: RoutingError with this text — leg straight
     end
-    Note over RT,SRV: Проверка живости — GET /brouter без параметров (таймаут 3 с): любой HTTP-ответ, обычно 404, значит «жив»
+    Note over RT,SRV: Alive check — GET /brouter without parameters (timeout 3 s): any HTTP response, usually 404, means «alive»
 ```
 
-Таймаут запроса — 30 с, без повторов. Адрес сервера — `routingServer` в [config.ts](../../web/src/config.ts), BRouter поднимает [docker-compose.yml](../../docker-compose.yml). Свои профили, тег образа и подвохи compose — `AGENTS.md`, [«Запуск»](../../AGENTS.md#запуск).
+The request timeout is 30 s, without retries. The server address is `routingServer` in [config.ts](../../web/src/config.ts), and [docker-compose.yml](../../docker-compose.yml) starts BRouter. Custom profiles, the image tag and the compose pitfalls: `AGENTS.md`, ["Launch"](../../AGENTS.md#запуск).
 
-## Движок в браузере
+## In-browser engine
 
-Отличия от сервера: движок — синглтон `getEngine()` в [engine.ts](../../web/src/engine/engine.ts), один на страницу, создаётся лениво и запускается заранее; запросы идут в очередь по одному, расчёт дольше 60 с обрывается: воркер завершается и следующий запрос поднимает новый, а зависший движок на главном потоке считается недоступным, пока расчёт не закончится ([add-engine-timeout](../../openspec/changes/archive/2026-10-12-add-engine-timeout/design.md)); файлы BRouter читаются по HTTP Range с того же origin. CheerpJ живёт в классическом Web Worker ([engine.worker.ts](../../web/src/engine/engine.worker.ts)), и главный поток во время запуска и расчёта свободен. Если воркер не поднялся, в той же попытке движок запускается на главном потоке ([backends.ts](../../web/src/engine/backends.ts), `mainThreadBackend`). Решения и замеры — архив [spike-engine-in-worker](../../openspec/changes/archive/2026-10-08-spike-engine-in-worker/design.md).
+Differences from the server:
+
+- The engine is the singleton `getEngine()` in [engine.ts](../../web/src/engine/engine.ts), one per page. The app creates it lazily and starts it in advance.
+- The requests go to a queue one at a time. A calculation longer than 60 s stops: the worker stops, and the next request starts a new worker. A blocked engine on the main thread is unreachable until its calculation ends ([add-engine-timeout](../../openspec/changes/archive/2026-10-12-add-engine-timeout/design.md)).
+- The engine reads the BRouter files by HTTP Range from the same origin.
+
+CheerpJ runs in a classic Web Worker ([engine.worker.ts](../../web/src/engine/engine.worker.ts)), and the main thread is free during the start and the calculation. If the worker does not start, the engine starts on the main thread in the same attempt ([backends.ts](../../web/src/engine/backends.ts), `mainThreadBackend`). Decisions and measurements: archive [spike-engine-in-worker](../../openspec/changes/archive/2026-10-08-spike-engine-in-worker/design.md).
 
 ```mermaid
 sequenceDiagram
@@ -57,39 +63,39 @@ sequenceDiagram
     participant PG as Pages: brouter-wasm, tiles
     participant R2 as R2 nakarte-tiles
 
-    ED->>RT: warmUp() при выборе активности или загрузке с выбранной
+    ED->>RT: warmUp() when an activity is selected or on a load with a selected activity
     RT->>EN: start()
     EN->>WK: new Worker, {type: 'start', paths}
-    WK->>CDN: importScripts(loader.js 4.3), cheerpjInit, JDK кусками
-    WK->>PG: Range /brouter-wasm/lib/*.jar (/app/ — корень origin)
-    WK-->>EN: started (или start-failed)
-    Note over EN,WK: воркер не поднялся — завершить его и запустить CheerpJ на главном потоке
+    WK->>CDN: importScripts(loader.js 4.3), cheerpjInit, JDK in parts
+    WK->>PG: Range /brouter-wasm/lib/*.jar (/app/ — origin root)
+    WK-->>EN: started (or start-failed)
+    Note over EN,WK: worker did not start — stop it and start CheerpJ on the main thread
     ED->>RT: route(from, to, activity, signal)
     RT->>EN: route(routeQuery(...), signal)
-    EN->>EN: очередь, отменённые не уходят в движок
+    EN->>EN: queue, cancelled requests do not go to the engine
     EN->>WK: {type: 'route', id, query}
     WK->>PG: Range /brouter-wasm/profiles/*
     WK->>PG: Range /tiles/*.rd5 (stat — bytes=0-0)
-    PG->>R2: get с range
+    PG->>R2: get with range
     R2-->>PG: 206, Content-Range
     PG-->>WK: 206
-    WK-->>EN: routed: GeoJSON или route-failed: текст исключения Java
-    EN-->>RT: строка GeoJSON или Error
-    RT-->>ED: parseRoute(...) или RoutingError
+    WK-->>EN: routed: GeoJSON or route-failed: Java exception text
+    EN-->>RT: GeoJSON string or Error
+    RT-->>ED: parseRoute(...) or RoutingError
 ```
 
-- Состояние движка (`idle`, `loading`, `ready`, `failed`) видит кнопка прокладки через `router.status()` и `subscribe`. Сбой запуска не залипает: следующий маршрут пробует запустить движок снова, а пока статус `failed`, роутер считается недоступным (`EngineStartError` → `RoutingError` с `unreachable`).
-- Начатый расчёт CheerpJ не прервать: отменённый запрос сразу получает отказ, а следующий ждёт, пока движок освободится.
-- Пути движка — `enginePaths` в [cheerpj-router.ts](../../web/src/engine/cheerpj-router.ts): classpath `brouter-patch.jar:brouter.jar:wasm-router.jar` из `/app/brouter-wasm/lib/`, профили — `/app/brouter-wasm/profiles/`, тайлы — `/app` + `routingTilesPath` (`/tiles/` в клоне). Обвязка CheerpJ повторена в воркере и в `cheerpj-router.ts`: классический воркер в dev Vite ничего не импортирует.
+- The routing button sees the engine state (`idle`, `loading`, `ready`, `failed`) through `router.status()` and `subscribe`. A start failure does not stay: the next route tries to start the engine again. While the state is `failed`, the router is unreachable (`EngineStartError` → `RoutingError` with `unreachable`).
+- You cannot stop a CheerpJ calculation that has started. A cancelled request gets a rejection immediately, and the next request waits until the engine is free.
+- The engine paths are `enginePaths` in [cheerpj-router.ts](../../web/src/engine/cheerpj-router.ts): the classpath `brouter-patch.jar:brouter.jar:wasm-router.jar` from `/app/brouter-wasm/lib/`, the profiles from `/app/brouter-wasm/profiles/`, the tiles from `/app` + `routingTilesPath` (`/tiles/` in mode `clone`). The CheerpJ wrapper code is in the worker and also in `cheerpj-router.ts`: in the Vite dev mode, a classic worker imports nothing.
 
-Как устроено чтение `/app/` и зачем патчи:
+How the reads of `/app/` work, and why the patches are necessary:
 
-- CheerpJ видит `/app/` как файлы от корня origin страницы. Каталогов там нет, размер — из `Content-Range` ответа на `Range: bytes=0-0`, поэтому статика без `206` не годится: Range для jar и профилей отвечает [functions/brouter-wasm](../../functions/brouter-wasm/[[path]].js), для тайлов — [functions/tiles](../../functions/tiles/[[path]].js) поверх [workers/tiles/src/index.js](../../workers/tiles/src/index.js). Jar и профили кладёт в `build/brouter-wasm/` плагин `engineFiles` сборки ([engine-files.ts](../../web/vite/engine-files.ts)); dev-сервер и `vite preview` отдают их с Range сами.
-- `NodesCache.java` в [patch/](../../experiments/wasm/cheerpj/patch/btools/mapaccess/) обходит проверку каталога сегментов, `OsmNodesMap.java` ловит переполнение стека, которое CheerpJ присылает как `ArithmeticException`. Патчи собираются в `brouter-patch.jar` и стоят первыми в classpath ([build.sh](../../experiments/wasm/cheerpj/build.sh)).
-- `WasmRouter` ([WasmRouter.java](../../experiments/wasm/cheerpj/java/WasmRouter.java)) повторяет `RouteServer` BRouter без сокетов.
+- CheerpJ sees `/app/` as files from the root of the page origin. There are no directories there. The size comes from `Content-Range` of the response to `Range: bytes=0-0`, so static files without `206` do not work. [functions/brouter-wasm](../../functions/brouter-wasm/[[path]].js) answers Range for the jar and the profiles, and [functions/tiles](../../functions/tiles/[[path]].js) on top of [workers/tiles/src/index.js](../../workers/tiles/src/index.js) answers it for the tiles. The build plugin `engineFiles` ([engine-files.ts](../../web/vite/engine-files.ts)) puts the jar and the profiles in `build/brouter-wasm/`. The dev server and `vite preview` serve them with Range themselves.
+- `NodesCache.java` in [patch/](../../experiments/wasm/cheerpj/patch/btools/mapaccess/) skips the check of the segment directory. `OsmNodesMap.java` catches a stack overflow, which CheerpJ sends as `ArithmeticException`. The patches are built into `brouter-patch.jar`, which is first in the classpath ([build.sh](../../experiments/wasm/cheerpj/build.sh)).
+- `WasmRouter` ([WasmRouter.java](../../experiments/wasm/cheerpj/java/WasmRouter.java)) repeats the BRouter `RouteServer` without sockets.
 
-Подробности и проверенные на практике подвохи — `AGENTS.md`, [«Движок в браузере (CheerpJ)»](../../AGENTS.md#движок-в-браузере-cheerpj). Требования к движку — спека [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md): «Один движок на страницу», «Очередь запросов», «Данные движка от корня origin», «Рантайм с CDN Leaning Technologies», «Расчёт маршрута вне главного потока». Стенд замеров — `/engine-bench.html` ([engine-bench.ts](../../web/src/bench/engine-bench.ts)). Откуда берутся тайлы в R2 — [ci-cd.md](ci-cd.md); замеры движка и альтернативы — backlog, «Варианты движка в браузере».
+Details and the pitfalls that we found in practice: `AGENTS.md`, ["In-browser engine (CheerpJ)"](../../AGENTS.md#движок-в-браузере-cheerpj). The engine requirements are in the spec browser-routing-engine: ["One engine per page"](../../openspec/specs/browser-routing-engine/spec.md#requirement-один-движок-на-страницу), ["Request queue"](../../openspec/specs/browser-routing-engine/spec.md#requirement-очередь-запросов), ["Engine data from the origin root"](../../openspec/specs/browser-routing-engine/spec.md#requirement-данные-движка-от-корня-origin), ["Runtime from the Leaning Technologies CDN"](../../openspec/specs/browser-routing-engine/spec.md#requirement-рантайм-с-cdn-leaning-technologies), ["Route calculation outside the main thread"](../../openspec/specs/browser-routing-engine/spec.md#requirement-расчёт-маршрута-вне-главного-потока). The measurement bench is `/engine-bench.html` ([engine-bench.ts](../../web/src/bench/engine-bench.ts)). Where the tiles in R2 come from: [ci-cd.md](ci-cd.md). Engine measurements and alternatives: [backlog, "Browser engine options"](../../openspec/backlog.md#варианты-движка-в-браузере).
 
-## Сверено по
+## Checked against
 
 [web/src/routing/router.ts](../../web/src/routing/router.ts), [web/src/routing/brouter.ts](../../web/src/routing/brouter.ts), [web/src/routing/editing.ts](../../web/src/routing/editing.ts) (`onRouteError`, `setActivity`, `warmUp`, `checkRouter`), [web/src/routing/editor.ts](../../web/src/routing/editor.ts) (`request`), [web/src/engine/](../../web/src/engine/), [web/src/config.ts](../../web/src/config.ts), [web/src/App.tsx](../../web/src/App.tsx) (`createRouter`), [web/vite/engine-files.ts](../../web/vite/engine-files.ts), [functions/](../../functions/), [workers/tiles/src/index.js](../../workers/tiles/src/index.js), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [docker-compose.yml](../../docker-compose.yml).

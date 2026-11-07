@@ -1,55 +1,55 @@
-# Хранилище треков: ссылка `nktl=`
+# Track storage: the `nktl=` link
 
-Уровень выше: [общая схема](README.md#общая-схема), блок ⑤.
+One level up: [overview](README.md#overview), block ⑤.
 
-Короткая ссылка на треки: в адресе только ключ, сами треки лежат в Worker'е `nakarte-tracks` ([workers/tracks](../../workers/tracks/)) в R2. Контракт повторяет авторский `tracks.nakarte.me`: тело — те же строки `nktk`, ключ — тот же хеш, поэтому выданные раньше ссылки `nktl=` открываются. Поведение — спека [track-storage](../../openspec/specs/track-storage/spec.md); решения — архив [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md), клиентская часть — архив [add-web-tracks](../../openspec/changes/archive/2026-10-08-add-web-tracks/design.md).
+A short link to tracks: the address has only a key, and the Worker `nakarte-tracks` ([workers/tracks](../../workers/tracks/)) keeps the tracks in R2. The contract repeats the author's `tracks.nakarte.me`: the body is the same `nktk` strings, and the key is the same hash. Thus the `nktl=` links that the author's service gave before still open. Behavior: spec [track-storage](../../openspec/specs/track-storage/spec.md). Decisions: archive [add-track-storage](../../openspec/changes/archive/2026-10-07-add-track-storage/design.md); the client part: archive [add-web-tracks](../../openspec/changes/archive/2026-10-08-add-web-tracks/design.md).
 
-## От «Copy link» до открытия
+## From "Copy link" to the opened link
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as Пользователь
+    actor U as User
     participant APP as actions.ts, share.ts
     participant W as nakarte-tracks
     participant R2 as R2 nakarte-tracks
-    actor V as Получатель ссылки
-    participant APP2 as приложение у получателя
+    actor V as Link recipient
+    participant APP2 as app of the recipient
 
     U->>APP: Copy link
-    APP->>APP: shareBody — строки nktk версии 4 через «/»
-    APP->>APP: key = base64url(md5(тело)) без «=», 22 символа
-    APP->>U: запись в буфер обмена начата, текст — промис ссылки
-    APP->>W: POST /track/{key}, тело — строка nktk, без credentials
-    W->>W: Origin, частота (записи — отдельный счётчик), формат ключа, ≤ 2 МиБ,<br/>алфавит ссылки
-    W->>W: trackKey(тело) == key?
+    APP->>APP: shareBody — nktk strings version 4 joined with «/»
+    APP->>APP: key = base64url(md5(body)) without «=», 22 characters
+    APP->>U: clipboard write started, the text is a promise of the link
+    APP->>W: POST /track/{key}, body — nktk string, no credentials
+    W->>W: Origin, rate (writes have a separate counter), key format, ≤ 2 MiB,<br/>link alphabet
+    W->>W: trackKey(body) == key?
     W->>R2: head tracks/{key}
-    alt объекта нет
+    alt no object
         W->>R2: put tracks/{key}, customMetadata.created
     end
     alt 200
         W-->>APP: 200
-        APP->>U: адрес с #nktl=key в буфер, «Link copied»<br/>(буфер не дался — окно со ссылкой)
-    else 400, 403, 413, 429 или сеть
-        W-->>APP: ошибка
-        APP->>U: «Error making link: …», ссылки нет
+        APP->>U: address with #nktl=key in the clipboard, «Link copied»<br/>(clipboard not available — a window with the link)
+    else 400, 403, 413, 429 or network
+        W-->>APP: error
+        APP->>U: «Error making link: …», no link
     end
-    U-->>V: передаёт ссылку
-    V->>APP2: открывает адрес с #nktl=key
-    APP2->>APP2: sync.ts читает nktl и стирает его из адреса → loadTrackParam
-    APP2->>W: GET /track/{key}, без credentials
+    U-->>V: sends the link
+    V->>APP2: opens the address with #nktl=key
+    APP2->>APP2: sync.ts reads nktl and removes it from the address → loadTrackParam
+    APP2->>W: GET /track/{key}, no credentials
     W->>R2: get tracks/{key}
-    R2-->>W: строка nktk
-    W-->>APP2: 200 text/plain, Cache-Control immutable на год
-    APP2->>APP2: parseNktkSequence → треки на карте<br/>(любой ответ не 200 — трек с ошибкой NETWORK)
+    R2-->>W: nktk string
+    W-->>APP2: 200 text/plain, Cache-Control immutable for one year
+    APP2->>APP2: parseNktkSequence → tracks on the map<br/>(any response other than 200 — a track with the error NETWORK)
 ```
 
-- Ссылка попадает в буфер обмена только после `200` хранилища: в буфер уходит промис текста, и если `POST` не прошёл, ссылки у пользователя нет, есть уведомление. Старый клиент отдавал ссылку до ответа сервера — архив [add-web-tracks](../../openspec/changes/archive/2026-10-08-add-web-tracks/design.md), «Ссылка — после ответа хранилища».
-- Ключ — хеш содержимого, поэтому объект неизменяемый, а повторная запись не нужна. Worker считает ключ тем же `blueimp-md5`, что клиент ([key.js](../../workers/tracks/src/key.js), `trackKey` в [share.ts](../../web/src/tracks/share.ts)).
-- Разметка маршрута попадает в ссылку необязательным полем отрезка в строке `nktk` версии 4 (схема — [nktk.proto](../../web/src/tracks/nktk.proto), [route-editor.md](route-editor.md)); Worker тело не разбирает. Читаются все версии `nktk` от 1 до 4 ([nktk.ts](../../web/src/tracks/nktk.ts)): на них держатся выданные ссылки и объекты хранилища.
-- Адрес ссылки — текущий адрес приложения без поиска (`q`, `r`) и без параметров треков, их место занимает `nktl` (`shareLink`).
-- Старые ссылки `nktl=` держатся на этом хранилище, это важно при переименовании Worker'ов — backlog, «Глобальное направление».
+- The link goes to the clipboard only after a `200` from the storage. The app gives the clipboard a promise of the text. If the `POST` fails, the user has no link but gets a notice. The old nakarte client gave the link before the server response: archive add-web-tracks, ["The link comes after the storage response"](../../openspec/changes/archive/2026-10-08-add-web-tracks/design.md#ссылка--после-ответа-хранилища).
+- The key is a hash of the content, so the object does not change, and a second write is not necessary. The Worker calculates the key with the same `blueimp-md5` as the client ([key.js](../../workers/tracks/src/key.js), `trackKey` in [share.ts](../../web/src/tracks/share.ts)).
+- The route markup goes into the link as an optional segment field in the `nktk` string version 4 (schema: [nktk.proto](../../web/src/tracks/nktk.proto), [route-editor.md](route-editor.md)). The Worker does not parse the body. The app reads all `nktk` versions from 1 to 4 ([nktk.ts](../../web/src/tracks/nktk.ts)): the links that users already have and the storage objects depend on them.
+- The link address is the current app address without the search (`q`, `r`) and without the track parameters; `nktl` takes their place (`shareLink`).
+- The old `nktl=` links depend on this storage. This is important when the Workers get new names: [backlog, "Global direction"](../../openspec/backlog.md#глобальное-направление-полная-автономия).
 
-## Сверено по
+## Checked against
 
 [web/src/tracks/share.ts](../../web/src/tracks/share.ts) (`shareBody`, `trackKey`, `shareLink`, `storeTracks`), [web/src/tracks/actions.ts](../../web/src/tracks/actions.ts) (`copyLink`), [web/src/tracks/links.ts](../../web/src/tracks/links.ts) (`fromStorage`, `loadTrackParam`), [web/src/tracks/nktk.ts](../../web/src/tracks/nktk.ts) (`saveNktk`, `parseNktkSequence`), [web/src/state/sync.ts](../../web/src/state/sync.ts), [workers/tracks/src/index.js](../../workers/tracks/src/index.js), [workers/tracks/src/key.js](../../workers/tracks/src/key.js), [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml).

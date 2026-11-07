@@ -1,88 +1,92 @@
-# Редактор маршрута
+# Route editor
 
-Уровень выше: [общая схема](README.md#общая-схема), блок ①; клиент — [client.md](client.md).
+One level up: [overview](README.md#overview), block ①; client: [client.md](client.md).
 
-Как линия трека хранит опорные точки и отрезки маршрута, как отрезки прокладываются и отменяются, где живёт история и как разметка маршрута переживает перезагрузку и ссылку. Поведение — спеки [route-editing](../../openspec/specs/route-editing/spec.md) и [routing](../../openspec/specs/routing/spec.md); решения — архивы [add-web-route-editor](../../openspec/changes/archive/2026-10-09-add-web-route-editor/design.md), [add-web-autosave](../../openspec/changes/archive/2026-10-09-add-web-autosave/design.md), [add-web-line-tools](../../openspec/changes/archive/2026-10-09-add-web-line-tools/design.md). Код — [web/src/routing/](../../web/src/routing/).
+How a track line keeps the waypoints and the route legs, and how the legs are routed and cancelled. Where the history is, and how the route markup stays after a reload and in a link. Behavior: specs [route-editing](../../openspec/specs/route-editing/spec.md) and [routing](../../openspec/specs/routing/spec.md). Decisions: archives [add-web-route-editor](../../openspec/changes/archive/2026-10-09-add-web-route-editor/design.md), [add-web-autosave](../../openspec/changes/archive/2026-10-09-add-web-autosave/design.md), [add-web-line-tools](../../openspec/changes/archive/2026-10-09-add-web-line-tools/design.md). Code: [web/src/routing/](../../web/src/routing/).
 
-## Модель линии
+## Line model
 
-Линия редактора — опорные точки и отрезки между ними, а не плоский массив узлов с меткой у каждого, как было у редактора старого клиента. Данные неизменяемые: правка даёт новую линию ([line.ts](../../web/src/routing/line.ts)).
+An editor line is waypoints and legs between them. It is not a flat array of nodes with a mark on each node, as in the editor of the old nakarte client. The data is immutable: an edit gives a new line ([line.ts](../../web/src/routing/line.ts)).
 
 ```mermaid
 flowchart LR
-    A["Опорная точка A"]
-    B["Опорная точка B"]
-    C["Опорная точка C"]
+    A["Waypoint A"]
+    B["Waypoint B"]
+    C["Waypoint C"]
     l1{{"routed<br/>activity, points"}}
     l2{{"pending<br/>activity, request"}}
 
     A --- l1 --- B --- l2 --- C
 ```
 
-- Отрезок (`Leg`) — `straight` (прямая), `routed` (точки маршрута между опорными), `pending` (ждёт роутер под номером запроса) или `failed` (не проложен: прямая с пометкой и тостом, активность остаётся для повтора).
-- В треке линия лежит геометрией (`segments`) и разметкой (`routes`: номера опорных точек и состояния отрезков без точек) — `toSegment` и `fromSegment`. Разметку несут автосохранение и ссылка `nktk` (необязательное поле отрезка версии 4), файлы GPX и KML — только геометрию.
-- Упрощение линии (`simplifyRouted`) упрощает каждый проложенный отрезок отдельно вместе с его опорными концами, номера пересчитываются: опорные точки не пропадают.
+- A leg (`Leg`) has one of these types:
+  - `straight`: a straight line;
+  - `routed`: the route points between the waypoints;
+  - `pending`: waits for the router under a request number;
+  - `failed`: not routed, a straight line with a mark and a toast; the activity stays for a retry.
+- In a track, the line is stored as geometry (`segments`) and markup (`routes`), through `toSegment` and `fromSegment`. The markup is the waypoint indexes and the leg states without points. Autosave and the `nktk` link (an optional segment field of version 4) keep the markup. GPX and KML files keep only the geometry.
+- Line simplification (`simplifyRouted`) simplifies each routed leg separately, together with its end waypoints, and calculates the indexes again: no waypoint disappears.
 
-## Правки, запросы и устаревшие ответы
+## Edits, requests and stale responses
 
-Редактор одной линии без карты — [editor.ts](../../web/src/routing/editor.ts): `addWaypoint`, `moveWaypoint`, `insertWaypoint`, `removeWaypoint`, `shortcut`, `reverse`, `undo`, `redo`.
+The editor of one line, without the map, is [editor.ts](../../web/src/routing/editor.ts): `addWaypoint`, `moveWaypoint`, `insertWaypoint`, `removeWaypoint`, `shortcut`, `reverse`, `undo`, `redo`.
 
 ```mermaid
 sequenceDiagram
-    participant UI as MapEditor (карта)
-    participant ED as editing.ts (стор)
+    participant UI as MapEditor (map)
+    participant ED as editing.ts (store)
     participant RE as editor.ts
     participant RO as router.ts
-    participant EN as engine.ts / серверный BRouter
+    participant EN as engine.ts / server BRouter
 
-    UI->>ED: клик, перетаскивание
-    ED->>RE: правка
-    RE->>RE: новая линия, прежняя — в историю; отрезки с активностью → pending(request)
+    UI->>ED: click, drag
+    ED->>RE: edit
+    RE->>RE: new line, the previous line goes to the history, legs with an activity → pending(request)
     RE->>RO: route(from, to, activity, signal)
-    RO->>EN: запрос в очередь движка
-    EN-->>RO: точки или ошибка
-    RO-->>RE: ответ
-    RE->>RE: request ещё в линии? применить: отбросить
-    RE->>ED: onChange(line) → трек в сторе
+    RO->>EN: request to the engine queue
+    EN-->>RO: points or error
+    RO-->>RE: response
+    RE->>RE: request still in the line? apply: drop
+    RE->>ED: onChange(line) → track in the store
 ```
 
-- Ответ применяется, только если его номер запроса ещё лежит в линии; иначе отрезок перетащили, удалили или отменили, и ответ молча отбрасывается. Запрос, чей отрезок ушёл из линии, отменяется `AbortController`'ом; очередь самих расчётов — в движке ([routing.md](routing.md)).
-- [editing.ts](../../web/src/routing/editing.ts) связывает редакторы со стором без React: редактор живёт дольше редактирования (дожидается ответов, хранит историю) и лежит по массиву точек отрезка, который последним записал в трек; внешнее изменение отрезка (разворот, удаление, импорт) даёт другой массив, и такой редактор выбрасывается.
-- Инструменты линии — Cut, Join, Shortcut, разворот — чистые функции над `RouteLine` ([line-tools.ts](../../web/src/routing/line-tools.ts)); меню на карте и долгое нажатие на телефоне — [MapMenu.tsx](../../web/src/routing/MapMenu.tsx), [MapEditor.tsx](../../web/src/routing/MapEditor.tsx).
+- A response applies only if its request number is still in the line. Otherwise, the user dragged, deleted or undid the leg, and the editor drops the response without a message. An `AbortController` cancels a request when its leg leaves the line. The queue of the calculations is in the engine ([routing.md](routing.md)).
+- [editing.ts](../../web/src/routing/editing.ts) connects the editors to the store without React. An editor lives longer than the editing session: it waits for responses and keeps the history. The key of an editor is the point array of the segment that the editor wrote to the track last. An external change of the segment (reverse, deletion, import) gives a different array, and the app discards that editor.
+- The line tools (Cut, Join, Shortcut, reverse) are pure functions on `RouteLine` ([line-tools.ts](../../web/src/routing/line-tools.ts)). The map menu and the long press on a phone: [MapMenu.tsx](../../web/src/routing/MapMenu.tsx), [MapEditor.tsx](../../web/src/routing/MapEditor.tsx).
 
-## История
+## History
 
-- Каждая правка кладёт прежнюю линию в стек undo (до 100 шагов, `HISTORY_LIMIT`) и очищает redo; ответ роутера в историю не пишется — undo отменяет правку, а не приход маршрута.
-- Снимок из истории с ожидающими отрезками запрашивает их заново.
-- Вставка точки на отрезок и перетаскивание сразу после — один шаг истории.
-- Хоткеи — на `keydown` (на macOS, пока зажат Cmd, браузер не присылает `keyup` других клавиш); кнопки undo/redo — в панели редактора.
+- Each edit puts the previous line on the undo stack (up to 100 steps, `HISTORY_LIMIT`) and clears redo. A router response does not go to the history: undo cancels an edit, not the arrival of a route.
+- A snapshot from the history with pending legs requests them again.
+- An insertion of a point on a leg and a drag immediately after it are one history step.
+- The hotkeys use `keydown`: on macOS, while Cmd is pressed, the browser does not send `keyup` for other keys. The undo and redo buttons are in the editor panel.
 
-## Разметка между перезагрузками
+## Route markup across reloads
 
 ```mermaid
 sequenceDiagram
-    participant ST as стор (tracks)
+    participant ST as store (tracks)
     participant AS as autosave.ts
     participant DB as IndexedDB nakarte-web
-    participant OLD as IndexedDB sessions (старый клиент)
+    participant OLD as IndexedDB sessions (old nakarte client)
 
-    ST->>AS: изменение tracks
-    AS->>DB: запись {segments: Float64Array, routes} (сразу; пока запись в полёте — одна следующая)
-    Note over ST,DB: перезагрузка страницы
+    ST->>AS: change of tracks
+    AS->>DB: write {segments: Float64Array, routes} (immediately, and while a write is in progress, one next write waits)
+    Note over ST,DB: page reload
     AS->>DB: load()
-    alt своя запись есть
-        DB-->>AS: треки с разметкой
-    else своей записи нет
-        AS->>OLD: последняя сессия (один раз)
-        OLD-->>AS: строки nktk + legs по ключам сетки
-        AS->>AS: legs → routes, упрощение как у ссылки
+    alt own record exists
+        DB-->>AS: tracks with markup
+    else no own record
+        AS->>OLD: last session (one time)
+        OLD-->>AS: nktk strings + legs by grid keys
+        AS->>AS: legs → routes, simplification as for a link
     end
-    AS->>ST: треки в начало списка
+    AS->>ST: tracks to the start of the list
 ```
 
-- Координаты пишутся точно, без округления nktk: номера разметки верны как есть.
-- Сессия старого клиента подхватывается, только если своей записи нет; база `sessions` не меняется (архив `switch-to-web-app`).
+- The coordinates are written exactly, without the nktk rounding: the markup indexes are correct as they are.
+- The app imports the session of the old nakarte client only if there is no own record. The database `sessions` does not change (archive `switch-to-web-app`).
 
-## Сверено по
+## Checked against
 
-[web/src/routing/](../../web/src/routing/) (`line.ts`, `editor.ts`, `editing.ts`, `line-tools.ts`, `router.ts`), [web/src/autosave/](../../web/src/autosave/) (`autosave.ts`, `saved.ts`, `idb.ts`, `legacy-session.ts`) — `master` после change `switch-to-web-app`.
+[web/src/routing/](../../web/src/routing/) (`line.ts`, `editor.ts`, `editing.ts`, `line-tools.ts`, `router.ts`), [web/src/autosave/](../../web/src/autosave/) (`autosave.ts`, `saved.ts`, `idb.ts`, `legacy-session.ts`): `master` after change `switch-to-web-app`.

@@ -1,60 +1,60 @@
-# Защита и лимиты
+# Protection and limits
 
-Уровень выше: [общая схема](README.md#общая-схема), блок «Cloudflare» и ⑦.
+One level up: [overview](README.md#overview), block "Cloudflare" and ⑦.
 
-Что ограничивает нагрузку и расходы на Cloudflare и что не даёт клону сходить в инфраструктуру автора. Поведение — спеки [worker-limits](../../openspec/specs/worker-limits/spec.md) и [clone-deploy](../../openspec/specs/clone-deploy/spec.md) («Бандл без адресов автора»), CORS каждого сервиса — в его спеке; решения и цифры — архив [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md); правила для нового счётчика — `AGENTS.md`, [«Свои бэкенды вместо `*.nakarte.me`»](../../AGENTS.md#свои-бэкенды-вместо-nakarteme).
+What limits the load and the cost on Cloudflare, and what stops trailroutine from sending requests to the author's infrastructure. Behavior: specs [worker-limits](../../openspec/specs/worker-limits/spec.md) and clone-deploy, requirement ["Bundle without author hosts"](../../openspec/specs/clone-deploy/spec.md#requirement-бандл-без-адресов-автора); the CORS of each service is in its spec. Decisions and numbers: archive [add-worker-limits](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md). Rules for a new counter: `AGENTS.md`, ["Own backends instead of `*.nakarte.me`"](../../AGENTS.md#свои-бэкенды-вместо-nakarteme).
 
-## Порядок проверок в Worker'е
+## Order of checks in a Worker
 
 ```mermaid
 flowchart LR
-    req["Запрос"]
-    platform["Потолок платформы на вызов<br/>[limits] cpu_ms, subrequests"]
-    origin{"Origin в ALLOWED_ORIGINS?"}
-    rate{"[[ratelimits]] по CF-Connecting-IP,<br/>окно 60 с"}
-    handler["Обработчик:<br/>свои лимиты тела и запроса"]
-    r403["403, счётчик не тратится"]
-    r429["429 с CORS, Retry-After: 60"]
+    req["Request"]
+    platform["Platform cap per call<br/>[limits] cpu_ms, subrequests"]
+    origin{"Origin in ALLOWED_ORIGINS?"}
+    rate{"[[ratelimits]] by CF-Connecting-IP,<br/>window 60 s"}
+    handler["Handler:<br/>own limits for the body and the request"]
+    r403["403, the counter is not used"]
+    r429["429 with CORS, Retry-After: 60"]
 
     req --> platform --> origin
-    origin -->|"нет"| r403
-    origin -->|"да"| rate
-    rate -->|"превышен"| r429
-    rate -->|"ок"| handler
+    origin -->|"no"| r403
+    origin -->|"yes"| rate
+    rate -->|"exceeded"| r429
+    rate -->|"ok"| handler
 ```
 
-`ALLOWED_ORIGINS` у прокси, треков и высот одинаковый: сайт клона, dev-сервер приложения `localhost:8769` и `vite preview` `localhost:4173`. Без `CF-Connecting-IP` (локальный `wrangler dev`, тесты) частота не ограничивается. Version URL (`<версия>-<worker>.nakarte-routing.workers.dev`) выключены `preview_urls = false`, а у Pages деплой оставляет только текущий деплой (job `prune`, [ci-cd.md](ci-cd.md)): старая версия со старыми лимитами обходила бы новые. Привязку rate limiting Pages Functions не поддерживают, поэтому их счётчик живёт в отдельном закрытом Worker'е — design [limit-pages-functions](../../openspec/changes/archive/2026-10-08-limit-pages-functions/design.md). `Origin` подделывается любым `curl`, поэтому CORS защищает пользователей, а не бюджет: от злоупотреблений защищают частота и потолки.
+The proxy, the tracks and the elevations have the same `ALLOWED_ORIGINS`: the trailroutine site, the app dev server `localhost:8769` and `vite preview` `localhost:4173`. Without `CF-Connecting-IP` (local `wrangler dev`, tests), there is no rate limit. Version URLs (`<version>-<worker>.nakarte-routing.workers.dev`) are off with `preview_urls = false`. For Pages, the deploy keeps only the current deploy (job `prune`, [ci-cd.md](ci-cd.md)): an old version with old limits would bypass the new ones. Pages Functions do not support the rate limiting binding, so their counter is in a separate closed Worker: design [limit-pages-functions](../../openspec/changes/archive/2026-10-08-limit-pages-functions/design.md). Any `curl` can fake `Origin`. Thus CORS protects the users, not the budget: the rate limits and the caps give protection from abuse.
 
-| Точка входа | CORS | Частота за 60 с (`namespace_id`) | Потолок на вызов | Лимит запроса | Где |
+| Entry point | CORS | Rate per 60 s (`namespace_id`) | Cap per call | Request limit | Where |
 |---|---|---|---|---|---|
-| `nakarte-cors-proxy` | `Origin` или `Referer` из `ALLOWED_ORIGINS`, с `credentials` | хосты слоёв — 1200 (`1004`), остальные — 300 (`1007`) | `cpu_ms = 500`, `subrequests = 50` | только `GET`/`HEAD` без тела; свои адреса — `403` | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
-| `nakarte-tracks` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1003`), из них записей 10 (`1006`) | `cpu_ms = 500`, `subrequests = 10` | тело ≤ 2 МиБ, только алфавит ссылки | [wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
-| `nakarte-elevation`, `POST /` | только `Origin` из `ALLOWED_ORIGINS`, с `credentials` | 60 (`1002`); бюджет чтений R2 — 32 единицы по 64 чтения (`1005`) | `cpu_ms = 10000`, `subrequests = 1100` | ≤ 10 000 точек, ≤ 250 000 байт, ≤ 512 чтений R2 (градусы + куски), иначе `413` | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs), [request.rs](../../workers/elevation/core/src/request.rs) |
-| Pages Functions `tiles`, `brouter-wasm` | тот же origin, заголовков CORS нет | 1200 на обе (`1008`), счётчик — Worker `nakarte-guard` по service binding `GUARD`; без привязки или при её сбое не ограничивается | лимиты Pages по умолчанию | — | [functions/](../../functions/), [workers/guard](../../workers/guard/) |
+| `nakarte-cors-proxy` | `Origin` or `Referer` from `ALLOWED_ORIGINS`, with `credentials` | layer hosts: 1200 (`1004`), other hosts: 300 (`1007`) | `cpu_ms = 500`, `subrequests = 50` | only `GET`/`HEAD` without a body; trailroutine addresses get `403` | [wrangler.toml](../../workers/cors-proxy/wrangler.toml), [index.js](../../workers/cors-proxy/src/index.js) |
+| `nakarte-tracks` | only `Origin` from `ALLOWED_ORIGINS`, with `credentials` | 60 (`1003`), of these 10 writes (`1006`) | `cpu_ms = 500`, `subrequests = 10` | body ≤ 2 MiB, only the link alphabet | [wrangler.toml](../../workers/tracks/wrangler.toml), [index.js](../../workers/tracks/src/index.js) |
+| `nakarte-elevation`, `POST /` | only `Origin` from `ALLOWED_ORIGINS`, with `credentials` | 60 (`1002`); R2 read budget: 32 units of 64 reads (`1005`) | `cpu_ms = 10000`, `subrequests = 1100` | ≤ 10 000 points, ≤ 250 000 bytes, ≤ 512 R2 reads (degrees + parts), else `413` | [wrangler.toml](../../workers/elevation/wrangler.toml), [http.rs](../../workers/elevation/core/src/http.rs), [request.rs](../../workers/elevation/core/src/request.rs) |
+| Pages Functions `tiles`, `brouter-wasm` | the same origin, no CORS headers | 1200 for both (`1008`), the counter is the Worker `nakarte-guard` through the service binding `GUARD`; without the binding or when it fails, there is no limit | Pages default limits | — | [functions/](../../functions/), [workers/guard](../../workers/guard/) |
 
-Тайлов высот со своим счётчиком (`1001`) больше нет — [elevation.md](elevation.md#тайлы-высот-выведены). Почему у прокси лимит выше остальных — design `add-worker-limits`, «Частота — привязка Workers Rate Limiting»; потолок и бюджет чтений R2 у API высот — design [limit-elevation-reads](../../openspec/changes/archive/2026-10-08-limit-elevation-reads/design.md): привязка считает вызовы без веса, поэтому запрос тратит вызов на каждые 64 чтения после проверки потолка. Угрозы с ценой худшего сценария и что ещё не защищено — [security-аудит](../../openspec/research/security-audit.md#итог).
+The elevation tiles with their own counter (`1001`) do not exist anymore: [elevation.md](elevation.md#elevation-tiles-are-retired). Why the proxy limit is higher than the others: design `add-worker-limits`, ["Rate: the Workers Rate Limiting binding"](../../openspec/changes/archive/2026-10-07-add-worker-limits/design.md#частота--привязка-workers-rate-limiting). The cap and the budget of R2 reads for the elevation API: design [limit-elevation-reads](../../openspec/changes/archive/2026-10-08-limit-elevation-reads/design.md). The binding counts calls without weight, so after the cap check, a request uses one call for each 64 reads. Threats with the cost of the worst case, and what is not protected yet: [security audit](../../openspec/research/security-audit.md#итог).
 
-## Проверка бандла на адреса автора
+## Bundle check for author hosts
 
 ```mermaid
 flowchart LR
-    build["npm run build из web/<br/>vite build --mode clone → build/"]
-    engine{"файлы движка в build/?<br/>test -f brouter.jar, lookups.dat"}
-    scan{"check-no-author-hosts.mjs build:<br/>есть *.nakarte.me?"}
+    build["npm run build from web/<br/>vite build --mode clone → build/"]
+    engine{"engine files in build/?<br/>test -f brouter.jar, lookups.dat"}
+    scan{"check-no-author-hosts.mjs build:<br/>is there *.nakarte.me?"}
     deploy["wrangler pages deploy"]
-    stop(["деплой остановлен"])
+    stop(["deploy stopped"])
 
     build --> engine
-    engine -->|"нет"| stop
-    engine -->|"да"| e2e["e2e по этой сборке"]
-    e2e -->|"упал"| stop
-    e2e -->|"прошёл"| scan
-    scan -->|"нашёл"| stop
-    scan -->|"чисто"| deploy
+    engine -->|"no"| stop
+    engine -->|"yes"| e2e["e2e on this build"]
+    e2e -->|"failed"| stop
+    e2e -->|"passed"| scan
+    scan -->|"found"| stop
+    scan -->|"clean"| deploy
 ```
 
-Скрипт ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) обходит текстовые файлы сборки без `.map` и падает на любом буквальном `*.nakarte.me`: исключения для строк-метаданных старого клиента (`<title>`, `creator` в GPX, имя файла JNX, текст уведомления сессий) ушли вместе с ним (design [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md)). До merge ту же проверку делает `check web` ([ci-cd.md](ci-cd.md)). Почему проверка статическая — design [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md), «Статическая проверка бандла»; что заменило сервисы автора — [README.md](README.md#что-больше-не-используется-от-nakarteme).
+The script ([check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs)) reads the text files of the build except `.map` and fails on any literal `*.nakarte.me`. The script had exceptions for the metadata strings of the old nakarte client: `<title>`, `creator` in GPX, the JNX file name, the text of the sessions notice. These exceptions went away together with that client (design [switch-to-web-app](../../openspec/changes/archive/2026-10-09-switch-to-web-app/design.md)). Before the merge, `check web` does the same check ([ci-cd.md](ci-cd.md)). Why the check is static: design `drop-author-services`, ["Static bundle check"](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md#статическая-проверка-бандла). What replaced the author services: [README.md](README.md#replaced-nakarteme-services).
 
-## Сверено по
+## Checked against
 
 [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [workers/tracks/wrangler.toml](../../workers/tracks/wrangler.toml), [workers/elevation/wrangler.toml](../../workers/elevation/wrangler.toml), [workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/tracks/src/index.js](../../workers/tracks/src/index.js), [workers/elevation/core/src/http.rs](../../workers/elevation/core/src/http.rs), [workers/elevation/worker/src/lib.rs](../../workers/elevation/worker/src/lib.rs), [functions/](../../functions/), [scripts/check-no-author-hosts.mjs](../../scripts/check-no-author-hosts.mjs), [deploy-pages.yml](../../.github/workflows/deploy-pages.yml), [check-web.yml](../../.github/workflows/check-web.yml).
