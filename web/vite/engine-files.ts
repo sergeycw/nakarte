@@ -115,7 +115,7 @@ export const engineFilesMiddleware =
 export function engineFiles(): Plugin {
     const middleware = engineFilesMiddleware();
     return {
-        name: 'nakarte-engine-files',
+        name: 'trailroutine-engine-files',
         // middleware до внутренних Vite: Range и файлы вне root проекта статика Vite не отдаёт
         configureServer: (server) => {
             server.middlewares.use(middleware);

@@ -27,7 +27,7 @@ test('Панорама найдена', async ({ page, network }) => {
     expect(network.googleApiLoads).toHaveLength(1);
     const api = new URL(network.googleApiLoads[0]);
     expect(`${api.origin}${api.pathname}`).toBe('https://maps.googleapis.com/maps/api/js');
-    expect(api.searchParams.get('callback')).toBe('__nakarteGoogleMapsReady');
+    expect(api.searchParams.get('callback')).toBe('__trailroutineGoogleMapsReady');
     await expect(page.locator('.google-street-view-keyless')).toHaveCount(api.searchParams.get('key') ? 0 : 1);
     await expect.poll(() => page.evaluate(() => location.hash)).toContain('n2=_g/g/41.693000/44.780000/0.0/0.0/1.0');
     // взгляд в окне поворачивает метку на карте

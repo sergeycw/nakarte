@@ -18,7 +18,7 @@ export const TERRARIUM_MAX_ZOOM = 15;
 
 // Векторные тайлы горизонталей отдаёт свой протокол MapLibre (src/layers/contours.ts, регистрация — src/map/maplibre.ts):
 // здесь только адрес, чтобы каталог оставался данными без импорта библиотеки (design add-contour-lines)
-export const CONTOUR_PROTOCOL = 'nakarte-contours';
+export const CONTOUR_PROTOCOL = 'trailroutine-contours';
 export const CONTOUR_MIN_ZOOM = 10;
 
 // Снимки по датам (design add-dated-imagery): токены в шаблонах тайлов и подписи слоя с dated, подставляет withDate

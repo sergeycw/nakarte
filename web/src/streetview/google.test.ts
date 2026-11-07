@@ -90,7 +90,7 @@ function fakeMaps(found: { lat: number; lng: number } | null) {
 describe('загрузка Maps JavaScript API', () => {
     it('адрес старого клиента с пустым ключом и колбэком', () => {
         expect(googleMapsUrl('')).toBe(
-            'https://maps.googleapis.com/maps/api/js?v=3&key=&callback=__nakarteGoogleMapsReady',
+            'https://maps.googleapis.com/maps/api/js?v=3&key=&callback=__trailroutineGoogleMapsReady',
         );
         expect(googleMapsUrl('AIza x')).toContain('key=AIza%20x');
     });
@@ -103,7 +103,7 @@ describe('загрузка Maps JavaScript API', () => {
         expect(scripts).toHaveLength(1);
         expect(scripts[0].src).toBe(googleMapsUrl(''));
         win.google = { maps: fakeMaps(null).maps };
-        (win.__nakarteGoogleMapsReady as () => void)();
+        (win.__trailroutineGoogleMapsReady as () => void)();
         expect(await first).toBe((win.google as { maps: unknown }).maps);
         expect(await second).toBe(await first);
     });
@@ -133,7 +133,7 @@ describe('загрузка Maps JavaScript API', () => {
         const { doc } = fakeDocument();
         const win = {} as Record<string, unknown>;
         const loading = loadGoogleMaps('', doc, win as never);
-        (win.__nakarteGoogleMapsReady as () => void)();
+        (win.__trailroutineGoogleMapsReady as () => void)();
         await expect(loading).rejects.toThrow();
     });
 });
