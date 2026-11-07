@@ -1,3 +1,4 @@
+import { createExpression, latest, type StylePropertySpecification } from '@maplibre/maplibre-gl-style-spec';
 import { expect, test } from 'vitest';
 import { PROFILE_SELECTION } from '@/elevation/style';
 import { EDIT_LAYERS, EDIT_LEGS, EDIT_PREVIEW, EDIT_WAYPOINTS } from '@/routing/edit-style';
@@ -5,7 +6,6 @@ import { TRACK_COLORS } from '@/tracks/model';
 import {
     TRACK_CASING,
     TRACK_LABELS,
-    TRACK_LINE_OFFSET,
     TRACK_LINES,
     TRACK_POINTS,
     TRACK_TICKS,
@@ -193,22 +193,54 @@ test('Трек над слоями: линии и точки треков — п
     expect(style.glyphs).toBeUndefined();
 });
 
-test('Радиалка: линии треков, редактора и выделение профиля смещены вправо по ходу на половину обводки', () => {
-    const style = buildStyle([]);
-    const offsets = Object.fromEntries(
-        style.layers
-            .filter((layer) => layer.type === 'line')
-            .map((layer) => [layer.id, (layer.paint as { 'line-offset'?: number } | undefined)?.['line-offset']]),
-    );
-    for (const id of [TRACK_CASING, TRACK_LINES, TRACK_UNROUTED_CASING, TRACK_UNROUTED, PROFILE_SELECTION]) {
-        expect(offsets[id], id).toBe(TRACK_LINE_OFFSET);
+// Смещение линии на зуме: выражение стиля вычисляет style-spec MapLibre, как карта
+const LINE_OFFSET = latest.paint_line['line-offset'] as unknown as StylePropertySpecification;
+function offsetAt(value: unknown, zoom: number): number {
+    const parsed = createExpression(value, 'line-offset', LINE_OFFSET);
+    if (parsed.result !== 'success') {
+        throw new Error(JSON.stringify(parsed.value));
     }
-    for (const layer of EDIT_LAYERS.filter((item) => item.type === 'line' && item.id !== EDIT_PREVIEW)) {
-        expect(offsets[layer.id], layer.id).toBe(TRACK_LINE_OFFSET);
+    return parsed.value.evaluate({ zoom }) as number;
+}
+
+function lineOffsets(): Record<string, unknown> {
+    return Object.fromEntries(
+        buildStyle([])
+            .layers.filter((layer) => layer.type === 'line')
+            .map((layer) => [layer.id, (layer.paint as { 'line-offset'?: unknown } | undefined)?.['line-offset']]),
+    );
+}
+
+// линии, которые смещаются вместе: треки, непроложенные отрезки, выделение профиля и редактор без резинки
+const OFFSET_LINES = [
+    TRACK_CASING,
+    TRACK_LINES,
+    TRACK_UNROUTED_CASING,
+    TRACK_UNROUTED,
+    PROFILE_SELECTION,
+    ...EDIT_LAYERS.filter((item) => item.type === 'line' && item.id !== EDIT_PREVIEW).map((item) => item.id),
+];
+
+test('Радиалка: с зума 14 линии треков, редактора и выделение профиля смещены вправо по ходу на половину обводки', () => {
+    const offsets = lineOffsets();
+    const casing = buildStyle([]).layers.find((layer) => layer.id === TRACK_CASING) as {
+        paint: { 'line-width': number };
+    };
+    for (const id of OFFSET_LINES) {
+        // обводки двух направлений соприкасаются: смещение — половина ширины обводки трека
+        expect(offsetAt(offsets[id], 14), id).toBe(casing.paint['line-width'] / 2);
+        expect(offsetAt(offsets[id], 16), id).toBe(casing.paint['line-width'] / 2);
     }
     // резинка — прямая к курсору, её не смещать
     expect(offsets[EDIT_PREVIEW]).toBeUndefined();
-    // обводки двух направлений соприкасаются: смещение — половина ширины обводки трека
-    const casing = style.layers.find((layer) => layer.id === TRACK_CASING) as { paint: { 'line-width': number } };
-    expect(TRACK_LINE_OFFSET).toBe(casing.paint['line-width'] / 2);
+});
+
+test('Радиалка на обзоре: до зума 13 включительно линии не смещены', () => {
+    const offsets = lineOffsets();
+    for (const id of OFFSET_LINES) {
+        expect(offsetAt(offsets[id], 12), id).toBe(0);
+        expect(offsetAt(offsets[id], 13), id).toBe(0);
+        // между порогами линии расходятся плавно, без скачка
+        expect(offsetAt(offsets[id], 13.5), id).toBeCloseTo(1.75);
+    }
 });

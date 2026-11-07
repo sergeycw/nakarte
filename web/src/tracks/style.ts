@@ -1,5 +1,10 @@
 import type { Feature, LineString, Point } from 'geojson';
-import type { GeoJSONSourceSpecification, LayerSpecification, LineLayerSpecification } from 'maplibre-gl';
+import type {
+    ExpressionSpecification,
+    GeoJSONSourceSpecification,
+    LayerSpecification,
+    LineLayerSpecification,
+} from 'maplibre-gl';
 import type { SegmentRoute } from '@/routing/line';
 import { type LatLng, type Track, trackColor } from './model';
 
@@ -131,7 +136,20 @@ export function trackSources(
 // дороге — противоположные направления, и линии ложатся рядом, как полосы, а не одна на другую. Смещение — половина
 // белой обводки трека: обводки двух направлений соприкасаются. Данные не трогаются, клик MapLibre ищет по смещённой
 // линии (queryRenderedFeatures учитывает line-offset)
-export const TRACK_LINE_OFFSET = 3.5;
+export const TRACK_OFFSET_PX = 3.5;
+// Только вблизи (design offset-track-lines-by-zoom): смещение в пикселях не зависит от зума, и на обзоре двойная
+// полоса в разы шире дороги, петли серпантинов слипаются. Порог — зум 14 MapLibre (m=15 в адресе), выбор владельца по
+// листу скриншотов; до 13 одна линия, между 13 и 14 линии расходятся плавно, без скачка
+export const TRACK_OFFSET_ZOOM = 14;
+export const TRACK_LINE_OFFSET: ExpressionSpecification = [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    TRACK_OFFSET_ZOOM - 1,
+    0,
+    TRACK_OFFSET_ZOOM,
+    TRACK_OFFSET_PX,
+];
 
 // пунктир непроложенного отрезка: line-dasharray — в ширинах линии
 export const UNROUTED_PAINT: LineLayerSpecification['paint'] = {
