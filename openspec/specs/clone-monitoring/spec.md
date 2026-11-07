@@ -12,7 +12,7 @@ Workflow `prod check` SHALL раз в день, после каждого деп
 #### Scenario: Что проверяется
 
 - **WHEN** запускается `scripts/prod-check.sh`
-- **THEN** проверены приложение на `/` (заголовок `nakarte routing`), редирект `/next/` на `/`, Range у `brouter.jar`, `lookups.dat` и тайла BRouter, высота точки через API высот, `404 Track not found` на отсутствующий трек и preflight CORS-прокси
+- **THEN** проверены приложение на `/` (заголовок `trailroutine`), редирект `/next/` на `/`, Range у `brouter.jar`, `lookups.dat` и тайла BRouter, высота точки через API высот, `404 Track not found` на отсутствующий трек и preflight CORS-прокси
 
 #### Scenario: Сервис сломан
 
@@ -26,7 +26,7 @@ Workflow `prod check` SHALL раз в день, после каждого деп
 
 #### Scenario: Чужой форк
 
-- **WHEN** расписание срабатывает не в `sergeycw/nakarte`
+- **WHEN** расписание срабатывает не в `sergeycw/trailroutine`
 - **THEN** проверка пропускается
 
 ### Requirement: Журналы Worker'ов
