@@ -107,7 +107,7 @@ flowchart LR
 | `tracestrack check` | ежедневно 05:41 UTC, вручную | тайл Tracestrack Topo через прокси: `503` (ключ не заведён) — предупреждение, другой отказ (ключ, квота) — падает | — |
 | `prod check` | ежедневно 05:40 UTC, после деплоя (job `smoke`), вручную | `scripts/prod-check.sh`: приложение на `/`, редирект `/next/` на `/`, свои сервисы клона отвечают; только чтение | — |
 
-Workflow `elevation tiles` (архив тайлов высот z0–9) удалён вместе с тайлами высот — [elevation.md](elevation.md#тайлы-высот-выведены). Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены форком условием `github.repository == 'sergeycw/nakarte'`.
+Workflow `elevation tiles` (архив тайлов высот z0–9) удалён вместе с тайлами высот — [elevation.md](elevation.md#тайлы-высот-выведены). Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены своим репо условием `github.repository == 'sergeycw/nakarte'`: чужая копия их не запускает.
 
 ## Секреты
 
