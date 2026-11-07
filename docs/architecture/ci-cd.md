@@ -1,30 +1,30 @@
-# CI/CD и данные
+# CI/CD and data
 
-Уровень выше: [общая схема](README.md#общая-схема), блок ⑦.
+One level up: [overview](README.md#overview), block ⑦.
 
-Все workflow лежат в [.github/workflows/](../../.github/workflows/). Проверки идут на PR и push в `master`, деплой — на push в `master` только изменённых сервисов, данные заливаются по расписанию или вручную. Поведение деплоя — спека [clone-deploy](../../openspec/specs/clone-deploy/spec.md), синхронизации тайлов — [tile-sync](../../openspec/specs/tile-sync/spec.md); ручной деплой как запасной путь — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare).
+All workflows are in [.github/workflows/](../../.github/workflows/). The checks run on a PR and on a push to `master`. The deploy runs on a push to `master` and deploys only the changed services. The data upload runs on a schedule or manually. The deploy behavior is in the spec [clone-deploy](../../openspec/specs/clone-deploy/spec.md), the tile sync behavior is in [tile-sync](../../openspec/specs/tile-sync/spec.md). The manual deploy as a fallback: `AGENTS.md`, ["Public site on Cloudflare"](../../AGENTS.md#публичный-клон-на-cloudflare).
 
-## Проверки и деплой
+## Checks and deploy
 
 ```mermaid
 flowchart LR
     pr(["pull_request"])
-    push(["push в master"])
+    push(["push to master"])
     clint["check lint<br/>Biome: workers/, functions/, scripts/"]
     cproxy["check cors proxy"]
     ctracks["check tracks"]
-    cweb["check web<br/>biome, tsc, vitest, build,<br/>адреса автора в build/, e2e"]
+    cweb["check web<br/>biome, tsc, vitest, build,<br/>author hosts in build/, e2e"]
     cguard["check guard"]
     ctiles["check tiles"]
     celev["check elevation"]
-    changes["deploy pages: changes<br/>diff с последним успешным деплоем"]
-    djobs["deploy pages: job на Worker<br/>npm test / cargo test, wrangler deploy"]
-    dpages["deploy pages: pages<br/>тесты functions и web/, сборка<br/>web/ в корень build/, e2e,<br/>wrangler pages deploy"]
+    changes["deploy pages: changes<br/>diff with the last successful deploy"]
+    djobs["deploy pages: job per Worker<br/>npm test / cargo test, wrangler deploy"]
+    dpages["deploy pages: pages<br/>tests of functions and web/, build of<br/>web/ to the root of build/, e2e,<br/>wrangler pages deploy"]
 
     ghcr["ghcr.io<br/>brouter:nightly"]
-    pages["Pages nakarte-routing<br/>статика + functions/"]
-    workers["Worker'ы nakarte-cors-proxy,<br/>nakarte-tracks, nakarte-elevation,<br/>nakarte-guard"]
-    prune["deploy pages: prune<br/>удалить деплои Pages, кроме текущего"]
+    pages["Pages nakarte-routing<br/>static files + functions/"]
+    workers["Workers nakarte-cors-proxy,<br/>nakarte-tracks, nakarte-elevation,<br/>nakarte-guard"]
+    prune["deploy pages: prune<br/>delete the Pages deploys, except the current one"]
 
     pr -->|"paths: workers/**/*.js, functions/**,<br/>scripts/**, biome.json, package*.json"| clint
     pr -->|"paths: workers/cors-proxy/**"| cproxy
@@ -33,29 +33,46 @@ flowchart LR
     pr -->|"paths: workers/guard/**"| cguard
     pr -->|"paths: workers/tiles/**, functions/**,<br/>workers/guard/src/**"| ctiles
     pr -->|"paths: workers/elevation/**"| celev
-    push -->|"те же paths"| clint & cproxy & ctracks & cguard & ctiles & celev & cweb
+    push -->|"the same paths"| clint & cproxy & ctracks & cguard & ctiles & celev & cweb
     push --> changes
-    changes -->|"workers/<сервис>/ менялся"| djobs
-    changes -->|"менялось не только docs/, openspec/, .github/,<br/>*.md и каталоги Worker'ов с job'ом"| dpages
-    djobs -->|"после Worker'ов"| dpages
+    changes -->|"workers/<service>/ changed"| djobs
+    changes -->|"changes outside docs/, openspec/, .github/,<br/>*.md and the Worker directories with a job"| dpages
+    djobs -->|"after the Workers"| dpages
     djobs --> workers
-    ghcr -->|"docker create, build.sh:<br/>jar и профили движка"| dpages
+    ghcr -->|"docker create, build.sh:<br/>engine jar and profiles"| dpages
     dpages --> pages
-    dpages -->|"после успешной публикации"| prune
+    dpages -->|"after a successful publication"| prune
     prune -->|"Pages API, canonical_deployment"| pages
 ```
 
-Job `changes` в [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) сравнивает `HEAD` с коммитом последнего успешного прогона `deploy pages`, а не с предыдущим push: изменения прогона, отменённого новым push (`cancel-in-progress`) или упавшего, выкатит следующий. Ручной запуск, правка самого workflow или неизвестная база — выкатывается всё; правка других workflow, `docs/`, `openspec/` и `*.md` Pages не выкатывает. Job каждого Worker'а гоняет тесты сервиса и деплоит его; `pages` идёт после них и не идёт, если деплой Worker'а упал. Job `prune` после каждой успешной публикации, в том числе когда Worker'ы пропущены, удаляет все деплои Pages, кроме текущего, и только если текущий собран из коммита прогона: старый деплой отвечал бы по `<хеш>.nakarte-routing.pages.dev` со своими функциями, без новых лимитов. Откат Pages — revert и push. Шаги `pages`: тесты Pages Functions → файлы движка из образа (`build.sh`) → приложение из `web/`: `npm ci` и Chromium Playwright, `npm test`, `npm run build` (`vite build --mode clone` в корень `build/`, плагин `engineFiles` кладёт туда jar и профили движка; ключ Google и DSN Sentry — только этому шагу) → проверка, что файлы движка в сборке → Debug ID Sentry в `build/assets` (`sentry-cli sourcemaps inject`, без токена) → e2e по этой сборке → загрузка карт исходников в Sentry (`sentry-cli sourcemaps upload`, токен — только этому шагу; без токена пропускается) → удаление `build/**/*.map` с проверкой → проверка бандла на адреса автора ([protection.md](protection.md)) → публикация Pages. Проверки `check-<сервис>` деплой не ждёт: job каждого Worker'а и `pages` гоняют нужные тесты сами. Ту же проверку бандла до merge делает `check web` (`../build`).
+The job `changes` in [deploy-pages.yml](../../.github/workflows/deploy-pages.yml) compares `HEAD` with the commit of the last successful run of `deploy pages`, not with the previous push. Thus the next run deploys the changes of a run that failed or that a new push cancelled (`cancel-in-progress`). A manual run, a change of this workflow, or an unknown base deploys everything. A change of other workflows, `docs/`, `openspec/` and `*.md` does not deploy Pages.
 
-Тайлы BRouter (`workers/tiles`) отдельным Worker'ом не деплоятся: их код подключён как Pages Function [functions/tiles](../../functions/tiles/[[path]].js) и уходит с Pages; [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml) нужен только локальному `wrangler dev`.
+The job of each Worker runs the tests of the service and deploys it. The job `pages` runs after these jobs, and does not run if a Worker deploy fails. After each successful publication, also when the Worker jobs are skipped, the job `prune` deletes all Pages deploys except the current one. It does this only if the current deploy is built from the commit of the run. An old deploy would answer on `<hash>.nakarte-routing.pages.dev` with its own functions and without the new limits. To roll back Pages, revert and push.
 
-## Данные и мониторинг
+The steps of `pages`:
+
+1. Tests of the Pages Functions.
+2. Engine files from the image (`build.sh`).
+3. The app from `web/`: `npm ci` and Playwright Chromium, `npm test`, `npm run build`. The build is `vite build --mode clone` to the root of `build/`, and the plugin `engineFiles` puts the engine jar and profiles there. Only this step gets the Google key and the Sentry DSN.
+4. A check that the engine files are in the build.
+5. Sentry Debug IDs in `build/assets` (`sentry-cli sourcemaps inject`, without a token).
+6. e2e on this build.
+7. Upload of the source maps to Sentry (`sentry-cli sourcemaps upload`). Only this step gets the token, and without the token the step is skipped.
+8. Deletion of `build/**/*.map`, with a check.
+9. A check of the bundle for author hosts ([protection.md](protection.md)).
+10. Publication of Pages.
+
+The deploy does not wait for the `check-<service>` checks: the job of each Worker and the job `pages` run the necessary tests themselves. Before the merge, `check web` does the same bundle check (`../build`).
+
+The BRouter tiles (`workers/tiles`) do not deploy as a separate Worker. Their code is connected as the Pages Function [functions/tiles](../../functions/tiles/[[path]].js) and deploys with Pages. Only the local `wrangler dev` needs [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+
+## Data and monitoring
 
 ```mermaid
 flowchart LR
-    cron2(["cron пн 04:00 UTC"])
-    cron3(["cron 05:17 UTC ежедневно"])
-    cron5(["cron 05:41 UTC ежедневно"])
+    cron2(["cron Mon 04:00 UTC"])
+    cron3(["cron 05:17 UTC daily"])
+    cron5(["cron 05:41 UTC daily"])
     manual(["workflow_dispatch"])
 
     sync["brouter tiles sync<br/>brouter-tiles-sync.mjs"]
@@ -63,65 +80,65 @@ flowchart LR
     scheck["strava heatmap check"]
     tcheck["tracestrack check"]
     pcheck["prod check<br/>scripts/prod-check.sh"]
-    cron4(["cron 05:40 UTC ежедневно,<br/>после деплоя"])
-    own["Свои сервисы клона:<br/>Pages, высоты, треки, прокси"]
+    cron4(["cron 05:40 UTC daily,<br/>after the deploy"])
+    own["trailroutine services:<br/>Pages, elevations, tracks, proxy"]
 
     brouterde["brouter.de<br/>segments4, lookups.dat"]
     vfp["viewfinderpanoramas.org"]
     r2tiles[("R2 nakarte-tiles")]
     r2elev[("R2 nakarte-elevation")]
     proxy["Worker nakarte-cors-proxy"]
-    mail(["письмо GitHub при падении"])
+    mail(["GitHub email on failure"])
 
     cron2 --> sync
-    manual -->|"only = тайлы"| sync
+    manual -->|"only = tiles"| sync
     manual -->|"zips"| edata
     cron3 --> scheck
     manual --> scheck
-    brouterde -->|"индекс, *.rd5"| sync
+    brouterde -->|"index, *.rd5"| sync
     sync -->|"S3 API: *.rd5, manifest.json"| r2tiles
     vfp -->|"zip HGT"| edata
     edata -->|"S3 API: dem3/*"| r2elev
-    scheck -->|"GET тайла heatmap,<br/>X-Strava-Cookies = session?"| proxy
+    scheck -->|"GET of a heatmap tile,<br/>X-Strava-Cookies = session?"| proxy
     scheck -.-> mail
     cron5 --> tcheck
     manual --> tcheck
-    tcheck -->|"GET тайла Tracestrack Topo,<br/>200 — ключ работает, 503 — ключа нет"| proxy
+    tcheck -->|"GET of a Tracestrack Topo tile,<br/>200: the key works, 503: no key"| proxy
     tcheck -.-> mail
     cron4 --> pcheck
     manual --> pcheck
-    pcheck -->|"только чтение: / с заголовком приложения,<br/>/next/ — 3xx на /, Range, точка высоты,<br/>404 трека, preflight прокси"| own
+    pcheck -->|"read only: / with the app title,<br/>/next/ gives 3xx to /, Range, elevation point,<br/>404 of a track, proxy preflight"| own
     pcheck -.-> mail
 ```
 
-| Workflow | Когда | Что делает | Куда |
+| Workflow | When | What it does | Target |
 |---|---|---|---|
-| `check lint` | PR и push с изменениями в `workers/**/*.js`, `functions/`, `scripts/`, `biome.json`, корневых `package.json` и `package-lock.json` | `npm run lint` из корня: Biome по корневому `biome.json`, только линтер | — |
-| `check cors proxy`, `check tracks`, `check guard`, `check tiles` | PR и push с изменениями в каталоге сервиса (`check tiles` — ещё и в `functions/` и `workers/guard/src/`) | `vitest` в `workerd` | — |
-| `check web` | PR и push с изменениями в `web/` и `scripts/check-no-author-hosts.mjs` | `biome ci`, `tsc -b`, Vitest (unit в Node и browser mode в Chromium), сборка в `build/`, проверка `build/` на адреса автора, Playwright e2e против `vite preview` | — |
-| `check elevation` | PR и push с изменениями в `workers/elevation/` | `cargo fmt`, `clippy` (и под wasm32), `cargo test`, `npm test` в `workerd` | — |
-| `deploy pages` | push в `master` (изменённые сервисы), вручную (всё) | тесты сервиса, сборка `web/` и деплой; после Pages — удаление старых деплоев Pages и `prod check` (job `smoke`) | Pages, Worker'ы |
-| `brouter tiles sync` | понедельник 04:00 UTC, вручную | инкрементальная синхронизация тайлов | R2 `nakarte-tiles` |
-| `elevation data` | вручную | перепаковка HGT в `dem3/*` | R2 `nakarte-elevation` |
-| `strava heatmap check` | ежедневно 05:17 UTC, вручную | тайл heatmap через прокси, падает без `session` | — |
-| `tracestrack check` | ежедневно 05:41 UTC, вручную | тайл Tracestrack Topo через прокси: `503` (ключ не заведён) — предупреждение, другой отказ (ключ, квота) — падает | — |
-| `prod check` | ежедневно 05:40 UTC, после деплоя (job `smoke`), вручную | `scripts/prod-check.sh`: приложение на `/`, редирект `/next/` на `/`, свои сервисы клона отвечают; только чтение | — |
+| `check lint` | PR and push with changes in `workers/**/*.js`, `functions/`, `scripts/`, `biome.json`, the root `package.json` and `package-lock.json` | `npm run lint` from the root: Biome with the root `biome.json`, linter only | — |
+| `check cors proxy`, `check tracks`, `check guard`, `check tiles` | PR and push with changes in the service directory (`check tiles` also in `functions/` and `workers/guard/src/`) | `vitest` in `workerd` | — |
+| `check web` | PR and push with changes in `web/` and `scripts/check-no-author-hosts.mjs` | `biome ci`, `tsc -b`, Vitest (unit in Node and browser mode in Chromium), build to `build/`, check of `build/` for author hosts, Playwright e2e against `vite preview` | — |
+| `check elevation` | PR and push with changes in `workers/elevation/` | `cargo fmt`, `clippy` (also for wasm32), `cargo test`, `npm test` in `workerd` | — |
+| `deploy pages` | push to `master` (changed services), manually (everything) | tests of the service, build of `web/` and deploy; after Pages, deletion of the old Pages deploys and `prod check` (job `smoke`) | Pages, Workers |
+| `brouter tiles sync` | Monday 04:00 UTC, manually | incremental sync of the tiles | R2 `nakarte-tiles` |
+| `elevation data` | manually | repack of HGT to `dem3/*` | R2 `nakarte-elevation` |
+| `strava heatmap check` | daily 05:17 UTC, manually | a heatmap tile through the proxy; fails without `session` | — |
+| `tracestrack check` | daily 05:41 UTC, manually | a Tracestrack Topo tile through the proxy: `503` (no key) is a warning, another failure (key, quota) fails the workflow | — |
+| `prod check` | daily 05:40 UTC, after the deploy (job `smoke`), manually | `scripts/prod-check.sh`: the app on `/`, the redirect from `/next/` to `/`, the trailroutine services respond; read only | — |
 
-Workflow `elevation tiles` (архив тайлов высот z0–9) удалён вместе с тайлами высот — [elevation.md](elevation.md#тайлы-высот-выведены). Расписания GitHub запускает только из ветки по умолчанию. Workflow с записью в Cloudflare и R2 ограничены своим репо условием `github.repository == 'sergeycw/nakarte'`: чужая копия их не запускает.
+The workflow `elevation tiles` (the elevation tile archive z0–9) is deleted together with the elevation tiles: [elevation.md](elevation.md#elevation-tiles-are-retired). GitHub runs schedules only from the default branch. The workflows that write to Cloudflare and R2 have the condition `github.repository == 'sergeycw/trailroutine'`: a copy in another repository does not run them.
 
-## Секреты
+## Secrets
 
-| Секрет | Где хранится | Кто использует | Права |
+| Secret | Where it is | Who uses it | Permissions |
 |---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | GitHub | шаги `wrangler` и `prune` в `deploy pages` | Account API token «nakarte deploy»: Pages Write, Editor на `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard`; без R2 |
-| `CLOUDFLARE_ACCOUNT_ID` | GitHub | шаги `wrangler` и `prune` в `deploy pages` | — |
-| `GOOGLE_MAPS_API_KEY` | GitHub, необязательный | шаг `web build` в `deploy pages`, переменная `VITE_GOOGLE_MAPS_API_KEY`; без секрета — пустой ключ, режим без ключа | ограничения ключа в Google Cloud (ключ попадает в бандл) |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | GitHub | `elevation data`, `brouter tiles sync` (S3 API R2) | Bucket Item Write на `nakarte-elevation` и `nakarte-tiles` |
-| `STRAVA_SESSION`, `STRAVA_COOKIES` | секреты Worker'а `nakarte-cors-proxy` | прокси ([cors-proxy.md](cors-proxy.md)) | — |
-| `TRACESTRACK_KEY` | секрет Worker'а `nakarte-cors-proxy` | прокси, тайлы подложки Tracestrack Topo ([cors-proxy.md](cors-proxy.md#ключ-tracestrack)) | ключ Tracestrack без списка `Referer`; бесплатный тариф — 100 тыс. тайлов в месяц |
+| `CLOUDFLARE_API_TOKEN` | GitHub | the steps `wrangler` and `prune` in `deploy pages` | Account API token "nakarte deploy": Pages Write, Editor on `nakarte-cors-proxy`, `nakarte-tracks`, `nakarte-elevation`, `nakarte-guard`; no R2 |
+| `CLOUDFLARE_ACCOUNT_ID` | GitHub | the steps `wrangler` and `prune` in `deploy pages` | — |
+| `GOOGLE_MAPS_API_KEY` | GitHub, optional | the step `web build` in `deploy pages`, variable `VITE_GOOGLE_MAPS_API_KEY`; without the secret, the key is empty and the app uses the keyless mode | key restrictions in Google Cloud (the key is in the bundle) |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | GitHub | `elevation data`, `brouter tiles sync` (R2 S3 API) | Bucket Item Write on `nakarte-elevation` and `nakarte-tiles` |
+| `STRAVA_SESSION`, `STRAVA_COOKIES` | secrets of the Worker `nakarte-cors-proxy` | the proxy ([cors-proxy.md](cors-proxy.md)) | — |
+| `TRACESTRACK_KEY` | secret of the Worker `nakarte-cors-proxy` | the proxy, tiles of the Tracestrack Topo basemap ([cors-proxy.md](cors-proxy.md#tracestrack-key)) | Tracestrack key without a `Referer` list; the free plan gives 100 thousand tiles per month |
 
-Секреты передаются только шагам, которые их используют (`env` шага, а не job'а): установка зависимостей, тесты и сборка идут без них. Во всех workflow действия закреплены полным SHA, `wrangler` в шагах с токеном — точной версией из переменной `WRANGLER` (requirement «Секреты только у шагов публикации», [clone-deploy](../../openspec/specs/clone-deploy/spec.md)). Все секреты заводит владелец, агент токены не вводит. Права токенов и порядок заведения — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare) и [«Сервис высот»](../../AGENTS.md#сервис-высот-workerselevation); утечка и сужение прав — [security-аудит](../../openspec/research/security-audit.md), п. 5 и «Шаги владельца».
+Only the steps that use a secret get it (`env` of the step, not of the job): dependency install, tests and build run without secrets. In all workflows, actions are pinned to a full SHA. In the steps with a token, `wrangler` has the exact version from the variable `WRANGLER` (requirement ["Secrets only for the publication steps"](../../openspec/specs/clone-deploy/spec.md#requirement-секреты-только-у-шагов-публикации), [clone-deploy](../../openspec/specs/clone-deploy/spec.md)). The owner adds all secrets; the agent does not enter tokens. Token permissions and the order to add them: `AGENTS.md`, ["Public site on Cloudflare"](../../AGENTS.md#публичный-клон-на-cloudflare) and ["Elevation service"](../../AGENTS.md#сервис-высот-workerselevation). A token leak and narrower permissions: [security audit](../../openspec/research/security-audit.md), [item 5](../../openspec/research/security-audit.md#5-секреты-и-права) and ["Owner steps"](../../openspec/research/security-audit.md#шаги-владельца).
 
-## Сверено по
+## Checked against
 
-[.github/workflows/](../../.github/workflows/) (все тринадцать файлов), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [scripts/prod-check.sh](../../scripts/prod-check.sh), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [web/vite/engine-files.ts](../../web/vite/engine-files.ts), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).
+[.github/workflows/](../../.github/workflows/) (all thirteen files), [scripts/brouter-tiles-sync.mjs](../../scripts/brouter-tiles-sync.mjs), [workers/elevation/scripts/](../../workers/elevation/scripts/), [scripts/prod-check.sh](../../scripts/prod-check.sh), [experiments/wasm/cheerpj/build.sh](../../experiments/wasm/cheerpj/build.sh), [web/vite/engine-files.ts](../../web/vite/engine-files.ts), [functions/tiles](../../functions/tiles/[[path]].js), [workers/tiles/wrangler.toml](../../workers/tiles/wrangler.toml).

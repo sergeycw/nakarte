@@ -1,32 +1,39 @@
-# CORS-прокси и Strava heatmap
+# CORS proxy and Strava heatmap
 
-Уровень выше: [общая схема](README.md#общая-схема), блок ④.
+One level up: [overview](README.md#overview), block ④.
 
-Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) повторяет протокол авторского `proxy.nakarte.me`: клиент приписывает к адресу прокси исходный URL (`viaCorsProxy` в [catalog.ts](../../web/src/layers/catalog.ts): `https://host/…` → `<прокси>https/host/…`), прокси забирает ответ и отдаёт его с CORS-заголовками. Через него идут импорт треков по ссылкам ([sources.ts](../../web/src/tracks/sources.ts), `proxied`), поиск mapy.cz ([mapycz.ts](../../web/src/search/mapycz.ts)) и раскрытие коротких ссылок ([links.ts](../../web/src/search/links.ts)), слои Tsvetkov (`Mt`), Strava heatmap и подложка по умолчанию Tracestrack Topo (`Tt`), свои слои с флагом прокси. В общий лимит слоёв (`LAYER_HOSTS`, 1200 в минуту) попадают только хосты слоёв, которые приложение шлёт через прокси: Strava heatmap `content-*.strava.com`, Tsvetkov `maptiles.website.yandexcloud.net` и Tracestrack `tile.tracestrack.com`. Маршрут `/wikimapia/` старого клиента убран change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) и отвечает `404`, как любой путь не по формату.
+The Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)) repeats the protocol of the author's `proxy.nakarte.me`. The client adds the source URL to the proxy address (`viaCorsProxy` in [catalog.ts](../../web/src/layers/catalog.ts): `https://host/…` → `<proxy>https/host/…`). The proxy gets the response and returns it with CORS headers. These requests go through the proxy:
 
-Поведение — спека [cors-proxy](../../openspec/specs/cors-proxy/spec.md); лимиты — [protection.md](protection.md).
+- track import from links ([sources.ts](../../web/src/tracks/sources.ts), `proxied`);
+- mapy.cz search ([mapycz.ts](../../web/src/search/mapycz.ts)) and short link expansion ([links.ts](../../web/src/search/links.ts));
+- the layers Tsvetkov (`Mt`), Strava heatmap and the default basemap Tracestrack Topo (`Tt`);
+- custom layers with the proxy flag.
 
-## Обработка запроса
+The shared layer limit (`LAYER_HOSTS`, 1200 per minute) applies only to the layer hosts that the app sends through the proxy. These hosts are Strava heatmap `content-*.strava.com`, Tsvetkov `maptiles.website.yandexcloud.net` and Tracestrack `tile.tracestrack.com`. Change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) removed the route `/wikimapia/` of the old nakarte client. The route answers `404`, as any path in an incorrect format does.
+
+Behavior: spec [cors-proxy](../../openspec/specs/cors-proxy/spec.md); limits: [protection.md](protection.md).
+
+## Request handling
 
 ```mermaid
 flowchart TD
-    req["Запрос /{https|http}/{host}/{path}"]
-    origin{"Origin или Referer<br/>в ALLOWED_ORIGINS?"}
-    role{"хост цели в LAYER_HOSTS: Strava heatmap, Tsvetkov,<br/>Tracestrack (или цель не разобралась)?"}
-    rate{"RATE_LIMITER (1200)<br/>по CF-Connecting-IP"}
-    other{"OTHER_RATE_LIMITER (300)<br/>по CF-Connecting-IP"}
+    req["Request /{https|http}/{host}/{path}"]
+    origin{"Origin or Referer<br/>in ALLOWED_ORIGINS?"}
+    role{"target host in LAYER_HOSTS: Strava heatmap, Tsvetkov,<br/>Tracestrack (or the target did not parse)?"}
+    rate{"RATE_LIMITER (1200)<br/>by CF-Connecting-IP"}
+    other{"OTHER_RATE_LIMITER (300)<br/>by CF-Connecting-IP"}
     options{"OPTIONS?"}
-    method{"GET или HEAD?"}
-    target{"targetUrl разобрался?"}
-    own{"свой адрес:<br/>*.nakarte-routing.workers.dev,<br/>nakarte-routing.pages.dev и поддомены?"}
-    tt{"тайл Tracestrack<br/>tile.tracestrack.com/topo_‹язык›/z/x/y(@2x).webp?"}
-    ttkey{"секрет TRACESTRACK_KEY задан?"}
-    withkey["запрос клиента отброшен,<br/>?key=TRACESTRACK_KEY"]
+    method{"GET or HEAD?"}
+    target{"targetUrl parsed?"}
+    own{"trailroutine address:<br/>*.nakarte-routing.workers.dev,<br/>nakarte-routing.pages.dev and subdomains?"}
+    tt{"Tracestrack tile<br/>tile.tracestrack.com/topo_‹language›/z/x/y(@2x).webp?"}
+    ttkey{"secret TRACESTRACK_KEY set?"}
+    withkey["query string of the client dropped,<br/>?key=TRACESTRACK_KEY"]
     r503["503 Tracestrack key is not set"]
-    strava{"тайл heatmap<br/>content-*.strava.com/identified/globalheat/?"}
-    cookies["heatmapCookie: куки и их источник"]
-    send["fetch(target) методом GET, без тела, redirect manual<br/>заголовки: accept, accept-language,<br/>content-type, range, user-agent (+ cookie)"]
-    resp["Ответ клиенту: без set-cookie,<br/>с CORS, Location переписан на прокси,<br/>X-Strava-Cookies для тайлов heatmap,<br/>у тайлов Tracestrack — заголовки по белому списку,<br/>Location без key, своё тело ошибки,<br/>Cache-Control сутки, если своего нет,<br/>на HEAD — без тела"]
+    strava{"heatmap tile<br/>content-*.strava.com/identified/globalheat/?"}
+    cookies["heatmapCookie: cookies and their source"]
+    send["fetch(target) with GET, no body, redirect manual<br/>headers: accept, accept-language,<br/>content-type, range, user-agent (+ cookie)"]
+    resp["Response to the client: no set-cookie,<br/>with CORS, Location rewritten to the proxy,<br/>X-Strava-Cookies for heatmap tiles,<br/>for Tracestrack tiles: headers from an allowlist,<br/>Location without key, own error body,<br/>Cache-Control one day if the response has none,<br/>for HEAD: no body"]
     r403["403 Forbidden"]
     r429["429, Retry-After: 60"]
     r204["204 preflight<br/>GET, HEAD, OPTIONS"]
@@ -35,92 +42,94 @@ flowchart TD
     r403own["403 Forbidden target"]
 
     req --> origin
-    origin -->|"нет"| r403
-    origin -->|"да"| role
-    role -->|"да"| rate
-    role -->|"нет"| other
-    rate -->|"превышен"| r429
-    other -->|"превышен"| r429
-    rate -->|"ок"| options
-    other -->|"ок"| options
-    options -->|"да"| r204
-    options -->|"нет"| method
-    method -->|"нет"| r405
-    method -->|"да"| target
-    target -->|"нет"| r404
-    target -->|"да"| own
-    own -->|"да"| r403own
-    own -->|"нет"| tt
-    tt -->|"да"| ttkey
-    ttkey -->|"нет"| r503
-    ttkey -->|"да"| withkey --> send
-    tt -->|"нет"| strava
-    strava -->|"да"| cookies --> send
-    strava -->|"нет"| send
+    origin -->|"no"| r403
+    origin -->|"yes"| role
+    role -->|"yes"| rate
+    role -->|"no"| other
+    rate -->|"exceeded"| r429
+    other -->|"exceeded"| r429
+    rate -->|"ok"| options
+    other -->|"ok"| options
+    options -->|"yes"| r204
+    options -->|"no"| method
+    method -->|"no"| r405
+    method -->|"yes"| target
+    target -->|"no"| r404
+    target -->|"yes"| own
+    own -->|"yes"| r403own
+    own -->|"no"| tt
+    tt -->|"yes"| ttkey
+    ttkey -->|"no"| r503
+    ttkey -->|"yes"| withkey --> send
+    tt -->|"no"| strava
+    strava -->|"yes"| cookies --> send
+    strava -->|"no"| send
     send --> resp
 ```
 
-Код — `fetch` и `proxy` в [index.js](../../workers/cors-proxy/src/index.js). Почему прокси только читает, закрывает свои адреса и делит лимит по роли хоста — архив [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Почему `HEAD` уходит как `GET` и зачем пересылается `User-Agent` — архив [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md); `User-Agent` после ухода Wikimapia оставлен: часть сайтов без него отвечает `403`, а `fetch` из Worker'а своего не ставит; коротким ссылкам mapy.com нужен `GET` вместо `HEAD`. Почему в `ALLOWED_ORIGINS` dev-сервер приложения (8769) и `vite preview` (4173) вместо origin старого клиента и karma — design [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md).
+The code is `fetch` and `proxy` in [index.js](../../workers/cors-proxy/src/index.js). Why the proxy only reads, blocks the trailroutine addresses and splits the limit by the host role: archive [restrict-cors-proxy](../../openspec/changes/archive/2026-10-08-restrict-cors-proxy/design.md). Why `HEAD` goes out as `GET` and why the proxy forwards `User-Agent`: archive [drop-author-services](../../openspec/changes/archive/2026-10-08-drop-author-services/design.md). The proxy still forwards `User-Agent` after Wikimapia left: some sites answer `403` without it, and `fetch` from a Worker does not set its own. The short links of mapy.com need `GET` instead of `HEAD`. Why `ALLOWED_ORIGINS` has the app dev server (8769) and `vite preview` (4173) instead of the origins of the old nakarte client and karma: design [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md).
 
-## Ключ Tracestrack
+## Tracestrack key
 
-Подложка по умолчанию приложения — растр Tracestrack Topo, тайлы которого отдаются только по ключу API. Ключ — секрет `TRACESTRACK_KEY` Worker'а, клиент его не знает: адрес слоя в [catalog.ts](../../web/src/layers/catalog.ts) — без `key`, прокси подставляет его только в растровые тайлы `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)), чтобы с поддельным `Origin` через прокси нельзя было тратить квоту на векторные тайлы и API по 6 кредитов. В ответ клиенту ключ не попадает: заголовки тайла — по белому списку, `Location` — без `key`, тело ошибки Tracestrack заменяется своим. Без секрета прокси отвечает `503`, приложение откатывается на OpenStreetMap с тостом; так же — на `403` и `429` Tracestrack (ключ отклонён, квота, лимит). Проверка ключа — ежедневный workflow `tracestrack check` ([ci-cd.md](ci-cd.md)). Решения и шаги владельца — design [add-outdoor-basemap](../../openspec/changes/archive/2026-10-09-add-outdoor-basemap/design.md); поведение — спеки [cors-proxy](../../openspec/specs/cors-proxy/spec.md) («Ключ Tracestrack») и [map-layers](../../openspec/specs/map-layers/spec.md) («Откат подложки Tracestrack на OpenStreetMap»).
+The default basemap of the app is the Tracestrack Topo raster. Tracestrack serves its tiles only with an API key. The key is the Worker secret `TRACESTRACK_KEY`, and the client does not know it. The layer address in [catalog.ts](../../web/src/layers/catalog.ts) has no `key`. The proxy adds the key only to the raster tiles `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)). Thus a request with a fake `Origin` cannot use the quota through the proxy for vector tiles and for API calls at 6 credits each.
 
-## Куки Strava heatmap
+The key does not go to the client. The tile headers come from an allowlist, `Location` has no `key`, and the proxy replaces the Tracestrack error body with its own. Without the secret, the proxy answers `503`, and the app falls back to OpenStreetMap with a toast. The app does the same on a Tracestrack `403` or `429` (key rejected, quota, limit). The daily workflow `tracestrack check` checks the key ([ci-cd.md](ci-cd.md)). Decisions and owner steps: design [add-outdoor-basemap](../../openspec/changes/archive/2026-10-09-add-outdoor-basemap/design.md). Behavior: spec cors-proxy, requirement ["Tracestrack key"](../../openspec/specs/cors-proxy/spec.md#requirement-ключ-tracestrack), and spec map-layers, requirement ["Basemap fallback on a tile error"](../../openspec/specs/map-layers/spec.md#requirement-откат-подложки-при-ошибке-тайлов).
 
-Тайлы `content-*.strava.com/identified/globalheat/` CloudFront отдаёт только с подписанными куками вошедшего аккаунта. Прокси держит их сам, клиент про них не знает. Источник кук для тайла уходит в заголовок `X-Strava-Cookies` ([strava.js](../../workers/cors-proxy/src/strava.js), `heatmapCookie`).
+## Strava heatmap cookies
+
+CloudFront serves the tiles `content-*.strava.com/identified/globalheat/` only with the signed cookies of a signed-in account. The proxy keeps these cookies itself, and the client does not know about them. The proxy sends the cookie source of a tile in the header `X-Strava-Cookies` ([strava.js](../../workers/cors-proxy/src/strava.js), `heatmapCookie`).
 
 ```mermaid
 flowchart TD
-    start["Тайл heatmap"]
-    hasSession{"секрет STRAVA_SESSION задан?"}
-    fresh{"куки из сессии свежие<br/>(до срока политики − 30 мин)?"}
-    paused{"неудача меньше 10 мин назад?"}
-    refresh["Обновление, одно на изолят:<br/>GET www.strava.com/maps/global-heatmap<br/>с сессией, редиректы только внутри www.strava.com"]
-    ok{"пришли все 4 куки?"}
-    best{"старые куки ещё до срока?"}
-    fallback{"секрет STRAVA_COOKIES задан?"}
+    start["Heatmap tile"]
+    hasSession{"secret STRAVA_SESSION set?"}
+    fresh{"cookies from the session fresh<br/>(before the policy expiry − 30 min)?"}
+    paused{"failure less than 10 min ago?"}
+    refresh["Refresh, one per isolate:<br/>GET www.strava.com/maps/global-heatmap<br/>with the session, redirects only inside www.strava.com"]
+    ok{"all 4 cookies received?"}
+    best{"old cookies not expired yet?"}
+    fallback{"secret STRAVA_COOKIES set?"}
     session(["session"])
     fb(["fallback"])
     none(["none"])
 
     start --> hasSession
-    hasSession -->|"нет"| fallback
-    hasSession -->|"да"| fresh
-    fresh -->|"да"| session
-    fresh -->|"нет"| paused
-    paused -->|"да"| best
-    paused -->|"нет"| refresh --> ok
-    ok -->|"да"| session
-    ok -->|"нет, пауза 10 мин"| best
-    best -->|"да"| session
-    best -->|"нет"| fallback
-    fallback -->|"да"| fb
-    fallback -->|"нет"| none
+    hasSession -->|"no"| fallback
+    hasSession -->|"yes"| fresh
+    fresh -->|"yes"| session
+    fresh -->|"no"| paused
+    paused -->|"yes"| best
+    paused -->|"no"| refresh --> ok
+    ok -->|"yes"| session
+    ok -->|"no, pause 10 min"| best
+    best -->|"yes"| session
+    best -->|"no"| fallback
+    fallback -->|"yes"| fb
+    fallback -->|"no"| none
 ```
 
-Что прокси делает с источником:
+What the proxy does with each source:
 
 ```mermaid
 flowchart LR
-    src{"источник кук"}
-    anon["GET heatmap-external-{a,b,c}.strava.com/tiles/…<br/>без кук: z ≤ 12 при px=256, z ≤ 11 при px=512"]
-    cf["GET content-*.strava.com/identified/globalheat/…<br/>с куками, если они есть"]
-    rej{"ответ 401 или 403?"}
-    out(["тайл клиенту,<br/>X-Strava-Cookies = источник"])
+    src{"cookie source"}
+    anon["GET heatmap-external-{a,b,c}.strava.com/tiles/…<br/>without cookies: z ≤ 12 at px=256, z ≤ 11 at px=512"]
+    cf["GET content-*.strava.com/identified/globalheat/…<br/>with cookies, if there are any"]
+    rej{"response 401 or 403?"}
+    out(["tile to the client,<br/>X-Strava-Cookies = source"])
 
-    src -->|"none, зум до порога"| anon
-    src -->|"session, fallback;<br/>none выше порога"| cf
+    src -->|"none, zoom up to the threshold"| anon
+    src -->|"session, fallback;<br/>none above the threshold"| cf
     cf --> rej
-    rej -->|"нет, или зум выше порога"| out
-    rej -->|"да, зум до порога"| anon
+    rej -->|"no, or zoom above the threshold"| out
+    rej -->|"yes, zoom up to the threshold"| anon
     anon -->|"X-Strava-Cookies: anonymous"| out
 ```
 
-- Секреты Worker'а `STRAVA_SESSION` и `STRAVA_COOKIES` заводит владелец скриптами [strava-session-secret.mjs](../../scripts/strava-session-secret.mjs) и [strava-heatmap-secret.mjs](../../scripts/strava-heatmap-secret.mjs); сессия и куки не попадают в журнал и не уходят никуда, кроме `www.strava.com` и тайлов heatmap.
-- Раз в день workflow `strava heatmap check` запрашивает тайл через прокси и падает, если `X-Strava-Cookies` не `session` ([ci-cd.md](ci-cd.md)).
-- Решения — архив [add-strava-heatmap-refresh](../../openspec/changes/archive/2026-10-08-add-strava-heatmap-refresh/design.md) и [add-strava-anonymous-fallback](../../openspec/changes/archive/2026-10-08-add-strava-anonymous-fallback/design.md); порядок обновления секрета и диагностика — `AGENTS.md`, [«Публичный клон на Cloudflare»](../../AGENTS.md#публичный-клон-на-cloudflare); срок сессии — backlog, «Отложено».
+- The owner adds the Worker secrets `STRAVA_SESSION` and `STRAVA_COOKIES` with the scripts [strava-session-secret.mjs](../../scripts/strava-session-secret.mjs) and [strava-heatmap-secret.mjs](../../scripts/strava-heatmap-secret.mjs). The session and the cookies do not go to the log, and go nowhere except `www.strava.com` and the heatmap tiles.
+- Once a day, the workflow `strava heatmap check` requests a tile through the proxy. It fails if `X-Strava-Cookies` is not `session` ([ci-cd.md](ci-cd.md)).
+- Decisions: archives [add-strava-heatmap-refresh](../../openspec/changes/archive/2026-10-08-add-strava-heatmap-refresh/design.md) and [add-strava-anonymous-fallback](../../openspec/changes/archive/2026-10-08-add-strava-anonymous-fallback/design.md). How to update the secret, and diagnostics: `AGENTS.md`, ["Public site on Cloudflare"](../../AGENTS.md#публичный-клон-на-cloudflare). Session lifetime: [backlog, "Postponed"](../../openspec/backlog.md#отложено).
 
-## Сверено по
+## Checked against
 
 [workers/cors-proxy/src/index.js](../../workers/cors-proxy/src/index.js), [workers/cors-proxy/src/strava.js](../../workers/cors-proxy/src/strava.js), [workers/cors-proxy/wrangler.toml](../../workers/cors-proxy/wrangler.toml), [web/src/layers/catalog.ts](../../web/src/layers/catalog.ts) (`viaCorsProxy`), [web/src/layers/custom.ts](../../web/src/layers/custom.ts), [web/src/tracks/sources.ts](../../web/src/tracks/sources.ts), [web/src/search/mapycz.ts](../../web/src/search/mapycz.ts), [web/src/search/links.ts](../../web/src/search/links.ts), [strava-heatmap-check.yml](../../.github/workflows/strava-heatmap-check.yml).
