@@ -1,12 +1,16 @@
 schema: spec-driven
 
 context: |
-  Language: Russian
-  All artifacts must be written in Russian.
+  Language: English (owner decision 2026-11-07).
+  Write all new artifacts in English: proposal, design, tasks, new specs and new requirements.
+  Use ASD-STE100 Simplified Technical English.
+  Existing specs and archived changes stay in Russian. When a change modifies an existing
+  Russian requirement, keep its language. Use English only when the change rewrites the
+  whole requirement.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
   Code, file paths, config keys and UI strings stay as in the code.
 
-  Project: own product grown from a fork of wladich/nakarte (the author's Leaflet client was
+  Project: own product trailroutine, grown from a fork of wladich/nakarte (the author's Leaflet client was
   removed in switch-to-web-app). The app in web/ (React, Vite, TypeScript, MapLibre, shadcn/ui)
   is served at / and routes via BRouter, either a local server or BRouter running in the
   browser (CheerpJ). Public clone on Cloudflare: Pages + Pages Functions, R2,
