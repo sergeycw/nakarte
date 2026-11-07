@@ -1,6 +1,21 @@
 # trailroutine: rename plan and domain research
 
-Status: step 1 is in progress in change `rename-to-trailroutine`. The other steps are open. Facts were checked on 2026-11-07.
+Status: steps 1 and 2 are done. Steps 3 and 4 are open. Facts were checked on 2026-11-07.
+
+## Name
+
+"nakarte" is the brand of the author (nakarte.me), and our product is separate. The owner chose `trailroutine` on 2026-11-07.
+
+- The pun: `routine` is `route` + `-ine` by its parts ([Wiktionary](https://en.wiktionary.org/wiki/routine)). It also means a rehearsed sequence of steps, like the routine of a gymnast. A planned route is such a sequence.
+- `trail` covers all outdoor activities, not only hiking.
+- Checks on 2026-11-07: whois shows `.com`, `.net`, `.io`, `.org` and `.ru` as not registered. `.app` and `.dev` have no NS records. The GitHub name `trailroutine` and `trailroutine.pages.dev` are free. Trademarks were not checked.
+- Risks: in Russian, «рутина» means boredom. [Trail Router](https://apps.apple.com/us/app/-/id1500479574) is a free planner of running routes with GPX export (`trailrouter.com` is taken). The names differ only in the end (-er / -ine).
+- Rejected candidates:
+  - First round, 2026-10-08. The criteria were: short, the same in Russian and English, about routes and mountains. The candidates were `therourist`, `pokarte`, `nitka`, `kroki` and `tropa`.
+  - Second round, 2026-11-07:
+    - `triproutine`: `.com` is taken.
+    - `hikeroutine`: only about hiking, and close to the app HiiKER.
+    - `marshroutine`: "marsh" means a swamp in English.
 
 ## Plan
 
@@ -8,8 +23,8 @@ The owner set this order on 2026-11-07.
 
 | Step | What | Who | Status |
 |---|---|---|---|
-| 1 | Rename the code and the repo (`sergeycw/trailroutine`) | change `rename-to-trailroutine` | in progress |
-| 2 | Register `trailroutine.com` at Cloudflare Registrar, in the account of the Pages project (owner decision 2026-11-07; no `.app`) | owner | open |
+| 1 | Rename the code and the repo (`sergeycw/trailroutine`) | change `rename-to-trailroutine` | done 2026-11-07: [archive](../changes/archive/2026-11-07-rename-to-trailroutine/) |
+| 2 | Register `trailroutine.com` at Cloudflare Registrar, in the account of the Pages project (owner decision 2026-11-07; no `.app`) | owner | done 2026-11-07: registered, Cloudflare nameservers |
 | 3 | Add the custom domain to the Pages project. The old origin moves the data of users to the new domain automatically, and the Bulk Redirect starts after a transition period (owner decision 2026-11-07) | a change | open |
 | 4 | Create the Pages project `trailroutine` (`trailroutine.pages.dev`) as a staging site for large features | a change | open |
 

@@ -2,7 +2,7 @@
 
 ## Why
 
-"nakarte" is the brand of the author, Sergey Orlov (nakarte.me). Our product is now separate, and the owner picked the name `trailroutine` on 2026-11-07 (backlog, «Новое название проекта»). This change is step 1 of the plan: rename the code and the repo. The next steps are a custom domain, a redirect from the old address to the new domain, and `trailroutine.pages.dev` as a staging site.
+"nakarte" is the brand of the author, Sergey Orlov (nakarte.me). Our product is now separate, and the owner picked the name `trailroutine` on 2026-11-07 (`openspec/research/trailroutine.md`, «Name»). This change is step 1 of the plan: rename the code and the repo. The next steps are a custom domain, a redirect from the old address to the new domain, and `trailroutine.pages.dev` as a staging site.
 
 ## What Changes
 
