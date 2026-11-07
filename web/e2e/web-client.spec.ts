@@ -29,7 +29,7 @@ test('Открыть приложение', async ({ page, network }) => {
         }
     });
     await page.goto('./');
-    await expect(page).toHaveTitle('nakarte routing');
+    await expect(page).toHaveTitle('trailroutine');
     await expect(page.locator(canvas)).toBeVisible();
     expect(scripts.length).toBeGreaterThan(0);
     for (const path of scripts) {

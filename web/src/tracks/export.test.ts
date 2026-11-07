@@ -95,6 +95,7 @@ describe('GPX с высотами', () => {
         const file = await exportGpxWithElevations(track, heights);
         const gpx = file.content as string;
         expect(file.filename).toBe('Перевал <A & B>.gpx');
+        expect(gpx).toContain('creator="trailroutine"');
         expect(gpx).toContain('<trkpt lat="41.690001" lon="44.800000"><ele>4169.0</ele><time>');
         expect(gpx).toContain('<trkpt lat="41.700000" lon="44.810000"><ele>4170.0</ele><time>');
         // порядок схемы GPX 1.1: ele раньше name

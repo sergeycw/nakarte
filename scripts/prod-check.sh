@@ -43,7 +43,7 @@ check_range() {
 # приложение web/ (openspec/specs/web-client): заголовок из web/index.html. Одного статуса мало — Pages отвечают 200 и
 # на пути без файла (корневым index.html)
 status=$(fetch "$SITE/")
-if [ "$status" = 200 ] && grep -q '<title>nakarte routing</title>' "$body"; then
+if [ "$status" = 200 ] && grep -q '<title>trailroutine</title>' "$body"; then
     report 'site' ok
 else
     report 'site' "status $status, title $(grep -o '<title>[^<]*' "$body" | head -1 | cut -c8-)"
