@@ -1,6 +1,6 @@
-[![check web](https://github.com/sergeycw/nakarte/actions/workflows/check-web.yml/badge.svg)](https://github.com/sergeycw/nakarte/actions/workflows/check-web.yml)
+[![check web](https://github.com/sergeycw/trailroutine/actions/workflows/check-web.yml/badge.svg)](https://github.com/sergeycw/trailroutine/actions/workflows/check-web.yml)
 
-# nakarte
+# trailroutine
 
 A hiking map that routes tracks along roads and trails with [BRouter](https://github.com/abrensch/brouter). Public version: https://nakarte-routing.pages.dev.
 
@@ -22,5 +22,5 @@ The map opens at http://localhost:8769. Routing tiles and everything else about 
 ## Docs
 
 - [AGENTS.md](AGENTS.md): setup, environment, pitfalls and a map of the repository (in Russian).
-- [docs/architecture/](docs/architecture/README.md): architecture diagrams from the system context down to each area, and a registry of technical decisions (in Russian).
-- [openspec/](openspec/): behaviour specs (`specs/`), plans and decisions (`changes/`), backlog (`backlog.md`).
+- [docs/architecture/](docs/architecture/README.md): architecture diagrams from the system context down to each area, and a registry of technical decisions.
+- [openspec/](openspec/): behaviour specs (`specs/`), plans and decisions (`changes/`), backlog (`backlog.md`). Older specs and decisions are in Russian, new ones are in English.

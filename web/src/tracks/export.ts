@@ -48,7 +48,7 @@ export function toGpx(
     const fakeTime = '1970-01-01T00:00:01.000Z';
     const gpx = [
         '<?xml version="1.0" encoding="UTF-8" standalone="no" ?>',
-        '<gpx xmlns="http://www.topografix.com/GPX/1/1" creator="nakarte-routing" ' +
+        '<gpx xmlns="http://www.topografix.com/GPX/1/1" creator="trailroutine" ' +
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 ' +
             'http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1">',
         '\t<metadata>',

@@ -28,7 +28,7 @@ jobs:
   # (cancel-in-progress), или упавший не выкатил свои изменения, и следующий подхватит их.
   # Ручной запуск, правка этого файла или неизвестная база — выкатывается всё.
   changes:
-    if: github.repository == 'sergeycw/nakarte'
+    if: github.repository == 'sergeycw/trailroutine'
     runs-on: ubuntu-latest
     outputs:
       pages: ${{ steps.diff.outputs.pages }}

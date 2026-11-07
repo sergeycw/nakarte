@@ -107,7 +107,7 @@ const SAMPLES: [code: string, tile: [number, number, number], url: string][] = [
             '&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix=8&TileCol=140&TileRow=73',
     ],
     ['Hs', [8, 151, 87], 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/8/151/87.png'],
-    ['Ct', [12, 2552, 1505], 'nakarte-contours://12/2552/1505'],
+    ['Ct', [12, 2552, 1505], 'trailroutine-contours://12/2552/1505'],
 ];
 
 describe('Каталог слоёв', () => {

@@ -7,11 +7,11 @@
 
 ### Requirement: Деплой на каждый push в master
 
-Каждый push в `master` репозитория `sergeycw/nakarte` SHALL выкатывать сервисы, чьи файлы изменились с коммита последнего успешного прогона деплоя: сайт с Pages Functions — в Pages-проект `nakarte-routing`, Worker'ы — из своих каталогов `workers/<сервис>/`. Ручной запуск, изменение самого workflow деплоя или неизвестная база сравнения SHALL выкатывать всё. В других репозиториях деплой SHALL пропускаться.
+Каждый push в `master` репозитория `sergeycw/trailroutine` SHALL выкатывать сервисы, чьи файлы изменились с коммита последнего успешного прогона деплоя: сайт с Pages Functions — в Pages-проект `nakarte-routing`, Worker'ы — из своих каталогов `workers/<сервис>/`. Ручной запуск, изменение самого workflow деплоя или неизвестная база сравнения SHALL выкатывать всё. В других репозиториях деплой SHALL пропускаться.
 
 #### Scenario: Слияние PR в master
 
-- **WHEN** PR с изменениями приложения влит в `master` форка
+- **WHEN** PR с изменениями приложения влит в `master`
 - **THEN** через один прогон workflow «deploy pages» на `https://nakarte-routing.pages.dev` работает новая сборка
 
 #### Scenario: Правка только документации
@@ -26,7 +26,7 @@
 
 #### Scenario: Push в апстрим или чужой форк
 
-- **WHEN** workflow срабатывает не в `sergeycw/nakarte`
+- **WHEN** workflow срабатывает не в `sergeycw/trailroutine`
 - **THEN** задание пропускается без обращения к Cloudflare
 
 ### Requirement: Сборка без файлов движка не выкатывается

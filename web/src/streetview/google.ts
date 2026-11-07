@@ -43,7 +43,7 @@ interface GMaps {
 type GoogleWindow = Window & { google?: { maps?: GMaps } } & Record<string, unknown>;
 
 export const GOOGLE_MAPS_API = 'https://maps.googleapis.com/maps/api/js';
-const CALLBACK = '__nakarteGoogleMapsReady';
+const CALLBACK = '__trailroutineGoogleMapsReady';
 
 export function googleMapsUrl(key: string): string {
     return `${GOOGLE_MAPS_API}?v=3&key=${encodeURIComponent(key)}&callback=${CALLBACK}`;

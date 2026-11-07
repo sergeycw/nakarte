@@ -40,7 +40,7 @@ flowchart LR
 | Directory | Sends requests to | Details |
 |---|---|---|
 | `state/` | `location.hash`, `localStorage` | `hash.ts` parses the address parameters of the old nakarte client (`m=`, `l=`, `r=`, `n2=` …), `sync.ts` connects store ↔ address ↔ `localStorage`; spec [web-client](../../openspec/specs/web-client/spec.md) |
-| `layers/` | tile providers directly; the vector basemap OpenFreeMap Outdoor (`Of`): TileJSON and tiles from `tiles.openfreemap.org` directly, with its own style and labels ([outdoor.ts](../../web/src/layers/outdoor.ts)); Strava, Tsvetkov (`Mt`), the default basemap Tracestrack Topo (`Tt`, the key is in the proxy, on an error the app falls back to OSM) and custom layers with the proxy flag go through `corsProxyUrl`; `maplibre-contour` builds the contour lines (`Ct`) in the browser, in its own Web Worker, from the AWS Terrain Tiles relief tiles, the same tiles as the hillshade `Hs` uses; dated imagery (`Hls`): HLS NASA GIBS tiles for the date from `d=`, capture dates with cloud cover from STAC Earth Search ([dated.ts](../../web/src/layers/dated.ts)) | spec [map-layers](../../openspec/specs/map-layers/spec.md), [cors-proxy.md](cors-proxy.md) |
+| `layers/` | tile providers directly; the vector basemap OpenFreeMap Outdoor (`Of`): TileJSON and tiles from `tiles.openfreemap.org` directly, with its own style and labels ([outdoor.ts](../../web/src/layers/outdoor.ts)); Strava, Tsvetkov (`Mt`), the basemap Tracestrack Topo (`Tt`, the second basemap of the fallback chain `Of` → `Tt` → OSM, the key is in the proxy) and custom layers with the proxy flag go through `corsProxyUrl`; `maplibre-contour` builds the contour lines (`Ct`) in the browser, in its own Web Worker, from the AWS Terrain Tiles relief tiles, the same tiles as the hillshade `Hs` uses; dated imagery (`Hls`): HLS NASA GIBS tiles for the date from `d=`, capture dates with cloud cover from STAC Earth Search ([dated.ts](../../web/src/layers/dated.ts)) | spec [map-layers](../../openspec/specs/map-layers/spec.md), [cors-proxy.md](cors-proxy.md) |
 | `tracks/` | `tracksStorageServer` (`nktl=`, "Copy link"), track sites through `corsProxyUrl` | [track-storage.md](track-storage.md), specs [tracks](../../openspec/specs/tracks/spec.md), [track-files](../../openspec/specs/track-files/spec.md) |
 | `routing/` | the server BRouter (`routingServer`) or `engine/` | [route-editor.md](route-editor.md), [routing.md](routing.md) |
 | `engine/` | the CheerpJ runtime from the Leaning Technologies CDN, `/brouter-wasm/` and `routingTilesPath` of the same origin | [routing.md](routing.md), spec [browser-routing-engine](../../openspec/specs/browser-routing-engine/spec.md) |
@@ -60,8 +60,8 @@ One module, [config.ts](../../web/src/config.ts), gives the addresses: `makeConf
 ```mermaid
 flowchart LR
     mode["Vite mode<br/>clone / development"]
-    key["VITE_GOOGLE_MAPS_API_KEY<br/>secret only for the step web build"]
-    make["makeConfig(mode, key)<br/>web/src/config.ts"]
+    key["VITE_GOOGLE_MAPS_API_KEY, VITE_SENTRY_DSN<br/>secrets only for the step web build"]
+    make["makeConfig(mode, googleMapsApiKey, sentryDsn)<br/>web/src/config.ts"]
     config["config"]
     mode --> make
     key --> make

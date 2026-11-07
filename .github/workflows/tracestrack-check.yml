@@ -16,7 +16,7 @@ on:
 
 jobs:
   check:
-    if: github.repository == 'sergeycw/nakarte'
+    if: github.repository == 'sergeycw/trailroutine'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   sync:
-    if: github.repository == 'sergeycw/nakarte'
+    if: github.repository == 'sergeycw/trailroutine'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
