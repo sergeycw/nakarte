@@ -6,7 +6,7 @@ The Worker `nakarte-cors-proxy` ([workers/cors-proxy](../../workers/cors-proxy/)
 
 - track import from links ([sources.ts](../../web/src/tracks/sources.ts), `proxied`);
 - mapy.cz search ([mapycz.ts](../../web/src/search/mapycz.ts)) and short link expansion ([links.ts](../../web/src/search/links.ts));
-- the layers Tsvetkov (`Mt`), Strava heatmap and the default basemap Tracestrack Topo (`Tt`);
+- the layers Tsvetkov (`Mt`), Strava heatmap and the basemap Tracestrack Topo (`Tt`), the second basemap of the fallback chain `Of` → `Tt` → OSM;
 - custom layers with the proxy flag.
 
 The shared layer limit (`LAYER_HOSTS`, 1200 per minute) applies only to the layer hosts that the app sends through the proxy. These hosts are Strava heatmap `content-*.strava.com`, Tsvetkov `maptiles.website.yandexcloud.net` and Tracestrack `tile.tracestrack.com`. Change [retire-old-client-services](../../openspec/changes/archive/2026-10-09-retire-old-client-services/design.md) removed the route `/wikimapia/` of the old nakarte client. The route answers `404`, as any path in an incorrect format does.
@@ -71,7 +71,7 @@ The code is `fetch` and `proxy` in [index.js](../../workers/cors-proxy/src/index
 
 ## Tracestrack key
 
-The default basemap of the app is the Tracestrack Topo raster. Tracestrack serves its tiles only with an API key. The key is the Worker secret `TRACESTRACK_KEY`, and the client does not know it. The layer address in [catalog.ts](../../web/src/layers/catalog.ts) has no `key`. The proxy adds the key only to the raster tiles `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)). Thus a request with a fake `Origin` cannot use the quota through the proxy for vector tiles and for API calls at 6 credits each.
+The default basemap of the app is OpenFreeMap Outdoor (`Of`, archive [openfreemap-default-basemap](../../openspec/changes/archive/2026-10-30-openfreemap-default-basemap/design.md)). On an `Of` tile error, the app falls back to the Tracestrack Topo raster (`Tt`), then to OSM. Tracestrack serves its tiles only with an API key. The key is the Worker secret `TRACESTRACK_KEY`, and the client does not know it. The layer address in [catalog.ts](../../web/src/layers/catalog.ts) has no `key`. The proxy adds the key only to the raster tiles `topo_<language>` and `topo__` ([tracestrack.js](../../workers/cors-proxy/src/tracestrack.js)). Thus a request with a fake `Origin` cannot use the quota through the proxy for vector tiles and for API calls at 6 credits each.
 
 The key does not go to the client. The tile headers come from an allowlist, `Location` has no `key`, and the proxy replaces the Tracestrack error body with its own. Without the secret, the proxy answers `503`, and the app falls back to OpenStreetMap with a toast. The app does the same on a Tracestrack `403` or `429` (key rejected, quota, limit). The daily workflow `tracestrack check` checks the key ([ci-cd.md](ci-cd.md)). Decisions and owner steps: design [add-outdoor-basemap](../../openspec/changes/archive/2026-10-09-add-outdoor-basemap/design.md). Behavior: spec cors-proxy, requirement ["Tracestrack key"](../../openspec/specs/cors-proxy/spec.md#requirement-ключ-tracestrack), and spec map-layers, requirement ["Basemap fallback on a tile error"](../../openspec/specs/map-layers/spec.md#requirement-откат-подложки-при-ошибке-тайлов).
 
